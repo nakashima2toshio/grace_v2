@@ -66,10 +66,36 @@ export function AnswerCard({ result }: { result: SupportResult }) {
         </>
       ) : (
         <>
-          <p className="answer-text">
-            社内ナレッジにも Web 検索にも十分な根拠が見つかりませんでした。
-            <br />→ 有人対応へエスカレーションします。
-          </p>
+          {result.answer && (result.forced_escalate || result.citations.length > 0) ? (
+            // 強制エスカレ（エスカレ語）や、出典付きの回答が生成できているのに
+            // 方針でエスカレする場合は、生成済みの回答を「参考情報」として提示する
+            // （「根拠が見つからなかった」と誤って伝えて有用な回答を捨てない）。
+            <>
+              <p className="notice">
+                以下は社内ナレッジに基づく参考情報です。方針により有人対応へ引き継ぎます。
+              </p>
+              <Markdown source={result.answer} />
+              {result.citations.length > 0 && (
+                <div className="citations">
+                  <h3>出典</h3>
+                  <ul>
+                    {result.citations.map((citation) => (
+                      <Citation key={citation} text={citation} />
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </>
+          ) : (
+            // 本当に根拠が得られなかった場合のみ「見つからなかった」と伝える。
+            // Web 検索を実行していない（used_web=false）ときは「Web 検索にも」と言わない。
+            <p className="answer-text">
+              {result.used_web
+                ? '社内ナレッジにも Web 検索にも十分な根拠が見つかりませんでした。'
+                : '社内ナレッジに十分な根拠が見つかりませんでした。'}
+              <br />→ 有人対応へエスカレーションします。
+            </p>
+          )}
           <p className="notice">理由: {escalateReason(result)}</p>
         </>
       )}
@@ -89,7 +115,9 @@ export function AnswerCard({ result }: { result: SupportResult }) {
         <div>
           <dt>groundedness（支持率）</dt>
           <dd>
-            {result.groundedness.toFixed(2)}（判定可能 {result.groundedness_decided} 主張）
+            {result.groundedness_decided === 0
+              ? '判定不能（判定可能 0 主張）'
+              : `${result.groundedness.toFixed(2)}（判定可能 ${result.groundedness_decided} 主張）`}
           </dd>
         </div>
         <div>
