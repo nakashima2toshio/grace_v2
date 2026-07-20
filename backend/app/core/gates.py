@@ -290,7 +290,10 @@ def _decide_action(
     （副作用は後段の CONFIRM でも守られる）。escalate 時は常に有人エスカレ。
     """
     if decision == "escalate":
-        return ActionRequest("escalate_to_human", {"query": query})
+        # escalate_to_human は「有人対応への引き継ぎ」そのもの（安全側の終端アクション）。
+        # 承認（CONFIRM）を課すと、タイムアウト時に引き継ぎ自体が実行されず宙に浮く
+        # ため、承認不要（requires_confirmation=False）とし、直接実行する。
+        return ActionRequest("escalate_to_human", {"query": query}, requires_confirmation=False)
 
     request: Optional[ActionRequest] = None
     if profile is not None:
