@@ -533,7 +533,9 @@ class ReasoningTool(BaseTool):
             for i, source in enumerate(sources, 1):
                 payload = source.get("payload", {})
                 score = source.get("score", 0)
-                col = source.get("collection", "unknown")
+                # コレクション名は source.collection、無ければ payload.domain を使う
+                # （RAG 検索結果は payload に domain=コレクション名を持つ）。
+                col = source.get("collection") or payload.get("domain") or "unknown"
 
                 question = payload.get("question", "")
                 answer = payload.get("answer", "")

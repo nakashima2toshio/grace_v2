@@ -1095,11 +1095,17 @@ def _get_vector_config(client: QdrantClient, collection_name: str) -> dict:
     if collection_name not in _vector_config_cache:
         collection_info = client.get_collection(collection_name)
         vectors_config = collection_info.config.params.vectors
+        # sparse ベクトル（"text-sparse"）が登録されているかを検出する。
+        # 未登録のコレクションに hybrid（Stage 1）を投げると毎回 400 になり、
+        # dense に切り替える無駄な往復が発生するため、事前に判定して skip する。
+        sparse_config = getattr(collection_info.config.params, "sparse_vectors", None)
+        has_sparse = bool(sparse_config) and "text-sparse" in sparse_config
         _vector_config_cache[collection_name] = {
             "is_named_vector": isinstance(vectors_config, dict),
-            "dense_vector_name": "default" if isinstance(vectors_config, dict) else None
+            "dense_vector_name": "default" if isinstance(vectors_config, dict) else None,
+            "has_sparse": has_sparse,
         }
-        logger.debug(f"ベクトル設定キャッシュ追加: {collection_name}")
+        logger.debug(f"ベクトル設定キャッシュ追加: {collection_name} (sparse={has_sparse})")
     return _vector_config_cache[collection_name]
 
 
@@ -1125,6 +1131,14 @@ def search_collection(
         config = _get_vector_config(client, collection_name)
         is_named_vector = config["is_named_vector"]
         dense_vector_name = config["dense_vector_name"]
+
+        # コレクションに sparse ベクトルが無い場合は hybrid を試みても必ず 400 に
+        # なるため、最初から dense のみに切り替える（無駄な往復・警告ログを回避）。
+        if sparse_vector is not None and not config.get("has_sparse", False):
+            logger.debug(
+                f"sparse 未設定コレクションのため hybrid を skip、dense のみで検索: '{collection_name}'"
+            )
+            sparse_vector = None
 
         # Phase 3 STEP 8: 3段階フォールバック（唯一の責務）
         # 【Stage 1】Sparse Vectorが指定されている場合、Hybrid Searchを試みる
