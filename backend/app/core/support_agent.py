@@ -149,9 +149,11 @@ def _perform_action(
 
     - 本人確認（identity_verifier 指定時）: 提示された識別子を照合し、未確認なら
       アクションを実行せず有人対応へ引き継ぐ（安全側）
-    - CONFIRM: 副作用のある操作は必ず intervention の承認を経由する。
-      承認待ちがタイムアウトした場合（timeout_reached）は実行せず有人対応へ
-      エスカレーションする（安全側＝escalate に倒す）
+    - CONFIRM: 副作用のある操作（requires_confirmation=True。create_ticket /
+      send_reply 等）は必ず intervention の承認を経由する。承認待ちがタイムアウト
+      した場合（timeout_reached）は実行せず有人対応へエスカレーションする
+      （安全側＝escalate に倒す）。escalate_to_human は引き継ぎそのもの
+      （requires_confirmation=False）なので承認を経由せず直接実行する。
     - 実行: backend（dry-run / webhook / pseudo）に委譲（support_actions.py）
     """
     log = emit_log or print
@@ -163,18 +165,20 @@ def _perform_action(
             return (f"本人確認が完了しないため '{action.action_type}' は実行せず、"
                     "有人対応へ引き継ぎます")
 
-    # intervention.py: 実行前に人間の承認（CONFIRM）を求める
-    decision = ActionDecision(
-        level=InterventionLevel.CONFIRM,
-        confidence_score=0.5,
-        reason=f"アクション実行前の確認: {action.action_type}",
-    )
-    response = handler.handle(decision)
-    if not response.should_continue:
-        if response.timeout_reached:
-            return (f"承認待ちがタイムアウトしたため '{action.action_type}' は実行せず、"
-                    "有人対応へエスカレーションします")
-        return f"アクション '{action.action_type}' はキャンセルされました"
+    # intervention.py: 副作用のあるアクションのみ、実行前に人間の承認（CONFIRM）を求める。
+    # escalate_to_human 等の承認不要アクションは待たせず直接実行する（引き継ぎの取りこぼし防止）。
+    if action.requires_confirmation:
+        decision = ActionDecision(
+            level=InterventionLevel.CONFIRM,
+            confidence_score=0.5,
+            reason=f"アクション実行前の確認: {action.action_type}",
+        )
+        response = handler.handle(decision)
+        if not response.should_continue:
+            if response.timeout_reached:
+                return (f"承認待ちがタイムアウトしたため '{action.action_type}' は実行せず、"
+                        "有人対応へエスカレーションします")
+            return f"アクション '{action.action_type}' はキャンセルされました"
 
     outcome = backend.execute(action.action_type, action.args)
     return outcome.message

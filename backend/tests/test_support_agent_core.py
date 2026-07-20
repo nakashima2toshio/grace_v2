@@ -189,6 +189,27 @@ class TestHitlConfirmFlow:
         result = run_support_agent_core("返品したい", vertical="ec")
         assert "[DRY-RUN]" in result.action_result
 
+    def test_escalate_action_executes_without_confirmation(self, pipeline_stub):
+        """escalate_to_human は承認不要: 承認が来なくてもタイムアウトせず引き継ぎを実行する。
+
+        承認を要求すると、タイムアウト時に「有人対応への引き継ぎ」自体が実行されず
+        宙に浮く（#4）。承認を経由せず直接実行されることを固定する。
+        """
+        pipeline_stub.intent = "incident"  # 「サービスが落ちています」→ 強制エスカレ
+        events: list[SupportEvent] = []
+        # 解決されないブリッジ（短いタイムアウト）でも、escalate は待たされない。
+        bridge = InterventionBridge(emit=collect(events), timeout_seconds=0.1)
+        thread, holder = self._run_with_bridge(
+            "サービスが落ちています", bridge, vertical="saas", emit=collect(events)
+        )
+        thread.join(timeout=10)
+        result = holder["result"]
+        assert result.decision == "escalate"
+        assert result.action.action_type == "escalate_to_human"
+        assert result.action.requires_confirmation is False
+        assert "[DRY-RUN]" in result.action_result  # 承認を経由せず直接実行された
+        assert "タイムアウト" not in result.action_result
+
 
 class TestWebFallbackEvents:
     """⑤ Web フォールバックのイベント（web_reused の明示を含む）。"""
