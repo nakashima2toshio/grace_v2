@@ -521,6 +521,23 @@ style CORE fill:#1a1a1a,stroke:#fff,color:#fff
 
 > 📝 **注記**: 「Voting / Role / Debate」は本システムではソース一致度・信号集約による合議的判定に留まり、独立エージェント同士の討論（Debate）や役割分担投票（Role/Voting）は本格実装していない。
 
+### 5.3 パターンの組み合わせ：実践アーキテクチャ例
+
+GRACE-Support は単一パターンではなく、以下を段階的に重ねて 1 本のパイプラインを構成する。全体は **Prompt Chaining**（①→⑥）で連結される。
+
+| 段階 | 組み合わせる主パターン | `grace/` ・ `backend/app/core/` 担当 | 役割 |
+|:--:|---------------------|-------------------------------------|------|
+| 骨格 | Plan & Execute | `grace/planner.py` + `grace/executor.py` + `core/support_agent.py` | 計画（Plan）と実行（Execute）を分離した基本骨格 |
+| 実行編成 | Orchestrator-Workers | `grace/executor.py` + `grace/tools.py`（`ToolRegistry`） / `core/jobs.py` | Executor がツール群を統制、Job が実行を編成 |
+| 検索 | Parallelization ＋ RAG | `grace/tools.py`（`rag_search`） / `qdrant_client_wrapper.py` / `agent_parallel_search.py` | 許可コレクションを並列検索し内部根拠を取得 |
+| 複雑クエリ | ReAct | `grace/executor.py`（動的経路） / `services/agent_service.py` | 複雑度 ≥ 0.7 で推論→行動→観測を反復 |
+| 品質ループ | Evaluator-Optimizer ＋ Self-Reflective | `grace/confidence.py` + `grace/replan.py` + `grace/calibration.py` | 信頼度評価・根拠検証・較正 → 閾値未達で再計画 |
+| 安全弁 | Guardrails | `core/gates.py` + `grace/schemas.py` + groundedness ゲート | しきい値・型・根拠・情報なし検知で回答を守る |
+| 人間協調 | Human-in-the-Loop | `grace/intervention.py` + `core/intervention_bridge.py` | 副作用アクションの承認・有人エスカレ |
+| 連結 | Prompt Chaining | `core/support_agent.py` | ①〜⑥ を逐次連結し全体を 1 フローに |
+
+> 📝 **対応**: 上記は参考記事の「10. パターンの組み合わせ：実践アーキテクチャ例」に相当する。個々のパターン↔モジュールの対応は §5.1（基本編8）・§5.2（発展編）を参照。
+
 ### LLM エージェントの 4 構成要素
 
 | 構成要素 | 役割 | 本システムでの担当 |
