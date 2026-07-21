@@ -60,6 +60,25 @@ LLM は **Anthropic Claude**（既定 `claude-sonnet-4-6` / 軽量 `claude-haiku
 | `JobManager` / `SupportJob` | インメモリのジョブ管理・イベント蓄積 |
 | `InterventionBridge` | HITL 承認の非同期仲介（resolver/resolve） |
 
+### 処理ステップ早見表
+
+| ステップ番号 | ステップ名 | 主モジュール名 | 概要 |
+|:---:|------|--------------|------|
+| A-1 | 開発サーバ起動 | `run_dev.sh` | uv sync → backend(:8000) + frontend(:5173) を同時起動 |
+| B-1 | プロファイル取得 | `api/meta.py` | `GET /api/verticals` で業界一覧を取得しセレクタへ反映 |
+| C-1 | ジョブ起動 | `core/jobs.py` | `POST /api/support/query` を 202 受理しワーカー起動 |
+| C-2 | SSE 購読 | `api/support.py` | `GET /stream/{job_id}` で進捗イベントを逐次配信 |
+| ① | 業界プロファイル適用 | `core/verticals.py` | 検索スコープ・しきい値・エスカレ語・方針を切替 |
+| ② | Plan（計画） | `grace/planner.py` | 複雑度推定 → 実行計画（rule-based/LLM） |
+| ③ | Execute（内部RAG→reasoning） | `grace/executor.py` | ツール実行・ステップ信頼度・必要なら再計画 |
+| ④a | Groundedness（根拠検証） | `grace/confidence.py` | 回答主張を出典で検証し支持率を算出 |
+| ④b | 回答ゲート＋強制エスカレ | `core/gates.py` | しきい値判定・エスカレ語×意図分類 |
+| ⑤ | Web フォールバック（相互検証） | `grace/tools.py` | 内部escalate かつ非強制時に Web 裏取り |
+| ④' | 情報なし回答検知 | `core/gates.py` | 「見つからない」型の回答を有人へ倒す |
+| ⑥ | Action（本人確認→HITL→実行） | `core/support_agent.py` | アクション決定・承認・実行/エスカレ |
+| E-1 | 状態還元・描画 | `state/jobReducer.ts` | SSE を状態に還元し進捗/回答/承認を描画 |
+| F-1 | 承認応答注入 | `core/intervention_bridge.py` | 承認/拒否をワーカーへ注入し承認待ちを解除 |
+
 ---
 
 ## 1. アーキテクチャ構成図
