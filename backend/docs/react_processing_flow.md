@@ -488,6 +488,39 @@ style CORE fill:#1a1a1a,stroke:#fff,color:#fff
 | Self-Reflective（自己内省） | 根拠検証・LLM 自己評価 | ④a `confidence.py`（`GroundednessVerifier`/`LLMSelfEvaluator`） |
 | Human-in-the-Loop（人間介入） | CONFIRM 承認・有人エスカレ | ⑥ `intervention.py` + `intervention_bridge.py` |
 
+### 5.1 基本編：8つの必須パターン × モジュール担当
+
+`grace/` と `backend/app/core/` の各モジュールが、8つの必須パターンをどう担うかの対応表。
+
+| # | パターン | `grace/` 担当モジュール | `backend/app/core/` 担当モジュール | 実装概要 |
+|:--:|---------|------------------------|-----------------------------------|---------|
+| 1 | Prompt Chaining（逐次フェーズ分割） | `executor.py`（ステップ連鎖） | `support_agent.py` | ①→⑥ を逐次連結し、前段の出力を次段の入力にする |
+| 2 | Parallelization（並列実行） | `tools.py`（複数コレクション検索） | — | 許可コレクションを横断検索（`ParallelSearchEngine`＝`agent_parallel_search.py`） |
+| 3 | Evaluator-Optimizer（評価・最適化ループ） | `confidence.py` / `replan.py` / `calibration.py` / `benchmark.py` | — | 信頼度評価 → 閾値0.4未満で再計画、較正（ECE 縮小）、KPI 計測 |
+| 4 | Orchestrator-Workers（中央制御・役割分担） | `executor.py` / `tools.py`（`ToolRegistry`） | `support_agent.py` / `jobs.py` | Executor が rag/web/reasoning/ask_user を統制、Job が実行を編成 |
+| 5 | ReAct（推論と行動の反復） | `executor.py`（動的経路） / `tools.py` | — | 複雑度 ≥ 0.7 で推論→行動→観測を反復（`services/agent_service.ReActAgent`） |
+| 6 | Self-Reflective（自己内省） | `confidence.py`（`GroundednessVerifier`/`LLMSelfEvaluator`） / `calibration.py` | `gates.py`（情報なし検知） | 生成回答を自己検証（根拠・自己評価・較正） |
+| 7 | Plan & Execute（計画と実行の分離） | `planner.py` / `executor.py` / `schemas.py` | `support_agent.py` | 計画生成（Plan）と実行（Execute）を分離し `ExecutionPlan` で受け渡す |
+| 8 | Human-in-the-Loop（人間介入） | `intervention.py` | `intervention_bridge.py` / `gates.py` / `support_agent.py` | CONFIRM 承認・強制エスカレ・有人引き継ぎ |
+
+### 5.2 発展編：専門パターン × モジュール担当
+
+| 分類 | パターン | 担当モジュール | 実装概要 |
+|------|---------|--------------|---------|
+| 目標設定 | Passive / Proactive Goal Creator | `core/verticals.py`（`PROFILES.prompt_addendum`） / `grace/memory.py` | 業界方針で回答目標を設定、実行メモリで事前分布（次回の目標寄せ） |
+| モデル最適化 | Prompt Optimizer | `core/verticals.py`（方針注入） / `grace/tools.py`（reasoning プロンプト） | 業務方針（`prompt_addendum`）を reasoning プロンプトに注入 |
+| モデル最適化 | RAG | `grace/tools.py`（`rag_search`） / `qdrant_client_wrapper.py` / `helper.helper_embedding` | Gemini 埋め込み × Qdrant の内部検索で回答を根拠付け |
+| 計画生成 | Single / Multi-path Plan | `grace/planner.py` / `grace/replan.py` | rule-based/LLM 計画（Single）、失敗時の再計画で代替経路（Multi-path） |
+| 反省 | Cross-reflection | `grace/confidence.py`（`SourceAgreementCalculator`） | 内部回答 × Web 回答を独立生成して相互検証（一致度） |
+| 反省 | Human Reflection | `grace/intervention.py` / `core/intervention_bridge.py` | 人間の承認/拒否をフィードバックとして取り込む |
+| 協調 | Voting / Role / Debate | `grace/confidence.py`（`SourceAgreementCalculator` / `ConfidenceAggregator`）※限定的 | 複数ソース一致度・複数信号の集約による合議的判定（本格的な多エージェント討論は未実装） |
+| 安全性・管理 | Guardrails | `core/gates.py` / `grace/schemas.py` / `grace/confidence.py`（groundedness ゲート） | しきい値ゲート・型検証・根拠ゲート・情報なし検知 |
+| 安全性・管理 | Registry | `grace/tools.py`（`ToolRegistry`） / `core/verticals.py`（`PROFILES`） | ツール・業界プロファイルの登録簿 |
+| 安全性・管理 | Adapter | `grace/llm_compat.py` | google-genai 形式の呼び出しを Anthropic API へ橋渡しする互換アダプタ |
+| 安全性・管理 | Evaluator | `grace/confidence.py` / `grace/calibration.py` / `grace/benchmark.py` | 信頼度評価・較正（温度スケーリング）・KPI 計測 |
+
+> 📝 **注記**: 「Voting / Role / Debate」は本システムではソース一致度・信号集約による合議的判定に留まり、独立エージェント同士の討論（Debate）や役割分担投票（Role/Voting）は本格実装していない。
+
 ### LLM エージェントの 4 構成要素
 
 | 構成要素 | 役割 | 本システムでの担当 |
