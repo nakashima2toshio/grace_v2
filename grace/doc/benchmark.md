@@ -427,7 +427,8 @@ def select_queries(
 
 ```python
 # 使用例
-from grace.benchmark import select_queries
+from grace.step_trace.benchmark import select_queries
+
 qs = select_queries(query_ids=["Q01", "Q11"])
 print([q["id"] for q in qs])
 # ['Q01', 'Q11']
@@ -783,7 +784,7 @@ python run_benchmark.py --fast --mode both
 ### 6.1 基本的なワークフロー
 
 ```python
-from grace.benchmark import BenchmarkRunner
+from grace.step_trace.benchmark import BenchmarkRunner
 
 # 1. ランナー生成（コレクションを明示指定）
 runner = BenchmarkRunner(qdrant_collection="cc_news_2per_anthropic")
