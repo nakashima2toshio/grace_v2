@@ -1,4 +1,29 @@
 # agent_service.py
+# =============================================================================
+# 【責務】
+#   - ReAct（Thought → Action → Observation）＋ Reflection（自己評価・推敲）による
+#     ハイブリッド・ナレッジ・エージェント（ReActAgent クラス）の実装。
+#   - Anthropic Claude の Tool Use を用いた RAG 検索ツール
+#     （search_rag_knowledge_base / list_rag_collections）の呼び出し制御と、
+#     ツール結果を含む会話履歴（self._messages）の自前管理。
+#   - システムプロンプト・ツール定義（input_schema）の構築、
+#     キーワード抽出（MeCab/regex）によるクエリ拡張、最終回答の整形。
+#   - 検索失敗時の未回答質問ログ記録（log_unanswered_question）と
+#     Qdrant コレクション一覧取得ヘルパーの提供。
+#
+# 【IPO（簡略）】
+#   Input  : ユーザー質問（user_input）、選択コレクション一覧、モデル名、
+#            セッションID、ハイブリッド検索フラグ、設定値（get_config）
+#   Process: キーワード抽出でクエリ拡張
+#            → ReAct ループ（generate_with_tools で Tool Use 判定 → RAG 検索実行
+#               → tool_result を会話履歴へ追記、最大 agent.max_turns 回）
+#            → Reflection フェーズで回答案を自己評価・修正
+#            → "Answer:" / "Final Answer:" を抽出して最終回答を整形
+#   Output : 進捗イベントのジェネレータ
+#            （type: log / tool_call / tool_result / final_text / final_answer）
+#            と最終回答テキスト。副作用として思考ログ（thought_log）蓄積・
+#            未回答質問ログ出力。
+# =============================================================================
 # [MIGRATION gemini→anthropic] google.genai (chats.create / send_message / function_call)
 #   ベースの ReActAgent を Anthropic (create_llm_client("anthropic")) + Tool Use
 #   (generate_with_tools / stop_reason=="tool_use") ベースへ全面移行。
