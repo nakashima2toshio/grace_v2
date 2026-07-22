@@ -24,11 +24,7 @@
 #            と最終回答テキスト。副作用として思考ログ（thought_log）蓄積・
 #            未回答質問ログ出力。
 # =============================================================================
-# [MIGRATION gemini→anthropic] google.genai (chats.create / send_message / function_call)
-#   ベースの ReActAgent を Anthropic (create_llm_client("anthropic")) + Tool Use
-#   (generate_with_tools / stop_reason=="tool_use") ベースへ全面移行。
-#   - LLM は Anthropic Claude（既定 claude-sonnet-4-6）。Embedding は Gemini 維持。
-#   - 会話履歴は self._messages で自前管理（Anthropic はステートレス設計）。
+
 import re
 import uuid
 from typing import Any, Dict, Generator, List, Optional
