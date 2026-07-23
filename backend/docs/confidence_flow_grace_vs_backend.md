@@ -1,6 +1,6 @@
 # 信頼度測定フロー比較 — grace/ と backend/app/ ドキュメント
 
-**Version 1.0** | 最終更新: 2026-07-15
+**Version 1.1** | 最終更新: 2026-07-23
 
 同じ「信頼度（根拠妥当性）測定」を土台にしつつ、**grace/（自律エージェント本体）**と
 **backend/app/（GRACE-Support Web の判定層）**では、その使い方・最終判定が異なる。
@@ -123,7 +123,8 @@ backend は独自に信頼度検証器を持たず、**grace の `GroundednessVe
      gres_web = verifier.verify(...);  再度 _answer_gate
      _pick_groundedness(gres, gres_web) で支持率と判定数を採用
 ④' 情報なし検知: _detect_no_info_answer（定型句＋軽量LLMの二段判定）→ 情報なしは escalate
-⑥ Action: 本人確認 → HITL CONFIRM → 実行
+⑥ Action: 本人確認 → 副作用アクション（requires_confirmation=True）のみ HITL CONFIRM → 実行
+     （escalate_to_human は有人引き継ぎそのもので承認不要＝直接実行）
 ```
 
 `_answer_gate` のロジック（純関数）:
@@ -226,7 +227,7 @@ style BACKEND fill:#1a1a1a,stroke:#fff,color:#fff
 | `grace/docs/confidence_calibration.md` | `confidence.py` × `calibration.py` の処理順・処理内容 |
 | `backend/docs/core_gates.md` | `gates.py`（`_answer_gate` 等）の IPO 詳細 |
 | `backend/docs/core_support_agent.md` | ④〜⑥ を統括するコアパイプライン |
-| `grace/doc/confidence.md` / `grace/doc/calibration.md` | 各モジュールの IPO 詳細 |
+| `grace/docs/confidence.md` / `grace/docs/calibration.md` | 各モジュールの IPO 詳細 |
 
 ---
 
@@ -235,3 +236,4 @@ style BACKEND fill:#1a1a1a,stroke:#fff,color:#fff
 | バージョン | 変更内容 |
 |-----------|---------|
 | 1.0 | 初版作成（grace/ と backend/app/ の信頼度測定・判定フローの比較） |
+| 1.1 | grace_v2 実コードに突き合わせて検証・修正: ⑥ Action を `requires_confirmation` 条件付き CONFIRM（`escalate_to_human` は承認不要で直接実行）に精緻化。関連ドキュメント参照パスを `grace/doc/` → `grace/docs/` に訂正 |
