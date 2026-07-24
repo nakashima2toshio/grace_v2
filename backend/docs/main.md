@@ -1,6 +1,6 @@
 # main.py - GRACE-Support Web API 起動モジュール ドキュメント
 
-**Version 1.0** | 最終更新: 2026-07-15
+**Version 1.1** | 最終更新: 2026-07-24
 
 ---
 
@@ -28,7 +28,7 @@ HTTP/SSE 経由で公開するための「起動と結線」だけを担い、�
 
 本モジュール自体にクラス・関数は定義されておらず、**モジュールレベルで ASGI アプリ
 （`app`）を生成し、CORS ミドルウェアと 2 つの API ルーター（`support` / `meta`）を
-結線する**構成である。LLM は Anthropic Claude、Embedding は Gemili（`gemini-embedding-001`）を
+結線する**構成である。LLM は Anthropic Claude、Embedding は Gemini（`gemini-embedding-001`）を
 用いる（鍵は `.env` の `ANTHROPIC_API_KEY` / `GOOGLE_API_KEY`）。ローカル開発専用で
 認証は持たず、CORS は Vite dev サーバ（`http://localhost:5173`）のみ許可する。
 
@@ -84,6 +84,12 @@ flowchart TB
         META["api.meta (/api/verticals, /api/health)"]
     end
 
+    subgraph CORELAYER["コア層 (backend/app/core)"]
+        JOBS["core.jobs (JobManager)"]
+        AGENT["core.support_agent (イベント発行型パイプライン)"]
+        VERT["core.verticals (PROFILES)"]
+    end
+
     subgraph EXTERNAL["外部サービス層"]
         ANTHROPIC["Anthropic Claude (LLM)"]
         GEMINI["Gemini Embedding"]
@@ -96,15 +102,19 @@ flowchart TB
     APP --> ROUTERS
     ROUTERS --> SUPPORT
     ROUTERS --> META
-    SUPPORT --> ANTHROPIC
-    SUPPORT --> GEMINI
-    SUPPORT --> QDRANT
+    SUPPORT --> JOBS
+    JOBS --> AGENT
+    META --> VERT
+    AGENT --> ANTHROPIC
+    AGENT --> GEMINI
+    AGENT --> QDRANT
 classDef default fill:#000,stroke:#fff,color:#fff
 classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
-class VITE,BROWSER,APP,CORS,ROUTERS,SUPPORT,META,ANTHROPIC,GEMINI,QDRANT default
+class VITE,BROWSER,APP,CORS,ROUTERS,SUPPORT,META,JOBS,AGENT,VERT,ANTHROPIC,GEMINI,QDRANT default
 style CLIENT fill:#1a1a1a,stroke:#fff,color:#fff
 style MODULE fill:#1a1a1a,stroke:#fff,color:#fff
 style APILAYER fill:#1a1a1a,stroke:#fff,color:#fff
+style CORELAYER fill:#1a1a1a,stroke:#fff,color:#fff
 style EXTERNAL fill:#1a1a1a,stroke:#fff,color:#fff
 ```
 
@@ -156,11 +166,11 @@ style WIRING fill:#1a1a1a,stroke:#fff,color:#fff
 
 ### 2.2 外部依存関係
 
-| ライブラリ | バージョン | 用途 |
+| ライブラリ | バージョン（pyproject.toml） | 用途 |
 |-----------|-----------|------|
-| `fastapi` | >=0.115.6 | ASGI アプリ（`FastAPI`）・CORS ミドルウェア |
-| `python-dotenv` | 任意（未導入可） | `.env` からの環境変数読み込み（`load_dotenv`） |
-| `uvicorn` | 任意 | ASGI サーバ（`app` を起動する実行環境。本モジュールは import しない） |
+| `fastapi` | >=0.116.0 | ASGI アプリ（`FastAPI`）・CORS ミドルウェア |
+| `python-dotenv` | ==1.1.1 | `.env` からの環境変数読み込み（`load_dotenv`。コード側は ImportError 保護があり未導入でも起動は継続） |
+| `uvicorn` | ==0.34.0 | ASGI サーバ（`app` を起動する実行環境。本モジュールは import しない） |
 
 ### 2.3 内部依存モジュール
 
@@ -412,6 +422,21 @@ allow_origins = [
 
 ### 6.1 基本的な起動ワークフロー
 
+#### 最短（推奨・1 コマンドで起動）
+
+```bash
+# 1. Qdrant を起動（ベクトルDB・別実行）
+docker-compose -f docker-compose/docker-compose.yml up -d
+
+# 2. backend + frontend を一括起動（依存の用意も自動。リポジトリルートで）
+./run_dev.sh
+#   → backend:  http://localhost:8000（/docs）
+#   → frontend: http://localhost:5173  ← ブラウザで開くのはこちら
+#   停止は Ctrl+C（両方まとめて停止）
+```
+
+#### 手動（プロセスを分けて起動）
+
 ```bash
 # 1. Qdrant を起動（ベクトルDB）
 docker-compose -f docker-compose/docker-compose.yml up -d
@@ -425,7 +450,7 @@ uv run uvicorn backend.app.main:app --reload --port 8000
 cd frontend
 npm install
 npm run dev
-#   → UI: http://localhost:5173（/api は :8000 へ proxy）
+#   → UI: http://localhost:5173（/api は Vite proxy で http://127.0.0.1:8000 へ中継）
 ```
 
 ### 6.2 応用: テストクライアントでの起動確認
@@ -441,10 +466,10 @@ health = client.get("/api/health").json()
 print(health)
 # {"status": "ok", "anthropic_api_key": true, "google_api_key": true}
 
-# 業界プロファイル一覧
+# 業界プロファイル一覧（core.verticals.PROFILES の定義順）
 verticals = client.get("/api/verticals").json()
 print([v["id"] for v in verticals])
-# ["ec", "saas", "gov", ...]
+# ["gov", "saas", "ec"]
 ```
 
 ---
@@ -466,6 +491,7 @@ app  # FastAPI インスタンス（uvicorn backend.app.main:app で参照）
 | バージョン | 変更内容 |
 |-----------|---------|
 | 1.0 | 初版作成（FastAPI 起動・CORS・ルーター結線のモジュールドキュメント） |
+| 1.1 | 実コードとの再突合による改善: 誤字修正（Gemili→Gemini）、アーキテクチャ構成図にコア層（core.jobs / core.support_agent / core.verticals）を追加、外部依存バージョンを pyproject.toml に整合（fastapi >=0.116.0 / python-dotenv ==1.1.1 / uvicorn ==0.34.0）、起動ワークフローに `./run_dev.sh`（1 コマンド起動）を追記、`/api/verticals` の戻り値例を実 PROFILES（gov / saas / ec）に修正 |
 
 ---
 
