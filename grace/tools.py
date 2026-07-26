@@ -117,8 +117,11 @@ class RAGSearchTool(BaseTool):
         """
         import time
 
-        from agent_tools import search_rag_knowledge_base_structured
-        
+        from agent_tools import (
+            COSINE_SIMILARITY_THRESHOLD,
+            search_rag_knowledge_base_structured,
+        )
+
         start_time = time.time()
         
         # --- 重要単語抽出 (Regex Logic) ---
@@ -168,7 +171,10 @@ class RAGSearchTool(BaseTool):
 
         final_results = []
         used_collection = None
-        
+        # 緩和閾値でしか拾えなかった結果の保留先（後続に一次ヒットが無い場合のみ採用）
+        fallback_results: List[Dict[str, Any]] = []
+        fallback_collection = None
+
         # --- コレクションを順次検索 ---
         for target_collection in search_candidates:
             logger.info(f"RAG search (Native): query='{query[:50]}...', collection={target_collection}")
@@ -202,16 +208,48 @@ class RAGSearchTool(BaseTool):
                 #     results = filtered_results
                 #     logger.info(f"RAGSearchTool: Filtered results {initial_count} -> {len(results)} (Collection: {target_collection})")
 
-                # 結果があれば採用してループ終了
+                # --- 採用判定 ---
+                #
+                # 下位モジュールは出典不足時に緩和閾値（0.5）まで下げて結果を返す
+                # （P-04）。ここで無条件に break すると、**緩和でしか拾えなかった
+                # 低関連の結果**が、後続コレクションの一次閾値ヒット（本来の正解）を
+                # 握り潰してしまう。
+                # 実測: gov で wikipedia が緩和 3 件（著作権・インドネシア等の無関係
+                # 文書）を返して break し、正解のある gov_faq_anthropic（0.80）が
+                # 一度も検索されなかった。
+                #
+                # そこで「一次閾値に届く結果を含むコレクション」だけを即採用し、
+                # 緩和のみの結果は**フォールバック候補として保留**して探索を続ける。
+                # 一次ヒットのあるコレクションでは緩和分も一緒に採用されるため、
+                # P-04（出典数を増やす）の効果は正しいコレクション側で維持される。
                 if results:
-                    final_results = results
-                    used_collection = target_collection
-                    logger.info(f"Found {len(results)} valid results in {target_collection}")
-                    break
-            
+                    top_score = results[0].get("score", 0.0)
+                    if top_score >= COSINE_SIMILARITY_THRESHOLD:
+                        final_results = results
+                        used_collection = target_collection
+                        logger.info(f"Found {len(results)} valid results in {target_collection}")
+                        break
+                    if not fallback_results:
+                        fallback_results = results
+                        fallback_collection = target_collection
+                    logger.info(
+                        f"緩和閾値のみの結果（Top: {top_score:.4f}）のため保留し探索を継続: "
+                        f"{target_collection}"
+                    )
+
             except Exception as e:
                 logger.warning(f"Search failed for collection {target_collection}: {e}")
                 continue
+
+        # 一次閾値に届くコレクションが 1 つも無ければ、保留していた緩和結果を採用する
+        # （P-04 の「出典ゼロを救う」意図はここで果たされる）
+        if not final_results and fallback_results:
+            final_results = fallback_results
+            used_collection = fallback_collection
+            logger.info(
+                f"一次閾値に届くコレクションが無いため緩和結果を採用: "
+                f"{len(final_results)}件 ({fallback_collection})"
+            )
 
         # --- Dynamic Thresholding (動的な絞り込み) ---
         # 1位のスコアが非常に高い場合、2位以下のノイズを除去する
