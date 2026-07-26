@@ -1003,8 +1003,9 @@ class Executor:
             # confidence = self._calculate_step_confidence(tool_result, step, state)
             confidence = self._llm_calculate_step_confidence(tool_result, step, state)
 
-            # ソースを抽出
+            # ソースを抽出（表示用の識別子と、根拠検証用の本文を分けて保持する）
             sources = self._extract_sources(tool_result)
+            source_texts = self._extract_source_texts(tool_result)
 
             # トークン使用量: reasoning 等のツールが confidence_factors に格納する
             # token_usage を StepResult へ引き継ぐ（ベンチマークの総トークン集計用）。
@@ -1019,6 +1020,7 @@ class Executor:
                 output=self._format_output(tool_result.output),
                 confidence=confidence,
                 sources=sources,
+                source_texts=source_texts,
                 error=tool_result.error if not tool_result.success else None,
                 execution_time_ms=execution_time,
                 token_usage=_step_tu,
@@ -1667,7 +1669,11 @@ class Executor:
         return confidence_score.score
 
     def _extract_sources(self, tool_result: ToolResult) -> List[str]:
-        """ツール結果からソースを抽出"""
+        """ツール結果からソース（出典識別子）を抽出する。
+
+        戻り値は表示用（citations）であり、ファイル名等の識別子のみを含む。
+        根拠検証には本文が必要なため `_extract_source_texts` を使う。
+        """
         sources = []
 
         if isinstance(tool_result.output, list):
@@ -1679,6 +1685,45 @@ class Executor:
                         sources.append(source)
 
         return sources
+
+    def _extract_source_texts(self, tool_result: ToolResult) -> List[str]:
+        """ツール結果から groundedness 検証用の**出典本文**を抽出する。
+
+        `_extract_sources` は出典識別子（ファイル名）しか返さないため、それを
+        GroundednessVerifier に渡すと「情報源: gov_faq.csv」のようになり、
+        どの主張も検証できず全て neutral（支持率の分母 0）になってしまう。
+        本メソッドは payload の本文を取り出し、検証可能な形で返す。
+
+        FAQ 形式（question/answer）は `Q: …\\nA: …` に整形する。
+        GroundednessVerifier のプロンプトは Q&A 形式の A 部分を根拠として扱う
+        よう指示されているため、この形が検証と噛み合う。
+        Web 側の同等処理は `backend.app.core.gates._web_source_texts`。
+        """
+        texts: List[str] = []
+
+        if not isinstance(tool_result.output, list):
+            return texts
+
+        for item in tool_result.output:
+            if not isinstance(item, dict):
+                continue
+            payload = item.get("payload", {})
+            if not isinstance(payload, dict):
+                continue
+
+            question = str(payload.get("question") or "").strip()
+            answer = str(payload.get("answer") or "").strip()
+            content = str(payload.get("content") or "").strip()
+
+            if question and answer:
+                text = f"Q: {question}\nA: {answer}"
+            else:
+                text = answer or content or question
+
+            if text and text not in texts:
+                texts.append(text)
+
+        return texts
 
     def _format_output(self, output: Any) -> Optional[str]:
         """出力を文字列にフォーマット"""

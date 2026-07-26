@@ -44,6 +44,9 @@ class StepResultStub:
     step_id: int = 1
     status: str = "success"
     sources: List[str] = field(default_factory=lambda: ["faq.md"])
+    # 根拠検証用の出典本文（実 executor の StepResult.source_texts に対応）。
+    # 既定は空 = 本文が取れない経路を模し、出典ラベルへのフォールバックを検証する。
+    source_texts: List[str] = field(default_factory=list)
 
 
 @dataclass
@@ -52,6 +55,11 @@ class PipelineStub:
 
     answer: str = "パスワード再設定はマイページの「パスワードを忘れた方」から行えます。"
     sources: List[str] = field(default_factory=lambda: ["faq.md"])
+    # 出典本文（groundedness 検証に渡る想定のテキスト）。空なら出典ラベルへ
+    # フォールバックする従来経路を再現する。
+    source_texts: List[str] = field(default_factory=list)
+    # 検証器へ実際に渡されたソースを記録する（P-01 の回帰検証用）
+    verify_calls: List[list] = field(default_factory=list)
     groundedness: GroundednessStub = field(default_factory=GroundednessStub)
     intent: Optional[str] = None            # 意図分類器の返答（None=分類失敗）
     no_info_verdict: Optional[bool] = False  # 実質回答判定（False=answered）
@@ -73,12 +81,19 @@ def install_pipeline_stub(monkeypatch, stub: PipelineStub) -> None:
     # 実行時に stub を読む（テスト側が設置後に属性を書き換えられるよう遅延評価）
     executor = SimpleNamespace(execute=lambda _plan: SimpleNamespace(
         final_answer=stub.answer,
-        step_results=[StepResultStub(sources=list(stub.sources))],
+        step_results=[StepResultStub(
+            sources=list(stub.sources),
+            source_texts=list(stub.source_texts),
+        )],
         overall_confidence=stub.overall_confidence,
     ))
     monkeypatch.setattr(f"{target}.create_executor", lambda _c, _r: executor)
 
-    verifier = SimpleNamespace(verify=lambda _q, _a, _s: stub.groundedness)
+    def _verify(_q, _a, sources):
+        stub.verify_calls.append(list(sources or []))
+        return stub.groundedness
+
+    verifier = SimpleNamespace(verify=_verify)
     monkeypatch.setattr(f"{target}.create_groundedness_verifier", lambda _c: verifier)
 
     calc = SimpleNamespace(calculate=lambda _answers: 0.9)

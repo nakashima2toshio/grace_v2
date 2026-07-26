@@ -23,6 +23,7 @@ from backend.app.core.gates import (
     _answer_gate,
     _citation_text,
     _collect_citations,
+    _collect_source_texts,
     _decide_action,
     _detect_no_info_answer,
     _merge_citations,
@@ -325,9 +326,19 @@ def run_support_agent_core(
     )
 
     # ③ 根拠評価（内部）
+    #
+    # 検証器には**出典本文**を渡す。出典識別子（ファイル名）だけを渡すと
+    # 「情報源: gov_faq.csv」のようになり、どの主張も裏付けられず全て neutral
+    # （支持率の分母 0）になって不当に escalate へ倒れてしまう。
+    # 本文が取れない経路（legacy agent 等）では従来どおり出典ラベルで代替する。
+    # ⑤ の Web 側が `_web_source_texts` で本文を渡しているのと同じ扱いに揃える。
     step_started("confidence", "③ Confidence（GroundednessVerifier: 内部回答の裏付け）")
-    gres = verifier.verify(query, internal_answer, [_citation_text(c) for c in internal_citations])
+    internal_source_texts = _collect_source_texts(result.step_results)
+    verify_sources = internal_source_texts or [_citation_text(c) for c in internal_citations]
+    gres = verifier.verify(query, internal_answer, verify_sources)
     if verbose:
+        log(f"  [groundedness] 検証ソース={len(verify_sources)} 件"
+            f"（{'本文' if internal_source_texts else '出典ラベル(fallback)'}）", step="confidence")
         log(f"  [groundedness] supported={gres.supported} / total={gres.total} / "
             f"contradiction={gres.has_contradiction} / verified={gres.verified}", step="confidence")
     log(f"  [groundedness] 支持率={gres.support_rate:.2f}"

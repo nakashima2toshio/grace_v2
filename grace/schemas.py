@@ -178,6 +178,16 @@ class StepResult(BaseModel):
         description="引用ソース"
     )
 
+    source_texts: List[str] = Field(
+        default_factory=list,
+        description=(
+            "根拠検証（groundedness）用の出典本文。表示用の sources"
+            "（ファイル名等の識別子）とは用途が異なり、GroundednessVerifier へ"
+            "渡して主張の裏付けを判定するために使う。本文を取得できない経路"
+            "（legacy agent 等）では空になる"
+        )
+    )
+
     error: Optional[str] = Field(
         None,
         description="エラーメッセージ（失敗時）"
