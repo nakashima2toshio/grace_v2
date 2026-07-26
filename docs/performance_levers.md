@@ -1,9 +1,13 @@
 # 性能改善レバー分析 — 事業特化型エージェントの回答品質を決める部分
 
-**Version 1.0** | 最終更新: 2026-07-25 | ステータス: **分析（未実装）**
+**Version 1.2** | 最終更新: 2026-07-26 | ステータス: **P-01 / P-01b 実装済み・他は未実装**
 
-> 📌 本書は**コード調査に基づく分析・提案**であり、記載の改修はまだ実装されていない。
-> 実施順序は §5 に従うこと。特に **しきい値調整（P-07）を先に行ってはならない**（§5 参照）。
+> 📌 本書はコード調査に基づく分析・提案。**P-01 / P-01b は実装済み**（§2 参照）、
+> それ以外は未実装。実施順序は §5 に従うこと。特に
+> **しきい値調整（P-07）を先に行ってはならない**（§5 参照）。
+>
+> 📊 v1.2 で**実測ログに基づき評価を見直した**（P-02 を格下げ／P-04 を格上げ／
+> P-03 に検索順序リスクを追記）。理論上の懸念より実測を優先する。
 
 `run_dev.sh` で起動する GRACE-Support（Web UI 版）および、その元となる CLI 版
 `agent_support_example.py` について、**「事業特化型」自律エージェントの回答品質を決定している
@@ -87,11 +91,22 @@ class L1,L2,L3,L4,L5 default
 
 ### P-01　groundedness に「ファイル名」しか渡っていない　**有効スコア 10 / 確度 ★★★ / 工数 小**
 
-> ✅ **実装済み**（本項の改修は完了）。`StepResult.source_texts` を追加し、
-> `Executor._extract_source_texts()` が payload から本文を抽出、
-> `_collect_source_texts()` 経由で検証器へ渡すようにした。本文が取れない経路は
-> 従来の出典ラベルへフォールバックする。回帰テスト:
-> `backend/tests/test_groundedness_sources.py`。以下は修正前の問題記述として残す。
+> ✅ **実装済み**（P-01 / P-01b とも完了）。
+> - **P-01**（backend/CLI の ③ Confidence）: `StepResult.source_texts` を追加し、
+>   `Executor._extract_source_texts()` が payload から本文を抽出、
+>   `_collect_source_texts()` 経由で検証器へ渡す。
+> - **P-01b**（executor 内部の `overall_confidence`）: `_calculate_overall_confidence`
+>   も識別子を渡していたため（実測ログ `Groundedness neutral (0 decided of 7)`）、
+>   `ExecutionState.get_completed_source_texts()` を追加し、**自己評価
+>   （`evaluate_final`）と groundedness ブレンドの双方**を本文に切り替えた。
+>
+> いずれも本文が取れない経路は従来の出典ラベルへフォールバックする。
+> 回帰テスト: `backend/tests/test_groundedness_sources.py`。
+>
+> **実測効果**（`--vertical gov "住民票の写しの取り方は？"`）:
+> 支持率 判定不能(0/7) → **1.00（7/7 supported）** / decision **answer**。
+>
+> 以下は修正前の問題記述として残す。
 
 | 項目 | 内容 |
 |---|---|
@@ -148,12 +163,28 @@ gov_faq.csv
 
 ---
 
-### P-02　RRF スコアを 0.7 のコサイン閾値で足切りしている　**有効スコア 9 / 確度 ★★☆ / 工数 小**
+### P-02　RRF スコアを 0.7 のコサイン閾値で足切りしている　**有効スコア 9 → 3 に格下げ / 確度 ★☆☆ / 工数 小**
+
+> ⚠️ **実測で再現せず — 予測が外れた項目**（v1.2 で格下げ）。
+> `--vertical gov "住民票の写しの取り方は？"` の実行ログでは、`hybrid=有効`
+> かつ `sparse=True` でも観測スコアは **0.8011（コサイン尺度）** であり、
+> 足切りも `コサイン類似度フィルタ: 10 -> 1件 (Top: 0.8011, 閾値: 0.7)` と
+> **正常に機能**していた。RRF スコア（〜0.03）による全件除外は起きていない。
+>
+> 「有効スコア 9」は**理論上の懸念に基づく過大評価**だったため 3 へ引き下げる。
+> ただしコード上の型不整合（RRF スコアとコサイン閾値を同一視できる構造）は
+> 残っており、Qdrant のバージョンや sparse 設定の有無で将来再燃し得るため、
+> **`score_type` を明示する防御的リファクタは依然有効**（工数小）。
+>
+> 代わりに**この足切りで 10 件中 9 件が捨てられ、出典が 1 件だけになった**ことが
+> 実害として観測された → **P-04（閾値 0.7 が高すぎる）を格上げ**（§3 参照）。
+>
+> 以下は当初の懸念記述として残す。
 
 | 項目 | 内容 |
 |---|---|
 | **箇所** | `agent_tools.py:42, 477-484` × `qdrant_client_wrapper.py:1162-1170`（`Fusion.RRF`） |
-| **影響** | **sparse を持つコレクションでは RAG が常にゼロ件**になり得る |
+| **影響** | （当初の想定）sparse を持つコレクションでは RAG が常にゼロ件になり得る |
 
 ハイブリッド検索は **RRF 融合**でスコアを返す。
 
@@ -223,6 +254,21 @@ gov プロファイルは `gov_faq_anthropic` / `gov_laws_anthropic` / `wikipedi
 3 スコープを持つ（`backend/app/core/verticals.py:60`）が、**1 つ目が弱い結果を 1 件返しただけで
 探索が終了**する。2 つ目に条文の完全一致があっても届かない。
 
+> ⚠️ **実測で判明した追加リスク: 検索順序が逆**（v1.2 追記）。
+> gov 実行時の探索順は `['wikipedia_ja_5per', 'gov_laws_anthropic', 'gov_faq_anthropic']` で、
+> **正解のあった `gov_faq_anthropic` が最後**だった。原因は
+> `grace/config.py:167` の既定値:
+> ```python
+> search_priority = ["wikipedia_ja", "livedoor", "cc_news", "japanese_text"]
+> ```
+> vertical のコレクション（gov/saas/ec）が優先リストに**含まれていない**ため、
+> 汎用の wikipedia が先に評価される。今回は wikipedia と gov_laws が閾値 0.7 を
+> 超えなかったため**偶然**正解に到達したが、wikipedia に 0.7 以上の凡庸なヒットが
+> 1 件あれば `break` により**権威ある gov FAQ は永久に参照されない**。
+>
+> → 対策は 2 つ: ①`search_priority` に vertical のコレクションを優先配置する、
+> ②横断ランキングにして順序依存をなくす（本項の本来の改善）。
+
 **改善案**: 全候補コレクションを検索してから**横断でスコア統合**する。
 既存の `ParallelSearchEngine`（`docs/agent_parallel_search.md`）がそのまま使えるため、
 **レイテンシを増やさずに**実現できる（むしろ並列化で短縮する可能性が高い）。
@@ -231,7 +277,14 @@ gov プロファイルは `gov_faq_anthropic` / `gov_laws_anthropic` / `wikipedi
 
 ## 3. A級: 影響大
 
-### P-04　`COSINE_SIMILARITY_THRESHOLD = 0.7` が高すぎる　**有効スコア 8 / 確度 ★★☆ / 工数 小**
+### P-04　`COSINE_SIMILARITY_THRESHOLD = 0.7` が高すぎる　**有効スコア 8 → 9 に格上げ / 確度 ★★★ / 工数 小**
+
+> ✅ **実測で確認（v1.2 で格上げ・確度 ★★☆ → ★★★）**。gov の代表質問で
+> `コサイン類似度フィルタ: 10 -> 1件 (Top: 0.8011, 閾値: 0.7)` — **候補 10 件中 9 件が
+> 閾値で捨てられ、出典が 1 件だけ**になった。その結果、信頼度評価器が 2 回にわたり
+> 「ソース数が 1 のみで、複数情報源による検証がない」「ヒット数 1 は限定的」と減点し、
+> **step2 の信頼度が 0.65 まで低下して CONFIRM が発火**した。
+> P-02 の格下げ分の実害はここに現れている。
 
 `agent_tools.py:42`。dense 経路でも 0.7 は厳しい。`gemini-embedding-001` の日本語では、
 関連文書でもコサイン類似度が 0.6〜0.75 に収まることが多く、**正解を落として escalate に倒れる**。
@@ -355,9 +408,10 @@ gov/saas/ec のコレクションが 1 つも無ければ、検索スコープ�
 | # | レバー | 層 | 箇所 | スコア | 確度 | 工数 |
 |---|---|:--:|---|:--:|:--:|:--:|
 | P-01 | groundedness に本文を渡す ✅**実装済み** | [2] | `executor.py:1669-1681` / `support_agent.py:329` | **10** | ★★★ | 小 |
-| P-02 | RRF / コサインの閾値体系を分離 | [1] | `agent_tools.py:42,477-484` | **9** | ★★☆ | 小 |
-| P-03 | コレクション横断ランキング | [1] | `grace/tools.py:205-210` | **8** | ★★★ | 中 |
-| P-04 | コサイン閾値 0.7 → 0.5 | [1] | `agent_tools.py:42` / `grace/config.py:161` | **8** | ★★☆ | 小 |
+| P-01b | executor 内部（自己評価・ブレンド）にも本文 ✅**実装済み** | [2] | `executor.py`（`get_completed_source_texts`） | **9** | ★★★ | 小 |
+| **P-04** | **コサイン閾値 0.7 → 0.5**（実測で格上げ） | [1] | `agent_tools.py:42` / `grace/config.py:161` | **9** | ★★★ | 小 |
+| **P-03** | コレクション横断ランキング＋`search_priority` 是正 | [1] | `grace/tools.py:205-210` / `grace/config.py:167` | **8** | ★★★ | 中 |
+| P-02 | RRF / コサインの閾値体系を分離（**実測で再現せず→格下げ**） | [1] | `agent_tools.py:42,477-484` | ~~9~~ **3** | ★☆☆ | 小 |
 | P-05 | リランカー復活 | [1] | `agent_tools.py:217,478` | 7 | ★★★ | 中 |
 | P-06 | `RAG_SEARCH_LIMIT` 3 → 5〜8 | [1] | `config.py:486` | 7 | ★★★ | 小 |
 | P-07 | しきい値の再チューニング | [3] | `verticals.py:64` | 6 | ★★★ | 小 |
@@ -389,3 +443,4 @@ gov/saas/ec のコレクションが 1 つも無ければ、検索スコープ�
 |-----------|---------|
 | 1.0 | 初版作成。性能を決める 5 層を整理し、S 級 3 件（groundedness へのファイル名のみ供給／RRF × コサイン閾値の不整合／first-hit-wins 打ち切り）・A 級 3 件・B 級 5 件を有効スコア・確度・工数付きで列挙。実施順序（しきい値調整を最後にする理由）と検証方法を明記。**分析段階／未実装** |
 | 1.1 | **P-01 を実装**（`StepResult.source_texts` 追加 / `Executor._extract_source_texts()` / `_collect_source_texts()` / ③ Confidence の検証ソース差し替え・フォールバック付き）。回帰テスト `backend/tests/test_groundedness_sources.py` を追加し、P-01 の項と §7 サマリに実装済みを明記。他レバー（P-02 以降）は未実装 |
+| 1.2 | **実測ログに基づく評価の見直し＋P-01b を実装**。①**P-01b**: executor 内部（`_calculate_overall_confidence`）も識別子を渡しており `Groundedness neutral (0 decided of 7)` となっていたため、`ExecutionState.get_completed_source_texts()` を追加し自己評価・groundedness ブレンドの双方を本文へ切替。②**P-02 を格下げ**（9 → 3・★★☆ → ★☆☆）: 実測でスコアは 0.8011（コサイン尺度）でフィルタも正常動作し、**予測が外れた**ことを明記。③**P-04 を格上げ**（8 → 9・★★★）: 閾値 0.7 が候補 10 件中 9 件を捨て、出典 1 件・step 信頼度 0.65・CONFIRM 発火という実害を確認。④**P-03 に検索順序リスクを追記**: `search_priority` の既定に vertical のコレクションが無く、権威ある gov FAQ が最後に評価される |

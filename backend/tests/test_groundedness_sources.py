@@ -142,3 +142,58 @@ def test_extract_source_texts_returns_empty_for_non_list_output():
     """出力がリストでない（reasoning の文字列等）場合は空を返す。"""
     assert _extract("これは文字列の回答です") == []
     assert _extract(None) == []
+
+
+# ---------------------------------------------------------------------------
+# P-01b: executor 内部（overall_confidence 用）の出典本文集約
+#
+# `_calculate_overall_confidence` は自己評価（evaluate_final）と groundedness
+# ブレンドの双方で「回答が情報源に裏付けられているか」を判定するため、識別子で
+# はなく本文を渡す必要がある。識別子のままだと
+# 「Groundedness neutral (0 decided of N)」となりフォールバック値に落ちる。
+# ---------------------------------------------------------------------------
+
+def _completed_source_texts(step_results):
+    """ExecutionState.get_completed_source_texts を最小の self で呼ぶ。"""
+    from grace.executor import ExecutionState
+
+    return ExecutionState.get_completed_source_texts(
+        SimpleNamespace(step_results=step_results)
+    )
+
+
+def test_completed_source_texts_collects_and_dedupes():
+    """成功ステップの本文を出現順に集約し、重複を除く。"""
+    step_results = {
+        1: SimpleNamespace(status="success", source_texts=["本文A", "本文B"]),
+        2: SimpleNamespace(status="success", source_texts=["本文B", "本文C"]),
+    }
+    assert _completed_source_texts(step_results) == ["本文A", "本文B", "本文C"]
+
+
+def test_completed_source_texts_skips_failed_steps():
+    """失敗ステップの本文は集約しない（get_completed_sources と同じ扱い）。"""
+    step_results = {
+        1: SimpleNamespace(status="failed", source_texts=["失敗の本文"]),
+        2: SimpleNamespace(status="success", source_texts=["成功の本文"]),
+    }
+    assert _completed_source_texts(step_results) == ["成功の本文"]
+
+
+def test_completed_source_texts_tolerates_missing_attribute():
+    """source_texts を持たない経路（legacy agent 等）では空を返す。"""
+    step_results = {1: SimpleNamespace(status="success", sources=["faq.md"])}
+    assert _completed_source_texts(step_results) == []
+
+
+def test_completed_source_texts_skips_empty_values():
+    """空文字・None は除外する。"""
+    step_results = {
+        1: SimpleNamespace(status="success", source_texts=["", None, "本文"]),
+    }
+    assert _completed_source_texts(step_results) == ["本文"]
+
+
+def test_completed_source_texts_empty_when_no_steps():
+    """ステップが無ければ空リスト（呼び出し側が識別子へフォールバックできる）。"""
+    assert _completed_source_texts({}) == []

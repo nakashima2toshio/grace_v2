@@ -99,12 +99,35 @@ class ExecutionState:
         }
 
     def get_completed_sources(self) -> List[str]:
-        """完了済みステップのソースを取得"""
+        """完了済みステップのソース（出典識別子）を取得。
+
+        ファイル名・URL 等の識別子であり、内容の検証には使えない。
+        根拠検証・自己評価には `get_completed_source_texts()` を使う。
+        """
         sources = []
         for result in self.step_results.values():
             if result.status == "success" and result.sources:
                 sources.extend(result.sources)
         return sources
+
+    def get_completed_source_texts(self) -> List[str]:
+        """完了済みステップの**出典本文**を重複排除して取得する。
+
+        groundedness 検証・LLM 自己評価用。これらは「回答が情報源に裏付けられて
+        いるか」を判定するため、識別子（`gov_faq.csv` 等）を渡すと何も検証できず
+        全て neutral（支持率の分母 0）になってしまう。
+
+        本文を持たない経路（legacy agent 等）では空を返し、呼び出し側が
+        `get_completed_sources()` へフォールバックできるようにする。
+        """
+        texts: List[str] = []
+        for result in self.step_results.values():
+            if result.status != "success":
+                continue
+            for text in getattr(result, "source_texts", None) or []:
+                if text and text not in texts:
+                    texts.append(text)
+        return texts
 
     def can_replan(self) -> bool:
         """リプラン可能か判定"""
@@ -1787,6 +1810,14 @@ class Executor:
         self_eval_score: Optional[float] = None
         coverage_score: Optional[float] = None
 
+        # 検証用ソース: 自己評価・groundedness はいずれも「回答が情報源に裏付け
+        # られているか」を判定するため、識別子ではなく**本文**を渡す必要がある
+        # （識別子だけでは全主張が neutral になり支持率の分母が 0 になる）。
+        # 本文が取れない経路（legacy agent 等）は従来どおり識別子で代替する。
+        verify_sources = (
+            state.get_completed_source_texts() or state.get_completed_sources()
+        )
+
         # LLMSelfEvaluatorで最終回答を評価（オプション）
         if final_answer is not None:
             # 自己評価＋クエリ網羅度を1回のLLM呼び出しで統合評価
@@ -1795,7 +1826,7 @@ class Executor:
                 final_eval = self.llm_evaluator.evaluate_final(
                     query=state.plan.original_query,
                     answer=final_answer,
-                    sources=state.get_completed_sources()
+                    sources=verify_sources
                 )
 
                 self_eval_score = final_eval.self_eval_score
@@ -1853,7 +1884,7 @@ class Executor:
             self_eval=self_eval_score,
             coverage=coverage_score,
             aggregated=aggregated_score,
-            sources=state.get_completed_sources(),
+            sources=verify_sources,
         )
         calibrated = self._calibrator.transform(final_conf)
         if not self._calibrator.is_identity():
