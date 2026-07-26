@@ -11,7 +11,7 @@ Rankの無効化：
 import logging
 import time
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from qdrant_client import QdrantClient
 from qdrant_client.http.exceptions import ResponseHandlingException, UnexpectedResponse
@@ -38,8 +38,56 @@ logger = logging.getLogger(__name__)  # Configure logger for this module
 client: QdrantClient = get_qdrant_client()
 
 
-# ============ コサイン類似度閾値 ============
-COSINE_SIMILARITY_THRESHOLD: float = 0.7  # Cohere Rerank廃止 → コサイン類似度で直接フィルタ
+# ============ コサイン類似度閾値（二段構え） ============
+# 一次閾値: 高精度を維持する既定値（Cohere Rerank 廃止 → コサイン類似度で直接フィルタ）。
+COSINE_SIMILARITY_THRESHOLD: float = 0.7
+# 二次閾値: 一次で出典が不足したときのみ適用する緩和値。
+# 一次だけだと候補 20 件中 1 件しか残らないことがあり、後段の信頼度評価が
+# 「単一ソースで検証できない」と減点して実質的な回答の信頼度を下げてしまう
+# （docs/performance_levers.md P-04 の実測）。高スコアのケースは一次で完結するため
+# 既存の挙動は変わらず、出典不足のケースだけを救う。
+COSINE_SIMILARITY_THRESHOLD_RELAXED: float = 0.5
+# 一次の結果がこの件数未満のときだけ緩和する（＝0 件・1 件が対象）。
+MIN_RESULTS_BEFORE_RELAX: int = 2
+
+
+def select_by_similarity(
+        candidates: List[Dict[str, Any]],
+        limit: int,
+        threshold: float = COSINE_SIMILARITY_THRESHOLD,
+        relaxed_threshold: float = COSINE_SIMILARITY_THRESHOLD_RELAXED,
+        min_results: int = MIN_RESULTS_BEFORE_RELAX,
+) -> Tuple[List[Dict[str, Any]], float]:
+    """コサイン類似度による二段構えの選抜（純関数・副作用なし）。
+
+    一次閾値で選抜し、件数が `min_results` 未満のときに限り緩和閾値で再選抜する。
+    緩和しても件数が増えない場合は一次の結果を返す（無意味な緩和を避ける）。
+
+    Args:
+        candidates: 検索候補（`score` を持つ dict のリスト）
+        limit: 最終的に残す件数
+        threshold: 一次閾値
+        relaxed_threshold: 二次（緩和）閾値
+        min_results: この件数未満なら緩和する
+
+    Returns:
+        (選抜結果（score 降順・最大 limit 件）, 実際に採用した閾値)
+    """
+    def _pick(th: float) -> List[Dict[str, Any]]:
+        picked = [r for r in candidates if r.get("score", 0.0) >= th]
+        picked.sort(key=lambda x: x.get("score", 0.0), reverse=True)
+        return picked[:limit]
+
+    primary = _pick(threshold)
+
+    # 緩和が不要、または設定が無意味（緩和値が一次以上）なら一次で確定
+    if len(primary) >= min_results or relaxed_threshold >= threshold:
+        return primary, threshold
+
+    relaxed = _pick(relaxed_threshold)
+    if len(relaxed) > len(primary):
+        return relaxed, relaxed_threshold
+    return primary, threshold
 
 
 # ============ コレクション一覧キャッシュ（Phase 3 STEP 6 改善）============
@@ -308,7 +356,8 @@ def search_rag_knowledge_base(
       1. Embedding生成（Dense + Sparse、1回だけ）
       2. 全コレクション一覧取得
       3. 並列検索（下位モジュール: search_rag_knowledge_base_structured）
-      4. コサイン類似度 >= COSINE_SIMILARITY_THRESHOLD でフィルタ
+         ※下位モジュール側で二段構え（0.7 → 不足時 0.5）の選抜を実施
+      4. コサイン類似度 >= COSINE_SIMILARITY_THRESHOLD_RELAXED を下限として確認
       5. スコア順ソート、上位5件をフォーマットして返す
 
     Args:
@@ -371,8 +420,15 @@ def search_rag_knowledge_base(
         search_func=search_single
     )
 
-    # Step 4: コサイン類似度閾値フィルタ（下位モジュールでもフィルタ済みだが、安全のため再度確認）
-    filtered = [r for r in all_results if r.get('score', 0.0) >= COSINE_SIMILARITY_THRESHOLD]
+    # Step 4: コサイン類似度の下限チェック（下位モジュールで二段構えの選抜済み）
+    #
+    # 下位モジュール（search_rag_knowledge_base_structured）は出典不足時に
+    # 緩和閾値 0.5 まで下げて選抜する。ここで一次閾値 0.7 で再フィルタすると
+    # その緩和を打ち消してしまうため、**緩和閾値を下限**として扱う。
+    filtered = [
+        r for r in all_results
+        if r.get('score', 0.0) >= COSINE_SIMILARITY_THRESHOLD_RELAXED
+    ]
 
     elapsed = (time.time() - start_time) * 1000
     logger.info(f"✅ 全コレクション検索完了: {len(all_results)}件中 {len(filtered)}件が閾値以上 ({elapsed:.0f}ms)")
@@ -381,7 +437,7 @@ def search_rag_knowledge_base(
     if not filtered:
         return (
             f"[[NO_RAG_RESULT_LOW_SCORE]] 全コレクションを検索しましたが、"
-            f"コサイン類似度 >= {COSINE_SIMILARITY_THRESHOLD} の結果が見つかりませんでした。"
+            f"コサイン類似度 >= {COSINE_SIMILARITY_THRESHOLD_RELAXED} の結果が見つかりませんでした。"
         )
 
     # Step 5: 上位5件をフォーマットして返す
@@ -475,13 +531,16 @@ def search_rag_knowledge_base_structured(
             _search_metrics_log.append(metrics)
             return f"[[NO_RAG_RESULT]] 検索結果が見つかりませんでした。コレクション: '{collection_name}'."
 
-        # 2. コサイン類似度閾値フィルタ（Cohere Rerank 廃止）
-        filtered_results = [
-            r for r in candidates
-            if r.get("score", 0.0) >= COSINE_SIMILARITY_THRESHOLD
-        ]
-        filtered_results.sort(key=lambda x: x.get("score", 0.0), reverse=True)
-        filtered_results = filtered_results[:AgentConfig.RAG_SEARCH_LIMIT]
+        # 2. コサイン類似度閾値フィルタ（Cohere Rerank 廃止・二段構え）
+        #    一次 0.7 で足り、不足時のみ 0.5 へ緩和して出典数を確保する。
+        filtered_results, used_threshold = select_by_similarity(
+            candidates, AgentConfig.RAG_SEARCH_LIMIT
+        )
+        if used_threshold != COSINE_SIMILARITY_THRESHOLD:
+            logger.info(
+                f"コサイン類似度フィルタ: 一次閾値 {COSINE_SIMILARITY_THRESHOLD} では出典不足のため "
+                f"緩和閾値 {used_threshold} で再選抜 → {len(filtered_results)}件"
+            )
 
         # 3. Metrics & Return
         scores: List[float] = [res.get("score", 0.0) for res in filtered_results]
@@ -497,12 +556,12 @@ def search_rag_knowledge_base_structured(
             max_score = max(all_scores) if all_scores else 0.0
             return (
                 f"[[NO_RAG_RESULT_LOW_SCORE]] スコア閾値未満の結果のみでした。"
-                f"最高スコア: {max_score:.2f} (閾値: {COSINE_SIMILARITY_THRESHOLD})"
+                f"最高スコア: {max_score:.2f} (閾値: {used_threshold})"
             )
 
         logger.info(
             f"コサイン類似度フィルタ: {len(candidates)} -> {len(filtered_results)}件 "
-            f"(Top: {filtered_results[0]['score']:.4f}, 閾値: {COSINE_SIMILARITY_THRESHOLD})"
+            f"(Top: {filtered_results[0]['score']:.4f}, 閾値: {used_threshold})"
         )
 
         return filtered_results
