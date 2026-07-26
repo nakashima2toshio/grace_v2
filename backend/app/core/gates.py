@@ -334,6 +334,25 @@ def _collect_citations(step_results) -> List[str]:
     return seen
 
 
+def _collect_source_texts(step_results) -> List[str]:
+    """各ステップの `source_texts`（出典本文）を重複排除して集約する。
+
+    groundedness 検証用。表示用の `_collect_citations`（出典識別子）とは用途が
+    異なる — 識別子（ファイル名）だけを検証器へ渡すと、どの主張も裏付けられず
+    すべて neutral（支持率の分母 0）になってしまうため、本文を集めて渡す。
+
+    `source_texts` を持たない経路（legacy agent 等）では空を返し、呼び出し側が
+    従来の出典ラベルへフォールバックできるようにする。
+    Web 側の同等処理は `_web_source_texts`。
+    """
+    seen: List[str] = []
+    for sr in step_results or []:
+        for text in getattr(sr, "source_texts", None) or []:
+            if text and text not in seen:
+                seen.append(text)
+    return seen
+
+
 def _citation_text(citation: str) -> str:
     """出典表示文字列（"[社内] xxx" / "[Web] xxx"）からラベルを外して中身を返す。"""
     return citation.split("] ", 1)[1] if "] " in citation else citation

@@ -47,6 +47,7 @@ from backend.app.core.gates import (  # noqa: F401
     _answer_gate,
     _citation_text,
     _collect_citations,
+    _collect_source_texts,
     _decide_action,
     _detect_no_info_answer,
     _match_keyword,

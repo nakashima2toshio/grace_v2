@@ -87,6 +87,12 @@ class L1,L2,L3,L4,L5 default
 
 ### P-01　groundedness に「ファイル名」しか渡っていない　**有効スコア 10 / 確度 ★★★ / 工数 小**
 
+> ✅ **実装済み**（本項の改修は完了）。`StepResult.source_texts` を追加し、
+> `Executor._extract_source_texts()` が payload から本文を抽出、
+> `_collect_source_texts()` 経由で検証器へ渡すようにした。本文が取れない経路は
+> 従来の出典ラベルへフォールバックする。回帰テスト:
+> `backend/tests/test_groundedness_sources.py`。以下は修正前の問題記述として残す。
+
 | 項目 | 内容 |
 |---|---|
 | **箇所** | `grace/executor.py:1669-1681`（`_extract_sources`）→ `backend/app/core/support_agent.py:329` |
@@ -348,7 +354,7 @@ gov/saas/ec のコレクションが 1 つも無ければ、検索スコープ�
 
 | # | レバー | 層 | 箇所 | スコア | 確度 | 工数 |
 |---|---|:--:|---|:--:|:--:|:--:|
-| P-01 | groundedness に本文を渡す | [2] | `executor.py:1669-1681` / `support_agent.py:329` | **10** | ★★★ | 小 |
+| P-01 | groundedness に本文を渡す ✅**実装済み** | [2] | `executor.py:1669-1681` / `support_agent.py:329` | **10** | ★★★ | 小 |
 | P-02 | RRF / コサインの閾値体系を分離 | [1] | `agent_tools.py:42,477-484` | **9** | ★★☆ | 小 |
 | P-03 | コレクション横断ランキング | [1] | `grace/tools.py:205-210` | **8** | ★★★ | 中 |
 | P-04 | コサイン閾値 0.7 → 0.5 | [1] | `agent_tools.py:42` / `grace/config.py:161` | **8** | ★★☆ | 小 |
@@ -382,3 +388,4 @@ gov/saas/ec のコレクションが 1 つも無ければ、検索スコープ�
 | バージョン | 変更内容 |
 |-----------|---------|
 | 1.0 | 初版作成。性能を決める 5 層を整理し、S 級 3 件（groundedness へのファイル名のみ供給／RRF × コサイン閾値の不整合／first-hit-wins 打ち切り）・A 級 3 件・B 級 5 件を有効スコア・確度・工数付きで列挙。実施順序（しきい値調整を最後にする理由）と検証方法を明記。**分析段階／未実装** |
+| 1.1 | **P-01 を実装**（`StepResult.source_texts` 追加 / `Executor._extract_source_texts()` / `_collect_source_texts()` / ③ Confidence の検証ソース差し替え・フォールバック付き）。回帰テスト `backend/tests/test_groundedness_sources.py` を追加し、P-01 の項と §7 サマリに実装済みを明記。他レバー（P-02 以降）は未実装 |
