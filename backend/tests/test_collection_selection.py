@@ -150,3 +150,56 @@ def test_no_results_anywhere_returns_failure(rag_tool, monkeypatch):
 
     assert result.success is False
     assert result.output == []
+
+
+# ---------------------------------------------------------------------------
+# P-03: 検索順序は業界プロファイルの並びを優先する
+#
+# candidates は汎用の config.qdrant.search_priority 順（既定で wikipedia_ja が先頭）
+# で渡ってくる。そのまま絞り込むとプロファイルの意図した優先順位が失われ、
+# 実測では正解のある gov_faq が最後に評価されていた。
+# ---------------------------------------------------------------------------
+
+def _scoped(candidates, allowed):
+    from grace.tools import RAGSearchTool
+
+    return RAGSearchTool._apply_allowed_collections(candidates, allowed)
+
+
+def test_allowed_order_wins_over_candidate_order():
+    """実測ケース: プロファイル順（gov_faq 優先）が search_priority 順に勝つ。"""
+    candidates = ["wikipedia_ja_5per", "gov_laws_anthropic", "gov_faq_anthropic"]
+    allowed = ["gov_faq_anthropic", "gov_laws_anthropic", "wikipedia_ja"]
+
+    assert _scoped(candidates, allowed) == [
+        "gov_faq_anthropic", "gov_laws_anthropic", "wikipedia_ja_5per",
+    ]
+
+
+def test_partial_match_still_works():
+    """部分一致（"wikipedia_ja" → "wikipedia_ja_5per"）は従来どおり効く。"""
+    assert _scoped(["wikipedia_ja_5per"], ["wikipedia_ja"]) == ["wikipedia_ja_5per"]
+
+
+def test_multiple_candidates_for_one_allowed_keep_candidate_order():
+    """1 つの許可キーワードに複数一致する場合は candidates 側の並びを保つ。"""
+    candidates = ["cc_news_2per", "cc_news_2per_anthropic"]
+    assert _scoped(candidates, ["cc_news"]) == candidates
+
+
+def test_no_duplicates_when_allowed_entries_overlap():
+    """許可リストが重複的でも候補は重複しない。"""
+    candidates = ["gov_faq_anthropic"]
+    assert _scoped(candidates, ["gov", "gov_faq", "gov_faq_anthropic"]) == candidates
+
+
+def test_empty_allowed_returns_candidates_unchanged():
+    """許可リストが空なら制限なし（順序もそのまま）。"""
+    candidates = ["a", "b"]
+    assert _scoped(candidates, []) == candidates
+
+
+def test_no_match_falls_back_to_all_candidates():
+    """一致が 1 つも無ければ制限を適用しない（未登録環境でも動く）。"""
+    candidates = ["wikipedia_ja_5per"]
+    assert _scoped(candidates, ["gov_faq_anthropic"]) == candidates

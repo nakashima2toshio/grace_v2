@@ -405,10 +405,24 @@ class RAGSearchTool(BaseTool):
         allowed が空なら制限なし。一致する候補が 1 つも無い場合は、コレクション
         未登録の段階でもデモ・評価が動くよう**制限を適用せず**候補をそのまま返す
         （警告ログを出す。厳格に閉じたい場合は restrict_to_collection を併用）。
+
+        **順序は `allowed` の並び順を優先する**（P-03）。`candidates` は汎用の
+        `config.qdrant.search_priority`（既定で wikipedia_ja が先頭）順に並んでおり、
+        そのまま絞り込むと業界プロファイルが指定した優先順位が無視される。
+        実測では gov で `[wikipedia_ja_5per, gov_laws, gov_faq]` の順になり、
+        正解のある gov_faq が最後に評価されていた（プロファイル定義は
+        `[gov_faq, gov_laws, wikipedia_ja]` と正しい順序を持っている）。
+        許可リストは「この業界で信頼できる順」に書かれた意図的な並びなので、
+        そちらを尊重する。同一の許可キーワードに複数候補が一致する場合は
+        `candidates` 側の並び（＝search_priority 順）を保つ。
         """
         if not allowed:
             return candidates
-        scoped = [c for c in candidates if any(a == c or a in c for a in allowed)]
+        scoped: List[str] = []
+        for a in allowed:
+            for c in candidates:
+                if (a == c or a in c) and c not in scoped:
+                    scoped.append(c)
         if scoped:
             logger.info(f"RAGSearchTool: allowed_collections で検索範囲を限定: {scoped}")
             return scoped
