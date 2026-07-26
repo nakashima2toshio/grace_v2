@@ -1,0 +1,384 @@
+# 性能改善レバー分析 — 事業特化型エージェントの回答品質を決める部分
+
+**Version 1.0** | 最終更新: 2026-07-25 | ステータス: **分析（未実装）**
+
+> 📌 本書は**コード調査に基づく分析・提案**であり、記載の改修はまだ実装されていない。
+> 実施順序は §5 に従うこと。特に **しきい値調整（P-07）を先に行ってはならない**（§5 参照）。
+
+`run_dev.sh` で起動する GRACE-Support（Web UI 版）および、その元となる CLI 版
+`agent_support_example.py` について、**「事業特化型」自律エージェントの回答品質を決定している
+コード上の箇所**を特定し、改善効果を有効スコア付きで評価した資料。
+
+CLI 版と Web 版は `run_support_agent_core()` を共有するため（`agent_support_example.py` は
+イベント→print の薄いラッパ）、**本書の指摘はすべて両方に等しく効く**。
+
+---
+
+## 目次
+
+1. [概要](#概要)
+2. [性能を決める5層](#1-性能を決める5層)
+3. [S級: 致命的な欠陥](#2-s級-致命的な欠陥)
+4. [A級: 影響大](#3-a級-影響大)
+5. [B級: 中程度](#4-b級-中程度)
+6. [実施順序と注意](#5-実施順序と注意)
+7. [検証方法](#6-検証方法)
+8. [レバー一覧（サマリ）](#7-レバー一覧サマリ)
+9. [関連ドキュメント](#8-関連ドキュメント)
+10. [変更履歴](#9-変更履歴)
+
+---
+
+## 概要
+
+### 結論（先に要点）
+
+**性能を決めているのは判定ロジック（ゲートのしきい値）ではなく、その前段の「検索 → 根拠検証」である。**
+そして、その前段に**致命的な不整合が 2 つ**存在する。
+
+| 順位 | 問題 | 有効スコア | 一言 |
+|:--:|---|:--:|---|
+| 1 | **groundedness に「ファイル名」しか渡っていない** | **10** | 支持率が構造的に 0 になり、誤エスカレの主因 |
+| 2 | **RRF スコアを 0.7 のコサイン閾値で足切り** | **9** | ハイブリッド検索時に RAG が常にゼロ件になり得る |
+| 3 | first-hit-wins のコレクション打ち切り | 8 | 2 つ目以降のスコープを見ずに探索終了 |
+
+`_should_rescue_unaffirmed`（④-救済）や ⑤ Web フォールバックは、**問題 1 の対症療法**として
+機能している。根本を直せば、これらの出番自体が減り、レイテンシとコストも下がる。
+
+### 有効スコアの定義
+
+**有効スコア** = 回答品質（自己解決率・根拠なし回答率・誤エスカレ率）への寄与度を 0〜10 で表す。
+併せて **確度**（コード上の確実性）と **工数** を示す。
+
+| 確度 | 意味 |
+|:--:|---|
+| ★★★ | コードを追って確認済み。実行環境に依存しない |
+| ★★☆ | コード上は明白だが、発火条件がデータ/環境に依存する（§6 で検証可能） |
+| ★☆☆ | 推定を含む |
+
+---
+
+## 1. 性能を決める5層
+
+```mermaid
+flowchart TB
+    L1["[1] 検索（Retrieval）<br>Qdrant 20件 → 閾値0.7 → top3<br>agent_tools.py / qdrant_client_wrapper.py"]
+    L2["[2] 根拠検証（Groundedness）<br>GroundednessVerifier → support_rate<br>grace/confidence.py"]
+    L3["[3] 判定（Gates）<br>_answer_gate（notify/confirm）<br>backend/app/core/gates.py"]
+    L4["[4] 生成（Reasoning）<br>_build_prompt → Claude<br>grace/tools.py"]
+    L5["[5] 基盤（Runtime）<br>jobs / config（並行安全性）<br>backend/app/core/jobs.py"]
+
+    L1 --> L2 --> L3
+    L1 --> L4
+    L4 --> L2
+    L5 -.-> L1
+    L5 -.-> L4
+classDef default fill:#000,stroke:#fff,color:#fff
+classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
+class L1,L2,L3,L4,L5 default
+```
+
+**レバーの大きさは [1] > [2] >> [3] > [4] の順。** しきい値（[3]）は最も手軽に触れるが、
+[1][2] が壊れている状態で調整すると**誤った最適化**になる（§5 参照）。
+
+---
+
+## 2. S級: 致命的な欠陥
+
+### P-01　groundedness に「ファイル名」しか渡っていない　**有効スコア 10 / 確度 ★★★ / 工数 小**
+
+| 項目 | 内容 |
+|---|---|
+| **箇所** | `grace/executor.py:1669-1681`（`_extract_sources`）→ `backend/app/core/support_agent.py:329` |
+| **影響** | 支持率が構造的に 0 になり、**誤エスカレの主因**。無駄な Web 二次生成も誘発 |
+
+`_extract_sources` は検索結果から **`payload["source"]`（＝出典ファイル名・識別子）だけ**を
+抽出する。本文（`payload["question"]` / `["answer"]` / `["content"]`）は捨てられる。
+
+```python
+# grace/executor.py:1669-1681
+def _extract_sources(self, tool_result: ToolResult) -> List[str]:
+    """ツール結果からソースを抽出"""
+    sources = []
+    if isinstance(tool_result.output, list):
+        for item in tool_result.output:
+            if isinstance(item, dict):
+                payload = item.get("payload", {})
+                source = payload.get("source", "")   # ← 識別子のみ。本文は捨てられる
+                if source and source not in sources:
+                    sources.append(source)
+    return sources
+```
+
+この `sources` が `_collect_citations` → `_citation_text`（ラベル除去）を経て、
+そのまま検証器へ渡る。
+
+```python
+# backend/app/core/support_agent.py:329
+gres = verifier.verify(query, internal_answer, [_citation_text(c) for c in internal_citations])
+```
+
+結果、`GroundednessVerifier` のプロンプトに入る情報源はこうなる。
+
+```
+# 情報源
+gov_faq.csv
+```
+
+**これでは、いかなる主張も検証できない。** 全主張が `neutral` となり、
+`support_rate = supported / (supported + contradicted)` の分母が 0 →
+`decided = 0` → `_answer_gate` が **escalate** を返す。
+
+> ⚠️ **開発側も認識している**。`support_agent.py:394-396` のコメントに、
+> 「内部ゲートで escalate になる主因は **groundedness 検証が出典ラベル（URL 文字列）にしか
+> 当たらないこと**」と明記されている。つまり `_should_rescue_unaffirmed`（④-救済）と
+> ⑤ Web フォールバックの再検証は、**この欠陥への対症療法**として作られている。
+
+**改善案**: `_extract_sources` を本文抽出に変える、または検証器へ検索本文を別経路で渡す。
+出典表示（citations）は識別子のまま、検証用ソースは本文、と**用途を分離**するのが素直。
+
+**期待効果**: 支持率が実測値になる → 誤エスカレ激減 → 自己解決率↑。
+④-救済・⑤ Web の発火が減り、**1 ケースあたり十数秒の短縮**とコスト削減も伴う。
+
+---
+
+### P-02　RRF スコアを 0.7 のコサイン閾値で足切りしている　**有効スコア 9 / 確度 ★★☆ / 工数 小**
+
+| 項目 | 内容 |
+|---|---|
+| **箇所** | `agent_tools.py:42, 477-484` × `qdrant_client_wrapper.py:1162-1170`（`Fusion.RRF`） |
+| **影響** | **sparse を持つコレクションでは RAG が常にゼロ件**になり得る |
+
+ハイブリッド検索は **RRF 融合**でスコアを返す。
+
+```python
+# qdrant_client_wrapper.py:1162-1170
+response = client.query_points(
+    collection_name=collection_name,
+    prefetch=prefetch,
+    query=models.FusionQuery(fusion=models.Fusion.RRF),   # ← RRF スコア
+    limit=limit,
+    score_threshold=score_threshold if score_threshold > 0.0 else None,
+)
+```
+
+RRF スコアは概ね `1/(60 + rank)` のオーダーで、**最大でも約 0.03**。
+返却時に**正規化していない**（`"score": h.score` をそのまま格納）。
+
+一方、`search_rag_knowledge_base_structured` は次で足切りする。
+
+```python
+# agent_tools.py:42
+COSINE_SIMILARITY_THRESHOLD: float = 0.7  # Cohere Rerank廃止 → コサイン類似度で直接フィルタ
+
+# agent_tools.py:477-484
+filtered_results = [
+    r for r in candidates
+    if r.get("score", 0.0) >= COSINE_SIMILARITY_THRESHOLD   # ← RRF スコアには絶対に届かない
+]
+```
+
+**RRF スコア（〜0.03）が 0.7 を超えることは原理的にない** → 全件除外 →
+`[[NO_RAG_RESULT_LOW_SCORE]]` → 出典 0 → `_answer_gate` が escalate。
+
+> 📝 **発火条件**: ハイブリッド検索が成立した場合（コレクションが sparse ベクトルを持ち、
+> かつ sparse クエリベクトルが生成できた場合）に限る。sparse 未設定のコレクションは
+> dense のみに切り替わる（`qdrant_client_wrapper.py:1137-1141`）ため、この場合スコアは
+> コサイン類似度となり閾値 0.7 は意味を持つ（ただし高すぎる → P-04）。
+> 実環境での発火有無は §6 の 1 コマンドで確認できる。
+
+**改善案**: 検索方式ごとに閾値体系を分離する。
+- ハイブリッド（RRF）… 閾値による足切りをやめ、**順位で上位 N 件**を採用
+- dense のみ … コサイン閾値（ただし P-04 で見直し）
+
+あるいは、`search_collection` の戻り値に `score_type`（`"rrf"` / `"cosine"`）を持たせ、
+呼び出し側が適切に判断できるようにする。
+
+---
+
+### P-03　最初にヒットしたコレクションで探索を打ち切る　**有効スコア 8 / 確度 ★★★ / 工数 中**
+
+| 項目 | 内容 |
+|---|---|
+| **箇所** | `grace/tools.py:205-210` |
+| **影響** | 業界プロファイルの複数スコープが活きない |
+
+```python
+# grace/tools.py:205-210
+# 結果があれば採用してループ終了
+if results:
+    final_results = results
+    used_collection = target_collection
+    logger.info(f"Found {len(results)} valid results in {target_collection}")
+    break          # ← 以降のコレクションを一切見ない
+```
+
+gov プロファイルは `gov_faq_anthropic` / `gov_laws_anthropic` / `wikipedia_ja` の
+3 スコープを持つ（`backend/app/core/verticals.py:60`）が、**1 つ目が弱い結果を 1 件返しただけで
+探索が終了**する。2 つ目に条文の完全一致があっても届かない。
+
+**改善案**: 全候補コレクションを検索してから**横断でスコア統合**する。
+既存の `ParallelSearchEngine`（`docs/agent_parallel_search.md`）がそのまま使えるため、
+**レイテンシを増やさずに**実現できる（むしろ並列化で短縮する可能性が高い）。
+
+---
+
+## 3. A級: 影響大
+
+### P-04　`COSINE_SIMILARITY_THRESHOLD = 0.7` が高すぎる　**有効スコア 8 / 確度 ★★☆ / 工数 小**
+
+`agent_tools.py:42`。dense 経路でも 0.7 は厳しい。`gemini-embedding-001` の日本語では、
+関連文書でもコサイン類似度が 0.6〜0.75 に収まることが多く、**正解を落として escalate に倒れる**。
+
+さらに `grace/config.py:161` には `score_threshold: float = 0.35` があり、**しきい値が二重管理**で
+不整合を起こしている。
+
+**改善案**: 0.5 前後へ引き下げ、かつ **ヒット 0 件時のみ緩和する二段構え**にする。
+しきい値の定義箇所を 1 つに集約する。
+
+### P-05　リランカーが不在　**有効スコア 7 / 確度 ★★★ / 工数 中**
+
+`agent_tools.py:478` のコメントに「**Cohere Rerank 廃止**」とあり、現在の
+`search_rag_knowledge_base_structured` は**生のベクトルスコア順**で 20 件 → 3 件を選抜する。
+`rerank_results()` 関数自体は `agent_tools.py:217` に残存するが、この経路からは呼ばれない。
+
+**改善案**: cross-encoder リランクの復活（Cohere `rerank-multilingual-v3.0` またはローカルモデル）。
+RAG では定番かつ効果の大きい改善。
+
+> ⚠️ **順序が重要**: P-01 / P-02 を直してからでないと、リランクの効果を測定できない
+> （検索結果が 0 件では並べ替えようがない）。
+
+### P-06　`RAG_SEARCH_LIMIT = 3` 固定　**有効スコア 7 / 確度 ★★★ / 工数 小**
+
+`config.py:486`。複数トピック・長文手続きでは根拠が不足する。複数質問クエリで
+片方のトピックが 3 枠を占有する問題の一因でもある
+（`docs/multi_question_handling.md` #11）。
+
+**改善案**: 5〜8 へ拡大、またはクエリ複雑度に応じた可変化。
+
+---
+
+## 4. B級: 中程度
+
+| # | 項目 | 箇所 | スコア | 確度 | 内容 |
+|---|---|---|:--:|:--:|---|
+| **P-07** | gov のしきい値が厳格 | `verticals.py:64`（`notify_th=0.8`） | 6 | ★★★ | 3 業種で最も厳しい。P-01 未修正下では escalate を増幅する。**P-01 修正後に再調整すべき**（§5） |
+| **P-08** | グローバル config の並行汚染 | `support_agent.py:276-277` × `jobs.py:110` | 6 | ★★★ | 同時リクエストで検索スコープ・方針が相互汚染（詳細: `docs/multi_question_handling.md` §1.2） |
+| **P-09** | 業界スコープの静かな失効 | `verticals.py:50-56` | 5 | ★★★ | 登録済みコレクションが 1 つも無いと**制限なしで全件横断**にフォールバック。gov 質問が wikipedia で回答され、**失敗に気づけない** |
+| **P-10** | reasoning の本文 1000 字切り詰め | `grace/tools.py` `_build_prompt` | 5 | ★★★ | 長い手続き文書が途中で切れ、根拠が欠落する |
+| **P-11** | Dynamic Thresholding（top≥0.98 で 1 件化） | `grace/tools.py:220-222` | 4 | ★★★ | コサインで 0.98 は稀・RRF では絶対に発火しない → 実質デッドコード。発火時は根拠を 1 件に削り逆効果 |
+
+---
+
+## 5. 実施順序と注意
+
+```
+第1波（効果最大・小工数）
+  P-01  groundedness に本文を渡す        ← ここだけで体感が変わる
+  P-02  RRF / コサインの閾値体系を分離
+  ↓ KPI 再測定（自己解決率・出典付与率・根拠なし回答率・誤エスカレ率）
+
+第2波（検索品質）
+  P-03  コレクション横断ランキング
+  P-04  閾値 0.7 → 0.5 の調整
+  P-06  top_k 3 → 5〜8
+
+第3波（仕上げ）
+  P-05  リランカー復活
+  P-07  しきい値の再チューニング     ← 必ず最後
+  P-08  config 並行安全化
+```
+
+> ⚠️ **P-07（しきい値調整）を先にやってはならない。**
+> 最も手軽に見えるが、P-01 が壊れた状態で `notify_th` を下げると、
+> 「**根拠を検証できていないのに回答する**」方向へ倒れる。これは KPI の
+> 「根拠なし回答率（0 に近いほど良い）」を直接悪化させる、最も避けるべき変更である。
+
+### KPI との対応
+
+| KPI（`grace/docs/agent_support_example.md` §9） | 主に効くレバー |
+|---|---|
+| 自己解決率（deflection） | P-01, P-02, P-03, P-04 |
+| 出典付与率 | P-01, P-02 |
+| **根拠なし回答率**（0 に近いほど良い） | P-01（改善）／P-07 を先行すると**悪化**する |
+| エスカレーション適合率 | P-01, P-07 |
+| 平均応答時間 | P-01（⑤ Web 抑制）, P-03（並列化） |
+
+---
+
+## 6. 検証方法
+
+### 6.1 P-01 の確認（最短）
+
+CLI 版が最速。`-v` で支持率の内訳を出す。
+
+```bash
+uv run python agent_support_example.py --vertical gov -v "住民票の写しの取り方は？"
+```
+
+出力の `[groundedness] supported=… / total=…` を見る。
+
+| 観測 | 判定 |
+|---|---|
+| `supported=0 / total=N`（N≥1） | **P-01 が発火している**（本文が渡っていないため全主張が neutral） |
+| `supported≥1` | P-01 の影響は限定的。他レバーを優先 |
+
+### 6.2 P-02 の確認（1 コマンド）
+
+```bash
+grep -E "Hybrid Search成功|コサイン類似度フィルタ|NO_RAG_RESULT_LOW_SCORE" logs/*.log | tail -20
+```
+
+| 観測 | 判定 |
+|---|---|
+| 「Hybrid Search成功」の直後に `20 -> 0件` または `NO_RAG_RESULT_LOW_SCORE` | **P-02 が発火している** |
+| 「Hybrid Search成功」が出ない（dense のみ） | P-02 は未発火。ただし P-04（閾値 0.7）は依然有効 |
+
+### 6.3 P-09 の確認
+
+```bash
+curl -s http://localhost:6333/collections | python -m json.tool | grep -E "gov_|saas_|ec_"
+```
+
+gov/saas/ec のコレクションが 1 つも無ければ、検索スコープは**制限なし**にフォールバックしている。
+
+---
+
+## 7. レバー一覧（サマリ）
+
+| # | レバー | 層 | 箇所 | スコア | 確度 | 工数 |
+|---|---|:--:|---|:--:|:--:|:--:|
+| P-01 | groundedness に本文を渡す | [2] | `executor.py:1669-1681` / `support_agent.py:329` | **10** | ★★★ | 小 |
+| P-02 | RRF / コサインの閾値体系を分離 | [1] | `agent_tools.py:42,477-484` | **9** | ★★☆ | 小 |
+| P-03 | コレクション横断ランキング | [1] | `grace/tools.py:205-210` | **8** | ★★★ | 中 |
+| P-04 | コサイン閾値 0.7 → 0.5 | [1] | `agent_tools.py:42` / `grace/config.py:161` | **8** | ★★☆ | 小 |
+| P-05 | リランカー復活 | [1] | `agent_tools.py:217,478` | 7 | ★★★ | 中 |
+| P-06 | `RAG_SEARCH_LIMIT` 3 → 5〜8 | [1] | `config.py:486` | 7 | ★★★ | 小 |
+| P-07 | しきい値の再チューニング | [3] | `verticals.py:64` | 6 | ★★★ | 小 |
+| P-08 | config 並行安全化 | [5] | `support_agent.py:276-277` / `jobs.py:110` | 6 | ★★★ | 中 |
+| P-09 | 業界スコープ失効の可視化 | [1] | `verticals.py:50-56` | 5 | ★★★ | 小 |
+| P-10 | reasoning の切り詰め見直し | [4] | `grace/tools.py` `_build_prompt` | 5 | ★★★ | 小 |
+| P-11 | Dynamic Thresholding の削除/修正 | [1] | `grace/tools.py:220-222` | 4 | ★★★ | 小 |
+
+---
+
+## 8. 関連ドキュメント
+
+| ドキュメント | 内容 |
+|---|---|
+| `grace/docs/agent_support_example.md` | CLI 版 GRACE-Support の設計書（KPI・回答ポリシー） |
+| `grace/docs/agent_support_example_flow.md` | 1 コマンドの実行トレース（S0〜S9） |
+| `backend/docs/README.md` | backend アーキテクチャ・パイプライン ①〜⑥ |
+| `backend/docs/core_gates.md` | `_answer_gate` 等の判定純関数（P-07 の対象） |
+| `backend/docs/core_jobs.md` | ジョブ管理・スレッド実行（P-08 の対象） |
+| `docs/reasoning_flow.md` | reasoning の 4 層構成（P-10 の対象） |
+| `docs/agent_parallel_search.md` | 並列検索基盤（P-03 で再利用可能） |
+| `docs/multi_question_handling.md` | 複数質問対応（P-06 / P-08 と関連） |
+
+---
+
+## 9. 変更履歴
+
+| バージョン | 変更内容 |
+|-----------|---------|
+| 1.0 | 初版作成。性能を決める 5 層を整理し、S 級 3 件（groundedness へのファイル名のみ供給／RRF × コサイン閾値の不整合／first-hit-wins 打ち切り）・A 級 3 件・B 級 5 件を有効スコア・確度・工数付きで列挙。実施順序（しきい値調整を最後にする理由）と検証方法を明記。**分析段階／未実装** |
