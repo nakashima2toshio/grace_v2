@@ -3,8 +3,9 @@
 
 `run_support_agent_core` の外部依存（planner/executor/verifier/tools/LLM 分類器）を
 スタブへ差し替え、API キー・Qdrant・実 LLM なしでパイプラインの配線
-（イベント・HITL・判定の流れ）を検証できるようにする。純関数の判定ロジック
-そのものは tests/test_agent_support_vertical.py（既存）が固定している。
+（イベント・HITL・判定の流れ）を検証できるようにする。判定に使う純関数
+（`_answer_gate` / `_decide_action` 等）は backend/app/core/gates.py 側にあり、
+本ディレクトリの test_support_agent_core.py が配線ごと固定している。
 """
 from __future__ import annotations
 
