@@ -20,7 +20,7 @@ from qdrant_client import QdrantClient
 # Import wrappers for robust execution
 from regex_mecab import KeywordExtractor
 
-from .config import GraceConfig, get_config
+from .config import GraceConfig, get_config, heavy_thinking_budget, resolve_heavy_model
 from .llm_compat import create_chat_client
 
 logger = logging.getLogger(__name__)
@@ -476,7 +476,8 @@ class ReasoningTool(BaseTool):
         model_name: Optional[str] = None
     ):
         self.config = config or get_config()
-        self.model_name = model_name or self.config.llm.model
+        # M-1: 最終回答の生成は論理層。heavy_model 未設定なら llm.model と同じ。
+        self.model_name = model_name or resolve_heavy_model(self.config)
         self.client = create_chat_client(self.config)
 
     def execute(
@@ -516,6 +517,8 @@ class ReasoningTool(BaseTool):
                 config={
                     "temperature": self.config.llm.temperature,
                     "max_output_tokens": self.config.llm.max_tokens,
+                    # M-1: 論理層の拡張思考（heavy_model 設定時のみ有効。既定 0=無効）
+                    "thinking_budget_tokens": heavy_thinking_budget(self.config),
                 }
             )
 
@@ -711,6 +714,17 @@ class AskUserTool(BaseTool):
 # =============================================================================
 # Web検索ツール
 # =============================================================================
+
+def _url_host(url: str) -> str:
+    """URL からホスト名（小文字・ポート除去）を取り出す。取れなければ空文字。"""
+    if not url:
+        return ""
+    try:
+        from urllib.parse import urlparse
+        return (urlparse(url).hostname or "").lower()
+    except Exception:
+        return ""
+
 
 class WebSearchTool(BaseTool):
     """Web検索ツール（SerpAPI / DuckDuckGo / Google CSE 切り替え対応）"""
@@ -1007,6 +1021,43 @@ class WebSearchTool(BaseTool):
                 }
 
             formatted.append(entry)
+        return self._prefer_domains(formatted)
+
+    def _prefer_domains(self, formatted: list) -> list:
+        """W-1: 優先ドメインの結果を加点して上位へ並べ替える（除外はしない）。
+
+        検索スコープ（`VerticalProfile.collections`）が効くのは内部 RAG だけで、
+        Web 検索にはドメインの概念が無い。gov プロファイルで一般の天気サイトが
+        引用に載る、という取り違えが実測で確認されている。
+
+        ただし取得側を「一致したものだけ」に絞ると、優先ドメインに情報が無い
+        質問で結果が 0 件になり、情報なし回答 → ④' の誤エスカレへ連鎖する。
+        そこで **順位付けだけを変える**。非一致の結果も従来どおり残るため、
+        最悪でも「並び順が変わるだけ」で情報量は減らない。
+        """
+        domains = [d.strip().lower().lstrip(".")
+                   for d in (getattr(self.config.web_search, "preferred_domains", None) or [])
+                   if d and d.strip()]
+        if not domains:
+            return formatted
+
+        boost = float(getattr(self.config.web_search, "preferred_domain_boost", 0.15) or 0.0)
+        hits = 0
+        for entry in formatted:
+            host = _url_host(entry.get("payload", {}).get("source", ""))
+            matched = bool(host) and any(host == d or host.endswith("." + d) for d in domains)
+            entry["preferred_domain"] = matched
+            if matched:
+                hits += 1
+                entry["score"] = round(min(1.0, entry.get("score", 0.0) + boost), 2)
+
+        # 一致 → スコアの順で安定ソート（同条件なら元の検索順位を保つ）。
+        # 加点だけで並べ替えないのは、スコアが 1.0 で頭打ちになると
+        # 「1 位の非一致」と「2 位の一致」が同点になり順位が入れ替わらないため。
+        formatted.sort(key=lambda e: (e.get("preferred_domain", False), e.get("score", 0.0)),
+                       reverse=True)
+        logger.info(f"web_search 優先ドメイン加点: {hits}/{len(formatted)} 件が一致 "
+                    f"(domains={domains}, boost={boost})")
         return formatted
 
     def _calculate_confidence_factors(self, scores: list,

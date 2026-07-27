@@ -24,6 +24,8 @@ def make_config_stub(notify=0.7, confirm=0.4, default_timeout=2):
         ),
         qdrant=SimpleNamespace(allowed_collections=[]),
         llm=SimpleNamespace(prompt_addendum=""),
+        # W-1: 業界プロファイル由来の優先ドメインの注入先
+        web_search=SimpleNamespace(preferred_domains=[], preferred_domain_boost=0.15),
         intervention=SimpleNamespace(
             default_timeout=default_timeout, auto_proceed_on_timeout=False
         ),

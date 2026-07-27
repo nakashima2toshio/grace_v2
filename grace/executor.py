@@ -23,7 +23,7 @@ from .confidence import (
     create_query_coverage_calculator,
     create_source_agreement_calculator,  # TODO #5: 追加
 )
-from .config import GraceConfig, get_config
+from .config import GraceConfig, get_config, heavy_thinking_budget, resolve_heavy_model
 from .intervention import (
     InterventionAction,
     InterventionRequest,
@@ -758,13 +758,15 @@ class Executor:
         )
         try:
             response = self._react_client.models.generate_content(
-                model=self.config.llm.model,
+                model=resolve_heavy_model(self.config),
                 contents=prompt,
                 config={
                     "response_mime_type": "application/json",
                     "response_schema": AgentThought,
                     "temperature": 0.0,
                     "max_output_tokens": 512,
+                    # M-1: 論理層の拡張思考（heavy_model 設定時のみ有効。既定 0=無効）
+                    "thinking_budget_tokens": heavy_thinking_budget(self.config),
                 },
             )
             if not response or not response.text:
@@ -1084,7 +1086,7 @@ class Executor:
         # 2. Agent初期化
         agent = ReActAgent(
             selected_collections=available_collections,
-            model_name=self.config.llm.model
+            model_name=resolve_heavy_model(self.config)
         )
 
         query = step.query or step.description
@@ -2021,7 +2023,10 @@ class Executor:
         ws = float(getattr(cc, "self_eval_weight", 0.25))
         wc = float(getattr(cc, "coverage_weight", 0.15))
 
-        comps = [(gres.support_rate, wg)]
+        # M-6: 判定率による支持率の減衰。詳細は _damp_support_rate を参照。
+        support_rate = self._damp_support_rate(gres, cc)
+
+        comps = [(support_rate, wg)]
         if self_eval is not None:
             comps.append((self_eval, ws))
         if coverage is not None:
@@ -2036,12 +2041,42 @@ class Executor:
                         f"capping answer_conf at {answer_conf:.3f}")
 
         final = (1.0 - w_aux) * answer_conf + w_aux * aggregated
+        damped = "" if support_rate == gres.support_rate else \
+            f" -> damped={support_rate:.3f}"
         logger.info(
-            f"Groundedness blend: support_rate={gres.support_rate:.3f} "
+            f"Groundedness blend: support_rate={gres.support_rate:.3f}{damped} "
             f"({gres.supported}/{gres.supported + gres.contradicted} decided, "
             f"total={gres.total}) -> final={final:.3f}"
         )
         return final
+
+    @staticmethod
+    def _damp_support_rate(gres: Any, cc: Any) -> float:
+        """M-6: 判定できた claim の割合で支持率を割り引く。
+
+        `support_rate` は supported / (supported + contradicted) で、neutral
+        （情報源に関連記述が無く判断できない claim）を分母から外している。
+        このため「11 claim 中 7 しか判定できず、その 7 が全部 supported」でも
+        支持率は 1.0 になり、**根拠が見つからなかった 4 件がスコアに出ない**。
+        実測でこの状態（decided 7/11）で overall 0.92 が出ていた。
+
+            damping   = min(1.0, (decided / total) / coverage_target)
+            effective = support_rate * (1 - strength + strength * damping)
+
+        neutral には「詳しくはお問い合わせください」等、原理的にどの情報源でも
+        支持されない定型句も含まれる。全損させないよう strength は控えめにし、
+        判定率が target 以上なら減衰しない。strength=0 で従来どおり。
+        """
+        strength = float(getattr(cc, "groundedness_coverage_strength", 0.0) or 0.0)
+        target = float(getattr(cc, "groundedness_coverage_target", 0.8) or 0.0)
+        total = int(getattr(gres, "total", 0) or 0)
+        decided = int(getattr(gres, "supported", 0)) + int(getattr(gres, "contradicted", 0))
+
+        if strength <= 0.0 or target <= 0.0 or total <= 0 or decided <= 0:
+            return gres.support_rate
+
+        damping = min(1.0, (decided / total) / target)
+        return gres.support_rate * (1.0 - strength + strength * damping)
 
     def _record_memory(self, state: ExecutionState) -> None:
         """P4: 実行結果を実行メモリへ記録する（best-effort）。

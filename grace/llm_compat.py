@@ -35,6 +35,29 @@ _GEMINI_PROVIDERS = {"gemini", "google", "google-genai", "genai"}
 # Anthropic デフォルトモデル（config 未指定時のフォールバック）
 DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-4-6"
 
+# 拡張思考を有効にするときに本文用として最低限確保するトークン数。
+# Anthropic は max_tokens > budget_tokens を要求し、差分が本文の取り分になる。
+_MIN_TEXT_TOKENS = 1024
+
+# Anthropic が要求する thinking budget の下限。
+_MIN_THINKING_BUDGET = 1024
+
+
+def _thinking_budget(requested: Any, max_tokens: int) -> int:
+    """拡張思考の budget を正規化する。0 / None / 不正値は「無効」。
+
+    呼び出し側が `max_output_tokens` しか意識していないケースを壊さないよう、
+    budget を要求されたときはここで下限（API 要件）を満たすまで引き上げる。
+    max_tokens 側は呼び出し元で `budget + _MIN_TEXT_TOKENS` まで広げる。
+    """
+    try:
+        value = int(requested or 0)
+    except (TypeError, ValueError):
+        return 0
+    if value <= 0:
+        return 0
+    return max(value, _MIN_THINKING_BUDGET)
+
 
 class _UsageMetadata:
     """genai の usage_metadata 互換オブジェクト。"""
@@ -69,7 +92,8 @@ def _extract_config(config: Any) -> dict[str, Any]:
     if config is None:
         return {}
     out: dict[str, Any] = {}
-    for key in ("temperature", "max_output_tokens", "response_mime_type", "response_schema"):
+    for key in ("temperature", "max_output_tokens", "response_mime_type",
+                "response_schema", "thinking_budget_tokens"):
         if isinstance(config, dict):
             out[key] = config.get(key)
         else:
@@ -151,18 +175,34 @@ class _AnthropicModels:
 
         # Anthropic は max_tokens 必須。genai の max_output_tokens を流用し、
         # 未指定時は十分な既定値を確保する。
-        max_tokens = cfg.get("max_output_tokens") or 2048
+        max_tokens = int(cfg.get("max_output_tokens") or 2048)
         temperature = cfg.get("temperature")
 
         kwargs: dict[str, Any] = {
             "model": model_name,
-            "max_tokens": int(max_tokens),
+            "max_tokens": max_tokens,
             "messages": [{"role": "user", "content": prompt}],
         }
         if system_prompt:
             kwargs["system"] = system_prompt
-        if temperature is not None:
-            kwargs["temperature"] = float(temperature)
+
+        # --- 拡張思考（extended thinking）の明示制御 ---------------------------
+        # 一部のモデル（claude-opus-5 等）は thinking が **既定で有効**で、
+        # その場合 max_tokens は「思考 + 本文」の合計上限になり、temperature は
+        # 指定できない。GRACE の呼び出しサイトには
+        # `max_output_tokens: 10`（複雑度推定・意図分類・情報なし判定）や
+        # `temperature: 0.0`（groundedness / JSON 生成）が多数あるため、
+        # 既定を暗黙に任せるとモデル差し替えの瞬間に「本文が空」「API エラー」で
+        # 壊れる。ここで **常に明示** し、呼び出し側が budget を渡したときだけ有効化する。
+        budget = _thinking_budget(cfg.get("thinking_budget_tokens"), max_tokens)
+        if budget:
+            kwargs["thinking"] = {"type": "enabled", "budget_tokens": budget}
+            # 思考中は温度指定不可。呼び出し側の temperature は無視する。
+            kwargs["max_tokens"] = max(max_tokens, budget + _MIN_TEXT_TOKENS)
+        else:
+            kwargs["thinking"] = {"type": "disabled"}
+            if temperature is not None:
+                kwargs["temperature"] = float(temperature)
 
         message = self._get_client().messages.create(**kwargs)
 
