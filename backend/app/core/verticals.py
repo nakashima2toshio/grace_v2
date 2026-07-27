@@ -23,6 +23,27 @@ Intent = Literal["question", "request", "incident"]
 # 意図分類に使う軽量モデル（CLAUDE.md プロバイダ方針の軽量既定）
 INTENT_MODEL = "claude-haiku-4-5-20251001"
 
+# 全プロファイル共通のスコープ方針（reasoning プロンプトへ注入）。
+#
+# 背景: 検索スコープ（`collections`）が効くのは **内部 RAG だけ** で、
+# ⑤ Web フォールバックと executor の動的 web_search にはドメイン制限が無い
+# （`grace/config.py::WebSearchConfig` に allowed_domains 相当のフィールドが無く、
+# `WebSearchTool.execute` も query/num_results/language しか受け取らない）。
+# その結果、gov プロファイルで「明日の東京の天気は？」を投げると天気サイトが
+# 引用に載る、という取り違えが実測で確認されている。
+#
+# 取得側（retrieval）を絞るのは 0 件化 → 情報なし回答 → 誤エスカレの連鎖を
+# 招きやすいため、まず生成側（reasoning）で担当範囲を明示する。
+#
+# ⚠️ 最終文は必須。これが無いと「住民票の取り方は？ ところで明日の天気は？」
+#    のような複合質問で、担当範囲内の質問まで丸ごと断られうる。
+SCOPE_POLICY = (
+    "担当範囲は上記の業務領域に限る。範囲外の話題（天気・ニュース・一般常識・"
+    "他業種の手続き等）は、参照情報に含まれていても内容を回答せず、"
+    "担当範囲外である旨を明示したうえで適切な窓口を案内すること。"
+    "ただし担当範囲内の質問が同時に含まれる場合は、そちらには通常どおり回答する。"
+)
+
 
 @dataclass
 class ActionRequest:
@@ -44,7 +65,17 @@ class VerticalProfile:
     require_identity: bool = False           # アクション前に本人確認を必須化
     notify_th: Optional[float] = None        # None なら config 既定
     confirm_th: Optional[float] = None
-    prompt_addendum: str = ""                # 業界固有の方針（表示・将来のプロンプト注入用）
+    prompt_addendum: str = ""                # 業界固有の方針（表示・プロンプト注入用）
+
+    def build_prompt_addendum(self) -> str:
+        """reasoning へ実際に注入する業務方針を組み立てる。
+
+        業界固有の方針（`prompt_addendum`）に共通の `SCOPE_POLICY` を足したもの。
+        `prompt_addendum` 単体は「この業界の方針」を表す値として `/api/verticals`
+        がそのまま返すため、スコープ方針はここで合成し、フィールドは汚さない。
+        """
+        parts = [p for p in (self.prompt_addendum, SCOPE_POLICY) if p]
+        return "\n".join(parts)
 
 
 # 組み込みプロファイル（自治体 / SaaS / EC）

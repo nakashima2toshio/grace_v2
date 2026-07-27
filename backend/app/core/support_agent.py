@@ -282,8 +282,11 @@ def run_support_agent_core(
 
     # コアへの配線: 検索スコープ（rag_search の許可リスト）と業界方針（reasoning へ注入）。
     # tools は config への参照を保持しているため、ここでの設定が実行時に効く。
+    # 注入する方針は build_prompt_addendum()（業界固有の方針＋共通の SCOPE_POLICY）。
+    # 検索スコープが効くのは内部 RAG だけで、Web 検索にはドメイン制限が無いため、
+    # 担当範囲外の話題を「回答しない」ことは生成側で担保する（verticals.SCOPE_POLICY）。
     config.qdrant.allowed_collections = list(profile.collections) if profile else []
-    config.llm.prompt_addendum = profile.prompt_addendum if profile else ""
+    config.llm.prompt_addendum = profile.build_prompt_addendum() if profile else ""
 
     if profile is not None:
         step_started(
@@ -296,6 +299,8 @@ def run_support_agent_core(
             step="profile")
         if profile.prompt_addendum:
             log(f"  方針(reasoningへ注入): {profile.prompt_addendum}", step="profile")
+        log("  スコープ方針: 担当範囲外の話題は回答せず窓口を案内（Web 検索は"
+            "ドメイン制限が無いため生成側で担保）", step="profile")
         step_finished(
             "profile",
             vertical=vertical, name=profile.name,

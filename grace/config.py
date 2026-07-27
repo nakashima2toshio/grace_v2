@@ -263,6 +263,13 @@ class ExecutorConfig(BaseModel):
     react_enabled: bool = True              # 複雑質問を ReAct ループで実行する
     react_complexity_threshold: float = 0.7  # この複雑度以上のみ ReAct（未満は静的パス温存）
     react_max_iterations: int = 8           # ReAct ループの最大反復回数
+    # RAG 検索結果の意味的適合性チェック（_evaluate_rag_relevance）に使うモデル。
+    # 出力は YES / NO の 2 値だけなので、既定では軽量モデル（llm.light_model）を使う。
+    # ""（空）= llm.light_model にフォールバック。A/B したいときはモデル名を直接書く
+    #   （例: "claude-sonnet-4-6" で従来どおり主モデル判定に戻せる）。
+    # ⚠️ この判定は「RAG 経路を捨てて Web 検索へ落ちるか」を左右する影響の大きい
+    #    分岐なので、モデルを変えたら誤判定率を実測で確認すること。
+    relevance_check_model: str = ""
 
 
 class GraceConfig(BaseModel):
