@@ -6,7 +6,7 @@
 を返す。`run_support_agent_core` は業界プロファイルを反映するために
 
     config.qdrant.allowed_collections = list(profile.collections)
-    config.llm.prompt_addendum        = profile.prompt_addendum
+    config.llm.prompt_addendum        = profile.build_prompt_addendum()
 
 とシングルトンを直接書き換えていた。一方 `backend/app/core/jobs.py::JobManager.start`
 は 1 ジョブ = 1 ワーカースレッドで `run_support_agent_core` を回すため、
@@ -90,7 +90,7 @@ def test_profile_is_wired_into_tools_config(monkeypatch):
 
     cfg = captured["gov"]
     assert cfg.qdrant.allowed_collections == list(PROFILES["gov"].collections)
-    assert cfg.llm.prompt_addendum == PROFILES["gov"].prompt_addendum
+    assert cfg.llm.prompt_addendum == PROFILES["gov"].build_prompt_addendum()
 
 
 def test_no_vertical_clears_scope(monkeypatch):
@@ -153,8 +153,8 @@ def test_concurrent_verticals_do_not_leak(monkeypatch):
     # 互いのスコープが混ざっていないこと
     assert captured["gov"].qdrant.allowed_collections == list(PROFILES["gov"].collections)
     assert captured["ec"].qdrant.allowed_collections == list(PROFILES["ec"].collections)
-    assert captured["gov"].llm.prompt_addendum == PROFILES["gov"].prompt_addendum
-    assert captured["ec"].llm.prompt_addendum == PROFILES["ec"].prompt_addendum
+    assert captured["gov"].llm.prompt_addendum == PROFILES["gov"].build_prompt_addendum()
+    assert captured["ec"].llm.prompt_addendum == PROFILES["ec"].build_prompt_addendum()
 
     # 別インスタンスであること（同一オブジェクトなら分離できていない）
     assert captured["gov"] is not captured["ec"]

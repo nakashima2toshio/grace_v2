@@ -1222,6 +1222,24 @@ class Executor:
 
         return kwargs
 
+    def _relevance_check_model(self) -> str:
+        """RAG 適合性チェックに使うモデル名を解決する。
+
+        優先順位:
+          1. `executor.relevance_check_model`（明示指定。A/B や巻き戻し用）
+          2. `llm.light_model`（既定。出力は YES / NO の 2 値のみ）
+          3. `llm.model`（軽量モデルが未設定の環境向けの最終フォールバック）
+
+        主モデルを使っていた頃、この判定 1 回に数秒かかり、かつ十分だった
+        RAG 経路を捨てて Web 検索へ落とす原因になっていた（実測）。
+        """
+        executor_cfg = getattr(self.config, "executor", None)
+        explicit = (getattr(executor_cfg, "relevance_check_model", "") or "").strip()
+        if explicit:
+            return explicit
+        return (getattr(self.config.llm, "light_model", "") or "").strip() \
+            or self.config.llm.model
+
     def _evaluate_rag_relevance(
             self,
             query: str,
@@ -1261,7 +1279,7 @@ class Executor:
             t0 = _time.time()
 
             response = client.models.generate_content(
-                model=self.config.llm.model,
+                model=self._relevance_check_model(),
                 contents=prompt,
                 config={
                     "temperature": 0.0,
@@ -1278,7 +1296,8 @@ class Executor:
                 return True
             is_relevant = "YES" in answer
             logger.info(
-                f"RAG relevance check: '{answer}' -> {is_relevant} ({elapsed:.1f}s)"
+                f"RAG relevance check ({self._relevance_check_model()}): "
+                f"'{answer}' -> {is_relevant} ({elapsed:.1f}s)"
             )
             return is_relevant
 

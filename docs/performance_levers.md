@@ -1,6 +1,6 @@
 # 性能改善レバー分析 — 事業特化型エージェントの回答品質を決める部分
 
-**Version 1.6** | 最終更新: 2026-07-27 | ステータス: **P-01 / P-01b / P-04 / P-03（案①検索順序）/ P-08 実装済み・他は未実装**
+**Version 1.7** | 最終更新: 2026-07-27 | ステータス: **P-01 / P-01b / P-04 / P-03（案①検索順序）/ P-08 / W-2 / M-3 実装済み・他は未実装**
 
 > 📌 本書はコード調査に基づく分析・提案。**P-01 / P-01b / P-04 / P-03（案①）は実装済み**、
 > それ以外は未実装。実施順序は §5 に従うこと。特に
@@ -506,6 +506,7 @@ gov/saas/ec のコレクションが 1 つも無ければ、検索スコープ�
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 1.7 | **W-2 と M-3 を実装**。①**W-2（担当範囲の明示）**: 検索スコープ（`VerticalProfile.collections`）が効くのは内部 RAG だけで、⑤ Web フォールバックと executor の動的 web_search にはドメイン制限が無い（`WebSearchConfig` に allowed_domains 相当が無く、`WebSearchTool.execute` も query/num_results/language しか受け取らない）。実測で gov に天気サイトが引用として載ったため、取得側ではなく生成側で担保する方針を採り、全プロファイル共通の `verticals.SCOPE_POLICY` を `VerticalProfile.build_prompt_addendum()` で合成して reasoning へ注入する。複合質問で範囲内の質問まで断られないよう「同時に含まれる場合はそちらには回答する」を明文化。②**M-3（適合性チェックの軽量化）**: `Executor._evaluate_rag_relevance` は YES/NO の 2 値しか返さないのに主モデルを使っており、実測で数秒かかったうえ十分だった RAG 経路を捨てて Web 検索へ落とす原因になっていた。`executor.relevance_check_model`（既定 =`llm.light_model`）を新設し、A/B と巻き戻しを設定で行えるようにした。回帰テスト `backend/tests/test_scope_and_models.py` を 20 ケース追加。**解決ロジック単体のテストだけでは呼び出し箇所の巻き戻しを検出できなかった**ため、LLM へ渡る model を捕まえるテストを追加している |
 | 1.6 | **P-08 を実装**。`get_config()` はプロセス共有シングルトンを返すが `run_support_agent_core` が `config.qdrant.allowed_collections` / `config.llm.prompt_addendum` を直接書き換えており、`jobs.py` がジョブごとにスレッドを立てるため**同時リクエストで検索スコープが相互汚染**していた（gov の質問が ec のコレクションで走りうる）。`copy.deepcopy(get_config())` によるリクエスト単位のコピーへ変更（`model_copy` ではなく `deepcopy` を選択したのは、テストのスタブが pydantic ではないため）。回帰テスト `backend/tests/test_config_isolation.py` を 4 ケース追加し、同一 config オブジェクトを共有させた2 スレッドを Barrier で同期させる実測再現で、修正前コードでは 2 件が失敗することを確認 |
 | 1.0 | 初版作成。性能を決める 5 層を整理し、S 級 3 件（groundedness へのファイル名のみ供給／RRF × コサイン閾値の不整合／first-hit-wins 打ち切り）・A 級 3 件・B 級 5 件を有効スコア・確度・工数付きで列挙。実施順序（しきい値調整を最後にする理由）と検証方法を明記。**分析段階／未実装** |
 | 1.1 | **P-01 を実装**（`StepResult.source_texts` 追加 / `Executor._extract_source_texts()` / `_collect_source_texts()` / ③ Confidence の検証ソース差し替え・フォールバック付き）。回帰テスト `backend/tests/test_groundedness_sources.py` を追加し、P-01 の項と §7 サマリに実装済みを明記。他レバー（P-02 以降）は未実装 |
