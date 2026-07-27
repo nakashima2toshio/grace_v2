@@ -16,7 +16,7 @@ from qdrant_client import QdrantClient
 from services.prompts import SEARCH_QUERY_INSTRUCTION
 from services.qdrant_service import get_all_collections
 
-from .config import GraceConfig, get_config
+from .config import GraceConfig, get_config, heavy_thinking_budget, resolve_heavy_model
 from .llm_compat import create_chat_client
 from .memory import create_execution_memory
 from .schemas import (
@@ -172,7 +172,8 @@ class Planner:
             model_name: 使用するモデル名（Noneの場合は設定から取得）
         """
         self.config = config or get_config()
-        self.model_name = model_name or self.config.llm.model
+        # M-1: 計画生成は論理層。heavy_model 未設定なら llm.model と同じ。
+        self.model_name = model_name or resolve_heavy_model(self.config)
         self.client = create_chat_client(self.config)
 
         # P4: 実行メモリ層（コレクション事前分布の学習・反映）
@@ -360,6 +361,8 @@ class Planner:
         }
         if max_output_tokens is not None:
             config["max_output_tokens"] = max_output_tokens
+        # M-1: 論理層の拡張思考（heavy_model 設定時のみ有効。既定 0=無効）
+        config["thinking_budget_tokens"] = heavy_thinking_budget(self.config)
 
         max_attempts = self.config.planner.llm_plan_max_attempts
         last_error = None

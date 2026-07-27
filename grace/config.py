@@ -60,6 +60,21 @@ class LLMConfig(BaseModel):
     # ステップ毎の確信度評価（evaluate_with_factors）などテレメトリ級の
     # 定型評価タスクに使う軽量モデル。回答生成・根拠検証は model を使う。
     light_model: str = "claude-haiku-4-5-20251001"
+    # M-1: 論理層（計画生成・推論・根拠検証）に使う上位モデル。
+    # ""（空）= model と同じ。上位モデルへ寄せたいときだけ設定する
+    # （例: "claude-opus-5"）。
+    #
+    # ⚠️ 切り替え前に必ず確認すること:
+    #   1. claude-opus-5 は拡張思考が既定 ON で、max_tokens は「思考+本文」の
+    #      合計上限になる。llm_compat が既定で thinking を明示 disabled にして
+    #      いるためそのままでも動くが、思考を活かすなら
+    #      heavy_thinking_budget_tokens を設定する
+    #   2. 入出力単価が上がる（sonnet の 1.7 倍程度）。cost.* の上限も見直す
+    #   3. 判定系（複雑度推定・意図分類・情報なし判定・RAG 適合性）は
+    #      light_model 側であり、ここでは切り替わらない
+    heavy_model: str = ""
+    # 論理層で拡張思考に使うトークン予算（0=無効）。有効化すると温度指定は無視される。
+    heavy_thinking_budget_tokens: int = 0
     temperature: float = 0.7
     max_tokens: int = 4096
     timeout: int = 30
@@ -102,6 +117,21 @@ class ConfidenceConfig(BaseModel):
     self_eval_weight: float = 0.25     # 自己評価（従）
     coverage_weight: float = 0.15      # 網羅度（従）
     search_aux_weight: float = 0.2     # 検索ベース集約値（補助）の重み
+    # M-6: 判定できた claim の割合（decided / total）による支持率の減衰。
+    #
+    # support_rate は supported / (supported + contradicted) で、neutral（情報源に
+    # 関連記述が無く判断できない）を分母から除く。このため「11 claim 中 7 しか
+    # 判定できず、その 7 が全部 supported」でも支持率 1.0 になり、根拠の薄さが
+    # スコアに出ない。判定率が低いほど支持率を割り引く。
+    #
+    #   damping    = min(1.0, (decided / total) / coverage_target)
+    #   effective  = support_rate * (1 - strength + strength * damping)
+    #
+    # neutral には「お問い合わせください」等の定型句も含まれ、これは原理的に
+    # どの情報源でも支持されない。全損させないよう strength は控えめにする。
+    # strength=0.0 で従来どおり（減衰なし）。
+    groundedness_coverage_strength: float = 0.3
+    groundedness_coverage_target: float = 0.8
     # 曖昧クエリ等の明確化（ask_user）計画＝最終回答なしのときに用いる低信頼値。
     # 0.4 未満で ESCALATE、0.4〜0.7 で CONFIRM 介入になる（既定は ESCALATE 寄り）。
     clarification_confidence: float = 0.3
@@ -192,6 +222,17 @@ class WebSearchConfig(BaseModel):
     google_cse_engine_id: str = ""
     # SerpAPI用（backendが"serpapi"の場合に使用）
     serpapi_api_key: str = ""
+    # W-1: 優先ドメイン（業界プロファイルがリクエストごとに注入する）。
+    #
+    # ⚠️ これは「除外リスト」ではなく「加点リスト」。取得側を絞り込むと
+    # 0 件化 → 情報なし回答 → ④' の誤エスカレ、という連鎖を招くことが
+    # 実測で分かっている（saas の 500 エラー報告で顕在化）。そのため
+    # 一致したドメインのスコアを底上げして順位を上げるだけに留め、
+    # 非一致の結果も従来どおり残す。
+    # 一致判定は取得 URL のホスト名に対する接尾辞一致
+    #   （"go.jp" は "www.city.example.go.jp" に一致する）。
+    preferred_domains: list = Field(default_factory=list)
+    preferred_domain_boost: float = 0.15
 
 
 class ToolsConfig(BaseModel):
@@ -419,6 +460,44 @@ def reset_config():
     """設定をリセット（テスト用）"""
     global _config_loader
     _config_loader = None
+
+
+# =============================================================================
+# モデル層の解決（M-1）
+# =============================================================================
+#
+# GRACE は用途をおおまかに 3 層で使い分ける。
+#
+#   論理層 (heavy): 計画生成 / 推論（最終回答）/ 根拠検証 / ReAct ループ
+#   標準層 (model): 自己評価・網羅度など、スコアを出す定型評価
+#   軽量層 (light): 複雑度推定・意図分類・情報なし判定・RAG 適合性チェック
+#                   （いずれも 1 語〜数値しか返さない）
+#
+# `heavy_model` が空のあいだは標準層と同じモデルに解決されるため、
+# 設定しない限り挙動は変わらない。
+
+def resolve_heavy_model(config: Any) -> str:
+    """論理層に使うモデル名を解決する（未設定なら `llm.model`）。"""
+    llm = getattr(config, "llm", None)
+    if llm is None:
+        return ""
+    heavy = (getattr(llm, "heavy_model", "") or "").strip()
+    return heavy or (getattr(llm, "model", "") or "")
+
+
+def heavy_thinking_budget(config: Any) -> int:
+    """論理層の拡張思考トークン予算を返す（0=無効）。
+
+    `heavy_model` を設定していない（＝標準層と同じモデルを使っている）間は
+    思考を有効にしない。モデルを上げていないのに思考コストだけ増えるのを防ぐ。
+    """
+    llm = getattr(config, "llm", None)
+    if llm is None or not (getattr(llm, "heavy_model", "") or "").strip():
+        return 0
+    try:
+        return max(0, int(getattr(llm, "heavy_thinking_budget_tokens", 0) or 0))
+    except (TypeError, ValueError):
+        return 0
 
 
 # =============================================================================

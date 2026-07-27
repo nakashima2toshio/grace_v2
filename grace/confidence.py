@@ -13,7 +13,7 @@ from typing import Any, Dict, List, Literal, Optional
 from google import genai  # embedding 専用（SourceAgreementCalculator の embed_content）
 from pydantic import BaseModel, Field
 
-from .config import GraceConfig, get_config
+from .config import GraceConfig, get_config, heavy_thinking_budget, resolve_heavy_model
 from .llm_compat import create_chat_client
 
 logger = logging.getLogger(__name__)
@@ -796,7 +796,8 @@ class GroundednessVerifier:
     def __init__(self, config: Optional[GraceConfig] = None,
                  model_name: Optional[str] = None):
         self.config = config or get_config()
-        self.model_name = model_name or self.config.llm.model
+        # M-1: claim 分解と支持判定は論理層。heavy_model 未設定なら llm.model と同じ。
+        self.model_name = model_name or resolve_heavy_model(self.config)
         self.client = create_chat_client(self.config)
         logger.info(f"GroundednessVerifier initialized with model: {self.model_name}")
 
@@ -821,6 +822,8 @@ class GroundednessVerifier:
                     "response_schema": GroundednessResponse,
                     "temperature": 0.0,
                     "max_output_tokens": 1024,
+                    # M-1: 論理層の拡張思考（heavy_model 設定時のみ有効。既定 0=無効）
+                    "thinking_budget_tokens": heavy_thinking_budget(self.config),
                 },
             )
             if not response or not response.text:

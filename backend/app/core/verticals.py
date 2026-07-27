@@ -66,6 +66,10 @@ class VerticalProfile:
     notify_th: Optional[float] = None        # None なら config 既定
     confirm_th: Optional[float] = None
     prompt_addendum: str = ""                # 業界固有の方針（表示・プロンプト注入用）
+    # W-1: Web 検索で優先するドメイン（接尾辞一致）。**除外ではなく加点**。
+    # 一致した結果のスコアを底上げして上位へ並べ替えるだけで、非一致の結果も残す
+    # （絞り込むと 0 件化 → 情報なし回答 → 誤エスカレの連鎖を招くため）。
+    preferred_domains: List[str] = field(default_factory=list)
 
     def build_prompt_addendum(self) -> str:
         """reasoning へ実際に注入する業務方針を組み立てる。
@@ -93,6 +97,8 @@ PROFILES: Dict[str, VerticalProfile] = {
         action_map={"申請": "send_reply", "手続": "send_reply", "様式": "send_reply"},
         require_identity=False,
         notify_th=0.8, confirm_th=0.5,   # 正確性最優先：厳しめ
+        # 公的機関のドメインを優先（加点のみ・除外はしない）
+        preferred_domains=["go.jp", "lg.jp"],
         prompt_addendum="条例・公式案内に基づき、断定を避け、該当ページ・担当課を明示。個人情報は尋ねない。",
     ),
     "saas": VerticalProfile(
@@ -101,6 +107,7 @@ PROFILES: Dict[str, VerticalProfile] = {
         escalate_keywords=["障害", "ダウン", "落ち", "課金", "請求", "情報漏", "セキュリティ"],
         action_map={"エラー": "create_ticket", "不具合": "create_ticket", "バグ": "create_ticket"},
         require_identity=False,
+        preferred_domains=[],   # 自社ドキュメントの公開ドメインが決まったら列挙する
         prompt_addendum="製品バージョンを明示し、再現手順と公式ドキュメント URL を添える。",
     ),
     "ec": VerticalProfile(
@@ -110,6 +117,7 @@ PROFILES: Dict[str, VerticalProfile] = {
         action_map={"返品": "create_ticket", "交換": "create_ticket",
                     "キャンセル": "create_ticket", "解約": "create_ticket"},
         require_identity=True,           # 注文情報の操作は本人確認必須
+        preferred_domains=[],   # 自社ストア・規約ページのドメインが決まったら列挙する
         prompt_addendum="注文情報の照会・変更は本人確認必須。返品・交換は規定の版に基づいて回答。",
     ),
 }

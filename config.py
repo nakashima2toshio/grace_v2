@@ -483,7 +483,13 @@ class AgentConfig:
         "cc_news_5per",
         "fineweb_edu_ja_5per",
     ]
-    RAG_SEARCH_LIMIT: int = 3
+    # P-06: 3 → 5。候補は常に 20 件取得済み（agent_tools.search_collection の limit=20）で、
+    # ここは「閾値を通過した候補から何件を出典として残すか」の絞り込みにすぎない。
+    # したがって引き上げても Qdrant アクセスも埋め込み生成も増えず、増えるのは
+    # reasoning / groundedness プロンプトへ載る本文だけ。実測で groundedness の
+    # 判定可能 claim が 11 件中 7 件に留まっており（neutral = 根拠が見つからない）、
+    # 出典を増やすのが最も素直な対処。
+    RAG_SEARCH_LIMIT: int = 5
     RAG_SCORE_THRESHOLD: float = 0.50  # 検索結果として採用する最小スコア (0.7 -> 0.5に緩和)
 
     # エージェントモデル設定
