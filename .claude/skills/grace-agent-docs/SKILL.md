@@ -100,5 +100,8 @@ description: >-
 - 横断/利用ガイド: リポジトリ直下 `readme_*.md`・`docs/*.md`。
 
 ## 6. 進め方のコツ
-- 複数ファイルを最新化するときは **ファイルごとにサブエージェントを並列起動**（各に「**使うフォーマット仕様のパス**（モジュール=`.claude/skills/grace-agent-docs/a_class_method_md_format.md` / 画面=`.claude/skills/grace-agent-docs/a_pages_md_format.md`）＋対象ソース＋黒背景Mermaid規約＋スタック表記」を渡す）。
+- 複数ファイルを最新化するときも、**既定は本体で 1 ファイルずつ順に処理する**。サブエージェントは
+  呼び出し元の文脈を引き継がず毎回ゼロから調べ直すため割高であり、**ユーザーが並列実行を
+  明示的に指示した場合のみ**使う。その場合はファイル単位で起動し、各エージェントに
+  「**使うフォーマット仕様のパス**（モジュール=`.claude/skills/grace-agent-docs/a_class_method_md_format.md` / 画面=`.claude/skills/grace-agent-docs/a_pages_md_format.md`）＋対象ソース＋黒背景Mermaid規約＋スタック表記」を漏れなく渡す。
 - 仕上げに mermaid 準拠を grep 検証（`flowchart|graph` 数 == `classDef default fill:#000` 数、`sequenceDiagram` 数 == `%%{ init` 数）し、版・最終更新日・変更履歴を更新。
