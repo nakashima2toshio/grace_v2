@@ -132,15 +132,29 @@ class ExecutionMemory:
         if not self.path.exists():
             return []
         records: list[MemoryRecord] = []
+        skipped = 0
         try:
             with self.path.open(encoding="utf-8") as f:
                 for line in f:
                     line = line.strip()
                     if not line:
                         continue
-                    records.append(MemoryRecord.from_dict(json.loads(line)))
-        except Exception as e:
+                    # 1 行の破損で全件を捨てない。JSONL は追記専用のため、
+                    # マージコンフリクトのマーカー混入・書き込み中断・手編集ミスで
+                    # 壊れた行が混ざりうる。壊れた行だけ飛ばして残りを活かす
+                    # （以前は try が for 全体を囲んでおり、1 行目以外の破損でも
+                    #  それ以降が丸ごと失われていた）。
+                    try:
+                        records.append(MemoryRecord.from_dict(json.loads(line)))
+                    except Exception:
+                        skipped += 1
+        except OSError as e:
             logger.warning(f"ExecutionMemory.load failed: {e}")
+        if skipped:
+            logger.warning(
+                f"ExecutionMemory.load skipped {skipped} malformed line(s) "
+                f"in {self.path} (loaded {len(records)})"
+            )
         return records
 
     # --- 集計 ---
