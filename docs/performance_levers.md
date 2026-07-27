@@ -1,6 +1,6 @@
 # 性能改善レバー分析 — 事業特化型エージェントの回答品質を決める部分
 
-**Version 1.5** | 最終更新: 2026-07-27 | ステータス: **P-01 / P-01b / P-04 / P-03（案①検索順序）実装済み・他は未実装**
+**Version 1.6** | 最終更新: 2026-07-27 | ステータス: **P-01 / P-01b / P-04 / P-03（案①検索順序）/ P-08 実装済み・他は未実装**
 
 > 📌 本書はコード調査に基づく分析・提案。**P-01 / P-01b / P-04 / P-03（案①）は実装済み**、
 > それ以外は未実装。実施順序は §5 に従うこと。特に
@@ -387,7 +387,7 @@ RAG では定番かつ効果の大きい改善。
 | # | 項目 | 箇所 | スコア | 確度 | 内容 |
 |---|---|---|:--:|:--:|---|
 | **P-07** | gov のしきい値が厳格 | `verticals.py:64`（`notify_th=0.8`） | 6 | ★★★ | 3 業種で最も厳しい。P-01 未修正下では escalate を増幅する。**P-01 修正後に再調整すべき**（§5） |
-| **P-08** | グローバル config の並行汚染 | `support_agent.py:276-277` × `jobs.py:110` | 6 | ★★★ | 同時リクエストで検索スコープ・方針が相互汚染（詳細: `docs/multi_question_handling.md` §1.2） |
+| ~~**P-08**~~ ✅**実装済み** | グローバル config の並行汚染 | `support_agent.py`（`copy.deepcopy(get_config())`） | 6 | ★★★ | 同時リクエストで検索スコープ・方針が相互汚染していた。リクエスト単位のディープコピーで解消（§9 v1.6） |
 | **P-09** | 業界スコープの静かな失効 | `verticals.py:50-56` | 5 | ★★★ | 登録済みコレクションが 1 つも無いと**制限なしで全件横断**にフォールバック。gov 質問が wikipedia で回答され、**失敗に気づけない** |
 | **P-10** | reasoning の本文 1000 字切り詰め | `grace/tools.py` `_build_prompt` | 5 | ★★★ | 長い手続き文書が途中で切れ、根拠が欠落する |
 | **P-11** | Dynamic Thresholding（top≥0.98 で 1 件化） | `grace/tools.py:220-222` | 4 | ★★★ | コサインで 0.98 は稀・RRF では絶対に発火しない → 実質デッドコード。発火時は根拠を 1 件に削り逆効果 |
@@ -480,7 +480,7 @@ gov/saas/ec のコレクションが 1 つも無ければ、検索スコープ�
 | P-05 | リランカー復活 | [1] | `agent_tools.py:217,478` | 7 | ★★★ | 中 |
 | P-06 | `RAG_SEARCH_LIMIT` 3 → 5〜8 | [1] | `config.py:486` | 7 | ★★★ | 小 |
 | P-07 | しきい値の再チューニング | [3] | `verticals.py:64` | 6 | ★★★ | 小 |
-| P-08 | config 並行安全化 | [5] | `support_agent.py:276-277` / `jobs.py:110` | 6 | ★★★ | 中 |
+| **P-08** ✅**実装済み** | config 並行安全化 | [5] | `support_agent.py`（`copy.deepcopy(get_config())`） | 6 | ★★★ | 小 |
 | P-09 | 業界スコープ失効の可視化 | [1] | `verticals.py:50-56` | 5 | ★★★ | 小 |
 | P-10 | reasoning の切り詰め見直し | [4] | `grace/tools.py` `_build_prompt` | 5 | ★★★ | 小 |
 | P-11 | Dynamic Thresholding の削除/修正 | [1] | `grace/tools.py:220-222` | 4 | ★★★ | 小 |
@@ -506,6 +506,7 @@ gov/saas/ec のコレクションが 1 つも無ければ、検索スコープ�
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 1.6 | **P-08 を実装**。`get_config()` はプロセス共有シングルトンを返すが `run_support_agent_core` が `config.qdrant.allowed_collections` / `config.llm.prompt_addendum` を直接書き換えており、`jobs.py` がジョブごとにスレッドを立てるため**同時リクエストで検索スコープが相互汚染**していた（gov の質問が ec のコレクションで走りうる）。`copy.deepcopy(get_config())` によるリクエスト単位のコピーへ変更（`model_copy` ではなく `deepcopy` を選択したのは、テストのスタブが pydantic ではないため）。回帰テスト `backend/tests/test_config_isolation.py` を 4 ケース追加し、同一 config オブジェクトを共有させた2 スレッドを Barrier で同期させる実測再現で、修正前コードでは 2 件が失敗することを確認 |
 | 1.0 | 初版作成。性能を決める 5 層を整理し、S 級 3 件（groundedness へのファイル名のみ供給／RRF × コサイン閾値の不整合／first-hit-wins 打ち切り）・A 級 3 件・B 級 5 件を有効スコア・確度・工数付きで列挙。実施順序（しきい値調整を最後にする理由）と検証方法を明記。**分析段階／未実装** |
 | 1.1 | **P-01 を実装**（`StepResult.source_texts` 追加 / `Executor._extract_source_texts()` / `_collect_source_texts()` / ③ Confidence の検証ソース差し替え・フォールバック付き）。回帰テスト `backend/tests/test_groundedness_sources.py` を追加し、P-01 の項と §7 サマリに実装済みを明記。他レバー（P-02 以降）は未実装 |
 | 1.5 | **P-03 案①（検索順序）を実装**。`_apply_allowed_collections` が汎用 `search_priority` 順で絞り込んでいたため業界プロファイルの優先順位が無視されていた問題を修正し、`allowed` の並びを優先するよう変更。gov で `[wikipedia, gov_laws, gov_faq]` → `[gov_faq, gov_laws, wikipedia]` となり、正解のあるコレクションが最初に評価される。3 業種の実プロファイルで検証。順序の回帰テスト 6 ケース追加（修正前のコードでは 1 件が失敗することを確認）。案②（横断ランキング）は未着手 |

@@ -15,6 +15,7 @@ CLI 版と同一で、変えたのは「入出力の経路」だけ:
 """
 from __future__ import annotations
 
+import copy
 import os
 from dataclasses import asdict, dataclass, field
 from typing import Any, Callable, Dict, List, Optional
@@ -230,7 +231,14 @@ def run_support_agent_core(
         ))
         return None
 
-    config = get_config()
+    # ⚠️ get_config() はプロセス共有のシングルトンを返す。この関数は後段で
+    # config.qdrant.allowed_collections / config.llm.prompt_addendum を
+    # 業界プロファイルに合わせて書き換えるため、シングルトンをそのまま使うと
+    # jobs.py がジョブごとに立てるワーカースレッド同士で値を奪い合う
+    # （gov のリクエストが ec の検索スコープで走る等）。
+    # リクエスト単位のディープコピーを作り、以降の生成物（planner/executor/
+    # tools/verifier …）はすべてこのコピーを参照させる。
+    config = copy.deepcopy(get_config())
     tool_registry = create_tool_registry(config)
     planner = create_planner(config)
     executor = create_executor(config, tool_registry)
