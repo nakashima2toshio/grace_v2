@@ -273,3 +273,127 @@ def test_evaluate_rag_relevance_exception_defaults_to_true(monkeypatch):
     monkeypatch.setattr("grace.executor.create_chat_client", boom)
 
     assert _executor_with()._evaluate_rag_relevance("住民票は？", "住民票は…") is True
+
+
+# ---------------------------------------------------------------------------
+# M-5: 適合性チェックのプロンプト
+#
+# 旧プロンプトは「【検索結果】の主題が【ユーザーの質問】の主題と一致するか」を
+# 結合クエリ全体に対して問うていた。gov プロファイルで
+# 「住民票の写しの取り方は？ ところで明日の東京の天気は？」を投げると、
+# 住民票だけを含む検索結果は必ず NO になり、担当範囲外の天気を埋めるためだけに
+# Web 検索が走っていた（実測: 約 4 秒 + SerpAPI 1 回 + 無関係な引用 9 件）。
+#
+# 誤判定しても RAG 結果は捨てられない（web_search は「追加」実行で、
+# 両方が reasoning へ渡る）ので、失うのは回答ではなく時間・コスト・精度。
+# ---------------------------------------------------------------------------
+
+
+def _relevance_prompt(monkeypatch, query: str, rag_output, addendum: str = "") -> str:
+    """`_evaluate_rag_relevance` が組み立てたプロンプトを取り出す。"""
+    captured: dict = {}
+    _install_llm_spy(monkeypatch, captured)
+
+    ex = _executor_with(
+        llm=SimpleNamespace(
+            model="claude-sonnet-4-6",
+            light_model="claude-haiku-4-5-20251001",
+            prompt_addendum=addendum,
+        )
+    )
+    ex._evaluate_rag_relevance(query, rag_output)
+    return captured["contents"]
+
+
+def test_relevance_prompt_carries_scope_when_profile_set(monkeypatch):
+    """業界プロファイルがあれば担当範囲を判定材料として渡す。"""
+    prompt = _relevance_prompt(
+        monkeypatch,
+        "住民票の写しの取り方は？ ところで明日の東京の天気は？",
+        "住民票は市区町村の窓口で…",
+        addendum=PROFILES["gov"].build_prompt_addendum(),
+    )
+
+    assert "【担当範囲】" in prompt
+    assert SCOPE_POLICY in prompt
+    # 担当範囲外の事項を判定から除外する指示が入っていること
+    assert "担当範囲外の事項が含まれる場合" in prompt
+
+
+def test_relevance_prompt_omits_scope_when_generic(monkeypatch):
+    """--vertical 未指定（汎用）では担当範囲ブロックを出さない。"""
+    prompt = _relevance_prompt(monkeypatch, "住民票の写しの取り方は？", "住民票は…")
+
+    assert "【担当範囲】" not in prompt
+    assert "担当範囲外の事項が含まれる場合" not in prompt
+
+
+def test_relevance_prompt_judges_each_topic(monkeypatch):
+    """複合質問は事項ごとに判定させる（結合クエリ一括判定からの脱却）。
+
+    旧プロンプトの「検索結果の主題が質問の主題と一致しているか」が
+    復活すると、住民票だけの検索結果が再び一律 NO になる。
+    """
+    prompt = _relevance_prompt(monkeypatch, "AとBは？", "Aは…")
+
+    assert "事項ごとに判定する" in prompt
+    assert "検索結果の主題が質問の主題と一致しているか" not in prompt
+
+
+def test_relevance_prompt_uses_formatted_snippet(monkeypatch):
+    """検索結果は整形済みの本文で渡す（dict の repr を垂れ流さない）。"""
+    prompt = _relevance_prompt(
+        monkeypatch,
+        "住民票の写しの取り方は？",
+        [{"payload": {"question": "住民票の取り方", "answer": "窓口で申請します"}}],
+    )
+
+    assert "1. 住民票の取り方 / 窓口で申請します" in prompt
+    assert "'payload'" not in prompt
+
+
+# --- _format_rag_snippet 単体 ---------------------------------------------
+
+
+def _snippet(rag_output, **kw) -> str:
+    from grace.executor import Executor
+
+    return Executor._format_rag_snippet(rag_output, **kw)
+
+
+def test_format_rag_snippet_bounds_by_characters_not_elements():
+    """リストは **文字数** で切る。
+
+    旧実装は `rag_output[:500]` で、リストに対しては「先頭 500 **要素**」の
+    スライスになっていた。RAG は dict のリストを返すため、実際には
+    ほぼ全件がプロンプトへ流れ込んでいた。
+    """
+    hits = [{"payload": {"content": "あ" * 200}} for _ in range(50)]
+
+    out = _snippet(hits, limit=300)
+
+    assert len(out) <= 300
+
+
+def test_format_rag_snippet_falls_back_to_content():
+    """answer が無ければ content を使う（チャンク由来のペイロード）。"""
+    out = _snippet([{"payload": {"question": "Q1", "content": "本文です"}}])
+
+    assert out == "1. Q1 / 本文です"
+
+
+def test_format_rag_snippet_keeps_string_input():
+    """文字列で渡ってきた場合は従来どおり先頭を切るだけ。"""
+    assert _snippet("あ" * 50, limit=10) == "あ" * 10
+
+
+def test_format_rag_snippet_handles_unknown_shape():
+    """dict でも list でもない出力でも落ちない（後方互換）。"""
+    assert _snippet({"foo": "bar"}, limit=100).startswith("{'foo'")
+
+
+def test_format_rag_snippet_handles_payloadless_items():
+    """payload を持たない要素は repr へフォールバックする。"""
+    out = _snippet(["生テキスト"])
+
+    assert out == "1. 生テキスト"

@@ -1240,10 +1240,44 @@ class Executor:
         return (getattr(self.config.llm, "light_model", "") or "").strip() \
             or self.config.llm.model
 
+    #: 適合性チェックのプロンプトへ載せる検索結果の最大文字数。
+    #: 出力は YES / NO の 2 値なので、判断に足りるだけの長さがあればよい。
+    RELEVANCE_SNIPPET_LIMIT = 1200
+
+    @staticmethod
+    def _format_rag_snippet(rag_output: Any, limit: int = RELEVANCE_SNIPPET_LIMIT) -> str:
+        """適合性チェック用に検索結果を読みやすい短文へ整形する。
+
+        `ToolResult.output` は RAG では **リスト**（dict の配列）で渡ってくる。
+        以前はこれを `rag_output[:500]` としており、文字数ではなく
+        **要素数** でスライスしていた（リストへの slice のため）。件数が増えると
+        プロンプトへ Python の repr がそのまま流れ込み、判定材料が読みにくく
+        なるうえトークンも膨らむ。ここで Q/A・本文だけを抜き出して整形する。
+        """
+        if isinstance(rag_output, str):
+            return rag_output[:limit]
+
+        if not isinstance(rag_output, list):
+            return str(rag_output)[:limit]
+
+        lines: List[str] = []
+        for i, item in enumerate(rag_output, 1):
+            payload = item.get("payload", {}) if isinstance(item, dict) else {}
+            question = (payload.get("question") or "").strip()
+            answer = (payload.get("answer") or "").strip()
+            content = (payload.get("content") or "").strip()
+            body = " / ".join(p for p in (question, answer or content) if p)
+            if not body:
+                body = str(item)
+            lines.append(f"{i}. {body}")
+            if sum(len(x) for x in lines) > limit:
+                break
+        return "\n".join(lines)[:limit]
+
     def _evaluate_rag_relevance(
             self,
             query: str,
-            rag_output: str,
+            rag_output: Any,
     ) -> bool:
         """
         LLMを使用してRAG検索結果がユーザーの質問に意味的に適合しているかを判定する。
@@ -1251,25 +1285,51 @@ class Executor:
         コサイン類似度は文構造の類似性を反映するが、意味的な適合性は保証しない。
         例: 「日本の多義性」と「言語の多義性」は文構造が似ているが主題が異なる。
 
+        False を返すと web_search が **追加** で実行される（RAG 結果は捨てられず、
+        両方が reasoning へ渡る）。したがって誤判定のコストは「回答を失う」ことでは
+        なく、余分な検索時間・API コスト・無関係な引用の混入である。
+
+        判定は 2 点で担当範囲を考慮する（M-5）:
+          1. 質問が複数の事項を含む場合は **事項ごと** に見る（結合クエリで
+             1 事項しか扱わない検索結果が一律 NO になるのを防ぐ）
+          2. `llm.prompt_addendum`（業界プロファイル由来の担当範囲）がある場合は
+             **担当範囲内の事項だけ** を判定対象にする
+
+        これにより、gov プロファイルで「住民票の取り方は？ ところで明日の天気は？」
+        を投げたとき、担当外の天気は判定から外れ、住民票を満たす検索結果が
+        YES になる（＝不要な Web 検索が走らない）。逆に担当範囲内の事項が
+        本当に未充足なら従来どおり NO を返し、Web 検索で補う。
+
         Args:
             query: ユーザーの元の質問文
-            rag_output: RAG検索結果の出力文字列
+            rag_output: RAG検索結果（dict のリスト、または文字列）
 
         Returns:
             bool: 適合していればTrue、不適合ならFalse
         """
+        scope = (getattr(self.config.llm, "prompt_addendum", "") or "").strip()
+        scope_block = f"【担当範囲】\n{scope}\n\n" if scope else ""
+        scope_rule = (
+            "- 質問に担当範囲外の事項が含まれる場合、その事項は判定に含めない\n"
+            if scope else ""
+        )
+
         prompt = (
-            "以下の【検索結果】が、【ユーザーの質問】に対する回答として使えるかを判定してください。\n"
+            "以下の【検索結果】が、【ユーザーの質問】に答えるための根拠として使えるかを判定してください。\n"
             "\n"
+            f"{scope_block}"
             "【判定基準】\n"
-            "- 検索結果の主題が質問の主題と一致しているか\n"
-            "- 質問に対する回答に必要な情報が含まれているか\n"
+            "- 質問が複数の事項を尋ねている場合は、事項ごとに判定する\n"
+            f"{scope_rule}"
+            "- 判定対象の事項について、回答の根拠になる情報が検索結果に含まれていれば使える\n"
+            "- 判定対象の事項に対して、主題が異なる・根拠にならない場合は使えない\n"
             "\n"
             f"【ユーザーの質問】\n{query}\n"
-            f"\n"
-            f"【検索結果】\n{rag_output[:500]}\n"
             "\n"
-            "回答として使える場合は YES、使えない場合は NO とだけ回答してください。"
+            f"【検索結果】\n{self._format_rag_snippet(rag_output)}\n"
+            "\n"
+            "判定対象の事項をすべて満たせる場合は YES、満たせない事項が残る場合は NO と"
+            "だけ回答してください。"
         )
 
         try:
