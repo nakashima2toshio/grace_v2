@@ -135,3 +135,134 @@ def pipeline_stub(monkeypatch):
     stub = PipelineStub()
     install_pipeline_stub(monkeypatch, stub)
     return stub
+
+
+# =============================================================================
+# GRACE-Review（backend/app/core/review_agent.py）用スタブ
+# =============================================================================
+
+@dataclass
+class ReviewPipelineStub:
+    """1 シナリオ分の Review 外部依存の応答定義。
+
+    `detect_verdicts` は「(セグメント本文, ルールID) → 判定」を決める関数を差し込む
+    ためのフック。既定は「重大リスク語を含むセグメントだけ違反」とする素朴な検出器で、
+    テスト側は `stub.detect = ...` で丸ごと差し替えてよい。
+    """
+
+    # 検出器へ実際に渡された (segment_text, rule_id, evidence) を記録する
+    detect_calls: List[tuple] = field(default_factory=list)
+    # 検証器へ渡された (query, message, sources) を記録する
+    verify_calls: List[tuple] = field(default_factory=list)
+    # rag_search / web_search へ渡された kwargs を記録する
+    tool_calls: List[tuple] = field(default_factory=list)
+    # 実行されたアクション (action_type, args)
+    action_calls: List[tuple] = field(default_factory=list)
+    # create_intervention_handler へ渡された kwargs（on_confirm の配線検証用）
+    handler_kwargs: dict = field(default_factory=dict)
+
+    # --- 応答の定義（テスト側で書き換える）---
+    detect: Optional[object] = None          # (text, rule, evidence) -> DetectVerdict|None
+    groundedness: GroundednessStub = field(default_factory=GroundednessStub)
+    rag_output: Optional[list] = None        # rag_search の output（None=検索失敗）
+    web_output: Optional[list] = None        # web_search の output
+    mention: Optional[str] = "claim"         # 言及種別の分類結果（None=分類失敗）
+    vacuous: Optional[bool] = False          # 実質性なし判定（None=判定失敗）
+    confirm_continues: bool = True           # HITL CONFIRM を承認するか
+    config: SimpleNamespace = field(default_factory=make_config_stub)
+
+
+def install_review_stub(monkeypatch, stub: ReviewPipelineStub) -> None:
+    """backend.app.core.review_agent の外部依存をスタブへ差し替える。"""
+    from backend.app.core.review_gates import DetectVerdict
+
+    target = "backend.app.core.review_agent"
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
+    monkeypatch.setattr(f"{target}.get_config", lambda: stub.config)
+
+    def _default_detect(text, rule, _evidence):
+        """既定: ルールのキーワードが本文に出たら違反とする（LLM 相当の代役）。"""
+        for keyword in rule.keywords:
+            if keyword in text:
+                return DetectVerdict(
+                    violates=True,
+                    message=f"「{keyword}」は{rule.title}に抵触するおそれがあります",
+                    suggestion="根拠の併記または表現の修正を検討してください",
+                    excerpt=keyword,
+                )
+        return DetectVerdict(violates=False)
+
+    def detect(text, rule, evidence):
+        stub.detect_calls.append((text, rule.rule_id, evidence))
+        fn = stub.detect or _default_detect
+        return fn(text, rule, evidence)
+
+    monkeypatch.setattr(f"{target}.create_violation_detector", lambda _c: detect)
+
+    def _verify(query, message, sources):
+        stub.verify_calls.append((query, message, list(sources or [])))
+        return stub.groundedness
+
+    monkeypatch.setattr(
+        f"{target}.create_groundedness_verifier",
+        lambda _c: SimpleNamespace(verify=_verify),
+    )
+
+    def tool_execute(name, **kwargs):
+        stub.tool_calls.append((name, kwargs))
+        if name == "rag_search":
+            return SimpleNamespace(
+                success=stub.rag_output is not None, output=stub.rag_output
+            )
+        if name == "web_search":
+            return SimpleNamespace(
+                success=stub.web_output is not None, output=stub.web_output
+            )
+        raise AssertionError(f"想定外のツール呼び出し: {name}")
+
+    monkeypatch.setattr(
+        f"{target}.create_tool_registry",
+        lambda _c: SimpleNamespace(execute=tool_execute),
+    )
+    monkeypatch.setattr(
+        f"{target}.create_mention_classifier", lambda _c: lambda _t: stub.mention
+    )
+    monkeypatch.setattr(
+        f"{target}.create_vacuous_judge", lambda _c: lambda _t: stub.vacuous
+    )
+
+    handler = SimpleNamespace(
+        handle=lambda _decision: SimpleNamespace(
+            should_continue=stub.confirm_continues, timeout_reached=False
+        )
+    )
+
+    def _make_handler(_config, **kwargs):
+        stub.handler_kwargs.update(kwargs)
+        return handler
+
+    monkeypatch.setattr(f"{target}.create_intervention_handler", _make_handler)
+
+    def _execute_action(action_type, args):
+        stub.action_calls.append((action_type, args))
+        return SimpleNamespace(
+            success=True, message=f"[DRY-RUN] '{action_type}' を実行", backend="dry-run"
+        )
+
+    monkeypatch.setattr(
+        f"{target}.create_action_backend",
+        lambda dry_run: SimpleNamespace(name="dry-run", execute=_execute_action),
+    )
+
+
+@pytest.fixture
+def review_stub(monkeypatch):
+    """既定シナリオ（高支持率・規程ヒットあり）の Review スタブを設置して返す。"""
+    stub = ReviewPipelineStub(
+        rag_output=[{"payload": {
+            "title": "景品表示法 優良誤認",
+            "answer": "商品の内容について著しく優良であると示す表示は禁止される。",
+        }}],
+    )
+    install_review_stub(monkeypatch, stub)
+    return stub
