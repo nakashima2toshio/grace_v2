@@ -74,47 +74,57 @@ GRACE-Review は、**文書（EC の LP・商品説明文など）を規程（�
 
 ### 2.1 全体構成
 
+各層の内部は `direction TB` で**縦積み**にしている（横並びにすると 1 ノードあたりの幅が
+潰れて文字が小さくなるため）。凡例: **【新規】** 新規作成 / **【改修】** 既存を変更 /
+**【無変更】** 手を入れない。
+
 ```mermaid
 flowchart TB
     subgraph CLIENT["クライアント層"]
-        UI["React :5173<br>文書ビューア + 指摘パネル"]
+        direction TB
+        UI["React :5173<br>文書ビューア + 指摘リスト"]
     end
 
     subgraph APILAYER["API 層 (FastAPI :8000)"]
-        SUPAPI["api/support.py<br>/api/support/* (既存・無変更)"]
-        REVAPI["api/review.py<br>/api/review/* (新規)"]
-        METAAPI["api/meta.py<br>/api/rulesets を追加"]
+        direction TB
+        REVAPI["api/review.py 【新規】<br>/api/review/submit・stream・confirm・result"]
+        SUPAPI["api/support.py 【無変更】<br>/api/support/*"]
+        METAAPI["api/meta.py 【追記】<br>/api/rulesets"]
     end
 
     subgraph JOBLAYER["ジョブ層 (汎用化)"]
-        JOBS["core/jobs.py<br>JobManager: runner 注入方式へ"]
-        BRIDGE["core/intervention_bridge.py<br>(無変更)"]
+        direction TB
+        JOBS["core/jobs.py 【改修】<br>JobManager — runner 注入方式へ<br>スレッド実行・イベント蓄積・SSE リプレイ・GC"]
+        BRIDGE["core/intervention_bridge.py 【無変更】<br>HITL 承認ブリッジ (同期⇔非同期変換)"]
     end
 
     subgraph AGENTS["エージェント層"]
-        SUPAG["core/support_agent.py<br>(無変更)"]
-        REVAG["core/review_agent.py<br>(新規) ①〜⑦"]
-        REVGATE["core/review_gates.py<br>(新規) 検出・抑止・重大度"]
-        RULES["core/rulesets.py<br>(新規) RuleSet 定義"]
+        direction TB
+        REVAG["core/review_agent.py 【新規】<br>run_review_agent_core — パイプライン ①〜⑦"]
+        REVGATE["core/review_gates.py 【新規】<br>二段判定・誤検知抑止・救済・重大度判定"]
+        RULES["core/rulesets.py 【新規】<br>RuleSet / RuleItem — ec_ad 21ルール"]
+        SUPAG["core/support_agent.py 【無変更】<br>run_support_agent_core"]
     end
 
     subgraph SHARED["共有機構 (無改造で再利用)"]
-        GRND["grace.confidence<br>GroundednessVerifier"]
+        direction TB
+        GRND["grace.confidence<br>GroundednessVerifier — 根拠検証"]
         TOOLS["grace.tools<br>rag_search / web_search"]
-        ACT["support_actions.py<br>ActionBackend"]
-        GATES["core/gates.py<br>_match_keyword ほか純関数"]
+        ACT["support_actions.py<br>ActionBackend — dry-run / webhook"]
+        GATES["core/gates.py 【無変更】<br>_match_keyword ほか純関数"]
     end
 
-    UI --> SUPAPI
     UI --> REVAPI
+    UI --> SUPAPI
     UI --> METAAPI
-    SUPAPI --> JOBS
     REVAPI --> JOBS
+    SUPAPI --> JOBS
+    METAAPI --> RULES
     JOBS --> BRIDGE
-    JOBS --> SUPAG
     JOBS --> REVAG
+    JOBS --> SUPAG
     REVAG --> REVGATE
-    REVAG --> RULES
+    REVGATE --> RULES
     REVAG --> GRND
     REVAG --> TOOLS
     REVAG --> ACT
