@@ -1,6 +1,6 @@
 # backend/ ドキュメント整備インデックス
 
-**Version 1.4** | 最終更新: 2026-07-24
+**Version 1.5** | 最終更新: 2026-07-29
 
 > ✅ **本インデックス掲載のモジュール仕様（IPO）9 ファイルはすべて作成済み**（§4 参照）。
 
@@ -303,17 +303,36 @@ sequenceDiagram
 - **技術スタック表記**: LLM = Anthropic Claude（既定 `claude-sonnet-4-6`、
   軽量判定 `claude-haiku-4-5-20251001`）／ Embedding = Gemini（`gemini-embedding-001`, 3072次元）。
 
+#### 共通（アプリ基盤）
+
 | # | ソースファイル | 行数 | クラス/関数 | 役割 | ドキュメント | 状態 |
 |---|---|---:|---:|---|---|:--:|
-| 1 | `backend/app/main.py` | 49 | 0（モジュール構成のみ） | FastAPI 起動・CORS・ルーター結線 | [`main.md`](./main.md) | ✅ |
-| 2 | `backend/app/schemas.py` | 106 | 9 | Pydantic リクエスト/レスポンス/イベント型 | [`schemas.md`](./schemas.md) | ✅ |
-| 3 | `backend/app/api/support.py` | 83 | 4 | `/api/support/*`（query / stream(SSE) / confirm / result） | [`api_support.md`](./api_support.md) | ✅ |
-| 4 | `backend/app/api/meta.py` | 42 | 2 | `/api/verticals`・`/api/health` | [`api_meta.md`](./api_meta.md) | ✅ |
-| 5 | `backend/app/core/support_agent.py` | 538 | 5 | ★コア（①〜⑥ イベント発行型パイプライン） | [`core_support_agent.md`](./core_support_agent.md) | ✅ |
-| 6 | `backend/app/core/gates.py` | 374 | 14 | 回答ゲート/強制エスカレ/情報なし検知/救済（純関数群） | [`core_gates.md`](./core_gates.md) | ✅ |
-| 7 | `backend/app/core/jobs.py` | 168 | 3 | ジョブ管理（インメモリ・スレッド実行・SSE 供給） | [`core_jobs.md`](./core_jobs.md) | ✅ |
-| 8 | `backend/app/core/intervention_bridge.py` | 125 | 2 | HITL ↔ フロント承認の非同期ブリッジ | [`core_intervention_bridge.md`](./core_intervention_bridge.md) | ✅ |
-| 9 | `backend/app/core/verticals.py` | 84 | 2 | VerticalProfile 定義（gov / saas / ec） | [`core_verticals.md`](./core_verticals.md) | ✅ |
+| 1 | `backend/app/main.py` | 59 | 0（モジュール構成のみ） | FastAPI 起動・CORS・ルーター結線 | [`main.md`](./main.md) | ✅ |
+| 2 | `backend/app/schemas.py` | 228 | 16 | Pydantic リクエスト/レスポンス/イベント型 | [`schemas.md`](./schemas.md) | ✅ |
+| 3 | `backend/app/api/meta.py` | 68 | 3 | `/api/verticals`・`/api/rulesets`・`/api/health` | [`api_meta.md`](./api_meta.md) | ✅ |
+| 4 | `backend/app/core/jobs.py` | 263 | 6 | ジョブ管理（runner 注入・スレッド実行・SSE 供給） | [`core_jobs.md`](./core_jobs.md) | ✅ |
+| 5 | `backend/app/core/intervention_bridge.py` | 125 | 2 | HITL ↔ フロント承認の非同期ブリッジ | [`core_intervention_bridge.md`](./core_intervention_bridge.md) | ✅ |
+
+#### GRACE-Support（問い合わせ → 回答）
+
+| # | ソースファイル | 行数 | クラス/関数 | 役割 | ドキュメント | 状態 |
+|---|---|---:|---:|---|---|:--:|
+| 6 | `backend/app/api/support.py` | 83 | 4 | `/api/support/*`（query / stream(SSE) / confirm / result） | [`api_support.md`](./api_support.md) | ✅ |
+| 7 | `backend/app/core/support_agent.py` | 568 | 5 | ★コア（①〜⑥ イベント発行型パイプライン） | [`core_support_agent.md`](./core_support_agent.md) | ✅ |
+| 8 | `backend/app/core/gates.py` | 393 | 14 | 回答ゲート/強制エスカレ/情報なし検知/救済（純関数群） | [`core_gates.md`](./core_gates.md) | ✅ |
+| 9 | `backend/app/core/verticals.py` | 123 | 2 | VerticalProfile 定義（gov / saas / ec） | [`core_verticals.md`](./core_verticals.md) | ✅ |
+
+#### GRACE-Review（文書 → 指摘）
+
+| # | ソースファイル | 行数 | クラス/関数 | 役割 | ドキュメント | 状態 |
+|---|---|---:|---:|---|---|:--:|
+| 10 | `backend/app/api/review.py` | 101 | 4 | `/api/review/*`（submit / stream(SSE) / confirm / result） | [`api_review.md`](./api_review.md) | ✅ |
+| 11 | `backend/app/core/review_agent.py` | 814 | 8 | ★コア（S1・①〜⑦ イベント発行型パイプライン） | [`core_review_agent.md`](./core_review_agent.md) | ✅ |
+| 12 | `backend/app/core/review_gates.py` | 418 | 12 | 二段判定・指摘ゲート・誤検知抑止・重大度（純関数群＋ファクトリ） | [`core_review_gates.md`](./core_review_gates.md) | ✅ |
+| 13 | `backend/app/core/rulesets.py` | 450 | 5 | RuleSet 定義（ec_ad・21 ルール） | [`core_rulesets.md`](./core_rulesets.md) | ✅ |
+
+> **設計書**: GRACE-Review の全体設計は [`review_agent_spec.md`](./review_agent_spec.md) にある。
+> **フロントエンド**: Review の UI は [`../../frontend/docs/review_ui.md`](../../frontend/docs/review_ui.md)。
 
 **ドキュメント不要（対象外）**: いずれも空ファイル（0 行）—
 `backend/__init__.py`、`backend/app/__init__.py`、`backend/app/api/__init__.py`、
@@ -328,10 +347,24 @@ sequenceDiagram
 
 | ソースファイル | 行数 | 内容 |
 |---|---:|---|
+| `backend/tests/conftest.py` | 293 | pytest フィクスチャ（スタブベース・API キー不要）。Support / Review 両方 |
 | `backend/tests/test_support_agent_core.py` | 235 | CLI とコアの同等性テスト |
-| `backend/tests/test_api.py` | 163 | API エンドポイントのテスト |
+| `backend/tests/test_api.py` | 163 | Support API エンドポイントのテスト |
 | `backend/tests/test_intervention_bridge.py` | 105 | HITL ブリッジのテスト |
-| `backend/tests/conftest.py` | 119 | pytest フィクスチャ（スタブベース・API キー不要） |
+| `backend/tests/test_jobs_generic.py` | 337 | ジョブ基盤の汎用化（**Support の回帰ガード**＋runner 注入） |
+| `backend/tests/test_rulesets.py` | 258 | RuleSet の整合（件数・ID 一意・always_check ⟷ keywords 排他） |
+| `backend/tests/test_review_gates.py` | 356 | 判定・抑止の純関数（しきい値境界・救済条件・強制 high） |
+| `backend/tests/test_review_agent_core.py` | 664 | Review パイプラインの配線（オフセット・KPI・ガード） |
+| `backend/tests/test_review_api.py` | 285 | Review API・422 ガード・`/api/rulesets`・Support の無影響 |
+
+**フロントエンド**（vitest・43 件）:
+
+| ソースファイル | 内容 |
+|---|---|
+| `frontend/src/state/jobReducer.test.ts` | Support の reducer（7 件） |
+| `frontend/src/state/reviewReducer.test.ts` | Review の reducer（13 件） |
+| `frontend/src/state/highlight.test.ts` | ハイライト分割・重なり解消（13 件） |
+| `frontend/src/markdown/parseMarkdown.test.ts` | Markdown パーサ（10 件） |
 
 ---
 
@@ -377,4 +410,5 @@ backend/
 | 1.1 | モジュール仕様（IPO）残り 8 ファイル（schemas / api_support / api_meta / core_support_agent / core_gates / core_jobs / core_intervention_bridge / core_verticals）を作成し、状態列を全て「作成済」に更新 |
 | 1.2 | 先頭に「§0 アプリの実行方法（クイックスタート）」を追加し、`install_and_setup.md`（インストール・環境設定）へのリンクを追記 |
 | 1.3 | §0 に「最短（1 コマンド `./run_dev.sh`）」の起動方法を追加（backend + frontend を一括起動） |
+| 1.5 | GRACE-Review の追加に追随（PR #37〜#43）: モジュール一覧を Support / Review / 共通の 3 区分へ再編し、Review の 4 モジュール（`review_agent` / `review_gates` / `rulesets` / `api_review`）を追加。行数を実測に更新。テスト一覧に Review の 4 ファイルとフロントの vitest を追記 |
 | 1.4 | 実コード再読による全面最新化: §1 アーキテクチャ構成図（6 層）・§2 処理フロー（パイプライン ①〜⑥＋二段判定・救済・HITL）・§3 データフロー（SSE / HITL 承認のシーケンス図）を新設。ドキュメント出力先の誤記を実配置（`backend/docs/`）に修正し、各ドキュメントへのリンクを追加。行数を実測に更新（support_agent 538 / gates 374 / test_support_agent_core 235）。補足ドキュメント一覧（§6）を追加し、目次を整備 |

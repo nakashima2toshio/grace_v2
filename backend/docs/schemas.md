@@ -1,6 +1,6 @@
 # schemas.py - API スキーマ（Pydantic）ドキュメント
 
-**Version 1.0** | 最終更新: 2026-07-15
+**Version 1.1** | 最終更新: 2026-07-29
 
 ---
 
@@ -59,6 +59,13 @@ Pydantic スキーマ**を定義するモジュール。FastAPI の `response_mo
 | `JobStatusResponse` | GET /api/support/result/{job_id} |
 | `SupportEventModel` | SSE で配信される進捗イベント |
 | `VerticalInfo` | GET /api/verticals の 1 要素 |
+| `ReviewRequest` | POST /api/review/submit のボディ |
+| `SegmentModel` | 検査単位（原文オフセット付き） |
+| `ReviewFindingModel` | 1 件の指摘 |
+| `FindingSummaryModel` | 重大度・状態ごとの件数 |
+| `ReviewResultModel` | `ReviewResult` の JSON 表現 |
+| `ReviewJobStatusResponse` | GET /api/review/result/{job_id} |
+| `RuleSetInfo` | GET /api/rulesets の 1 要素 |
 
 ---
 
@@ -176,6 +183,23 @@ style DATA fill:#1a1a1a,stroke:#fff,color:#fff
 | `JobStatusResponse` | ジョブ状態＋結果 |
 | `SupportEventModel` | SSE 進捗イベント |
 | `VerticalInfo` | 業界プロファイル情報 |
+
+#### GRACE-Review 用（v1.1 で追加）
+
+| モデル | 概要 |
+|-------|------|
+| `ReviewRequest` | レビュー起動リクエスト |
+| `SegmentModel` | 検査単位 |
+| `ReviewFindingModel` | 指摘 1 件 |
+| `FindingSummaryModel` | 件数サマリ |
+| `ReviewResultModel` | 結果（ReviewResult の JSON 表現） |
+| `ReviewJobStatusResponse` | ジョブ状態＋結果 |
+| `RuleSetInfo` | ルールセット情報 |
+
+> **Support と共用するモデル**: `QueryAccepted`（ジョブ受付）・`ConfirmRequest` /
+> `ConfirmResponse`（HITL 応答）・`ActionRequestModel`（アクション情報）は
+> Review でもそのまま使う。SSE イベントも形式が同一のため `SupportEventModel` を共用する。
+> 新設したのは**結果まわりの型だけ**である。
 
 ### 3.2 関数一覧
 
@@ -518,6 +542,200 @@ VerticalInfo(id=key, name=profile.name, collections=list(profile.collections), .
 
 ---
 
+### 4.9 ReviewRequest
+
+**概要**: `POST /api/review/submit` のボディ。CLI 引数と 1:1 対応する。
+
+```python
+class ReviewRequest(BaseModel):
+    document: str = Field(min_length=1, max_length=MAX_DOCUMENT_CHARS)
+    document_title: str = Field(default="無題")
+    ruleset: Optional[Literal["ec_ad"]] = Field(default="ec_ad")
+    use_web: bool = Field(default=False)
+    do_action: bool = Field(default=True)
+    dry_run: bool = Field(default=True)
+    verbose: bool = Field(default=False)
+```
+
+| フィールド | 型 | デフォルト | 説明 |
+|------------|------|-----------|------|
+| `document` | str | - | 点検対象の文書（1〜50,000 文字） |
+| `document_title` | str | `"無題"` | 表示用タイトル |
+| `ruleset` | Optional[Literal["ec_ad"]] | `"ec_ad"` | 適用するルールセット |
+| `use_web` | bool | `False` | Web で法改正を裏取り |
+| `do_action` | bool | `True` | アクション実行 |
+| `dry_run` | bool | `True` | ドライラン |
+| `verbose` | bool | `False` | 詳細ログ |
+
+| 項目 | 内容 |
+|------|------|
+| **Input** | JSON ボディ |
+| **Process** | Pydantic が長さ（1〜`MAX_DOCUMENT_CHARS`）と `ruleset` の値域を検証。違反は 422 |
+| **Output** | `ReviewRequest` → `ReviewParams` へ詰め替えて `job_manager.start()` |
+
+**戻り値例**:
+```python
+{"document": "当社の化粧品は業界No.1の実力です。", "document_title": "LP案",
+ "ruleset": "ec_ad", "use_web": false, "do_action": true,
+ "dry_run": true, "verbose": false}
+```
+
+> ⚠️ **`use_web` の既定は `False`** で、Support（`QueryRequest.use_web=True`）と**逆**である。
+> 文書レビューは条文が一次情報であり、Web 検索は速度・コストに対して得るものが小さいため。
+
+> **`max_length` は組合せ爆発の入力段ガード**。コア側の `MAX_SEGMENTS=200` /
+> `MAX_LLM_CALLS=300` と二重に効かせている（設計書 §7.3）。
+
+---
+
+### 4.10 SegmentModel / ReviewFindingModel / FindingSummaryModel
+
+**概要**: レビュー結果の構成要素。`core/review_agent.py` の同名 dataclass と 1:1 対応する。
+
+```python
+class SegmentModel(BaseModel):
+    segment_id: str
+    text: str
+    start: int
+    end: int
+    kind: str = "paragraph"
+
+
+class ReviewFindingModel(BaseModel):
+    finding_id: str
+    segment_id: str
+    excerpt: str
+    start: int
+    end: int
+    rule_id: str
+    rule_title: str
+    category: str
+    law: str
+    article: str
+    message: str
+    suggestion: str
+    severity: Severity = "medium"
+    confidence: float = 0.0
+    citations: List[str] = Field(default_factory=list)
+    status: FindingStatus = "review_required"
+    forced: bool = False
+    suppress_reason: Optional[str] = None
+    web_checked: bool = False
+
+
+class FindingSummaryModel(BaseModel):
+    high: int = 0
+    medium: int = 0
+    low: int = 0
+    confirmed: int = 0
+    review_required: int = 0
+    suppressed: int = 0
+```
+
+| 項目 | 内容 |
+|------|------|
+| **Input** | `review_result_to_dict()` が返す dict |
+| **Process** | FastAPI が `response_model` で検証・整形する |
+| **Output** | JSON |
+
+> ⚠️ **`start` / `end` は原文の文字オフセット**。フロントの `DocumentView` が
+> `document.slice(start, end)` でハイライトを切り出すため、
+> `document[start:end] == excerpt` が成り立つことが契約である。
+
+---
+
+### 4.11 ReviewResultModel / ReviewJobStatusResponse
+
+**概要**: レビュー結果と、そのジョブ状態レスポンス。
+
+```python
+class ReviewResultModel(BaseModel):
+    document_title: str
+    ruleset: Optional[str] = None
+    segments: List[SegmentModel] = Field(default_factory=list)
+    findings: List[ReviewFindingModel] = Field(default_factory=list)
+    summary: FindingSummaryModel = Field(default_factory=FindingSummaryModel)
+    used_web: bool = False
+    action: Optional[ActionRequestModel] = None
+    action_result: Optional[str] = None
+    segments_total: int = 0
+    rules_evaluated: int = 0
+    detected_raw: int = 0
+    rescued: int = 0
+    forced_high: int = 0
+    truncated: bool = False
+
+
+class ReviewJobStatusResponse(BaseModel):
+    job_id: str
+    status: Literal["running", "completed", "failed"]
+    result: Optional[ReviewResultModel] = None
+```
+
+| 項目 | 内容 |
+|------|------|
+| **Input** | `Job.result`（`review_result_to_dict` の戻り） |
+| **Process** | FastAPI が検証・整形する |
+| **Output** | `GET /api/review/result/{job_id}` のレスポンス |
+
+**KPI 計測用フィールド**:
+
+| フィールド | 意味 |
+|---|---|
+| `segments_total` | 分割したセグメント数 |
+| `rules_evaluated` | 第2段 LLM を呼んだ (セグメント×ルール) 数 |
+| `detected_raw` | 第2段が違反とした数（抑止前） |
+| `rescued` | ④' で救済した数 |
+| `forced_high` | 重大リスク語で強制 high にした数 |
+| `truncated` | ガード上限に達して打ち切ったか |
+
+> `findings` に `suppressed` の指摘は含まれない（件数だけ `summary.suppressed` に残る）。
+> `detected_raw == len(findings) + summary.suppressed` が成り立つ。
+
+---
+
+### 4.12 RuleSetInfo
+
+**概要**: `GET /api/rulesets` の 1 要素。`VerticalInfo` と同じ位置づけ。
+
+```python
+class RuleSetInfo(BaseModel):
+    id: str
+    name: str
+    collections: List[str]
+    rule_count: int
+    always_check_count: int
+    laws: List[str]
+    critical_keywords: List[str]
+    action_map: Dict[str, str]
+    notify_th: float
+    confirm_th: float
+    prompt_addendum: str = ""
+```
+
+| 項目 | 内容 |
+|------|------|
+| **Input** | `RULESETS` の `RuleSet` |
+| **Process** | `api/meta.py` が件数・法令を集計して構築 |
+| **Output** | `RuleSetInfo` |
+
+**戻り値例**:
+```python
+{"id": "ec_ad", "name": "EC広告表示",
+ "collections": ["ec_ad_rules_anthropic", "ec_policy_anthropic"],
+ "rule_count": 21, "always_check_count": 6,
+ "laws": ["医薬品医療機器等法", "景品表示法", "特定商取引法"],
+ "critical_keywords": ["No.1", "NO.1", "ナンバーワン", ...],
+ "action_map": {"修正": "create_ticket", "差し戻し": "send_reply"},
+ "notify_th": 0.85, "confirm_th": 0.6,
+ "prompt_addendum": "景品表示法・特定商取引法・医薬品医療機器等法の条文に基づいて判定し、…"}
+```
+
+> **`RuleItem.description`（判定基準の本文）は返さない。** LLM プロンプト用であり
+> UI では使わないため、件数・対象法令・しきい値だけを出して選択判断に足りる情報にとどめている。
+
+---
+
 ## 5. 使用例
 
 ### 5.1 基本的なワークフロー（API 層での利用）
@@ -543,18 +761,24 @@ status = JobStatusResponse(job_id="a1b2c3", status="completed", result=None)
 
 ```python
 # 公開シンボル（明示的 __all__ はなし）
+# Support
 QueryRequest, QueryAccepted, ConfirmRequest, ConfirmResponse,
 ActionRequestModel, SupportResultModel, JobStatusResponse,
 SupportEventModel, VerticalInfo
+# Review
+MAX_DOCUMENT_CHARS, Severity, FindingStatus,
+ReviewRequest, SegmentModel, ReviewFindingModel, FindingSummaryModel,
+ReviewResultModel, ReviewJobStatusResponse, RuleSetInfo
 ```
 
 ---
 
 ## 7. 変更履歴
 
-| バージョン | 変更内容 |
-|-----------|---------|
-| 1.0 | 初版作成（9 スキーマモデルの IPO ドキュメント） |
+| バージョン | 日付 | 変更内容 |
+|-----------|------|---------|
+| 1.0 | 2026-07-15 | 初版作成（9 スキーマモデルの IPO ドキュメント） |
+| 1.1 | 2026-07-29 | GRACE-Review のスキーマ 7 モデル＋`MAX_DOCUMENT_CHARS` を追加（PR #41）。Support 側のモデルは無変更 |
 
 ---
 
