@@ -1,10 +1,26 @@
 # backend/app/core/jobs.py
-"""サポート問い合わせのジョブ管理（インメモリ）。
+"""エージェント実行のジョブ管理（インメモリ）。
 
-1 クエリ = 1 ジョブ。ジョブはワーカースレッドで `run_support_agent_core` を実行し、
+1 リクエスト = 1 ジョブ。ジョブはワーカースレッドで**実行関数（runner）**を呼び、
 進捗イベントを蓄積する。SSE 購読者はイベント列を先頭から追いかける
 （再接続・途中購読でも全イベントをリプレイできる）。ローカル開発用の
 シングルプロセス前提で、永続化はしない。
+
+## runner 注入方式（設計: backend/docs/review_agent_spec.md §6）
+
+当初は `run_support_agent_core` を直接呼んでいたが、GRACE-Review（文書レビュー）を
+同じジョブ基盤へ乗せるため、実行関数を差し替え可能にした。
+
+    runner(params, emit, confirm) -> Optional[Dict[str, Any]]
+
+`start()` は runner 省略時、`params` の型から `_RUNNERS` を引いて既定 runner を
+解決する。**`api/support.py` の `job_manager.start(JobParams(...))` は無変更で動く。**
+
+runner の登録は `register_runner()` で行う。Support の runner は本モジュールが
+自分で登録し、Review の runner は `review_agent.py` が import 時に登録する
+（`ReviewParams` を構築するには `review_agent` の import が必要なため、
+登録漏れは構造的に起きない）。この形にすることで `jobs.py` は Review 側の
+モジュールを一切知らずに済み、循環 import も発生しない。
 """
 from __future__ import annotations
 
@@ -13,10 +29,12 @@ import threading
 import time
 import uuid
 from dataclasses import asdict, dataclass, field
-from typing import Any, Dict, Iterator, List, Optional
+from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple
 
 from backend.app.core.intervention_bridge import InterventionBridge
 from backend.app.core.support_agent import (
+    ConfirmFn,
+    EmitFn,
     SupportEvent,
     result_to_dict,
     run_support_agent_core,
@@ -26,6 +44,34 @@ logger = logging.getLogger(__name__)
 
 # 完了済みジョブをメモリに保持する上限（超えたら古い完了ジョブから破棄）
 MAX_FINISHED_JOBS = 50
+
+# ジョブの実行関数。戻り dict がそのまま `Job.result` になる（None = 失敗）。
+JobRunner = Callable[[Any, EmitFn, ConfirmFn], Optional[Dict[str, Any]]]
+
+# params の型 → (runner, kind) の登録テーブル。register_runner() で登録する。
+_RUNNERS: Dict[type, Tuple[JobRunner, str]] = {}
+
+
+def register_runner(params_type: type, runner: JobRunner, kind: str) -> None:
+    """params の型に対する既定 runner を登録する。
+
+    Args:
+        params_type: `start()` へ渡されるパラメータの型（`JobParams` 等）
+        runner: `(params, emit, confirm) -> Optional[dict]`
+        kind: ジョブ種別のラベル（ログ・スレッド名・`Job.kind` に使う）
+    """
+    _RUNNERS[params_type] = (runner, kind)
+
+
+def _resolve_runner(params: Any) -> Tuple[JobRunner, str]:
+    """params の型から既定 runner を解決する。未登録なら TypeError。"""
+    for params_type, entry in _RUNNERS.items():
+        if isinstance(params, params_type):
+            return entry
+    raise TypeError(
+        f"未登録の params 型です: {type(params).__name__}。"
+        "register_runner() で登録するか、start(params, runner=...) を使ってください。"
+    )
 
 
 @dataclass
@@ -41,11 +87,17 @@ class JobParams:
 
 
 @dataclass
-class SupportJob:
-    """実行中/完了のジョブ。イベント列と最終結果を保持する。"""
+class Job:
+    """実行中/完了のジョブ。イベント列と最終結果を保持する。
+
+    `params` の型はジョブ種別によって異なる（`JobParams` / `ReviewParams` 等）ため
+    `Any`。どの runner で実行するかは `runner` / `kind` が保持する。
+    """
 
     job_id: str
-    params: JobParams
+    params: Any
+    kind: str = "support"              # "support" / "review" / …
+    runner: Optional[JobRunner] = None
     status: str = "running"            # running / completed / failed
     events: List[Dict[str, Any]] = field(default_factory=list)
     result: Optional[Dict[str, Any]] = None
@@ -98,22 +150,44 @@ class JobManager:
     """ジョブの生成・参照・HITL 応答の注入を担う（インメモリ・スレッドセーフ）。"""
 
     def __init__(self):
-        self._jobs: Dict[str, SupportJob] = {}
+        self._jobs: Dict[str, Job] = {}
         self._lock = threading.Lock()
 
-    def start(self, params: JobParams) -> SupportJob:
-        job = SupportJob(job_id=uuid.uuid4().hex[:12], params=params)
+    def start(
+        self,
+        params: Any,
+        runner: Optional[JobRunner] = None,
+        kind: Optional[str] = None,
+    ) -> Job:
+        """ジョブを起動する。
+
+        Args:
+            params: 実行パラメータ。runner 省略時はこの型で runner を解決する。
+            runner: 実行関数。省略時は `_RUNNERS` から解決（未登録なら TypeError）。
+            kind: ジョブ種別のラベル。省略時は登録時の kind、runner 明示時は "custom"。
+
+        既存の `start(JobParams(...))`（引数 1 個）はそのまま動く。
+        """
+        if runner is None:
+            runner, resolved_kind = _resolve_runner(params)
+            kind = kind or resolved_kind
+        else:
+            kind = kind or "custom"
+
+        job = Job(
+            job_id=uuid.uuid4().hex[:12], params=params, kind=kind, runner=runner
+        )
         job.bridge = InterventionBridge(emit=job.emit)
         with self._lock:
             self._gc_finished_locked()
             self._jobs[job.job_id] = job
         thread = threading.Thread(
-            target=self._run, args=(job,), name=f"support-job-{job.job_id}", daemon=True
+            target=self._run, args=(job,), name=f"{kind}-job-{job.job_id}", daemon=True
         )
         thread.start()
         return job
 
-    def get(self, job_id: str) -> Optional[SupportJob]:
+    def get(self, job_id: str) -> Optional[Job]:
         with self._lock:
             return self._jobs.get(job_id)
 
@@ -126,22 +200,11 @@ class JobManager:
             return "not_waiting"
         return "resolved"
 
-    def _run(self, job: SupportJob) -> None:
-        p = job.params
+    def _run(self, job: Job) -> None:
         try:
-            result = run_support_agent_core(
-                p.query,
-                verbose=p.verbose,
-                use_web=p.use_web,
-                do_action=p.do_action,
-                dry_run=p.dry_run,
-                vertical=p.vertical,
-                identity=None,
-                emit=job.emit,
-                confirm=job.bridge.resolver,
-            )
+            result = job.runner(job.params, job.emit, job.bridge.resolver)
         except Exception as e:  # Qdrant 未起動・LLM タイムアウト等をイベントで配信
-            logger.exception(f"support job {job.job_id} failed")
+            logger.exception(f"{job.kind} job {job.job_id} failed")
             job.emit(SupportEvent(
                 type="error",
                 message=f"❌ 実行に失敗しました: {type(e).__name__}: {e}",
@@ -149,10 +212,10 @@ class JobManager:
             ))
             job.finish("failed")
             return
-        if result is None:  # APIキー未設定（error イベントは emit 済み）
+        if result is None:  # APIキー未設定等（error イベントは runner 側で emit 済み）
             job.finish("failed")
         else:
-            job.finish("completed", result_to_dict(result))
+            job.finish("completed", result)
 
     def _gc_finished_locked(self) -> None:
         """完了ジョブが増えすぎたら古い順に破棄する（呼び出し側で lock 保持）。"""
@@ -163,6 +226,38 @@ class JobManager:
         for job in finished[: max(0, len(finished) - MAX_FINISHED_JOBS)]:
             self._jobs.pop(job.job_id, None)
 
+
+# =============================================================================
+# Support の runner（既定登録）
+# =============================================================================
+
+def _support_runner(
+    params: JobParams, emit: EmitFn, confirm: ConfirmFn
+) -> Optional[Dict[str, Any]]:
+    """`JobParams` → `run_support_agent_core` の呼び出し。
+
+    従来 `JobManager._run` に直書きされていた処理をそのまま切り出したもの。
+    渡すパラメータ・順序・`identity=None` は変更していない。
+    """
+    result = run_support_agent_core(
+        params.query,
+        verbose=params.verbose,
+        use_web=params.use_web,
+        do_action=params.do_action,
+        dry_run=params.dry_run,
+        vertical=params.vertical,
+        identity=None,
+        emit=emit,
+        confirm=confirm,
+    )
+    return result_to_dict(result) if result is not None else None
+
+
+register_runner(JobParams, _support_runner, "support")
+
+
+# 後方互換エイリアス。既存 import（`from ... import SupportJob`）を壊さない。
+SupportJob = Job
 
 # アプリ全体で共有するシングルトン（ローカル・シングルプロセス前提）
 job_manager = JobManager()
