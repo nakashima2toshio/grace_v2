@@ -1,6 +1,6 @@
 # main.py - GRACE-Support Web API 起動モジュール ドキュメント
 
-**Version 1.1** | 最終更新: 2026-07-24
+**Version 1.2** | 最終更新: 2026-07-29
 
 ---
 
@@ -58,6 +58,7 @@ HTTP/SSE 経由で公開するための「起動と結線」だけを担い、�
 | `load_dotenv()` | `.env` から環境変数を読み込む（`python-dotenv`。ImportError 時はスキップ） |
 | `app.add_middleware(CORSMiddleware, ...)` | Vite dev サーバ向け CORS 許可設定 |
 | `app.include_router(support.router)` | サポート問い合わせ API の結線 |
+| `app.include_router(review.router)` | 文書レビュー API の結線 |
 | `app.include_router(meta.router)` | メタ情報 API の結線 |
 
 ---
@@ -76,7 +77,7 @@ flowchart TB
     subgraph MODULE["backend/app/main.py"]
         APP["app: FastAPI"]
         CORS["CORSMiddleware"]
-        ROUTERS["include_router(support / meta)"]
+        ROUTERS["include_router(support / review / meta)"]
     end
 
     subgraph APILAYER["API 層"]
@@ -123,7 +124,7 @@ style EXTERNAL fill:#1a1a1a,stroke:#fff,color:#fff
 1. `uvicorn backend.app.main:app` により本モジュールが読み込まれる
 2. `load_dotenv()` が `.env` を読み込み、`ANTHROPIC_API_KEY` / `GOOGLE_API_KEY` 等を環境変数化
 3. `FastAPI(...)` で `app` を生成し、`CORSMiddleware` を追加（Vite dev サーバのみ許可）
-4. `include_router()` で `support`・`meta` の各ルーターを `app` に結線
+4. `include_router()` で `support`・`review`・`meta` の各ルーターを `app` に結線
 5. 起動後、クライアント（Vite/ブラウザ）からのリクエストを各ルーターへ委譲
 
 ---
@@ -148,16 +149,18 @@ flowchart TB
 
     subgraph WIRING["ルーター結線"]
         RSUP["include_router(support.router)"]
+        RREV["include_router(review.router)"]
         RMETA["include_router(meta.router)"]
     end
 
     DOTENV --> APP
     APP --> CORS
     CORS --> RSUP
+    CORS --> RREV
     CORS --> RMETA
 classDef default fill:#000,stroke:#fff,color:#fff
 classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
-class DOTENV,APP,CORS,RSUP,RMETA default
+class DOTENV,APP,CORS,RSUP,RREV,RMETA default
 style ENV fill:#1a1a1a,stroke:#fff,color:#fff
 style APPBLOCK fill:#1a1a1a,stroke:#fff,color:#fff
 style MW fill:#1a1a1a,stroke:#fff,color:#fff
@@ -194,6 +197,7 @@ style WIRING fill:#1a1a1a,stroke:#fff,color:#fff
 | `load_dotenv()` | 呼び出し（`python-dotenv`） | `.env` から環境変数を読み込む（ImportError 時はスキップ） |
 | `app.add_middleware(CORSMiddleware, ...)` | 呼び出し | Vite dev サーバ向け CORS 許可設定 |
 | `app.include_router(support.router)` | 呼び出し | サポート API を結線 |
+| `app.include_router(review.router)` | 呼び出し | 文書レビュー API を結線 |
 | `app.include_router(meta.router)` | 呼び出し | メタ API を結線 |
 
 ---
@@ -209,15 +213,15 @@ style WIRING fill:#1a1a1a,stroke:#fff,color:#fff
 
 ```python
 app: FastAPI = FastAPI(
-    title="GRACE-Support API",
+    title="GRACE API",
     description="業界特化・自律型サポートエージェント（内部RAG＋Web裏取り＋HITL アクション）",
-    version="1.0.0",
+    version="1.1.0",
 )
 ```
 
 | パラメータ | 型 | デフォルト | 説明 |
 |------------|------|-----------|------|
-| `title` | str | "GRACE-Support API" | OpenAPI ドキュメントのタイトル |
+| `title` | str | "GRACE API" | OpenAPI ドキュメントのタイトル |
 | `description` | str | （上記説明文） | OpenAPI ドキュメントの説明 |
 | `version` | str | "1.0.0" | API バージョン |
 
@@ -231,7 +235,7 @@ app: FastAPI = FastAPI(
 ```python
 # uvicorn から参照される ASGI アプリ。/docs で下記メタが表示される
 {
-    "title": "GRACE-Support API",
+    "title": "GRACE API",
     "version": "1.0.0",
     "routes": ["/api/support/query", "/api/support/stream/{job_id}",
                "/api/support/confirm/{job_id}", "/api/support/result/{job_id}",
@@ -244,7 +248,7 @@ app: FastAPI = FastAPI(
 # uvicorn backend.app.main:app --reload --port 8000
 from backend.app.main import app  # ASGI アプリを import
 
-print(app.title)    # GRACE-Support API
+print(app.title)    # GRACE API
 print(app.version)  # 1.0.0
 ```
 
@@ -332,23 +336,25 @@ app.add_middleware(
 
 ### 4.4 `app.include_router(...)`（ルーター結線）
 
-**概要**: サポート API（`support.router`）とメタ API（`meta.router`）を `app` に登録する。
+**概要**: サポート API（`support.router`）・文書レビュー API（`review.router`）・
+メタ API（`meta.router`）を `app` に登録する。
 各ルーターは自身に `prefix`（`/api/support`・`/api`）を持つため、本モジュールでは追加の
 prefix を与えない。
 
 ```python
 app.include_router(support.router)
+app.include_router(review.router)
 app.include_router(meta.router)
 ```
 
 | パラメータ | 型 | デフォルト | 説明 |
 |------------|------|-----------|------|
-| `router` | `APIRouter` | - | 登録するルーター（`support.router` / `meta.router`） |
+| `router` | `APIRouter` | - | 登録するルーター（`support.router` / `review.router` / `meta.router`） |
 
 | 項目 | 内容 |
 |------|------|
-| **Input** | `support.router: APIRouter`, `meta.router: APIRouter` |
-| **Process** | 1. `support.router`（prefix=`/api/support`）を結線<br>2. `meta.router`（prefix=`/api`）を結線<br>3. 各ルーターの経路を `app` の OpenAPI に反映 |
+| **Input** | `support.router: APIRouter`, `review.router: APIRouter`, `meta.router: APIRouter` |
+| **Process** | 1. `support.router`（prefix=`/api/support`）を結線<br>2. `review.router`（prefix=`/api/review`）を結線<br>3. `meta.router`（prefix=`/api`）を結線<br>4. 各ルーターの経路を `app` の OpenAPI に反映 |
 | **Output** | `None`（`app` に経路が登録される副作用） |
 
 **戻り値例**:
@@ -385,15 +391,15 @@ print(resp.json())
 
 ```python
 app = FastAPI(
-    title="GRACE-Support API",
+    title="GRACE API",
     description="業界特化・自律型サポートエージェント（内部RAG＋Web裏取り＋HITL アクション）",
-    version="1.0.0",
+    version="1.1.0",
 )
 ```
 
 | キー | デフォルト値 | 説明 |
 |-----|-------------|------|
-| `title` | "GRACE-Support API" | API 名称 |
+| `title` | "GRACE API" | API 名称 |
 | `description` | 上記説明文 | API 概要 |
 | `version` | "1.0.0" | API バージョン |
 
@@ -491,6 +497,7 @@ app  # FastAPI インスタンス（uvicorn backend.app.main:app で参照）
 | バージョン | 変更内容 |
 |-----------|---------|
 | 1.0 | 初版作成（FastAPI 起動・CORS・ルーター結線のモジュールドキュメント） |
+| 1.2 | GRACE-Review の追加に追随（PR #41）: `review.router` の結線、`title` を "GRACE API"・`version` を 1.1.0 へ、2 エージェント構成の説明を追記 |
 | 1.1 | 実コードとの再突合による改善: 誤字修正（Gemili→Gemini）、アーキテクチャ構成図にコア層（core.jobs / core.support_agent / core.verticals）を追加、外部依存バージョンを pyproject.toml に整合（fastapi >=0.116.0 / python-dotenv ==1.1.1 / uvicorn ==0.34.0）、起動ワークフローに `./run_dev.sh`（1 コマンド起動）を追記、`/api/verticals` の戻り値例を実 PROFILES（gov / saas / ec）に修正 |
 
 ---
@@ -512,6 +519,7 @@ flowchart LR
 
     subgraph INTERNAL["内部モジュール"]
         SUP["backend.app.api.support"]
+        REV["backend.app.api.review"]
         MET["backend.app.api.meta"]
     end
 
@@ -519,12 +527,14 @@ flowchart LR
     MAIN --> FCORS
     MAIN --> LD
     MAIN --> SUP
+    MAIN --> REV
     MAIN --> MET
     SUP --> SUPR["support.router (/api/support)"]
+    REV --> REVR["review.router (/api/review)"]
     MET --> METR["meta.router (/api)"]
 classDef default fill:#000,stroke:#fff,color:#fff
 classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
-class MAIN,FAPP,FCORS,LD,SUP,MET,SUPR,METR default
+class MAIN,FAPP,FCORS,LD,SUP,REV,MET,SUPR,REVR,METR default
 style FASTAPI fill:#1a1a1a,stroke:#fff,color:#fff
 style DOTENVLIB fill:#1a1a1a,stroke:#fff,color:#fff
 style INTERNAL fill:#1a1a1a,stroke:#fff,color:#fff
