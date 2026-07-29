@@ -1,8 +1,14 @@
 # backend/app/main.py
-"""GRACE-Support Web API（FastAPI）。
+"""GRACE Web API（FastAPI）。
 
-`agent_support_example.py`（CLI）と同じコアサービス
-（backend/app/core/support_agent.py）を Web から呼ぶための API。
+CLI と同じコアサービスを Web から呼ぶための API。エージェントは 2 つあり、
+ジョブ基盤（`core/jobs.py`）・SSE・HITL ブリッジを共有する。
+
+| エージェント | コア | ルータ |
+|---|---|---|
+| GRACE-Support（問い合わせ → 回答） | `core/support_agent.py` | `/api/support/*` |
+| GRACE-Review（文書 → 指摘） | `core/review_agent.py` | `/api/review/*` |
+
 ローカル開発専用（認証なし）。フロントエンドは frontend/（Vite + React + TS）。
 
 起動（リポジトリルートで）::
@@ -17,7 +23,7 @@ from __future__ import annotations
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from backend.app.api import meta, support
+from backend.app.api import meta, review, support
 
 # .env から ANTHROPIC_API_KEY / GOOGLE_API_KEY 等を読み込む（未導入でも続行）
 try:
@@ -28,9 +34,12 @@ except ImportError:
     pass
 
 app = FastAPI(
-    title="GRACE-Support API",
-    description="業界特化・自律型サポートエージェント（内部RAG＋Web裏取り＋HITL アクション）",
-    version="1.0.0",
+    title="GRACE API",
+    description=(
+        "業界特化・自律型エージェント（内部RAG＋Web裏取り＋HITL アクション）。"
+        "Support（問い合わせ→回答）と Review（文書→指摘）を提供する。"
+    ),
+    version="1.1.0",
 )
 
 # ローカル開発: Vite dev サーバ（既定 5173）からのアクセスを許可
@@ -46,4 +55,5 @@ app.add_middleware(
 )
 
 app.include_router(support.router)
+app.include_router(review.router)
 app.include_router(meta.router)

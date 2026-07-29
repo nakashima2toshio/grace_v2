@@ -72,3 +72,100 @@ export interface QueryParams {
   do_action: boolean;
   verbose: boolean;
 }
+
+// ===========================================================================
+// GRACE-Review（文書レビュー）
+//
+// SSE のイベント形式は Support と同一なので `SupportEvent` を共用する。
+// 異なるのは result の型だけ（backend/app/schemas.py の Review 節と 1:1）。
+// ===========================================================================
+
+export type Severity = 'high' | 'medium' | 'low';
+export type FindingStatus = 'confirmed' | 'review_required' | 'suppressed';
+
+/** 検査単位。start/end は**原文**の文字オフセット（ハイライト用）。 */
+export interface Segment {
+  segment_id: string;
+  text: string;
+  start: number;
+  end: number;
+  kind: string;
+}
+
+/** 1 件の指摘（指摘カード 1 枚）。 */
+export interface ReviewFinding {
+  finding_id: string;
+  segment_id: string;
+  excerpt: string;
+  start: number;
+  end: number;
+
+  rule_id: string;
+  rule_title: string;
+  category: string;
+  law: string;
+  article: string;
+
+  message: string;
+  suggestion: string;
+
+  severity: Severity;
+  confidence: number;
+  citations: string[];
+
+  status: FindingStatus;
+  forced: boolean;
+  suppress_reason: string | null;
+  web_checked: boolean;
+}
+
+export interface FindingSummary {
+  high: number;
+  medium: number;
+  low: number;
+  confirmed: number;
+  review_required: number;
+  suppressed: number;
+}
+
+/** ReviewResult（backend/app/core/review_agent.py）の JSON 表現。 */
+export interface ReviewResult {
+  document_title: string;
+  ruleset: string | null;
+  segments: Segment[];
+  findings: ReviewFinding[];
+  summary: FindingSummary;
+  used_web: boolean;
+  action: ActionRequestInfo | null;
+  action_result: string | null;
+  segments_total: number;
+  rules_evaluated: number;
+  detected_raw: number;
+  rescued: number;
+  forced_high: number;
+  truncated: boolean;
+}
+
+export interface RuleSetInfo {
+  id: string;
+  name: string;
+  collections: string[];
+  rule_count: number;
+  always_check_count: number;
+  laws: string[];
+  critical_keywords: string[];
+  action_map: Record<string, string>;
+  notify_th: number;
+  confirm_th: number;
+  prompt_addendum: string;
+}
+
+export interface ReviewParams {
+  document: string;
+  document_title: string;
+  ruleset: string | null;
+  use_web: boolean;
+  do_action: boolean;
+  dry_run: boolean;
+  verbose: boolean;
+}
