@@ -1,13 +1,8 @@
-// ステップトレース（①〜⑥、④'・④救済含む）のタイムライン表示。
+// GRACE-Support のステップトレース（①〜⑥、④'・④救済含む）。
 // 実行中／完了／スキップをステータス表示し、SSE で逐次更新される。
+// 表示そのものは Timeline（共通）に委譲し、ここは Support 固有のバッジだけを持つ。
 import { STEP_IDS, STEP_LABELS, type JobState, type StepState } from '../state/jobReducer';
-
-const STATUS_ICON: Record<StepState['status'], string> = {
-  pending: '○',
-  running: '▶',
-  done: '✓',
-  skipped: '−',
-};
+import { Timeline } from './Timeline';
 
 function stepBadges(step: StepState): string[] {
   const badges: string[] = [];
@@ -38,40 +33,13 @@ function stepBadges(step: StepState): string[] {
 export function StepTimeline({ state }: { state: JobState }) {
   if (state.phase === 'idle') return null;
   return (
-    <section className="timeline">
-      <h2>ステップトレース</h2>
-      <ol>
-        {STEP_IDS.map((id) => {
-          const step = state.steps[id];
-          return (
-            <li key={id} className={`step step-${step.status}`}>
-              <span className="step-icon">{STATUS_ICON[step.status]}</span>
-              <div className="step-body">
-                <div className="step-title">
-                  {STEP_LABELS[id]}
-                  {stepBadges(step).map((badge) => (
-                    <span key={badge} className="badge">
-                      {badge}
-                    </span>
-                  ))}
-                </div>
-                {step.logs.length > 0 && (
-                  <details className="step-logs" open={step.status === 'running'}>
-                    <summary>ログ（{step.logs.length}）</summary>
-                    <pre>{step.logs.join('\n')}</pre>
-                  </details>
-                )}
-              </div>
-            </li>
-          );
-        })}
-      </ol>
-      {state.logs.length > 0 && (
-        <details className="step-logs">
-          <summary>その他のログ（{state.logs.length}）</summary>
-          <pre>{state.logs.join('\n')}</pre>
-        </details>
-      )}
-    </section>
+    <Timeline
+      title="ステップトレース"
+      stepIds={STEP_IDS}
+      labels={STEP_LABELS}
+      steps={state.steps}
+      logs={state.logs}
+      badges={(step) => stepBadges(step as StepState)}
+    />
   );
 }

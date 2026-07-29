@@ -2,11 +2,20 @@
 // 本人確認ステップを表示し、承認 / 拒否を選択させる。承認なしにアクションは実行されない。
 // タイムアウト時はバックエンドが安全側（実行せず有人対応へ）に倒す。
 import type { InterventionInfo } from '../types';
-import type { StepState } from '../state/jobReducer';
+
+/**
+ * アクションステップの表示に必要な部分だけを構造的に受ける。
+ * Support の `StepState` と Review の `ReviewStepState` の両方が当てはまるため、
+ * 本モーダルは両エージェントで共用できる。
+ */
+export interface ActionStepView {
+  data: Record<string, unknown>;
+  logs: string[];
+}
 
 interface Props {
   intervention: InterventionInfo;
-  actionStep: StepState; // ⑥ の step started イベント（action_type/args/backend/dry_run）
+  actionStep: ActionStepView; // ⑥/⑦ の step started イベント（action_type/args/backend/dry_run）
   submitting: boolean;
   onRespond: (approve: boolean) => void;
 }
