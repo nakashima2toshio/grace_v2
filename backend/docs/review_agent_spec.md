@@ -74,72 +74,43 @@ GRACE-Review は、**文書（EC の LP・商品説明文など）を規程（�
 
 ### 2.1 全体構成
 
-各層の内部は `direction TB` で**縦積み**にしている（横並びにすると 1 ノードあたりの幅が
-潰れて文字が小さくなるため）。凡例: **【新規】** 新規作成 / **【改修】** 既存を変更 /
-**【無変更】** 手を入れない。
+**1 層 = 1 ノード**とし、上から下へ 5 ノードを一直線に並べる。層の中身は各ノード内に
+行で列挙する。凡例: **【新規】** 新規作成 / **【改修】** 既存を変更 / **【無変更】** 手を入れない。
+
+> 📝 **subgraph は使わない。** subgraph を跨ぐエッジが多いと Mermaid は subgraph 自体を
+> 横方向に並べてしまい、図が横長になって文字が潰れる。`direction TB` を subgraph に
+> 指定しても、外部ノードとのエッジがある場合は無視されることがある。
+> **層をノードにして直列に繋ぐ形が、縦積みを確実に保証する唯一の書き方。**
 
 ```mermaid
 flowchart TB
-    subgraph CLIENT["クライアント層"]
-        direction TB
-        UI["React :5173<br>文書ビューア + 指摘リスト"]
-    end
+    CLIENT["クライアント層 ／ React :5173<br>文書ビューア + 指摘リスト + CONFIRM モーダル"]
+    APILAYER["API 層 ／ FastAPI :8000<br>api/review.py 【新規】 submit・stream・confirm・result<br>api/support.py 【無変更】 /api/support/*<br>api/meta.py 【追記】 /api/rulesets"]
+    JOBLAYER["ジョブ層 ／ 汎用化<br>core/jobs.py 【改修】 JobManager — runner 注入方式へ<br>スレッド実行・イベント蓄積・SSE リプレイ・GC<br>core/intervention_bridge.py 【無変更】 HITL 承認ブリッジ"]
+    AGENTS["エージェント層<br>core/review_agent.py 【新規】 パイプライン ①〜⑦<br>core/review_gates.py 【新規】 二段判定・誤検知抑止・救済・重大度<br>core/rulesets.py 【新規】 RuleSet ／ RuleItem — ec_ad 21ルール<br>core/support_agent.py 【無変更】 run_support_agent_core"]
+    SHARED["共有機構 ／ 無改造で再利用<br>grace.confidence — GroundednessVerifier 根拠検証<br>grace.tools — rag_search ／ web_search<br>support_actions.py — ActionBackend ／ IdentityVerifier<br>core/gates.py 【無変更】 _match_keyword ほか純関数"]
 
-    subgraph APILAYER["API 層 (FastAPI :8000)"]
-        direction TB
-        REVAPI["api/review.py 【新規】<br>/api/review/submit・stream・confirm・result"]
-        SUPAPI["api/support.py 【無変更】<br>/api/support/*"]
-        METAAPI["api/meta.py 【追記】<br>/api/rulesets"]
-    end
-
-    subgraph JOBLAYER["ジョブ層 (汎用化)"]
-        direction TB
-        JOBS["core/jobs.py 【改修】<br>JobManager — runner 注入方式へ<br>スレッド実行・イベント蓄積・SSE リプレイ・GC"]
-        BRIDGE["core/intervention_bridge.py 【無変更】<br>HITL 承認ブリッジ (同期⇔非同期変換)"]
-    end
-
-    subgraph AGENTS["エージェント層"]
-        direction TB
-        REVAG["core/review_agent.py 【新規】<br>run_review_agent_core — パイプライン ①〜⑦"]
-        REVGATE["core/review_gates.py 【新規】<br>二段判定・誤検知抑止・救済・重大度判定"]
-        RULES["core/rulesets.py 【新規】<br>RuleSet / RuleItem — ec_ad 21ルール"]
-        SUPAG["core/support_agent.py 【無変更】<br>run_support_agent_core"]
-    end
-
-    subgraph SHARED["共有機構 (無改造で再利用)"]
-        direction TB
-        GRND["grace.confidence<br>GroundednessVerifier — 根拠検証"]
-        TOOLS["grace.tools<br>rag_search / web_search"]
-        ACT["support_actions.py<br>ActionBackend — dry-run / webhook"]
-        GATES["core/gates.py 【無変更】<br>_match_keyword ほか純関数"]
-    end
-
-    UI --> REVAPI
-    UI --> SUPAPI
-    UI --> METAAPI
-    REVAPI --> JOBS
-    SUPAPI --> JOBS
-    METAAPI --> RULES
-    JOBS --> BRIDGE
-    JOBS --> REVAG
-    JOBS --> SUPAG
-    REVAG --> REVGATE
-    REVGATE --> RULES
-    REVAG --> GRND
-    REVAG --> TOOLS
-    REVAG --> ACT
-    REVGATE --> GATES
-    SUPAG --> GRND
-    SUPAG --> TOOLS
+    CLIENT --> APILAYER
+    APILAYER --> JOBLAYER
+    JOBLAYER --> AGENTS
+    AGENTS --> SHARED
 classDef default fill:#000,stroke:#fff,color:#fff
 classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
-class UI,SUPAPI,REVAPI,METAAPI,JOBS,BRIDGE,SUPAG,REVAG,REVGATE,RULES,GRND,TOOLS,ACT,GATES default
-style CLIENT fill:#1a1a1a,stroke:#fff,color:#fff
-style APILAYER fill:#1a1a1a,stroke:#fff,color:#fff
-style JOBLAYER fill:#1a1a1a,stroke:#fff,color:#fff
-style AGENTS fill:#1a1a1a,stroke:#fff,color:#fff
-style SHARED fill:#1a1a1a,stroke:#fff,color:#fff
+class CLIENT,APILAYER,JOBLAYER,AGENTS,SHARED default
 ```
+
+図では層の粒度までしか描かないため、**層をまたぐ個別の呼び出し関係**を表で補う。
+
+| 呼び出し元 | 呼び出し先 | 用途 |
+|---|---|---|
+| `api/review.py` | `core/jobs.py` | `JobManager.start(ReviewParams)` でジョブ起動 |
+| `api/support.py` | `core/jobs.py` | `JobManager.start(JobParams)`（**既存のまま無変更**） |
+| `api/meta.py` | `core/rulesets.py` | `RULESETS` を一覧化して返す |
+| `core/jobs.py` | `core/intervention_bridge.py` | HITL 承認待ちの生成 |
+| `core/jobs.py` | `core/review_agent.py` / `core/support_agent.py` | runner を型で解決して実行 |
+| `core/review_agent.py` | `core/review_gates.py` / `core/rulesets.py` | 判定ロジックとルール定義 |
+| `core/review_agent.py` | `grace.confidence` / `grace.tools` / `support_actions.py` | 根拠検証・検索・アクション実行 |
+| `core/review_gates.py` | `core/gates.py` | `_match_keyword` を再利用 |
 
 ### 2.2 変更の影響範囲
 
