@@ -104,3 +104,125 @@ class VerticalInfo(BaseModel):
     notify_th: Optional[float] = None
     confirm_th: Optional[float] = None
     prompt_addendum: str = ""
+
+
+# =============================================================================
+# GRACE-Review（文書レビュー）
+#
+# 設計: backend/docs/review_agent_spec.md §7。`QueryAccepted` / `ConfirmRequest` /
+# `ConfirmResponse` は Support と共用し、結果の型だけ新設する。
+# =============================================================================
+
+# 入力段のガード。セグメント数 × ルール数の LLM 呼び出しが発散しないようにする
+# （コア側の MAX_SEGMENTS / MAX_LLM_CALLS と二重に効かせる）。超過は 422。
+MAX_DOCUMENT_CHARS = 50_000
+
+Severity = Literal["high", "medium", "low"]
+FindingStatus = Literal["confirmed", "review_required", "suppressed"]
+
+
+class ReviewRequest(BaseModel):
+    """POST /api/review/submit（CLI 引数と 1:1 対応）。"""
+
+    document: str = Field(
+        min_length=1, max_length=MAX_DOCUMENT_CHARS, description="点検対象の文書")
+    document_title: str = Field(default="無題", description="表示用タイトル")
+    ruleset: Optional[Literal["ec_ad"]] = Field(
+        default="ec_ad", description="適用するルールセット")
+    # Support（既定 ON）と違い既定は OFF。文書レビューは条文が一次情報であり、
+    # Web 検索は速度・コストに対して得るものが小さい。
+    use_web: bool = Field(default=False, description="Web で法改正を裏取り（既定 OFF）")
+    do_action: bool = Field(default=True, description="アクション実行（--no-action 相当の逆）")
+    dry_run: bool = Field(default=True, description="アクションのドライラン（既定 ON）")
+    verbose: bool = Field(default=False, description="詳細ログ（-v 相当）")
+
+
+class SegmentModel(BaseModel):
+    """検査単位。`start` / `end` は**原文**の文字オフセット（UI のハイライト用）。"""
+
+    segment_id: str
+    text: str
+    start: int
+    end: int
+    kind: str = "paragraph"
+
+
+class ReviewFindingModel(BaseModel):
+    """1 件の指摘（UI の指摘カード 1 枚）。"""
+
+    finding_id: str
+    segment_id: str
+    excerpt: str
+    start: int
+    end: int
+
+    rule_id: str
+    rule_title: str
+    category: str
+    law: str
+    article: str
+
+    message: str
+    suggestion: str
+
+    severity: Severity = "medium"
+    confidence: float = 0.0
+    citations: List[str] = Field(default_factory=list)
+
+    status: FindingStatus = "review_required"
+    forced: bool = False
+    suppress_reason: Optional[str] = None
+    web_checked: bool = False
+
+
+class FindingSummaryModel(BaseModel):
+    high: int = 0
+    medium: int = 0
+    low: int = 0
+    confirmed: int = 0
+    review_required: int = 0
+    suppressed: int = 0
+
+
+class ReviewResultModel(BaseModel):
+    """`ReviewResult` の JSON 表現（GET /api/review/result/{job_id}）。"""
+
+    document_title: str
+    ruleset: Optional[str] = None
+    segments: List[SegmentModel] = Field(default_factory=list)
+    findings: List[ReviewFindingModel] = Field(default_factory=list)
+    summary: FindingSummaryModel = Field(default_factory=FindingSummaryModel)
+    used_web: bool = False
+    action: Optional[ActionRequestModel] = None
+    action_result: Optional[str] = None
+    # --- KPI 計測用メタデータ ---
+    segments_total: int = 0
+    rules_evaluated: int = 0
+    detected_raw: int = 0
+    rescued: int = 0
+    forced_high: int = 0
+    truncated: bool = False
+
+
+class ReviewJobStatusResponse(BaseModel):
+    """GET /api/review/result/{job_id}。"""
+
+    job_id: str
+    status: Literal["running", "completed", "failed"]
+    result: Optional[ReviewResultModel] = None
+
+
+class RuleSetInfo(BaseModel):
+    """GET /api/rulesets の 1 要素（`VerticalInfo` と同型の位置づけ）。"""
+
+    id: str
+    name: str
+    collections: List[str]
+    rule_count: int
+    always_check_count: int
+    laws: List[str]
+    critical_keywords: List[str]
+    action_map: Dict[str, str]
+    notify_th: float
+    confirm_th: float
+    prompt_addendum: str = ""

@@ -170,6 +170,10 @@ class ReviewPipelineStub:
     vacuous: Optional[bool] = False          # 実質性なし判定（None=判定失敗）
     confirm_continues: bool = True           # HITL CONFIRM を承認するか
     config: SimpleNamespace = field(default_factory=make_config_stub)
+    # intervention ハンドラを差し替えるか。False にすると**実物**が動き、
+    # InterventionBridge 経由で intervention イベントが SSE へ流れる
+    # （API の HITL 往復を検証するときはこちら。`confirm_continues` は無効）。
+    stub_intervention: bool = True
 
 
 def install_review_stub(monkeypatch, stub: ReviewPipelineStub) -> None:
@@ -241,7 +245,8 @@ def install_review_stub(monkeypatch, stub: ReviewPipelineStub) -> None:
         stub.handler_kwargs.update(kwargs)
         return handler
 
-    monkeypatch.setattr(f"{target}.create_intervention_handler", _make_handler)
+    if stub.stub_intervention:
+        monkeypatch.setattr(f"{target}.create_intervention_handler", _make_handler)
 
     def _execute_action(action_type, args):
         stub.action_calls.append((action_type, args))
@@ -255,14 +260,34 @@ def install_review_stub(monkeypatch, stub: ReviewPipelineStub) -> None:
     )
 
 
-@pytest.fixture
-def review_stub(monkeypatch):
-    """既定シナリオ（高支持率・規程ヒットあり）の Review スタブを設置して返す。"""
-    stub = ReviewPipelineStub(
+def _default_review_stub(**overrides) -> ReviewPipelineStub:
+    """既定シナリオ（高支持率・規程ヒットあり）。"""
+    return ReviewPipelineStub(
         rag_output=[{"payload": {
             "title": "景品表示法 優良誤認",
             "answer": "商品の内容について著しく優良であると示す表示は禁止される。",
         }}],
+        **overrides,
     )
+
+
+@pytest.fixture
+def review_stub(monkeypatch):
+    """既定シナリオの Review スタブを設置して返す（intervention も差し替える）。"""
+    stub = _default_review_stub()
+    install_review_stub(monkeypatch, stub)
+    return stub
+
+
+@pytest.fixture
+def review_hitl_stub(monkeypatch):
+    """intervention だけ**実物**を使う Review スタブ。
+
+    API の HITL 往復（intervention イベント → POST /confirm → 実行）は
+    `InterventionBridge` と実 `InterventionHandler` の組み合わせで初めて動くため、
+    ハンドラを差し替えると承認待ちのイベントが流れない。Support 側の
+    `pipeline_stub` がハンドラに触れていないのと同じ理由。
+    """
+    stub = _default_review_stub(stub_intervention=False)
     install_review_stub(monkeypatch, stub)
     return stub
