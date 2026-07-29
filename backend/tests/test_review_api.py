@@ -272,7 +272,14 @@ class TestSupportIsUnaffected:
         assert set(verticals) == {"gov", "saas", "ec"}
 
     def test_review_and_support_routes_are_distinct(self):
-        paths = {route.path for route in app.routes}
+        """公開スキーマ（OpenAPI）で両系統が並存していることを見る。
+
+        `app.routes` を直接覗くと FastAPI の内部表現に依存する
+        （0.140 で include_router 済みルータが `_IncludedRouter` に包まれ、
+        `.path` を持たなくなった）。CI は fastapi を固定していないので、
+        バージョン非依存な公開契約側で判定する。
+        """
+        paths = set(app.openapi()["paths"])
         assert "/api/support/query" in paths
         assert "/api/review/submit" in paths
         assert "/api/rulesets" in paths
