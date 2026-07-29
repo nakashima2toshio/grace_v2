@@ -74,13 +74,14 @@ GRACE-Review は、**文書（EC の LP・商品説明文など）を規程（�
 
 ### 2.1 全体構成
 
-**1 層 = 1 ノード**とし、上から下へ 5 ノードを一直線に並べる。層の中身は各ノード内に
-行で列挙する。凡例: **【新規】** 新規作成 / **【改修】** 既存を変更 / **【無変更】** 手を入れない。
+構成は **2 枚組**で示す。**図A** が層の積み重なり、**図B** がコンポーネント 14 個の
+依存関係（エッジ 17 本、省略なし）。1 枚に統合すると、層の枠（subgraph）を跨ぐ
+エッジが原因でノードが横方向に広がり、文字が潰れて読めなくなるため分けている。
 
-> 📝 **subgraph は使わない。** subgraph を跨ぐエッジが多いと Mermaid は subgraph 自体を
-> 横方向に並べてしまい、図が横長になって文字が潰れる。`direction TB` を subgraph に
-> 指定しても、外部ノードとのエッジがある場合は無視されることがある。
-> **層をノードにして直列に繋ぐ形が、縦積みを確実に保証する唯一の書き方。**
+凡例: **【新規】** 新規作成 / **【改修】** 既存を変更 / **【追記】** 既存へ追加 /
+**【無変更】** 手を入れない。
+
+#### 図A — レイヤ構成（何がどの層にあるか）
 
 ```mermaid
 flowchart TB
@@ -99,18 +100,77 @@ classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
 class CLIENT,APILAYER,JOBLAYER,AGENTS,SHARED default
 ```
 
-図では層の粒度までしか描かないため、**層をまたぐ個別の呼び出し関係**を表で補う。
+#### 図B — コンポーネント依存関係（何が何を呼ぶか・省略なし）
 
-| 呼び出し元 | 呼び出し先 | 用途 |
-|---|---|---|
-| `api/review.py` | `core/jobs.py` | `JobManager.start(ReviewParams)` でジョブ起動 |
-| `api/support.py` | `core/jobs.py` | `JobManager.start(JobParams)`（**既存のまま無変更**） |
-| `api/meta.py` | `core/rulesets.py` | `RULESETS` を一覧化して返す |
-| `core/jobs.py` | `core/intervention_bridge.py` | HITL 承認待ちの生成 |
-| `core/jobs.py` | `core/review_agent.py` / `core/support_agent.py` | runner を型で解決して実行 |
-| `core/review_agent.py` | `core/review_gates.py` / `core/rulesets.py` | 判定ロジックとルール定義 |
-| `core/review_agent.py` | `grace.confidence` / `grace.tools` / `support_actions.py` | 根拠検証・検索・アクション実行 |
-| `core/review_gates.py` | `core/gates.py` | `_match_keyword` を再利用 |
+ノードは実ファイル 1 個に対応する。ラベルを 1 行に抑えることで横幅の膨張を防ぎ、
+各エッジの意味は直後の一覧表で補う。層の帰属は図A を参照。
+
+```mermaid
+flowchart TB
+    UI["React :5173"]
+    REVAPI["api/review.py 【新規】"]
+    SUPAPI["api/support.py 【無変更】"]
+    METAAPI["api/meta.py 【追記】"]
+    JOBS["core/jobs.py 【改修】"]
+    BRIDGE["core/intervention_bridge.py 【無変更】"]
+    REVAG["core/review_agent.py 【新規】"]
+    SUPAG["core/support_agent.py 【無変更】"]
+    REVGATE["core/review_gates.py 【新規】"]
+    RULES["core/rulesets.py 【新規】"]
+    GRND["grace.confidence"]
+    TOOLS["grace.tools"]
+    ACT["support_actions.py"]
+    GATES["core/gates.py 【無変更】"]
+
+    UI --> REVAPI
+    UI --> SUPAPI
+    UI --> METAAPI
+    REVAPI --> JOBS
+    SUPAPI --> JOBS
+    METAAPI --> RULES
+    JOBS --> BRIDGE
+    JOBS --> REVAG
+    JOBS --> SUPAG
+    REVAG --> REVGATE
+    REVAG --> RULES
+    REVAG --> GRND
+    REVAG --> TOOLS
+    REVAG --> ACT
+    REVGATE --> GATES
+    SUPAG --> GRND
+    SUPAG --> TOOLS
+classDef default fill:#000,stroke:#fff,color:#fff
+classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
+class UI,REVAPI,SUPAPI,METAAPI,JOBS,BRIDGE,REVAG,SUPAG,REVGATE,RULES,GRND,TOOLS,ACT,GATES default
+```
+
+#### 依存関係の内訳（図B のエッジ 17 本）
+
+| # | 呼び出し元 | 呼び出し先 | 呼び出す内容 |
+|---:|---|---|---|
+| 1 | React | `api/review.py` | `POST /api/review/submit`・SSE 購読・`POST /confirm`・`GET /result` |
+| 2 | React | `api/support.py` | 既存のサポート画面（タブ切替で共存） |
+| 3 | React | `api/meta.py` | `GET /api/rulesets` で RuleSet セレクタを構築 |
+| 4 | `api/review.py` | `core/jobs.py` | `job_manager.start(ReviewParams)` → `job_id` / `stream_url` |
+| 5 | `api/support.py` | `core/jobs.py` | `job_manager.start(JobParams)` — **既存呼び出しのまま無変更** |
+| 6 | `api/meta.py` | `core/rulesets.py` | `RULESETS` を `RuleSetInfo[]` へ整形 |
+| 7 | `core/jobs.py` | `core/intervention_bridge.py` | `InterventionBridge(emit=job.emit)` を生成し `resolver` を runner へ渡す |
+| 8 | `core/jobs.py` | `core/review_agent.py` | `run_review_agent_core(params, emit, confirm)` をワーカースレッドで実行 |
+| 9 | `core/jobs.py` | `core/support_agent.py` | `run_support_agent_core(...)` — **既存経路のまま無変更** |
+| 10 | `core/review_agent.py` | `core/review_gates.py` | ③検出・④'抑止・④救済・⑤重大度の純関数群 |
+| 11 | `core/review_agent.py` | `core/rulesets.py` | `RULESETS.get(ruleset_id)` で `RuleSet` / `RuleItem` を解決 |
+| 12 | `core/review_agent.py` | `grace.confidence` | `GroundednessVerifier.verify()` で ④ 指摘の根拠検証 |
+| 13 | `core/review_agent.py` | `grace.tools` | `rag_search`（② 規程検索）/ `web_search`（⑥ 法改正の裏取り） |
+| 14 | `core/review_agent.py` | `support_actions.py` | `create_action_backend()` → ⑦ アクション実行 |
+| 15 | `core/review_gates.py` | `core/gates.py` | `_match_keyword` を第1段の候補検出に再利用 |
+| 16 | `core/support_agent.py` | `grace.confidence` | 既存の ③ Confidence（共有先が同一であることを示す） |
+| 17 | `core/support_agent.py` | `grace.tools` | 既存の ② Execute / ⑤ Web フォールバック |
+
+> 📝 **図の分割方針（再発防止）**: Mermaid（dagre）は subgraph を跨ぐエッジが多いと
+> subgraph の枠自体を横方向に配置するため、「層の枠」と「細かい依存」を 1 枚に
+> 同居させると必ず横長になる。`direction TB` は外部ノードとのエッジがある場合に
+> 無視されるため回避策にならない。**層の表現（図A）と依存の表現（図B）を分け、
+> 図B では subgraph を使わない**のが、情報量を落とさずに読める唯一の構成。
 
 ### 2.2 変更の影響範囲
 
