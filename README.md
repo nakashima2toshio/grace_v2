@@ -31,6 +31,17 @@
 10. [付録: 依存関係図](#付録-依存関係図)
 
 ---
+## grace_v2 で実装した機構
+| 軸 | 実装 | 状態 |
+|---|---|---|
+| 計画→実行→検証→ゲート | planner / executor / confidence / gates | ✅ |
+| 根拠検証 | support_rate（neutral 除外）、GroundednessVerifier | ✅ |
+| HITL 介入 | intervention.py（CONFIRM・タイムアウトで安全側） | ✅ |
+| RAG + Web 裏取り | Qdrant / agent_parallel_search | ✅ |
+| 動的リプラン | replan.py（失敗・低信頼・フィードバックの 3 トリガー） | ✅ |
+| 実行メモリ | memory.py（JSONL、コレクション優先度の事前分布） | ✅ |
+| 信頼度較正 | calibration.py（温度スケーリング、ECE） | ✅ |
+| タスク型の抽象化 | Support（問い→答え）／ Review（文書→指摘）の同型 | |
 
 ## 概要
 
