@@ -1,394 +1,648 @@
-# backend/ ドキュメント整備インデックス
+# GRACE アプリ（`./run_dev.sh`）- 画面・操作・プログラム対応 ドキュメント
 
-**Version 1.6** | 最終更新: 2026-08-01
+**Version 2.0** | 最終更新: 2026-08-01
 
-> ✅ **本インデックス掲載のモジュール仕様（IPO）13 ファイルはすべて作成済み**（§4 参照）。
-
-`backend/`（GRACE Web API: FastAPI + コアサービス）配下のモジュールについて、
-アーキテクチャ・処理フロー・データフローの全体像と、ドキュメント作成対象・出力先・進捗を
-一覧化した資料。個別モジュールの詳細ドキュメントは IPO 形式
-（`.claude/skills/grace-agent-docs/a_class_method_md_format.md`）で作成し、
-**`backend/docs/<module>.md`**（本 README と同じディレクトリ）に配置する。
-
-### エージェントは 2 つ
-
-`backend/app/` は**2 つの自律型エージェント**を提供する。両者は**ジョブ基盤
-（`core/jobs.py`）・SSE・HITL ブリッジ・アクション実行を共有**し、違うのは
-パラメータ型・結果型・パイプライン中身だけである。
-
-| エージェント | 何をするか | コア | ルータ |
-|---|---|---|---|
-| **GRACE-Support**（問い合わせ → 回答） | 問い合わせに内部 RAG ＋ Web 裏取りで答え、確度が足りなければ有人へ倒す | `core/support_agent.py` | `/api/support/*` |
-| **GRACE-Review**（文書 → 指摘） | 文書を規程（景表法・特商法・薬機法）に照らし、根拠条文つきの指摘を返す | `core/review_agent.py` | `/api/review/*` |
-
-> 📌 **Support は CLI と Web の両方**から同じコアを通るが、**Review は Web 専用**
-> （CLI エントリポイントは存在しない）。
+`./run_dev.sh` で起動するローカル開発アプリの README。**画面で何ができるか**、
+**操作がどのプログラム（コンポーネント・API・関数）に対応するか**、
+**押してから結果が出るまで何が起きるか**を、実装と 1:1 で対応づけて記述する。
 
 ---
 
 ## 目次
 
-0. [アプリの実行方法（クイックスタート）](#0-アプリの実行方法クイックスタート)
-1. [アーキテクチャ構成図](#1-アーキテクチャ構成図)
-2. [処理フロー](#2-処理フロー)
-   - [2-1. GRACE-Support パイプライン（①〜⑥）](#2-1-grace-support-パイプライン)
-   - [2-2. GRACE-Review パイプライン（S1・①〜⑦）](#2-2-grace-review-パイプライン)
-3. [データフロー（Web リクエスト → SSE → HITL 承認）](#3-データフローweb-リクエスト--sse--hitl-承認)
-4. [モジュール仕様（IPO 形式）一覧](#4-モジュール仕様ipo-形式一覧)
-5. [テスト仕様（SAE 形式）で扱うファイル](#5-テスト仕様sae-形式で扱うファイル)
-6. [補足ドキュメント](#6-補足ドキュメント)
-7. [backend/ 構成（参考）](#7-backend-構成参考)
-8. [変更履歴](#8-変更履歴)
+1. [概要](#概要)
+2. [アーキテクチャ構成図](#1-アーキテクチャ構成図)
+3. [モジュール構成図（画面構成）](#2-モジュール構成図画面構成)
+4. [画面・操作とプログラムの対応表](#3-画面操作とプログラムの対応表)
+5. [画面別 IPO詳細](#4-画面別-ipo詳細)
+   - [4.1 共通ヘッダ（タブ切替）](#41-共通ヘッダタブ切替)
+   - [4.2 GRACE-Support 画面](#42-grace-support-画面)
+   - [4.3 GRACE-Review 画面](#43-grace-review-画面)
+   - [4.4 HITL CONFIRM モーダル（共通）](#44-hitl-confirm-モーダル共通)
+6. [設定・定数](#5-設定定数)
+7. [使用例（操作シナリオ）](#6-使用例操作シナリオ)
+8. [エクスポート](#7-エクスポート)
+9. [変更履歴](#8-変更履歴)
+10. [付録: 依存関係図](#付録-依存関係図)
 
 ---
 
-## 0. アプリの実行方法（クイックスタート）
+## 画面ショット挿入位置について
 
-GRACE は **FastAPI（バックエンド, :8000）＋ Vite + React（フロントエンド, :5173）** の
-2 プロセス構成。**画面は :5173 で開く**（:8000 は API 専用で、`/` は 404 が正常）。
-Support / Review はフロントの**タブ切替**で使い分ける（同一プロセス・同一ジョブ基盤）。
+本ドキュメントには**画面ショットの挿入位置**を先に確保してある。以下の記法で
+埋め込み位置と撮影内容を明示しているので、撮影後に**コメントを外して**差し替える。
 
-> 📦 初回のインストール・環境構築（uv / Node / Docker / `.env` / トラブルシュート）は
-> **[`install_and_setup.md`](./install_and_setup.md)** を参照。以下は導入済み前提の起動手順。
-
-**前提**: リポジトリルートの `.env` に `ANTHROPIC_API_KEY`（LLM）と `GOOGLE_API_KEY`（Embedding）、
-Python 3.11+ / `uv` / Node.js / Docker が導入済み。
-
-### 最短（推奨・1 コマンドで起動）
-
-```bash
-# 1) Qdrant（ベクトルDB）を起動（別実行・初回/停止後のみ）
-docker-compose -f docker-compose/docker-compose.yml up -d
-
-# 2) backend + frontend を 1 コマンドで起動（依存の用意も自動）
-./run_dev.sh
-#   → backend:  http://localhost:8000（/docs）
-#   → frontend: http://localhost:5173  ← ブラウザで開くのはこちら
-#   停止は Ctrl+C（両方まとめて停止）
+```markdown
+> 📷 **[X-00] スロット名** — 撮影内容の説明
+> <!-- ![X-00 スロット名](docs/images/x-00-example.png) -->
 ```
 
-`run_dev.sh` は `uv sync --extra dev` → frontend 依存の用意 → uvicorn(:8000) と
-Vite(:5173) の同時起動までを行う（リポジトリルートの `run_dev.sh`）。
+差し替え後（コメントを外した状態）:
 
-### 手動（プロセスを分けて起動）
-
-```bash
-# 1) Qdrant（ベクトルDB）を起動
-docker-compose -f docker-compose/docker-compose.yml up -d
-
-# 2) バックエンド（FastAPI）★リポジトリルートで実行
-uv sync --extra dev
-uv run uvicorn backend.app.main:app --reload --port 8000
-#   → API: http://localhost:8000 、自動ドキュメント: http://localhost:8000/docs
-
-# 3) フロントエンド（別ターミナル）
-cd frontend
-npm install
-npm run dev
-#   → UI: http://localhost:5173（/api は Vite proxy で http://127.0.0.1:8000 へ中継）
+```markdown
+> 📷 **[X-00] スロット名** — 撮影内容の説明
+> ![X-00 スロット名](docs/images/x-00-example.png)
 ```
 
-ブラウザで **http://localhost:5173** を開く。フロントの `/api/*` は Vite の proxy
-（`frontend/vite.config.ts`）で :8000 の FastAPI へ中継される（SSE 進捗も同経路）。
+- 画像の置き場所: **`docs/images/`**（ディレクトリごと新規作成してよい）
+- ファイル名: **スロット ID を先頭に付ける**（例 `s-01-support-initial.png`）
+- 一覧は §6.4「画面ショット一覧」を参照（全 13 枚）
 
-**CLI 版**（Support のみ・コア共有）:
+---
 
-```bash
-uv run python agent_support_example.py --vertical ec "返品したい"
+## 概要
+
+`./run_dev.sh` は、**FastAPI（:8000）＋ Vite + React（:5173）** の 2 プロセスを同時起動する
+ローカル開発用スクリプト。ブラウザで開くのは **http://localhost:5173** の 1 画面だけで、
+そこから**タブ切替**で 2 つのエージェントを使い分ける。
+
+| エージェント | コア | ルータ |
+|---|---|---|
+| GRACE-Support（問い合わせ → 回答） | `core/support_agent.py` | `/api/support/*` |
+| GRACE-Review（文書 → 指摘） | `core/review_agent.py` | `/api/review/*` |
+
+どちらのタブも**操作の型は同じ**である。
+
+```
+入力フォームに書く → 実行ボタン → ステップトレースが逐次流れる
+  → （必要なら）承認モーダルが出る → 承認/拒否 → 結果が表示される
 ```
 
-> ⚠️ **Review に CLI は無い。** `run_review_agent_core()` を直接呼ぶことは可能だが、
-> エントリポイントスクリプトは存在しないため、動作確認は :5173 の Review タブか
-> `POST /api/review/submit` を使う。
+違うのは「入力が短文か長文か」「結果が回答カードか指摘リストか」だけで、
+進捗表示（SSE）・承認（HITL）・エラー表示の仕組みは共通コンポーネントである。
 
-**動作確認だけ**したい場合: `http://localhost:8000/api/health`（APIキー設定の有無を返す）。
+### 主な責務
 
-**API の入口**（詳細は [`api_support.md`](./api_support.md) / [`api_review.md`](./api_review.md)）:
+- 2 エージェントをタブで切り替え、それぞれ独立した状態・SSE 購読を持たせる
+- 入力フォームから実行パラメータを組み立て、ジョブを起動する
+- SSE で届くステップ進捗を、タイムライン UI へリアルタイムに畳み込む
+- 副作用のあるアクションを、承認モーダル経由でユーザに確認させる
+- 結果を読める形で提示する（Support = 回答カード、Review = 原文ハイライト＋指摘カード）
 
-| エージェント | 起動 | 進捗（SSE） | HITL 応答 | 結果 |
-|---|---|---|---|---|
-| Support | `POST /api/support/query` | `GET /api/support/stream/{job_id}` | `POST /api/support/confirm/{job_id}` | `GET /api/support/result/{job_id}` |
-| Review | `POST /api/review/submit` | `GET /api/review/stream/{job_id}` | `POST /api/review/confirm/{job_id}` | `GET /api/review/result/{job_id}` |
-| メタ | `GET /api/verticals`（Support のプロファイル）・`GET /api/rulesets`（Review のルールセット）・`GET /api/health` | | | |
+### 各責務対応のモジュール
+
+| # | 責務 | 対応モジュール | 説明 |
+|---|------|--------------|------|
+| 1 | タブ切替 | `frontend/src/App.tsx` | `useState<Tab>`。**アンマウントで切替**（SSE を確実に閉じる） |
+| 2 | Support タブ本体 | `components/SupportPanel.tsx` | 起動・購読・承認の配線 |
+| 3 | Review タブ本体 | `components/ReviewPanel.tsx` | 同上＋指摘の選択状態 |
+| 4 | 入力フォーム | `components/QueryForm.tsx` / `ReviewForm.tsx` | パラメータ組み立て・例文チップ |
+| 5 | 進捗表示 | `components/Timeline.tsx` ＋ `StepTimeline` / `ReviewTimeline` | 表示は共通、ステップ ID とバッジはエージェント別 |
+| 6 | 結果表示 | `components/AnswerCard.tsx` / `DocumentView.tsx` / `FindingList.tsx` | 回答カード／原文ハイライト／指摘カード |
+| 7 | 承認 | `components/ConfirmModal.tsx` | **両エージェント共用** |
+| 8 | 状態管理 | `state/jobReducer.ts` / `state/reviewReducer.ts` | SSE イベント列 → UI 状態（純 reducer・副作用ゼロ） |
+| 9 | ハイライト計算 | `state/highlight.ts` | 原文の分割・重なり解消（純関数） |
+| 10 | 通信 | `api/client.ts` | POST（起動・承認）＋ EventSource（進捗） |
+| 11 | Web API | `backend/app/api/` | `/api/support/*` `/api/review/*` `/api/*`（meta） |
+| 12 | パイプライン | `backend/app/core/` | `run_support_agent_core` / `run_review_agent_core` |
+
+### 主要機能一覧
+
+| 機能 | 説明 |
+|------|------|
+| タブ切替 | `GRACE-Support` / `GRACE-Review` を上部タブで切り替え |
+| 例文チップ | ワンクリックで入力欄に例を流し込む（Support 4 種・Review 2 種） |
+| 業界プロファイル選択 | Support: `gov` / `saas` / `ec`（`/api/verticals` から取得） |
+| ルールセット選択 | Review: `ec_ad`（`/api/rulesets` から取得） |
+| dry-run トグル | 既定 ON。アクションを実行せずログのみ |
+| ステップトレース | SSE で逐次更新。ステップごとにログを折りたたみ表示 |
+| HITL CONFIRM | 承認するまでアクションは実行されない |
+| 原文ハイライト連動 | Review: 原文の色付き箇所 ⇄ 指摘カードを相互ジャンプ |
 
 ---
 
 ## 1. アーキテクチャ構成図
 
-`backend/app/` は「API 層（FastAPI）→ ジョブ層（スレッド実行・SSE 配信・HITL 仲介）→
-コアパイプライン層（判定ロジック）」の 3 層で、LLM 呼び出し・RAG 検索・Web 検索などの
-実行部品はリポジトリルートの **GRACE フレームワーク（`grace/`）** と `support_actions.py` に委譲する。
-
-**ジョブ層より上は 2 エージェントで完全に共通**、分岐するのはコアパイプライン層だけ。
-
 ```mermaid
 flowchart TB
-    subgraph CLIENT["クライアント層"]
-        REACT["Vite + React (:5173)<br>Support / Review タブ切替<br>/api は proxy で :8000 へ中継"]
-        CLI["CLI: agent_support_example.py<br>（Support のみ・コア共有・print 出力）"]
+    subgraph BROWSER["ブラウザ (http://localhost:5173)"]
+        APP["App.tsx<br>タブ切替（アンマウント方式）"]
+        SP["SupportPanel.tsx"]
+        RP["ReviewPanel.tsx"]
+        FORMS["QueryForm / ReviewForm<br>入力フォーム"]
+        TL["Timeline / StepTimeline / ReviewTimeline<br>ステップトレース"]
+        OUT["AnswerCard / DocumentView / FindingList<br>結果表示"]
+        MODAL["ConfirmModal<br>HITL 承認（共用）"]
+        RED["jobReducer / reviewReducer<br>SSE → UI 状態（純関数）"]
+        CLI["api/client.ts<br>fetch + EventSource"]
     end
 
-    subgraph APILAYER["API 層 (FastAPI :8000)"]
-        MAIN["main.py<br>app 生成・CORS・ルーター結線"]
-        SUPPORTAPI["api/support.py<br>/api/support/*<br>query / stream(SSE) / confirm / result"]
-        REVIEWAPI["api/review.py<br>/api/review/*<br>submit / stream(SSE) / confirm / result"]
-        META["api/meta.py<br>GET /api/verticals<br>GET /api/rulesets<br>GET /api/health"]
-        SCHEMAS["schemas.py<br>Pydantic リクエスト/レスポンス/イベント型"]
+    subgraph VITE["Vite dev server (:5173)"]
+        PROXY["proxy: /api → 127.0.0.1:8000"]
     end
 
-    subgraph JOBLAYER["ジョブ層（2 エージェント共通）"]
-        JOBS["jobs.py<br>JobManager / Job<br>runner 注入（params 型で解決）<br>インメモリ（完了 50 件で GC）"]
-        BRIDGE["intervention_bridge.py<br>InterventionBridge<br>HITL 承認の同期⇔非同期変換<br>タイムアウト時は安全側（実行せず有人へ）"]
+    subgraph API["FastAPI (:8000)"]
+        SAPI["api/support.py"]
+        RAPI["api/review.py"]
+        META["api/meta.py<br>/api/verticals /api/rulesets /api/health"]
+        JOBS["core/jobs.py<br>JobManager（runner 注入）"]
+        BRIDGE["core/intervention_bridge.py"]
     end
 
-    subgraph SUPPORTCORE["コア: GRACE-Support"]
-        AGENT["support_agent.py<br>run_support_agent_core()<br>①〜⑥ イベント発行型"]
-        GATES["gates.py<br>回答ゲート・強制エスカレ・<br>情報なし検知・救済（純関数群）"]
-        VERT["verticals.py<br>PROFILES (gov / saas / ec)"]
+    subgraph CORE["コアパイプライン"]
+        SAGENT["run_support_agent_core()"]
+        RAGENT["run_review_agent_core()"]
     end
 
-    subgraph REVIEWCORE["コア: GRACE-Review"]
-        RAGENT["review_agent.py<br>run_review_agent_core()<br>S1・①〜⑦ イベント発行型"]
-        RGATES["review_gates.py<br>二段判定・誤検知抑止・<br>救済・重大度（純関数群）"]
-        RULES["rulesets.py<br>RULESETS (ec_ad・21 ルール)"]
-    end
-
-    subgraph GRACEFW["GRACE フレームワーク（リポジトリルート）"]
-        PLANNER["grace: planner / executor + tools<br>(rag_search / web_search / reasoning)"]
-        VERIFIER["grace.confidence:<br>GroundednessVerifier /<br>SourceAgreementCalculator"]
-        HANDLER["grace.intervention:<br>InterventionHandler"]
-        ACTIONS["support_actions.py:<br>ActionBackend (dry-run/webhook/pseudo)<br>IdentityVerifier"]
-    end
-
-    subgraph EXTERNAL["外部サービス層"]
-        ANTHROPIC["Anthropic Claude (LLM)<br>既定 claude-sonnet-4-6 /<br>軽量 claude-haiku-4-5-20251001"]
-        GEMINI["Gemini Embedding<br>gemini-embedding-001 (3072次元)"]
-        QDRANT["Qdrant Vector DB<br>コレクション *_anthropic"]
-        WEB["Web 検索"]
-    end
-
-    REACT --> MAIN
-    MAIN --> SUPPORTAPI
-    MAIN --> REVIEWAPI
-    MAIN --> META
-    SUPPORTAPI --> SCHEMAS
-    REVIEWAPI --> SCHEMAS
-    SUPPORTAPI --> JOBS
-    REVIEWAPI --> JOBS
-    META --> VERT
-    META --> RULES
+    APP --> SP
+    APP --> RP
+    SP --> FORMS
+    RP --> FORMS
+    SP --> TL
+    RP --> TL
+    SP --> OUT
+    RP --> OUT
+    SP --> MODAL
+    RP --> MODAL
+    SP --> RED
+    RP --> RED
+    RED --> TL
+    RED --> OUT
+    SP --> CLI
+    RP --> CLI
+    CLI --> PROXY
+    PROXY --> SAPI
+    PROXY --> RAPI
+    PROXY --> META
+    SAPI --> JOBS
+    RAPI --> JOBS
     JOBS --> BRIDGE
-    JOBS --> AGENT
+    JOBS --> SAGENT
     JOBS --> RAGENT
-    BRIDGE --> AGENT
+    BRIDGE --> SAGENT
     BRIDGE --> RAGENT
-    CLI --> AGENT
-    AGENT --> GATES
-    AGENT --> VERT
-    RAGENT --> RGATES
-    RAGENT --> RULES
-    RAGENT --> AGENT
-    AGENT --> PLANNER
-    AGENT --> VERIFIER
-    AGENT --> HANDLER
-    AGENT --> ACTIONS
-    RAGENT --> PLANNER
-    RAGENT --> VERIFIER
-    RAGENT --> HANDLER
-    RAGENT --> ACTIONS
-    HANDLER --> BRIDGE
-    PLANNER --> ANTHROPIC
-    PLANNER --> GEMINI
-    PLANNER --> QDRANT
-    PLANNER --> WEB
-    VERIFIER --> ANTHROPIC
-    GATES --> ANTHROPIC
-    RGATES --> ANTHROPIC
 classDef default fill:#000,stroke:#fff,color:#fff
 classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
-class REACT,CLI,MAIN,SUPPORTAPI,REVIEWAPI,META,SCHEMAS,JOBS,BRIDGE,AGENT,GATES,VERT,RAGENT,RGATES,RULES,PLANNER,VERIFIER,HANDLER,ACTIONS,ANTHROPIC,GEMINI,QDRANT,WEB default
-style CLIENT fill:#1a1a1a,stroke:#fff,color:#fff
-style APILAYER fill:#1a1a1a,stroke:#fff,color:#fff
-style JOBLAYER fill:#1a1a1a,stroke:#fff,color:#fff
-style SUPPORTCORE fill:#1a1a1a,stroke:#fff,color:#fff
-style REVIEWCORE fill:#1a1a1a,stroke:#fff,color:#fff
-style GRACEFW fill:#1a1a1a,stroke:#fff,color:#fff
-style EXTERNAL fill:#1a1a1a,stroke:#fff,color:#fff
+class APP,SP,RP,FORMS,TL,OUT,MODAL,RED,CLI,PROXY,SAPI,RAPI,META,JOBS,BRIDGE,SAGENT,RAGENT default
+style BROWSER fill:#1a1a1a,stroke:#fff,color:#fff
+style VITE fill:#1a1a1a,stroke:#fff,color:#fff
+style API fill:#1a1a1a,stroke:#fff,color:#fff
+style CORE fill:#1a1a1a,stroke:#fff,color:#fff
 ```
 
-**設計の要点**:
+**要点**:
 
-- **CLI と Web は同一コア**を共有する。`run_support_agent_core()` は入出力を
-  `emit`（進捗イベント）/ `confirm`（HITL 承認）のコールバックに抽象化しており、
-  CLI は print / 自動承認、Web は SSE / `InterventionBridge` を配線するだけの違い。
-  Review も同じ形（`run_review_agent_core()`）だが、CLI エントリポイントは持たない。
-- **ジョブ基盤は runner 注入で汎用化**されている。`job_manager.start(params)` が
-  `params` の型（`JobParams` / `ReviewParams`）から runner を解決するため、
-  `jobs.py` は Review 側のモジュールを一切知らない（循環 import も起きない）。
-  runner の登録は各コアが import 時に `register_runner()` で行う。
-- **Review は Support の機構を再利用する**。`GroundednessVerifier` を
-  「主張が出典で裏付けられるか」→「**指摘が規程で裏付けられるか**」と読み替え、
-  `_perform_action` / `ActionBackend` / `InterventionBridge` はそのまま使う。
-  新規実装は Segment / Detect / Severity の 3 つだけ。
-- **Web 側に自動承認を持ち込まない**。副作用のあるアクションは必ずフロントの承認
-  （CONFIRM モーダル）を経由し、タイムアウト時は実行せず有人対応へ倒す。
-- ジョブ管理はローカル開発用の**インメモリ・シングルプロセス前提**（永続化なし）。
-- **設定はリクエスト単位で `copy.deepcopy`**（P-08）。両コアとも検索スコープ・方針を
-  config へ書き込むため、シングルトンのままだとジョブ間で値を奪い合う。
+- フロントの `/api/*` は **Vite の proxy** で :8000 へ中継される。ブラウザから見ると
+  同一オリジンなので CORS を意識せずに済む（バックエンドの CORS 設定は :5173 を許可済み）。
+- **タブはアンマウントで切り替える**（`tab === 'support' ? <SupportPanel/> : <ReviewPanel/>`）。
+  各パネルが自分の reducer・SSE 購読・承認状態を持つため、離れた側の `EventSource` が
+  `useEffect` のクリーンアップで確実に閉じる。
+- reducer は**純関数**（副作用ゼロ）。そのため vitest で単体テストできる
+  （`jobReducer.test.ts` 7 件 / `reviewReducer.test.ts` 13 件）。
 
 ---
 
-## 2. 処理フロー
-
-2 エージェントとも「ステップ列を `step`（started / finished / skipped）イベントとして
-SSE へ配信し、UI のタイムラインと 1:1 対応させる」構造は同じ。中身だけが異なる。
-
-### 2-1. GRACE-Support パイプライン
-
-`run_support_agent_core()`（`core/support_agent.py`）が実行するステップ列。
-各ステップは `step`（started / finished / skipped）イベントとして SSE に配信され、
-UI のタイムライン表示（STEP_IDS: profile / plan / execute / confidence / gate / web /
-no_info / action）と 1:1 に対応する。
+## 2. モジュール構成図（画面構成）
 
 ```mermaid
 flowchart TB
-    START(["問い合わせ query"]) --> KEY{"ANTHROPIC_API_KEY<br>設定済み？"}
-    KEY -- "未設定" --> ERR["error イベント → 終了"]
-    KEY -- "OK" --> S1["S1 profile: 業界プロファイル適用<br>（--vertical 指定時のみ）<br>検索スコープ・しきい値・エスカレ語・本人確認を切替"]
-    S1 --> P1["① Plan（planner）<br>クエリを実行計画に分解"]
-    P1 --> P2["② Execute（executor + tools）<br>内部RAG検索 → reasoning<br>RAGスコア不足時は web_search を動的挿入"]
-    P2 --> P3["③ Confidence（GroundednessVerifier）<br>回答の主張ごとに出典で裏付け検証<br>→ 支持率 support_rate"]
-    P3 --> P4["④ 回答ゲート（_answer_gate）<br>支持率 ≥ notify → answer（高信頼）<br>confirm ≤ 支持率 < notify → answer＋未確認注記<br>低信頼/未検証/出典0 → escalate"]
-    P4 --> FORCE{"エスカレ語に一致？<br>（二段判定: キーワード<br>→ 意図分類 Haiku）"}
-    FORCE -- "一致かつ intent ≠ question" --> FESC["強制エスカレ<br>decision = escalate（⑤スキップ）"]
-    FORCE -- "不一致 / FAQ質問（誤検知抑止）" --> RESCUE{"④-救済:<br>escalate だが 矛盾なし・<br>出典あり・実質回答？"}
-    RESCUE -- "はい" --> RESC["answer に救済（未確認注記）<br>無駄な Web 二次生成を回避"]
-    RESCUE -- "いいえ" --> WEBQ{"decision = escalate<br>かつ use_web？"}
-    RESC --> NOINFO
-    WEBQ -- "いいえ（answer 確定）" --> NOINFO
-    WEBQ -- "はい" --> P5["⑤ Web フォールバック<br>②で Web 検索済みなら回答を再利用し再検証のみ<br>（重複推論を省略）／未使用なら<br>web_search → reasoning → 内部×Web 相互検証"]
-    P5 --> NOINFO{"④' 情報なし回答検知<br>（answer のみ。二段判定:<br>定型句候補 or 出典Webのみ<br>→ 実質回答判定 Haiku）"}
-    FESC --> NOINFO2["④' はスキップ（escalate のため）"]
-    NOINFO -- "no_info（実質情報ゼロ）" --> TOESC["escalate に倒す<br>（no_info_detected=True）"]
-    NOINFO -- "answered（実質回答）" --> P6
-    NOINFO2 --> P6
-    TOESC --> P6["⑥ Action（do_action 時）<br>_decide_action: escalate → escalate_to_human（承認不要）<br>answer → action_map の二段判定で起票/返信"]
-    P6 --> IDCHK{"本人確認必須？<br>（require_identity）"}
-    IDCHK -- "未確認" --> NOEXEC["実行せず有人対応へ引き継ぎ"]
-    IDCHK -- "確認済み / 不要" --> HITL{"requires_confirmation？"}
-    HITL -- "はい" --> CONFIRM["HITL CONFIRM<br>（Web: フロント承認待ち /<br>タイムアウト → 実行せず有人へ）"]
-    HITL -- "いいえ（escalate_to_human）" --> EXEC
-    CONFIRM -- "承認" --> EXEC["ActionBackend で実行<br>（dry-run / webhook / pseudo）"]
-    CONFIRM -- "拒否 / タイムアウト" --> NOEXEC
-    EXEC --> DONE(["result イベント（SupportResult）"])
-    NOEXEC --> DONE
+    subgraph SCREEN["画面レイアウト（上から順）"]
+        HEAD["header: h1（アクティブなタブ名）<br>+ nav.tabs（GRACE-Support / GRACE-Review）"]
+        LEAD["p.panel-lead: タブの説明文"]
+        FORM["form: 入力フォーム<br>Support=QueryForm / Review=ReviewForm"]
+        BANNER["div.error-banner / div.running-banner<br>エラー・実行中の通知"]
+        TIME["section.timeline: ステップトレース"]
+        RESULT["結果エリア<br>Support=AnswerCard / Review=サマリ+左右ペイン"]
+        MODALL["div.modal-backdrop: ConfirmModal<br>（承認待ちのときだけ最前面に出る）"]
+    end
+
+    HEAD --> LEAD --> FORM --> BANNER --> TIME --> RESULT
+    RESULT -.承認待ちで重畳.-> MODALL
 classDef default fill:#000,stroke:#fff,color:#fff
 classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
-class START,KEY,ERR,S1,P1,P2,P3,P4,FORCE,FESC,RESCUE,RESC,WEBQ,P5,NOINFO,NOINFO2,TOESC,P6,IDCHK,NOEXEC,HITL,CONFIRM,EXEC,DONE default
+class HEAD,LEAD,FORM,BANNER,TIME,RESULT,MODALL default
+style SCREEN fill:#1a1a1a,stroke:#fff,color:#fff
 ```
 
-**判定ロジックの要点**（詳細は [`core_gates.md`](./core_gates.md) / [`core_support_agent.md`](./core_support_agent.md) /
-ステップ別の IPO は [`backend_flow.md`](./backend_flow.md)）:
+> 📷 **[S-01] 起動直後（Support タブ 初期表示）** — ヘッダのタブ 2 つ、説明文、
+> 空の入力フォーム、例文チップまでが入るように全体を撮影。タイムラインと結果は未表示。
+> <!-- ![S-01 起動直後](docs/images/s-01-support-initial.png) -->
 
-| 機構 | 目的 | 実装 |
-|------|------|------|
-| 回答ゲート | 支持率と出典数で answer / escalate を判定（プロファイルでしきい値上書き可） | `_answer_gate` |
-| 強制エスカレ（二段判定） | エスカレ語（例: 障害・返金・訴訟）の一致 → 意図分類（Haiku）で FAQ 質問の誤検知を抑止 | `_should_force_escalate` + `create_intent_classifier` |
-| ④-救済 | 「肯定の裏付けが弱いだけで矛盾なし・出典付き」の内部回答を escalate から救い、誤エスカレと無駄な Web 二次生成を防ぐ | `_should_rescue_unaffirmed` |
-| ⑤ Web フォールバック | 内部 escalate 時のみ Web で裏取り。② が Web 検索済みなら回答を再利用して再検証だけ行う（1 ケース十数秒〜の短縮） | `run_support_agent_core` 内 |
-| ④' 情報なし検知（二段判定） | 誠実な「見つかりませんでした」型回答（ゲートを answer で通過してしまう）を実質回答判定（Haiku）で検出し有人へ | `_detect_no_info_answer` + `create_no_info_judge` |
-| ⑥ Action | 本人確認 → HITL CONFIRM → バックエンド実行。escalate 時の `escalate_to_human` は承認不要で直接実行（引き継ぎの取りこぼし防止） | `_decide_action` + `_perform_action` |
+### 2.1 Review タブの左右ペイン
+
+Review だけ、結果エリアが**左右 2 ペイン**（`div.review-panes`）になる。
+
+```mermaid
+flowchart LR
+    subgraph PANES["div.review-panes"]
+        DOC["DocumentView（左）<br>原文＋ハイライト<br>mark.hl-{severity}"]
+        LIST["FindingList（右）<br>指摘カード一覧<br>severity 降順 → 出現順"]
+    end
+    DOC -- "ハイライトをクリック<br>→ 該当カードへスクロール" --> LIST
+    LIST -- "カードをクリック<br>→ 該当ハイライトを強調" --> DOC
+classDef default fill:#000,stroke:#fff,color:#fff
+classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
+class DOC,LIST default
+style PANES fill:#1a1a1a,stroke:#fff,color:#fff
+```
+
+選択状態は `ReviewJobState.selectedFindingId` の**1 個の状態**を左右で共有しているため、
+どちらをクリックしても相互に連動する。同じ要素をもう一度クリックすると選択解除。
 
 ---
 
-### 2-2. GRACE-Review パイプライン
+## 3. 画面・操作とプログラムの対応表
 
-`run_review_agent_core()`（`core/review_agent.py`）が実行するステップ列。
-Support が「問い合わせ → 回答」なのに対し、**「文書 → 指摘」**と情報の流れが逆になる。
+### 3.1 GRACE-Support タブ
 
-> ⚠️ **番号順 ≠ 実行順。** 番号は Support との**対応**を示す呼称で、実際の実行順は
-> `REVIEW_STEP_IDS` の並び **S1 → ① → ② → ③ → ④ → ④' → ⑥ → ⑤ → ⑦**。
-> **⑥ Web 裏取りが ⑤ Severity より先**に来る（Support で ④' が ⑤ の後に来るのと同じ事情）。
+| # | 画面上の操作 | UI コンポーネント | フロント処理 | API | バックエンド関数 |
+|---|---|---|---|---|---|
+| 1 | タブ「GRACE-Support」を押す | `App.tsx` `nav.tabs` | `setTab('support')` | — | — |
+| 2 | 画面表示時（自動） | `SupportPanel` | `useEffect` → `fetchVerticals()` | `GET /api/verticals` | `api/meta.py::list_verticals` |
+| 3 | 問い合わせを入力 | `QueryForm` `input[type=text]` | `setQuery` | — | — |
+| 4 | 業界プロファイルを選ぶ | `QueryForm` `select` | `setVertical` | — | `PROFILES`（表示元） |
+| 5 | dry-run を切り替え | `QueryForm` `checkbox` | `setDryRun` | — | — |
+| 6 | 詳細ログを切り替え | `QueryForm` `checkbox` | `setVerbose` | — | — |
+| 7 | 例文チップを押す | `QueryForm` `button.example-chip` | `setQuery` + `setVertical` | — | — |
+| 8 | **「送信」を押す** | `QueryForm` `button[type=submit]` | `onSubmit` → `SupportPanel.submit` → `startQuery()` | `POST /api/support/query` | `api/support.py::start_query` → `JobManager.start(JobParams)` |
+| 9 | （自動）進捗を受信 | `StepTimeline` | `subscribeStream()` → `dispatch({type:'event'})` | `GET /api/support/stream/{job_id}`（SSE） | `api/support.py::stream_events` → `Job.stream_events` |
+| 10 | ステップのログを開く | `Timeline` `details.step-logs` | （ブラウザ標準） | — | — |
+| 11 | **承認 / 拒否を押す** | `ConfirmModal` `button.approve` / `.reject` | `respond()` → `confirmIntervention()` | `POST /api/support/confirm/{job_id}` | `api/support.py::confirm_intervention` → `JobManager.confirm` |
+| 12 | 結果を読む | `AnswerCard` | `state.result` を描画 | （`result` イベント） | `run_support_agent_core` の戻り |
 
-```mermaid
-flowchart TB
-    START(["文書 document"]) --> KEY{"ANTHROPIC_API_KEY<br>設定済み？"}
-    KEY -- "未設定" --> ERR["error イベント → 終了"]
-    KEY -- "OK" --> S1["S1 ruleset: RuleSet 適用<br>検索スコープ・しきい値・重大リスク語<br>（既定 ec_ad・21 ルール）"]
-    S1 --> P1["① segment: 文書を検査単位へ分割<br>決定的・LLM 不使用<br>原文の文字オフセットを保持（UI ハイライト用）"]
-    P1 --> EMPTY{"セグメント 0 件<br>または RuleSet 未解決？"}
-    EMPTY -- "はい" --> DONE0(["空の result イベント → 終了"])
-    EMPTY -- "いいえ" --> LOOP["②〜④' セグメント × 候補ルールの二重ループ"]
-    LOOP --> P2["② retrieve: 規程を RAG 検索<br>（rag_search 無改造・limit 5）<br>0 件なら RuleItem.description へフォールバック"]
-    P2 --> P3["③ detect: 二段判定<br>第1段 キーワードで候補ルール抽出<br>→ 第2段 LLM で violates 判定"]
-    P3 --> P4["④ ground: GroundednessVerifier<br>「指摘が規程で裏付けられるか」<br>→ confidence = support_rate"]
-    P4 --> P5{"④' suppress: 状態判定<br>confirmed / review_required / suppressed"}
-    P5 -- "suppressed だが<br>矛盾なし・根拠あり・実質的" --> RESC["救済 → review_required"]
-    P5 -- "suppressed" --> SUP["findings から除外<br>（理由を記録・件数のみ集計）"]
-    P5 -- "confirmed / review_required" --> KEEP["findings に追加"]
-    RESC --> KEEP
-    KEEP --> GUARD{"LLM 呼び出しが<br>上限 300 に到達？"}
-    SUP --> GUARD
-    GUARD -- "はい" --> TRUNC["truncated=True で打ち切り"]
-    GUARD -- "いいえ・ループ継続" --> LOOP
-    TRUNC --> P6
-    LOOP --> P6{"⑥ web: use_web かつ指摘あり？"}
-    P6 -- "いいえ" --> P7
-    P6 -- "はい" --> WEBC["法改正・ガイドラインを確認<br>⚠️ 新しい指摘は作らない<br>web_checked を立てるだけ"]
-    WEBC --> P7["⑤ severity: 重大度の確定<br>adjust_severity（確信度で上下）<br>＋ 重大リスク語の二段判定で強制 high"]
-    P7 --> P8{"⑦ action: 指摘あり かつ do_action？"}
-    P8 -- "いいえ" --> DONE
-    P8 -- "high あり" --> ESC["escalate_to_human<br>（承認不要・引き継ぎの取りこぼし防止）"]
-    P8 -- "high なし" --> TICKET["create_ticket（要承認）<br>→ HITL CONFIRM 待ち"]
-    ESC --> EXEC["ActionBackend で実行<br>（dry-run / webhook / pseudo）<br>本人確認は不要"]
-    TICKET -- "承認" --> EXEC
-    TICKET -- "拒否 / タイムアウト" --> NOEXEC["実行せず有人対応へ"]
-    EXEC --> DONE(["result イベント（ReviewResult）"])
-    NOEXEC --> DONE
-classDef default fill:#000,stroke:#fff,color:#fff
-classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
-class START,KEY,ERR,S1,P1,EMPTY,DONE0,LOOP,P2,P3,P4,P5,RESC,SUP,KEEP,GUARD,TRUNC,P6,WEBC,P7,P8,ESC,TICKET,EXEC,NOEXEC,DONE default
-```
+### 3.2 GRACE-Review タブ
 
-**判定ロジックの要点**（詳細は [`core_review_gates.md`](./core_review_gates.md) /
-[`core_review_agent.md`](./core_review_agent.md) / ステップ別の IPO は [`review_flow.md`](./review_flow.md)）:
+| # | 画面上の操作 | UI コンポーネント | フロント処理 | API | バックエンド関数 |
+|---|---|---|---|---|---|
+| 1 | タブ「GRACE-Review」を押す | `App.tsx` `nav.tabs` | `setTab('review')` | — | — |
+| 2 | 画面表示時（自動） | `ReviewPanel` | `useEffect` → `fetchRuleSets()` | `GET /api/rulesets` | `api/meta.py::list_rulesets` |
+| 3 | 文書タイトルを入力 | `ReviewForm` `input[type=text]` | `setTitle` | — | — |
+| 4 | 文書を貼り付け | `ReviewForm` `textarea.review-document` | `setDocument` | — | — |
+| 5 | （自動）文字数カウント | `ReviewForm` `div.review-counter` | `document.length > 50000` で `over` | — | `MAX_DOCUMENT_CHARS`（同値） |
+| 6 | ルールセットを選ぶ | `ReviewForm` `select` | `setRuleset` | — | `RULESETS`（表示元） |
+| 7 | Web 裏取りを切り替え | `ReviewForm` `checkbox` | `setUseWeb`（既定 OFF） | — | — |
+| 8 | 例文チップを押す | `ReviewForm` `button.example-chip` | `setDocument` + `setTitle` | — | — |
+| 9 | **「表示チェックを実行」を押す** | `ReviewForm` `button[type=submit]` | `onSubmit` → `ReviewPanel.submit` → `startReview()` | `POST /api/review/submit` | `api/review.py::submit_document` → `JobManager.start(ReviewParams)` |
+| 10 | （自動）進捗を受信 | `ReviewTimeline` | `subscribeStream(..., 'review')` | `GET /api/review/stream/{job_id}`（SSE） | `api/review.py::stream_events` |
+| 11 | 原文のハイライトを押す | `DocumentView` `mark.hl` | `onSelect(findingId)` | — | — |
+| 12 | 指摘カードを押す | `FindingList` `li.finding-card` | `onSelect(findingId)` | — | — |
+| 13 | 根拠を開く | `FindingList` `details.finding-citations` | （ブラウザ標準） | — | `ReviewFinding.citations` |
+| 14 | **承認 / 拒否を押す** | `ConfirmModal` | `respond()` → `confirmReviewIntervention()` | `POST /api/review/confirm/{job_id}` | `api/review.py::confirm_intervention` |
 
-| 機構 | 目的 | 実装 |
-|------|------|------|
-| ① 決定的分割 | 空行→段落、箇条書き・見出しは行単位、400 字超は文末で再分割。**原文オフセットを保持**（正規化するとハイライトがずれる） | `split_segments` |
-| ③ 二段判定 | 第1段のキーワードで候補ルールを絞り、第2段の LLM で違反判定。全組合せを流すと 200×21=4,200 回になるため | `select_candidate_rules` + `create_violation_detector` |
-| 組合せ爆発ガード | `MAX_SEGMENTS=200` / `MAX_LLM_CALLS=300` で必ず打ち切り、`truncated` に記録 | `run_review_agent_core` 内 |
-| ④ Ground | Support の `GroundednessVerifier` をそのまま流用し、「指摘が規程で裏付けられるか」を検証 | `create_groundedness_verifier` |
-| ④' 抑止 + 救済 | 根拠不足・実質性なしを `suppressed` で落とす。ただし「矛盾なし・根拠あり」は保留として救済 | `decide_finding_status` + `should_rescue_finding` |
-| ⑥ Web 裏取り | 法改正の確認**のみ**。⚠️ Web を根拠に新しい指摘は作らない（出典の信頼性を担保できない）。既定 OFF | `_web_crosscheck` |
-| ⑤ 強制 high（二段判定） | 重大リスク語の一致 → 言及種別の分類で「単なる言及」の誤検知を抑止 | `should_force_high` + `create_mention_classifier` |
-| ⑦ Action | high があれば `escalate_to_human`（承認不要）、無ければ `create_ticket`（要承認）。**本人確認は不要** | `_decide_review_action` + `_perform_action` |
+### 3.3 ステップトレースの表示とバックエンドの対応
 
-**Support との対応関係**:
+タイムラインの各行は、バックエンドが発行する `step` イベントと **1:1** で対応する。
 
-| 観点 | GRACE-Support | GRACE-Review |
+**Support**（`STEP_IDS` / `jobReducer.ts` ⇄ `support_agent.py`）:
+
+| 表示ラベル | ステップ ID | バックエンドの実装 |
 |---|---|---|
-| 入力 | 問い合わせ（短文） | 文書（長文・最大 `MAX_DOCUMENT_CHARS`） |
-| 出力 | 回答 ＋ 出典 ＋ decision | 指摘リスト ＋ 根拠条文 ＋ severity |
-| 検証の読み替え | 回答の主張が出典で裏付けられるか | **指摘が規程で裏付けられるか** |
-| 二段判定の用途 | 強制エスカレ・情報なし検知 | 違反検出・強制 high |
-| 本人確認 | プロファイル次第（`ec` は必須） | **不要** |
-| Web の役割 | 内部で答えられない時の**フォールバック**（回答を作る） | 法改正の**裏取り**（判定は変えない） |
-| CLI | あり（`agent_support_example.py`） | **なし**（Web 専用） |
+| 業界プロファイル適用 | `profile` | `PROFILES` 適用・config へ注入 |
+| ① Plan（planner） | `plan` | `grace` planner |
+| ② Execute（内部RAG → reasoning） | `execute` | `grace` executor + tools |
+| ③ Groundedness（根拠検証） | `confidence` | `GroundednessVerifier` |
+| ④ 回答ゲート＋強制エスカレ＋救済 | `gate` | `_answer_gate` / `_should_force_escalate` / `_should_rescue_unaffirmed` |
+| ⑤ Web フォールバック | `web` | `run_support_agent_core` 内 |
+| ④' 情報なし回答検知 | `no_info` | `_detect_no_info_answer` |
+| ⑥ Action（本人確認 → HITL → 実行） | `action` | `_decide_action` / `_perform_action` |
+
+**Review**（`REVIEW_STEP_IDS` / `reviewReducer.ts` ⇄ `review_agent.py`）:
+
+| 表示ラベル | ステップ ID | バックエンドの実装 |
+|---|---|---|
+| S1 ルールセット適用 | `ruleset` | `get_ruleset`・config へ注入 |
+| ① Segment（文書を検査単位へ分割） | `segment` | `split_segments` |
+| ② Retrieve（規程を RAG 検索） | `retrieve` | `_retrieve_evidence` |
+| ③ Detect（二段判定で違反候補を検出） | `detect` | `select_candidate_rules` + `create_violation_detector` |
+| ④ Ground（指摘の根拠を検証） | `ground` | `GroundednessVerifier.verify` |
+| ④' Suppress（誤検知抑止 + 救済） | `suppress` | `decide_finding_status` / `should_rescue_finding` |
+| ⑥ Web 裏取り | `web` | `_web_crosscheck` |
+| ⑤ Severity（重大度の確定＋強制 high） | `severity` | `adjust_severity` / `should_force_high` |
+| ⑦ Action（レポート → HITL → 実行） | `action` | `_decide_review_action` / `_perform_action` |
+
+> ⚠️ **Review はラベルの番号順に並んでいない。** 画面の並び（＝配列 `REVIEW_STEP_IDS` の順）が
+> **実行順**で、⑥ Web 裏取りが ⑤ Severity より**先**に来る。番号は Support との対応を
+> 示す呼称にすぎない。
 
 ---
 
-## 3. データフロー（Web リクエスト → SSE → HITL 承認）
+## 4. 画面別 IPO詳細
 
-1 リクエスト = 1 ジョブ。パイプラインはワーカースレッドで実行され、進捗は `Job.events`
-に蓄積される。SSE は**常に先頭からリプレイ**されるため、再接続・途中購読でも取りこぼさない。
+### 4.1 共通ヘッダ（タブ切替）
 
-> 📌 **この流れは 2 エージェント共通。** 以下は Support で描くが、Review も
-> エンドポイントが `/api/review/*`、パラメータが `ReviewParams`、結果が `ReviewResult`
-> に変わるだけで、ジョブ起動・SSE・HITL・結果取得の構造は**完全に同一**
-> （`api/review.py` は `api/support.py` と同じ形をしている）。
-> イベント形式も同一（`data: {SupportEventModel の JSON}`・イベント名なし・末尾に done 番兵）
-> なので、**フロントは同じパーサを使える**。
+**概要**: 画面最上部。`h1` にアクティブなタブ名、その下にタブボタン 2 つ。
+
+```tsx
+// frontend/src/App.tsx
+const TABS = [
+  { id: 'support', label: 'GRACE-Support', description: '問い合わせ → 回答' },
+  { id: 'review',  label: 'GRACE-Review',  description: '文書 → 指摘' },
+];
+{tab === 'support' ? <SupportPanel /> : <ReviewPanel />}
+```
+
+| 項目 | 内容 |
+|------|------|
+| **Input** | タブボタンのクリック |
+| **Process** | `setTab(id)` → 条件レンダリングで**非アクティブ側をアンマウント** |
+| **Output** | 選択したパネルの描画。副作用: 離れた側の `EventSource` が `useEffect` のクリーンアップで閉じる |
+
+> ⚠️ **表示切替（CSS の hide）ではなくアンマウント**にしているのは、SSE 接続を
+> 確実に閉じるため。タブを離れた側のジョブは**サーバ側では走り続ける**が、
+> ブラウザは購読をやめる（再度そのタブへ戻っても購読は復元されない）。
+
+---
+
+### 4.2 GRACE-Support 画面
+
+#### 4.2.1 入力フォーム（`QueryForm`）
+
+**概要**: 問い合わせ 1 行入力＋オプション＋例文チップ。
+
+> 📷 **[S-02] Support 入力フォーム** — 業界プロファイルのセレクタを開いた状態で、
+> `gov（自治体）` `saas（SaaS）` `ec（EC・本人確認必須）` の 3 件が見えるように撮影。
+> <!-- ![S-02 Support 入力フォーム](docs/images/s-02-support-form.png) -->
+
+| UI 要素 | 種類 | 説明 |
+|---|---|---|
+| 問い合わせ入力 | `input[type=text]` | プレースホルダ「問い合わせ内容を入力（例: パスワードを忘れました）」 |
+| 送信ボタン | `button[type=submit]` | 実行中は「実行中…」になり **disabled**。空入力でも disabled |
+| 業界プロファイル | `select` | `（なし）` ＋ `/api/verticals` の一覧。`require_identity` なら「・本人確認必須」を併記 |
+| dry-run | `checkbox` | **既定 ON**。「アクションを実行せずログのみ」 |
+| 詳細ログ | `checkbox` | 既定 OFF。CLI の `-v` 相当 |
+| 例文チップ | `button.example-chip` × 4 | 押すと入力欄とプロファイルが同時に埋まる |
+
+**例文チップの中身**（`QueryForm.tsx` の `EXAMPLES`）:
+
+| ラベル | query | vertical |
+|---|---|---|
+| パスワードを忘れました | パスワードを忘れました | （なし） |
+| gov: 住民票の写しの取り方は？ | 住民票の写しの取り方は？ | `gov` |
+| ec: 返品したい | 返品したい | `ec` |
+| saas: サービスが落ちています | サービスが落ちています | `saas` |
+
+| 項目 | 内容 |
+|------|------|
+| **Input** | `query`（必須・空白のみ不可）、`vertical`、`dry_run`、`verbose` |
+| **Process** | `submit()` が `trim()` して `QueryParams` を組み立てる。`use_web` と `do_action` は**画面に出さず常に `true` 固定** |
+| **Output** | `onSubmit(QueryParams)` → `SupportPanel.submit()` |
+
+```ts
+// 実際に送られる JSON（use_web / do_action は UI に無く常に true）
+{ query: "返品したい", vertical: "ec", dry_run: true, use_web: true, do_action: true, verbose: false }
+```
+
+#### 4.2.2 ステップトレース（`StepTimeline`）
+
+**概要**: 8 ステップを縦に並べ、SSE の到着に合わせて状態アイコンとバッジを更新する。
+
+> 📷 **[S-03] Support 実行中のタイムライン** — 一部が `▶`（実行中）、上の方が `✓`（完了）に
+> なっている途中経過。1 ステップのログを開いた状態が望ましい。
+> <!-- ![S-03 Support 実行中](docs/images/s-03-support-running.png) -->
+
+| 状態 | アイコン | 意味 |
+|---|:--:|---|
+| `pending` | `○` | 未到達 |
+| `running` | `▶` | 実行中（ログが**自動で開く**） |
+| `done` | `✓` | 完了 |
+| `skipped` | `−` | スキップ（バッジに理由） |
+
+**Support 固有のバッジ**（`StepTimeline.tsx::stepBadges`）:
+
+| ステップ | 条件 | 表示 |
+|---|---|---|
+| `confidence` | `data.support_rate` あり | `支持率 0.75` |
+| `gate` | `forced_escalate` | `強制エスカレ（'返金'）` |
+| `gate` | `rescued` | `④救済（出典付き・矛盾なし回答を維持）` |
+| `gate` | `decision` あり | `判定: answer` |
+| `web` | `web_reused` | `Web再利用（重複推論を省略）` |
+| `web` | skipped | `スキップ: <理由>` |
+| `no_info` | `no_info` | `情報なし回答を検知 → escalate` |
+| `action` | done | `create_ticket（dry-run）` |
+
+| 項目 | 内容 |
+|------|------|
+| **Input** | `JobState`（`steps` / `logs` / `phase`） |
+| **Process** | `phase === 'idle'` なら**何も描画しない**。それ以外は `STEP_IDS` の順に行を作り、`stepBadges()` の結果を並べる |
+| **Output** | ステップ一覧の描画。ステップに紐づかないログは末尾の「その他のログ」に集約 |
+
+#### 4.2.3 回答カード（`AnswerCard`）
+
+**概要**: 結果の最終表示。`decision` によって**見た目と中身が変わる**。
+
+> 📷 **[S-04] Support 回答カード（answer）** — 緑の `answer（回答）` バッジ、本文、
+> 出典リスト（`社内` と `Web` のラベルが混在していると良い）、下部の指標まで。
+> <!-- ![S-04 Support 回答](docs/images/s-04-support-answer.png) -->
+
+> 📷 **[S-05] Support 回答カード（escalate）** — 赤の `escalate（有人対応へ）` バッジと
+> 「理由: …」が見える状態。`ec: 返品したい` などで再現しやすい。
+> <!-- ![S-05 Support エスカレ](docs/images/s-05-support-escalate.png) -->
+
+| 表示部品 | 条件 | 内容 |
+|---|---|---|
+| decision バッジ | 常時 | `answer（回答）` 緑 / `escalate（有人対応へ）` 赤 |
+| 補助バッジ | 該当時 | `vertical: ec` / `Web 使用` / `Web 再利用` |
+| 本文 | `answer` 時 | Markdown 描画（`Markdown.tsx`） |
+| 未確認注記 | `warning` | 「⚠️ この回答は出典による裏付けが十分ではありません」 |
+| 矛盾注記 | `used_web && contradiction` | 「⚠️ 社内ナレッジと Web 情報で食い違いの可能性」 |
+| 出典 | `citations.length > 0` | `[Web]` 始まりは `Web` ラベル、それ以外は `社内` ラベル |
+| アクション | `action` あり | 種別・本人確認の有無・結果メッセージ |
+| 指標 | 常時 | 支持率（判定可能主張数つき）／全体信頼度／内部×Web 一致度／意図分類 |
+
+**escalate 時の分岐**（誤って有用な回答を捨てないための作り）:
+
+| 条件 | 表示 |
+|---|---|
+| `answer` があり、かつ（`forced_escalate` または出典あり） | 「以下は社内ナレッジに基づく**参考情報**です」＋本文＋出典 |
+| それ以外 | 「十分な根拠が見つかりませんでした」→ 有人対応へ<br>（`used_web` が false なら「Web 検索にも」とは**言わない**） |
+
+**エスカレ理由の判定**（`escalateReason()`）:
+
+| 条件 | 理由の文言 |
+|---|---|
+| `forced_escalate` | `エスカレ語を検知（意図分類: <intent>）による強制エスカレ` |
+| `no_info_detected` | `「情報なし回答」を検知（④' ゲート）` |
+| それ以外 | `出典・支持率がしきい値未達（回答ゲート）` |
+
+| 項目 | 内容 |
+|------|------|
+| **Input** | `SupportResult`（`result` イベントの `data`） |
+| **Process** | `decision` で分岐し、フラグに応じて注記・出典・アクション・指標を組み立てる |
+| **Output** | `section.answer-card`（`answer` / `escalate` クラス付き） |
+
+> 📝 支持率は `groundedness_decided === 0` のとき数値を出さず
+> **「判定不能（判定可能 0 主張）」**と表示する。0.00 と出すと「根拠ゼロ」と誤読されるため。
+
+---
+
+### 4.3 GRACE-Review 画面
+
+#### 4.3.1 入力フォーム（`ReviewForm`）
+
+**概要**: 文書を貼り付けて点検を実行する。Support と違い**複数行の textarea**が主役。
+
+> 📷 **[R-01] Review タブ 初期表示** — タブを Review に切り替えた直後。空の textarea、
+> ルールセットのセレクタ、対象法令の注記、例文チップ 2 つが見える状態。
+> <!-- ![R-01 Review 初期表示](docs/images/r-01-review-initial.png) -->
+
+> 📷 **[R-02] Review 入力フォーム（文書貼付後）** — 例文チップ「NG 例（優良誤認・薬機法）」を
+> 押した直後。textarea に本文、下に文字数カウンタが出ている状態。
+> <!-- ![R-02 Review 入力](docs/images/r-02-review-form.png) -->
+
+| UI 要素 | 種類 | 説明 |
+|---|---|---|
+| 文書タイトル | `input[type=text]` | 未入力なら `無題` が送られる |
+| 実行ボタン | `button[type=submit]` | 実行中は「点検中…」。空・上限超過・実行中は disabled |
+| 文書 | `textarea` `rows=12` | 「点検したい広告文・LP・バナー原稿を貼り付けてください」 |
+| 文字数カウンタ | `div.review-counter` | `12,345 / 50,000 文字`。超過で `over` クラス＋警告文 |
+| ルールセット | `select` | `/api/rulesets` の一覧。`ec_ad（EC広告表示チェック・21 ルール）` |
+| Web 裏取り | `checkbox` | **既定 OFF**（条文が一次情報のため） |
+| dry-run | `checkbox` | **既定 ON**（起票せずログのみ） |
+| 詳細ログ | `checkbox` | 既定 OFF |
+| ルールセット注記 | `p.review-ruleset-note` | 対象法令・常時チェック件数・自動確定のしきい値 |
+| 例文チップ | `button.example-chip` × 2 | `NG 例（優良誤認・薬機法）` / `OK 例（特商法表記あり）` |
+
+| 項目 | 内容 |
+|------|------|
+| **Input** | `document`（必須）、`title`、`ruleset`、`use_web`、`dry_run`、`verbose` |
+| **Process** | `tooLong = document.length > 50000` を判定。`canSubmit` が false なら送信しない。`title` 空なら `無題` を補う |
+| **Output** | `onSubmit(ReviewParams)` → `ReviewPanel.submit()` |
+
+> ⚠️ **文字数上限はフロントとバックエンドの二重チェック**。`ReviewForm.tsx` の
+> `MAX_DOCUMENT_CHARS = 50000` は `backend/app/schemas.py` の同名定数と**一致させる**
+> 必要がある（フロントを緩めると API が 422 を返す）。
+
+#### 4.3.2 ステップトレース（`ReviewTimeline`）
+
+**概要**: 9 ステップ。表示の仕組みは Support と同一（`Timeline` を共用）で、バッジだけ別。
+
+> 📷 **[R-03] Review 実行中のタイムライン** — `③ Detect` あたりが `▶` で、
+> `① Segment` に `18 セグメント` バッジが付いている途中経過。
+> <!-- ![R-03 Review 実行中](docs/images/r-03-review-running.png) -->
+
+**Review 固有のバッジ**（`ReviewTimeline.tsx::stepBadges`）:
+
+| ステップ | 表示例 |
+|---|---|
+| `ruleset` | `EC広告表示チェック` / `ルール 21 件` |
+| `segment` | `18 セグメント` / `⚠️ 上限で打ち切り` |
+| `detect` | `判定 54 回` / `検出 5 件` / `⚠️ 呼び出し上限で打ち切り` |
+| `suppress` | `抑止 2 件` / `救済 1 件` / `採用 3 件` |
+| `web` | `裏取り 2 件` |
+| `severity` | `重大リスク語で high 1 件` |
+| `action` | `create_ticket（dry-run）` |
+| （全ステップ共通） | skipped 時 `スキップ: <理由>` |
+
+#### 4.3.3 指摘サマリバー（`FindingSummaryBar`）
+
+> 📷 **[R-04] 指摘サマリバー** — `指摘 3 件` `重大 1` `中 2` `軽微 0` `確定 1` `要確認 2` `抑止 2`
+> が横一列に並んだ帯。
+> <!-- ![R-04 指摘サマリ](docs/images/r-04-finding-summary.png) -->
+
+| 表示 | 元データ | 備考 |
+|---|---|---|
+| 指摘 N 件 | `high + medium + low` | 抑止は**含まない** |
+| 重大 / 中 / 軽微 | `summary.high/medium/low` | severity 別 |
+| 確定 / 要確認 | `summary.confirmed/review_required` | status 別 |
+| 抑止 | `summary.suppressed` | ツールチップ「根拠不足・実質性なしとして除外した指摘」 |
+
+#### 4.3.4 原文ハイライト（`DocumentView`）
+
+**概要**: 原文をそのまま表示し、指摘箇所を `<mark>` で色付けする。
+
+> 📷 **[R-05] 原文ハイライト＋指摘カード（左右ペイン）** — 画面を広めに撮り、
+> 左に色付きハイライト、右に指摘カードが並ぶ全体像。1 件を選択して**両側が強調**
+> されている状態が理想。
+> <!-- ![R-05 Review 結果](docs/images/r-05-review-panes.png) -->
+
+| 項目 | 内容 |
+|------|------|
+| **Input** | `document`（原文）、`findings`、`selectedFindingId` |
+| **Process** | `buildHighlights()` が原文を断片列へ分割 → 断片ごとに `span`（通常）/ `mark`（指摘）を組み立てる |
+| **Output** | `section.document-view`。見出しは `原文（N 箇所を指摘）` |
+
+**ハイライトが成立する理由**: `ReviewFinding.start` / `.end` は**原文の文字オフセット**で、
+バックエンドの `split_segments()` が分割時に**正規化を一切していない**ため、
+`document.slice(start, end)` がそのまま該当箇所になる。
+
+**重なりの解消**（`highlight.ts::resolveOverlaps`）: 同じ文言が複数ルールに触れることは
+普通に起きる（例:「業界No.1」は優良誤認と打消し表示の両方で拾われうる）。その場合は
+**severity の高い方を残す**。同値なら先に来た方（先勝ち）。
+
+> ⚠️ **`dangerouslySetInnerHTML` は使わない。** `highlight.ts` は**データだけ**を返し、
+> React 要素の組み立ては `DocumentView` 側で行う（XSS 回避）。
+> オフセットが原文の範囲外を指していた場合はその指摘を**無視して本文を欠落させない**。
+
+#### 4.3.5 指摘カード一覧（`FindingList`）
+
+> 📷 **[R-06] 指摘カードの詳細** — 1 枚のカードを拡大。severity バッジ・ルール名・
+> 法令条文・状態・`重大リスク語` バッジ・引用・指摘文・修正案・根拠（開いた状態）・
+> 確信度まで入るように。
+> <!-- ![R-06 指摘カード詳細](docs/images/r-06-finding-card.png) -->
+
+**並び順**: `severity` 降順（重大 → 中 → 軽微）→ 同値なら原文の**出現順**（`start` 昇順）。
+重大な指摘から読める並びにしている。
+
+| カード内の表示 | 元データ | 備考 |
+|---|---|---|
+| severity バッジ | `severity` | `重大` / `中` / `軽微` |
+| ルール名 | `rule_title` | |
+| 法令 | `law` + `article` | 例「景品表示法 第5条第1号」 |
+| 状態 | `status` | `確定` / `要確認` / `抑止` |
+| `重大リスク語` バッジ | `forced` | ツールチップ「重大リスク語を検知したため必ず人が確認します」 |
+| `Web 裏取り済み` バッジ | `web_checked` | |
+| 引用 | `excerpt` | `blockquote` |
+| 指摘 | `message` | |
+| 修正案 | `suggestion` | |
+| 根拠 | `citations` | `details` で折りたたみ |
+| メタ | `confidence` / `category` / `rule_id` | 確信度は小数 2 桁 |
+
+**指摘 0 件のとき**: 「指摘はありませんでした（ルールに抵触する記述が見つかりませんでした）。」
+
+| 項目 | 内容 |
+|------|------|
+| **Input** | `findings`、`selectedFindingId` |
+| **Process** | `sortFindings()` で整列。選択中カードには `useEffect` + `scrollIntoView({behavior:'smooth'})` で**自動スクロール** |
+| **Output** | `section.finding-list`。クリックで `onSelect`（同じものを再クリックで解除） |
+
+#### 4.3.6 KPI 行と打ち切り警告
+
+結果エリアの最下部に 1 行で出る（`ReviewPanel`）:
+
+```
+18 セグメント / 判定 54 回 / 検出 5 件 → 採用 3 件（抑止 2 / 救済 1 / 強制 high 1）
+```
+
+`result.truncated` が true のときは、その上に警告バナーが出る:
+
+> ⚠️ 文書が大きいため途中で打ち切りました（セグメントまたは判定回数の上限）。分割して再実行してください。
+
+---
+
+### 4.4 HITL CONFIRM モーダル（共通）
+
+**概要**: 副作用のあるアクションの直前に最前面へ出る。**承認するまで実行されない。**
+Support と Review で**同じコンポーネント**を使う。
+
+> 📷 **[C-01] HITL CONFIRM モーダル** — アクション種別・引数（JSON）・バックエンド
+> （dry-run 表示）・タイムアウト秒・承認/拒否ボタンが入るように撮影。
+> <!-- ![C-01 CONFIRM モーダル](docs/images/c-01-confirm-modal.png) -->
+
+| 表示行 | 元データ | 備考 |
+|---|---|---|
+| メッセージ | `intervention.message` | |
+| アクション種別 | `actionStep.data.action_type` | `code` 表示 |
+| 引数 | `actionStep.data.args` | `JSON.stringify(..., 2)` の整形表示 |
+| バックエンド | `actionStep.data.backend` + `dry_run` | `（dry-run: 実行せずログのみ）` or `（実行モード）` |
+| 本人確認 | `actionStep.logs` から「本人確認」を含む行 | Support のみ実際に出る |
+| 理由 | `intervention.reason` | あるときだけ |
+| タイムアウト | `intervention.timeout_seconds` | 「超過時は実行せず有人対応へエスカレーション」 |
+
+| 項目 | 内容 |
+|------|------|
+| **Input** | `intervention`（`intervention` イベントの `data`）、`actionStep`（`action` ステップの started データ） |
+| **Process** | ボタン押下で `onRespond(approve)` → `confirmIntervention()` / `confirmReviewIntervention()` |
+| **Output** | `POST /api/{support\|review}/confirm/{job_id}`。送信中は両ボタンが disabled |
+
+**両エージェントで共用できる理由**: `ActionStepView` として
+`{ data: Record<string, unknown>; logs: string[] }` だけを構造的に受けるため、
+Support の `StepState` と Review の `ReviewStepState` の**両方が当てはまる**。
+
+> ⚠️ **Web 側に自動承認は無い。** CLI は `confirm=None` で自動承認（既定ドライランのため安全）
+> だが、Web からは必ず `InterventionBridge.resolver` が渡る。タイムアウト時は
+> バックエンドが**実行せず有人対応へ**倒す（安全側）。
+
+#### 4.4.1 承認の流れ
 
 ```mermaid
 %%{ init: { "theme": "base", "themeVariables": {
@@ -398,176 +652,211 @@ class START,KEY,ERR,S1,P1,EMPTY,DONE0,LOOP,P2,P3,P4,P5,RESC,SUP,KEEP,GUARD,TRUNC
   "actorLineColor": "#ffffff", "noteBkgColor": "#000000",
   "noteTextColor": "#ffffff", "noteBorderColor": "#ffffff" } } }%%
 sequenceDiagram
-    participant B as "ブラウザ (React :5173)"
-    participant A as "FastAPI (api/support | api/review)"
-    participant J as "JobManager (core/jobs)"
-    participant W as "ワーカースレッド (runner)"
-    participant BR as "InterventionBridge"
+    participant U as "ユーザ"
+    participant P as "SupportPanel / ReviewPanel"
+    participant C as "api/client.ts"
+    participant A as "FastAPI"
+    participant W as "ワーカースレッド"
 
-    B->>A: POST /api/support/query {query, vertical, ...}
-    A->>J: start(JobParams) — params 型で runner を解決
-    J->>W: スレッド起動（emit=job.emit, confirm=bridge.resolver）
-    A-->>B: 202 Accepted {job_id, stream_url}
-
-    B->>A: GET /api/support/stream/{job_id}（SSE 接続）
-    loop パイプライン進行（①〜⑥）
-        W->>J: emit(SupportEvent) → events に蓄積（seq, ts 付与）
-        A-->>B: data: {seq, ts, type: step/log, ...}
-        Note over A,B: 15 秒イベントが無ければ keepalive コメント送出
-    end
-
-    Note over W,BR: ⑥ 要承認アクション（create_ticket / send_reply 等）に到達
-    W->>BR: resolver(request) — 応答が来るまでブロック
-    BR->>J: emit(intervention, status=waiting, intervention_id)
-    A-->>B: data: {type: intervention} → CONFIRM モーダル表示
-    B->>A: POST /api/support/confirm/{job_id} {intervention_id, approve}
-    A->>J: confirm() → bridge.resolve(intervention_id, approve)
-    J-->>BR: threading.Event で応答注入
-    BR-->>W: InterventionResponse（PROCEED / CANCEL）
-    Note over BR,W: タイムアウト時は CANCEL + timeout_reached<br>→ 実行せず有人対応へ（安全側）
-
-    W->>J: emit(result, data=SupportResult) → finish(completed)
-    A-->>B: data: {type: result} → data: {type: done, status}
-    B->>A: GET /api/support/result/{job_id}（ポーリング用フォールバック）
-    A-->>B: {job_id, status, result: SupportResultModel}
+    W->>A: 要承認アクションに到達（ブロック）
+    A-->>C: SSE: {type:"intervention", status:"waiting"}
+    C->>P: dispatch({type:'event'})
+    P->>U: ConfirmModal を表示（state.intervention）
+    U->>P: 「承認して実行」を押す
+    P->>C: confirmIntervention(jobId, interventionId, true)
+    C->>A: POST /api/{support|review}/confirm/{job_id}
+    A->>W: bridge.resolve() → PROCEED
+    P->>P: dispatch({type:'confirm_sent'}) → モーダルを閉じる
+    W->>A: アクション実行 → result イベント
+    A-->>C: SSE: {type:"result"} → {type:"done"}
+    C->>P: 結果を描画
+    Note over U,W: 拒否なら CANCEL。無応答ならタイムアウト<br>→ 実行せず有人対応へ
 ```
 
-**データの流れ・形式**（詳細は [`schemas.md`](./schemas.md) / [`core_jobs.md`](./core_jobs.md) /
-[`core_intervention_bridge.md`](./core_intervention_bridge.md)）:
-
-1. **入力**: `QueryRequest`（CLI 引数と 1:1。`vertical` は `gov`/`saas`/`ec`、既定 `dry_run=True`）
-2. **進捗**: `SupportEvent`（type = step / log / intervention / result / error）に
-   `seq`（通し番号）と `ts`（時刻）を付与した JSON を SSE（`data:` 行・イベント名なし）で配信
-3. **HITL**: `intervention` イベント（waiting）→ `POST /confirm` → resolved / timeout。
-   応答は `threading.Event` でワーカースレッドへ同期的に返る
-4. **出力**: `SupportResult`（answer / citations / groundedness / decision / warning /
-   used_web / source_agreement / action_result / KPI メタデータ等）を `result` イベントと
-   `GET /result/{job_id}` の両方で取得可能
-5. **エラー**: APIキー未設定・Qdrant 未起動・LLM タイムアウト等は `error` イベントとして
-   配信され、ジョブは `failed` で終了する
-
 ---
 
-## 4. モジュール仕様（IPO 形式）一覧
+## 5. 設定・定数
 
-- **対象**: `backend/app/` 配下の Python モジュール（FastAPI 起動・API 層・コア層・スキーマ）。
-- **フォーマット**: IPO 形式（`a_class_method_md_format.md`）。
-  単体テストは SAE 形式（`a_test_md_format.md`、`grace-agent-tests` スキル担当・§5）。
-- **出力先**: **`backend/docs/<module>.md`**（本 README と同じディレクトリ）。
-- **技術スタック表記**: LLM = Anthropic Claude（既定 `claude-sonnet-4-6`、
-  軽量判定 `claude-haiku-4-5-20251001`）／ Embedding = Gemini（`gemini-embedding-001`, 3072次元）。
+### 5.1 起動の前提
 
-#### 共通（アプリ基盤）
-
-| # | ソースファイル | 行数 | クラス/関数 | 役割 | ドキュメント | 状態 |
-|---|---|---:|---:|---|---|:--:|
-| 1 | `backend/app/main.py` | 59 | 0（モジュール構成のみ） | FastAPI 起動・CORS・ルーター結線 | [`main.md`](./main.md) | ✅ |
-| 2 | `backend/app/schemas.py` | 228 | 16 | Pydantic リクエスト/レスポンス/イベント型 | [`schemas.md`](./schemas.md) | ✅ |
-| 3 | `backend/app/api/meta.py` | 68 | 3 | `/api/verticals`・`/api/rulesets`・`/api/health` | [`api_meta.md`](./api_meta.md) | ✅ |
-| 4 | `backend/app/core/jobs.py` | 263 | 6 | ジョブ管理（runner 注入・スレッド実行・SSE 供給） | [`core_jobs.md`](./core_jobs.md) | ✅ |
-| 5 | `backend/app/core/intervention_bridge.py` | 125 | 2 | HITL ↔ フロント承認の非同期ブリッジ | [`core_intervention_bridge.md`](./core_intervention_bridge.md) | ✅ |
-
-#### GRACE-Support（問い合わせ → 回答）
-
-| # | ソースファイル | 行数 | クラス/関数 | 役割 | ドキュメント | 状態 |
-|---|---|---:|---:|---|---|:--:|
-| 6 | `backend/app/api/support.py` | 83 | 4 | `/api/support/*`（query / stream(SSE) / confirm / result） | [`api_support.md`](./api_support.md) | ✅ |
-| 7 | `backend/app/core/support_agent.py` | 568 | 5 | ★コア（①〜⑥ イベント発行型パイプライン） | [`core_support_agent.md`](./core_support_agent.md) | ✅ |
-| 8 | `backend/app/core/gates.py` | 393 | 15 | 回答ゲート/強制エスカレ/情報なし検知/救済/出典整形（純関数群） | [`core_gates.md`](./core_gates.md) | ✅ |
-| 9 | `backend/app/core/verticals.py` | 123 | 2 | VerticalProfile 定義（gov / saas / ec） | [`core_verticals.md`](./core_verticals.md) | ✅ |
-
-#### GRACE-Review（文書 → 指摘）
-
-| # | ソースファイル | 行数 | クラス/関数 | 役割 | ドキュメント | 状態 |
-|---|---|---:|---:|---|---|:--:|
-| 10 | `backend/app/api/review.py` | 101 | 4 | `/api/review/*`（submit / stream(SSE) / confirm / result） | [`api_review.md`](./api_review.md) | ✅ |
-| 11 | `backend/app/core/review_agent.py` | 814 | 8 | ★コア（S1・①〜⑦ イベント発行型パイプライン） | [`core_review_agent.md`](./core_review_agent.md) | ✅ |
-| 12 | `backend/app/core/review_gates.py` | 418 | 12 | 二段判定・指摘ゲート・誤検知抑止・重大度（純関数群＋ファクトリ） | [`core_review_gates.md`](./core_review_gates.md) | ✅ |
-| 13 | `backend/app/core/rulesets.py` | 450 | 5 | RuleSet 定義（ec_ad・21 ルール） | [`core_rulesets.md`](./core_rulesets.md) | ✅ |
-
-> **設計書**: GRACE-Review の全体設計は [`review_agent_spec.md`](./review_agent_spec.md)（実装済み）。
-> **ステップ別 IPO**: Support は [`backend_flow.md`](./backend_flow.md)、Review は [`review_flow.md`](./review_flow.md)。
-> **フロントエンド**: Review の UI は [`../../frontend/docs/review_ui.md`](../../frontend/docs/review_ui.md)。
-
-**ドキュメント不要（対象外）**: いずれも空ファイル（0 行）—
-`backend/__init__.py`、`backend/app/__init__.py`、`backend/app/api/__init__.py`、
-`backend/app/core/__init__.py`、`backend/tests/__init__.py`。
-
----
-
-## 5. テスト仕様（SAE 形式）で扱うファイル
-
-> 本インデックスの担当外（`grace-agent-tests` スキル・別フォーマット）。参考として掲載。
-> テストはスタブベースで**実 API キー・Qdrant 不要**（`conftest.py` 参照）。
-
-| ソースファイル | 行数 | 内容 |
-|---|---:|---|
-| `backend/tests/conftest.py` | 293 | pytest フィクスチャ（スタブベース・API キー不要）。Support / Review 両方 |
-| `backend/tests/test_support_agent_core.py` | 235 | CLI とコアの同等性テスト |
-| `backend/tests/test_api.py` | 163 | Support API エンドポイントのテスト |
-| `backend/tests/test_intervention_bridge.py` | 105 | HITL ブリッジのテスト |
-| `backend/tests/test_jobs_generic.py` | 337 | ジョブ基盤の汎用化（**Support の回帰ガード**＋runner 注入） |
-| `backend/tests/test_rulesets.py` | 258 | RuleSet の整合（件数・ID 一意・always_check ⟷ keywords 排他） |
-| `backend/tests/test_review_gates.py` | 356 | 判定・抑止の純関数（しきい値境界・救済条件・強制 high） |
-| `backend/tests/test_review_agent_core.py` | 664 | Review パイプラインの配線（オフセット・KPI・ガード） |
-| `backend/tests/test_review_api.py` | 285 | Review API・422 ガード・`/api/rulesets`・Support の無影響 |
-
-**フロントエンド**（vitest・43 件）:
-
-| ソースファイル | 内容 |
+| 前提 | 内容 |
 |---|---|
-| `frontend/src/state/jobReducer.test.ts` | Support の reducer（7 件） |
-| `frontend/src/state/reviewReducer.test.ts` | Review の reducer（13 件） |
-| `frontend/src/state/highlight.test.ts` | ハイライト分割・重なり解消（13 件） |
-| `frontend/src/markdown/parseMarkdown.test.ts` | Markdown パーサ（10 件） |
+| `.env`（リポジトリルート） | `ANTHROPIC_API_KEY`（LLM）／`GOOGLE_API_KEY`（Embedding） |
+| Qdrant | `docker-compose -f docker-compose/docker-compose.yml up -d` |
+| ツール | `uv` / Node.js（npm） |
+
+`run_dev.sh` は起動時に Qdrant へ疎通チェックを行い、**繋がらなくても警告を出して続行**する。
+
+### 5.2 ポート
+
+| 用途 | URL | 備考 |
+|---|---|---|
+| **UI** | http://localhost:5173 | **ブラウザで開くのはこちら** |
+| API | http://localhost:8000 | `/docs` で自動ドキュメント。`/` は 404 が正常 |
+| Qdrant | http://localhost:6333 | `QDRANT_URL` で変更可 |
+
+バックエンドのポートは `BACKEND_PORT` 環境変数で変更できる（既定 8000）。
+
+### 5.3 フロントエンドの主要定数
+
+| 定数 | 値 | 定義場所 | 備考 |
+|---|---|---|---|
+| `STEP_IDS` | 8 個 | `state/jobReducer.ts` | `support_agent.py::STEP_IDS` と一致必須 |
+| `REVIEW_STEP_IDS` | 9 個 | `state/reviewReducer.ts` | `review_agent.py::REVIEW_STEP_IDS` と一致必須 |
+| `MAX_DOCUMENT_CHARS` | 50,000 | `components/ReviewForm.tsx` | `backend/app/schemas.py` と一致必須 |
+| `SEVERITY_RANK` | high=3 / medium=2 / low=1 | `state/highlight.ts`・`FindingList.tsx` | 並び順・重なり解消 |
+
+### 5.4 UI に出ないが固定で送られる値
+
+| エージェント | 項目 | 値 | 理由 |
+|---|---|---|---|
+| Support | `use_web` | `true` 固定 | Web フォールバックは常に有効 |
+| Support | `do_action` | `true` 固定 | アクション判定は常に行う（実行は dry-run と HITL で制御） |
+| Review | `do_action` | `true` 固定 | 同上 |
 
 ---
 
-## 6. 補足ドキュメント
+## 6. 使用例（操作シナリオ）
 
-モジュール仕様（IPO・§4）以外に、`backend/docs/` には以下の横断ドキュメントがある。
+### 6.1 起動
 
-| ファイル | 対象 | 内容 |
-|---|:--:|---|
-| [`install_and_setup.md`](./install_and_setup.md) | 共通 | インストール・環境設定ガイド（uv / Node / Docker / `.env` / トラブルシュート） |
-| [`react_processing_flow.md`](./react_processing_flow.md) | 共通 | `run_dev.sh` 起点の React ↔ FastAPI 処理フロー詳細 |
-| [`confidence_flow_grace_vs_backend.md`](./confidence_flow_grace_vs_backend.md) | 共通 | 信頼度測定フローの比較（`grace/` 自律エージェント本体 vs `backend/app/` Web 判定層） |
-| [`backend_flow.md`](./backend_flow.md) | Support | 処理フロー ステップ詳細 (0)〜(8)（実装関数・シグネチャ・IPO・戻り値例） |
-| [`review_flow.md`](./review_flow.md) | Review | 処理フロー ステップ詳細 S1・①〜⑦（同上） |
-| [`review_agent_spec.md`](./review_agent_spec.md) | Review | 設計書（意図と判断の記録）。**実装後はモジュール仕様が正** |
+```bash
+# 1) Qdrant（別ターミナル・初回/停止後のみ）
+docker-compose -f docker-compose/docker-compose.yml up -d
 
-> 📝 `backend_flow.md` は元々 `backend/app/` にあったが、CLAUDE.md §7.1
-> （backend のドキュメントは `backend/docs/`）に合わせて本ディレクトリへ移設した。
+# 2) アプリ起動（backend + frontend）
+./run_dev.sh
+#   ==> [1/3] uv sync --extra dev（バックエンド依存）
+#   ==> [2/3] frontend 依存の確認
+#   ==> [3/3] 開発サーバを起動します（停止は Ctrl+C）
+#       backend : http://localhost:8000  (docs: /docs)
+#       frontend: http://localhost:5173  ← ブラウザで開くのはこちら
+```
+
+停止は **Ctrl+C**（backend / frontend の両方が止まる）。
+
+### 6.2 シナリオ A: Support で問い合わせる（EC・返品）
+
+1. ブラウザで http://localhost:5173 を開く（既定で **GRACE-Support** タブ）→ 📷 **[S-01]**
+2. 例文チップ **`ec: 返品したい`** を押す（入力欄とプロファイルが同時に埋まる）→ 📷 **[S-02]**
+3. `dry-run` が **ON** であることを確認（既定 ON）
+4. **「送信」** を押す
+5. ステップトレースが上から順に進む（`業界プロファイル適用` → `① Plan` → …）→ 📷 **[S-03]**
+6. ⑥ Action に到達すると **CONFIRM モーダル**が出る → 📷 **[C-01]**
+   - `ec` は `require_identity=true` なので、本人確認の行が出る
+7. **「承認して実行」** を押す
+8. 回答カードが表示される → 📷 **[S-04]** または 📷 **[S-05]**
+
+### 6.3 シナリオ B: Review で広告文を点検する
+
+1. タブ **GRACE-Review** を押す → 📷 **[R-01]**
+2. 例文チップ **`NG 例（優良誤認・薬機法）`** を押す → 📷 **[R-02]**
+   - 「業界No.1」「シミが治る」「副作用がない」など、意図的に違反を含む文面
+3. ルールセットが `ec_ad（EC広告表示チェック・21 ルール）` であることを確認
+4. **「表示チェックを実行」** を押す
+5. ステップトレースが進む（`S1` → `① Segment` → `② Retrieve` → …）→ 📷 **[R-03]**
+6. 結果が出る
+   - サマリバー → 📷 **[R-04]**
+   - 左右ペイン（原文ハイライト＋指摘カード）→ 📷 **[R-05]**
+   - カードの「根拠」を開くと条文が見える → 📷 **[R-06]**
+7. 原文のハイライトをクリック → 右の該当カードへ自動スクロール
+8. 高 severity の指摘があれば `escalate_to_human`（**承認不要**）、無ければ
+   `create_ticket` で CONFIRM モーダルが出る
+
+比較用に **`OK 例（特商法表記あり）`** も実行すると、指摘が出ない／少ない状態を確認できる。
+
+### 6.4 画面ショット一覧
+
+撮影して `docs/images/` に置き、本文中のコメントアウトを外す。
+
+| スロット | ファイル名（推奨） | 撮影内容 | 記載セクション |
+|:--:|---|---|---|
+| **S-01** | `s-01-support-initial.png` | 起動直後の Support タブ全体 | §2 |
+| **S-02** | `s-02-support-form.png` | 入力フォーム（プロファイル選択を開いた状態） | §4.2.1 |
+| **S-03** | `s-03-support-running.png` | 実行中のタイムライン（ログを 1 つ開く） | §4.2.2 |
+| **S-04** | `s-04-support-answer.png` | 回答カード（answer・出典あり） | §4.2.3 |
+| **S-05** | `s-05-support-escalate.png` | 回答カード（escalate・理由表示） | §4.2.3 |
+| **R-01** | `r-01-review-initial.png` | Review タブ初期表示 | §4.3.1 |
+| **R-02** | `r-02-review-form.png` | 文書貼付後（文字数カウンタ表示） | §4.3.1 |
+| **R-03** | `r-03-review-running.png` | 実行中のタイムライン（バッジ付き） | §4.3.2 |
+| **R-04** | `r-04-finding-summary.png` | 指摘サマリバー | §4.3.3 |
+| **R-05** | `r-05-review-panes.png` | 左右ペイン全体（1 件選択状態） | §4.3.4 |
+| **R-06** | `r-06-finding-card.png` | 指摘カード拡大（根拠を開く） | §4.3.5 |
+| **C-01** | `c-01-confirm-modal.png` | HITL CONFIRM モーダル | §4.4 |
+| **E-01** | `e-01-error-banner.png` | エラーバナー（APIキー未設定など） | §6.5 |
+
+### 6.5 うまく動かないとき
+
+> 📷 **[E-01] エラーバナー** — `div.error-banner` が赤く出ている状態。
+> `.env` の APIキーを外して実行すると再現できる。
+> <!-- ![E-01 エラーバナー](docs/images/e-01-error-banner.png) -->
+
+| 症状 | 原因 | 対処 |
+|---|---|---|
+| 画面は出るが実行するとエラーバナー | `ANTHROPIC_API_KEY` 未設定 | `.env` に設定して backend を再起動。`GET /api/health` で確認できる |
+| 「進捗ストリームが切断されました」 | backend が落ちた／再起動中 | ターミナルの uvicorn ログを確認 |
+| 検索結果が空・情報なし回答が続く | Qdrant 未起動 or データ未登録 | `docker-compose ... up -d` ＋ データ準備（下記） |
+| Review で 422 が返る | 文書が 50,000 字超 | 分割して実行（フロントの文字数カウンタが赤くなる） |
+| `:8000` を開いても 404 | 仕様 | UI は **:5173**。:8000 は API 専用（`/docs` は開ける） |
+
+データ準備（3 段階）:
+
+```bash
+python -m chunking.csv_text_to_chunks_text_csv   # 1. チャンク化
+python qa_qdrant/make_qa_register_qdrant.py      # 2-3. Q/A 生成 + Qdrant 登録
+```
 
 ---
 
-## 7. backend/ 構成（参考）
+## 7. エクスポート
 
+### 7.1 画面から呼ばれる API クライアント（`frontend/src/api/client.ts`）
+
+```ts
+startQuery(params)                                   // POST /api/support/query
+confirmIntervention(jobId, interventionId, approve)  // POST /api/support/confirm/{job_id}
+fetchVerticals()                                     // GET  /api/verticals
+startReview(params)                                  // POST /api/review/submit
+confirmReviewIntervention(jobId, iid, approve)       // POST /api/review/confirm/{job_id}
+fetchRuleSets()                                      // GET  /api/rulesets
+subscribeStream(jobId, onEvent, onError, kind)       // GET  /api/{kind}/stream/{job_id}（SSE）
 ```
-backend/
-├── app/
-│   ├── main.py                     # FastAPI 起動・CORS・ルーター結線（support / review / meta）
-│   ├── schemas.py                  # Pydantic: リクエスト/レスポンス/イベント（Support + Review）
-│   ├── api/
-│   │   ├── support.py              # /api/support/*  query / stream(SSE) / confirm / result
-│   │   ├── review.py               # /api/review/*   submit / stream(SSE) / confirm / result
-│   │   └── meta.py                 # GET /api/verticals, /api/rulesets, /api/health
-│   └── core/
-│       │  ── 共通（2 エージェントで共有）──
-│       ├── jobs.py                 # ジョブ管理（runner 注入・インメモリ・スレッド実行）
-│       ├── intervention_bridge.py  # HITL ↔ フロント承認の非同期ブリッジ
-│       │  ── GRACE-Support ──
-│       ├── support_agent.py        # ★コア（①〜⑥ イベント発行型パイプライン）
-│       ├── gates.py                # 回答ゲート/強制エスカレ/情報なし検知/救済（純関数）
-│       ├── verticals.py            # VerticalProfile 定義（gov / saas / ec）
-│       │  ── GRACE-Review ──
-│       ├── review_agent.py         # ★コア（S1・①〜⑦ イベント発行型パイプライン）
-│       ├── review_gates.py         # 二段判定/誤検知抑止/救済/重大度（純関数）
-│       └── rulesets.py             # RuleSet 定義（ec_ad・21 ルール）
-├── docs/                           # ← 本 README とモジュールドキュメント（IPO形式）の配置先
-└── tests/                          # pytest（スタブベース・API キー不要）
-    └── data/                       # Review のテストデータ（ec_ad_{ok,ng,edge}_sample.txt）
+
+`subscribeStream` は **Support / Review で 1 本を共用**する（SSE のイベント形式が同一のため）。
+戻り値は購読解除関数で、`done` イベントで自動クローズする。
+
+### 7.2 バックエンドの入口
+
+```python
+from backend.app.main import app                               # ASGI アプリ
+from backend.app.core.support_agent import run_support_agent_core
+from backend.app.core.review_agent import run_review_agent_core
+from backend.app.core.jobs import job_manager, JobParams
 ```
+
+### 7.3 関連ドキュメント
+
+| 知りたいこと | 参照先 |
+|---|---|
+| backend 全体のインデックス | [`backend/docs/README.md`](./backend/docs/README.md) |
+| Support の処理ステップ詳細 | [`backend/docs/backend_flow.md`](./backend/docs/backend_flow.md) |
+| Review の処理ステップ詳細 | [`backend/docs/review_flow.md`](./backend/docs/review_flow.md) |
+| Review の設計判断 | [`backend/docs/review_agent_spec.md`](./backend/docs/review_agent_spec.md) |
+| インストール・環境構築 | [`backend/docs/install_and_setup.md`](./backend/docs/install_and_setup.md) |
+| React コンポーネント仕様 | [`frontend/docs/`](./frontend/docs/) |
+| 自律エージェント基盤 | [`grace/docs/`](./grace/docs/) |
+| データ準備 | [`chunking/docs/`](./chunking/docs/) / [`qa_generation/docs/`](./qa_generation/docs/) / [`qa_qdrant/docs/`](./qa_qdrant/docs/) |
+
+### 7.4 CLI（参考）
+
+Support のみ CLI がある。**Web と同じコア関数**を通るので、挙動確認に使える。
+
+```bash
+uv run python agent_support_example.py --vertical gov -v "住民票の写しの取り方は？"
+```
+
+> ⚠️ **Review に CLI は無い。** 動作確認は :5173 の Review タブか
+> `POST /api/review/submit` を使う。
 
 ---
 
@@ -575,10 +864,55 @@ backend/
 
 | バージョン | 変更内容 |
 |-----------|---------|
-| 1.0 | 初版作成（backend/ ドキュメント整備の対象一覧・出力先・進捗をまとめたインデックス。`main.py` を作成済としてマーク） |
-| 1.1 | モジュール仕様（IPO）残り 8 ファイル（schemas / api_support / api_meta / core_support_agent / core_gates / core_jobs / core_intervention_bridge / core_verticals）を作成し、状態列を全て「作成済」に更新 |
-| 1.2 | 先頭に「§0 アプリの実行方法（クイックスタート）」を追加し、`install_and_setup.md`（インストール・環境設定）へのリンクを追記 |
-| 1.3 | §0 に「最短（1 コマンド `./run_dev.sh`）」の起動方法を追加（backend + frontend を一括起動） |
-| 1.4 | 実コード再読による全面最新化: §1 アーキテクチャ構成図（6 層）・§2 処理フロー（パイプライン ①〜⑥＋二段判定・救済・HITL）・§3 データフロー（SSE / HITL 承認のシーケンス図）を新設。ドキュメント出力先の誤記を実配置（`backend/docs/`）に修正し、各ドキュメントへのリンクを追加。行数を実測に更新（support_agent 538 / gates 374 / test_support_agent_core 235）。補足ドキュメント一覧（§6）を追加し、目次を整備 |
-| 1.5 | GRACE-Review の追加に追随（PR #37〜#43）: モジュール一覧を Support / Review / 共通の 3 区分へ再編し、Review の 4 モジュール（`review_agent` / `review_gates` / `rulesets` / `api_review`）を追加。行数を実測に更新。テスト一覧に Review の 4 ファイルとフロントの vitest を追記 |
-| 1.6 | **2 エージェント構成へ全面改訂**: 冒頭に Support / Review の対比表を追加（Review は Web 専用＝CLI なし）。§1 構成図に Review のコア 3 モジュール・`api/review.py` を追加し、ジョブ層が runner 注入で共通化されている点・Review が Support の機構を再利用する点・P-08 の設定分離を設計の要点へ追記。§2 を 2-1（Support）/ 2-2（Review）に分割し、Review のパイプライン図（S1・①〜⑦）＋判定ロジック表＋Support との対応関係表を新設（**番号順 ≠ 実行順**、⑥ Web が ⑤ Severity より先である点を明記）。§0 に両エージェントのエンドポイント表と「Review に CLI は無い」注記を追加。§3 に 2 エージェント共通である旨を明記。§6 に `backend_flow.md`（移設）・`review_flow.md`（新規）・`review_agent_spec.md` を掲載。§7 構成ツリーを Review 込みへ更新。`gates.py` の関数数を実測に修正（14 → 15） |
+| 1.0 | 初版作成。`backend/docs/README.md` v1.6 をベースに、リポジトリ全体のルート README として IPO 形式で構成 |
+| 2.0 | **`./run_dev.sh` アプリの README として全面改訂。** 対象をリポジトリ全体からアプリ（画面・操作）へ移し、実装（`frontend/src/` 全 13 コンポーネント・2 reducer・API クライアント）を読み直して構成。§3 に「画面上の操作 → UI コンポーネント → フロント処理 → API → バックエンド関数」の対応表を Support / Review 別に新設し、ステップトレースの表示ラベルとバックエンド実装の 1:1 対応表も追加。§4 を画面別 IPO 詳細（共通ヘッダ／Support／Review／CONFIRM モーダル）へ再構成し、各 UI 要素・バッジ・分岐条件を実装から起こして記載。§6 に操作シナリオ 2 本とトラブルシュートを追加。**画面ショット挿入位置を 13 スロット（S-01〜S-05 / R-01〜R-06 / C-01 / E-01）確保**し、§6.4 に一覧表を用意 |
+
+---
+
+## 付録: 依存関係図
+
+```mermaid
+flowchart LR
+    subgraph FE["frontend/src"]
+        APPX["App.tsx"]
+        PANELS["SupportPanel / ReviewPanel"]
+        COMPS["QueryForm / ReviewForm / Timeline /<br>AnswerCard / DocumentView / FindingList /<br>ConfirmModal / Markdown"]
+        STATE["jobReducer / reviewReducer / highlight"]
+        APIC["api/client.ts"]
+        TYPES["types.ts"]
+    end
+
+    subgraph BE["backend/app"]
+        MAINX["main.py"]
+        APIS["api/support.py / api/review.py / api/meta.py"]
+        JOBSX["core/jobs.py"]
+        CORES["core/support_agent.py / core/review_agent.py"]
+    end
+
+    subgraph EXT["外部"]
+        ANT["Anthropic Claude"]
+        GEM["Gemini Embedding"]
+        QD["Qdrant"]
+    end
+
+    APPX --> PANELS
+    PANELS --> COMPS
+    PANELS --> STATE
+    PANELS --> APIC
+    COMPS --> TYPES
+    STATE --> TYPES
+    APIC --> TYPES
+    APIC --> MAINX
+    MAINX --> APIS
+    APIS --> JOBSX
+    JOBSX --> CORES
+    CORES --> ANT
+    CORES --> GEM
+    CORES --> QD
+classDef default fill:#000,stroke:#fff,color:#fff
+classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
+class APPX,PANELS,COMPS,STATE,APIC,TYPES,MAINX,APIS,JOBSX,CORES,ANT,GEM,QD default
+style FE fill:#1a1a1a,stroke:#fff,color:#fff
+style BE fill:#1a1a1a,stroke:#fff,color:#fff
+style EXT fill:#1a1a1a,stroke:#fff,color:#fff
+```
