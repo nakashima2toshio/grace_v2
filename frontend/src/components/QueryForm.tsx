@@ -7,11 +7,17 @@
 //   --dry-run    → dry-run トグル
 //   -v           → 詳細ログ トグル
 //   --identity   → 本人確認の識別子（order_id / email）
+//
+// ⚠️ 判断の要るロジック（基本版での vertical 固定・識別子を送るかどうか・状態表示）は
+//    `state/queryParams.ts` の純関数へ出してある（vitest で単体テスト済み）。
+//    ここへ戻すとテストできなくなるので注意。
 import { FormEvent, useState } from 'react';
+import {
+  buildQueryParams,
+  identityNote,
+  isIdentityActive,
+} from '../state/queryParams';
 import type { QueryParams, VerticalInfo } from '../types';
-
-/** support_actions.py の IDENTITY_FIELDS と一致させる。 */
-const IDENTITY_FIELDS = ['order_id', 'email'] as const;
 
 const BASIC_EXAMPLES: Array<{ label: string; query: string; vertical: string | null }> = [
   { label: 'パスワードを忘れました', query: 'パスワードを忘れました', vertical: null },
@@ -46,34 +52,20 @@ export function QueryForm({ verticals, running, onSubmit, showVertical = true }:
   // 本人確認が実際に起動するのは require_identity のプロファイルのときだけ。
   // 基本版（showVertical=false）は vertical を送らないので、常に起動しない。
   const selected = showVertical ? verticals.find((v) => v.id === vertical) : undefined;
-  const requireIdentity = selected?.require_identity === true;
+  const requireIdentity = isIdentityActive(showVertical, selected?.require_identity);
 
   // 識別子欄は常に出すが、実際に照合されるかは設定次第なので状態を明示する。
-  const identityNote = !requireIdentity
-    ? '現在の設定では本人確認を行いません（このプロファイルは require_identity=false）'
-    : dryRun
-      ? 'dry-run 中はデモ照合のため、入力値は照合に使われません'
-      : 'SUPPORT_IDENTITY_FILE の顧客台帳と照合します（未設定の場合は常に未確認）';
+  const note = identityNote(requireIdentity, dryRun);
 
   const examples = showVertical ? VERTICAL_EXAMPLES : BASIC_EXAMPLES;
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
     if (!query.trim() || running) return;
-    const identityValues: Record<string, string> = {
-      order_id: orderId.trim(),
-      email: email.trim(),
-    };
-    const hasIdentity = IDENTITY_FIELDS.some((f) => identityValues[f]);
-    onSubmit({
-      query: query.trim(),
-      vertical: showVertical ? vertical || null : null,
-      dry_run: dryRun,
-      use_web: useWeb,
-      do_action: doAction,
-      verbose,
-      identity: hasIdentity ? identityValues : null,
-    });
+    onSubmit(buildQueryParams({
+      query, vertical, useWeb, doAction, dryRun, verbose,
+      orderId, email, showVertical,
+    }));
   };
 
   return (
@@ -169,7 +161,7 @@ export function QueryForm({ verticals, running, onSubmit, showVertical = true }:
           />
         </label>
       </fieldset>
-      <p className={`identity-note${requireIdentity ? '' : ' muted'}`}>{identityNote}</p>
+      <p className={`identity-note${requireIdentity ? '' : ' muted'}`}>{note}</p>
 
       <div className="query-examples">
         {examples.map((example) => (
