@@ -1,6 +1,6 @@
 # executor.py - GRACE計画実行エージェント ドキュメント
 
-**Version 4.0** | 最終更新: 2026-06-16
+**Version 4.1** | 最終更新: 2026-08-01
 
 ---
 
@@ -75,6 +75,7 @@
 | `ExecutionState.__post_init__()` | 全ステップをPENDINGで初期化 |
 | `ExecutionState.get_completed_outputs()` | 成功したステップの出力を取得 |
 | `ExecutionState.get_completed_sources()` | 成功したステップのソースを取得 |
+| `ExecutionState.get_completed_source_texts()` | 完了ステップの**出典本文**を取得（groundedness 検証用・P-01b） |
 | `ExecutionState.can_replan()` | リプラン可能か判定 |
 | `ExecutionState.get_execution_time_ms()` | 実行時間（ミリ秒）を取得 |
 | `Executor` | 計画実行エージェントクラス |
@@ -270,6 +271,7 @@ style FACTORY_GRP fill:#1a1a1a,stroke:#fff,color:#fff
 | `__post_init__()` | 全ステップをPENDINGで初期化 |
 | `get_completed_outputs()` | 成功したステップの出力を取得 |
 | `get_completed_sources()` | 成功したステップのソースを取得 |
+| `get_completed_source_texts()` | 完了ステップの出典本文を取得（P-01b） |
 | `can_replan()` | リプラン可能か判定 |
 | `get_execution_time_ms()` | 実行時間（ミリ秒）を取得 |
 
@@ -426,6 +428,42 @@ def get_completed_sources(self) -> List[str]
 # 使用例
 sources = state.get_completed_sources()
 print(f"参照ソース数: {len(sources)}")
+```
+
+---
+
+#### メソッド: `get_completed_source_texts`（P-01b）
+
+**概要**: 完了済みステップの**出典本文**を重複排除して取得します。
+`get_completed_sources()` が返す**識別子**とは用途が異なります。
+
+```python
+def get_completed_source_texts(self) -> List[str]
+```
+
+| 項目 | 内容 |
+|------|------|
+| **Input** | なし（`self.step_results`） |
+| **Process** | `status == "success"` のステップの `source_texts` を走査し、空文字を除いて重複排除 |
+| **Output** | `List[str]`: 出典本文のリスト（本文を持たない経路では `[]`） |
+
+> ⚠️ **なぜ本文が要るか。** groundedness 検証と LLM 自己評価は「回答が情報源に
+> 裏付けられているか」を判定します。ここへ識別子（`gov_faq.csv` 等）を渡すと
+> **どの主張も検証できず全て neutral** になり、
+> `support_rate = supported / (supported + contradicted)` の**分母が 0** になります。
+
+> 📝 本文を持たない経路（legacy agent 等）では空を返し、呼び出し側が
+> `get_completed_sources()` へフォールバックできるようにしています。
+
+**戻り値例**:
+```python
+["Q: 住民票はどこで取れますか / A: 市民課の窓口およびコンビニ交付でお受け取りいただけます。"]
+```
+
+```python
+# 使用例（groundedness 検証へ本文を渡す）
+texts = state.get_completed_source_texts() or state.get_completed_sources()
+verifier.verify(query, answer, texts)
 ```
 
 ---
@@ -942,13 +980,27 @@ def _evaluate_rag_relevance(self, query: str, rag_output: str) -> bool
 | パラメータ | 型 | デフォルト | 説明 |
 |------------|------|-----------|------|
 | `query` | str | - | ユーザーの元の質問文 |
-| `rag_output` | str | - | RAG検索結果の出力文字列 |
+| `rag_output` | Any | - | RAG 検索結果（**dict のリスト**、または文字列） |
 
 | 項目 | 内容 |
 |------|------|
-| **Input** | `query: str`, `rag_output: str` |
-| **Process** | 1. 適合性判定プロンプトを構築（検索結果は先頭500文字）<br>2. `create_chat_client(config)`でクライアント生成<br>3. `client.models.generate_content`でLLM応答取得（temperature=0.0, max_output_tokens=256）<br>4. 応答に"YES"が含まれればTrue<br>5. 空応答・例外時はTrue（既存動作維持） |
-| **Output** | `bool`: 適合していればTrue |
+| **Input** | `query: str`, `rag_output: Any`、`llm.prompt_addendum`（担当範囲） |
+| **Process** | 1. `llm.prompt_addendum` があれば**担当範囲ブロック**をプロンプトへ入れる（M-5）<br>2. 検索結果を `_format_rag_snippet()` で整形（**要素数ではなく文字数**で切る）<br>3. `_relevance_check_model()` が解決した**軽量モデル**で判定（M-3）<br>4. 応答に "YES" が含まれれば True<br>5. 空応答・例外時は True（既存動作維持） |
+| **Output** | `bool`: 適合していれば True |
+
+> 📝 **False のコストは「回答を失う」ことではない。** False を返すと `web_search` が
+> **追加**で実行されるだけで、RAG 結果は捨てられず**両方が reasoning へ渡ります**。
+> したがって誤判定のコストは余分な検索時間・API コスト・無関係な引用の混入です。
+
+> 📝 **担当範囲を考慮する 2 点（M-5）**:
+> 1. 質問が複数の事項を含む場合は**事項ごと**に見る（結合クエリで 1 事項しか
+>    扱わない検索結果が一律 NO になるのを防ぐ）
+> 2. `llm.prompt_addendum`（業界プロファイル由来）がある場合は
+>    **担当範囲内の事項だけ**を判定対象にする
+>
+> これにより `gov` で「住民票の取り方は？ ところで明日の天気は？」を投げたとき、
+> 担当外の天気は判定から外れ、住民票を満たす検索結果が YES になります
+> （＝不要な Web 検索が走らない）。
 
 **戻り値例**:
 ```python
@@ -959,6 +1011,63 @@ True
 # 使用例（内部呼び出し）
 is_relevant = self._evaluate_rag_relevance(query=step.query, rag_output=result.output)
 ```
+
+---
+
+#### メソッド: `_relevance_check_model`（M-3）
+
+**概要**: RAG 適合性チェックに使うモデル名を解決します。
+
+```python
+def _relevance_check_model(self) -> str
+```
+
+| 項目 | 内容 |
+|------|------|
+| **Input** | `executor.relevance_check_model` / `llm.light_model` / `llm.model` |
+| **Process** | 1. `executor.relevance_check_model`（明示指定・A/B や巻き戻し用）<br>2. `llm.light_model`（**既定**）<br>3. `llm.model`（軽量モデル未設定の環境向け最終フォールバック） |
+| **Output** | `str`: 使用するモデル名 |
+
+> ⚠️ **主モデルを使っていた頃の実害**: この判定 1 回に数秒かかり、かつ
+> **十分だった RAG 経路を捨てて Web 検索へ落とす原因**になっていました（実測）。
+> 出力は YES / NO の 2 値だけなので、軽量モデルで足ります。
+
+**戻り値例**:
+```python
+"claude-haiku-4-5-20251001"
+```
+
+---
+
+#### 静的メソッド: `_format_rag_snippet`（M-5）
+
+**概要**: 適合性チェック用に検索結果を読みやすい短文へ整形します。
+
+```python
+RELEVANCE_SNIPPET_LIMIT = 1200
+
+@staticmethod
+def _format_rag_snippet(rag_output: Any, limit: int = RELEVANCE_SNIPPET_LIMIT) -> str
+```
+
+| パラメータ | 型 | デフォルト | 説明 |
+|------------|------|-----------|------|
+| `rag_output` | Any | - | `ToolResult.output`（RAG では dict のリスト） |
+| `limit` | int | `1200` | プロンプトへ載せる最大文字数 |
+
+| 項目 | 内容 |
+|------|------|
+| **Input** | `rag_output`, `limit` |
+| **Process** | 1. `str` ならそのまま `[:limit]`<br>2. `list` でなければ `str()` 化して `[:limit]`<br>3. `list` なら各要素の `payload` から `question` / `answer` / `content` を取り出し、`Q / A` 形式の行へ整形 |
+| **Output** | `str`: 整形済みの短文 |
+
+> ⚠️ **修正前は要素数でスライスしていた。** `ToolResult.output` は RAG では
+> **リスト**で渡ってくるため、`rag_output[:500]` は「先頭 500 **文字**」ではなく
+> 「先頭 500 **件**」でした。件数が増えるとプロンプトへ Python の `repr` が
+> そのまま流れ込み、判定材料が読みにくくなるうえトークンも膨らみます。
+
+> 📝 `RELEVANCE_SNIPPET_LIMIT = 1200` は「出力が YES / NO の 2 値なので、
+> 判断に足りるだけの長さがあればよい」という基準で決めています。
 
 ---
 
@@ -1185,6 +1294,88 @@ def _extract_sources(self, tool_result: ToolResult) -> List[str]
 ```python
 # 使用例（内部呼び出し）
 sources = self._extract_sources(tool_result)
+```
+
+---
+
+#### メソッド: `_extract_source_texts`（P-01b）
+
+**概要**: ツール結果から groundedness 検証用の**出典本文**を抽出します。
+`_extract_sources`（識別子）と**対になるメソッド**です。
+
+```python
+def _extract_source_texts(self, tool_result: ToolResult) -> List[str]
+```
+
+| パラメータ | 型 | デフォルト | 説明 |
+|------------|------|-----------|------|
+| `tool_result` | ToolResult | - | ツール実行結果 |
+
+| 項目 | 内容 |
+|------|------|
+| **Input** | `tool_result: ToolResult` |
+| **Process** | 1. `output` が `list` でなければ `[]`<br>2. 各要素の `payload` から本文を取り出す<br>3. FAQ 形式（`question` / `answer`）は **`Q: …\nA: …`** へ整形<br>4. 重複排除 |
+| **Output** | `List[str]`: 出典本文のリスト |
+
+> ⚠️ **識別子を渡すと支持率が壊れる。** `_extract_sources` は出典識別子
+> （ファイル名）しか返さないため、それを `GroundednessVerifier` に渡すと
+> 「情報源: `gov_faq.csv`」のようになり、**どの主張も検証できず全て neutral**
+> （支持率の分母 0）になります。
+
+> 📝 **`Q: … / A: …` へ整形する理由**: `GroundednessVerifier` のプロンプトは
+> Q&A 形式の **A 部分を根拠として扱う**よう指示されているため、この形が検証と噛み合います。
+> Web 側の同等処理は `backend.app.core.gates._web_source_texts`。
+
+**戻り値例**:
+```python
+["Q: 返品はできますか / A: 商品到着後14日以内、未開封に限り承ります。"]
+```
+
+---
+
+#### 静的メソッド: `_damp_support_rate`（M-6）
+
+**概要**: 判定できた claim の割合で支持率を割り引きます。
+
+```python
+@staticmethod
+def _damp_support_rate(gres: Any, cc: Any) -> float
+```
+
+| パラメータ | 型 | デフォルト | 説明 |
+|------------|------|-----------|------|
+| `gres` | Any | - | groundedness 検証結果（`total` / `supported` / `contradicted` / `support_rate`） |
+| `cc` | Any | - | `ConfidenceConfig`（`groundedness_coverage_strength` / `_target`） |
+
+```
+damping   = min(1.0, (decided / total) / coverage_target)
+effective = support_rate * (1 - strength + strength * damping)
+```
+
+| 項目 | 内容 |
+|------|------|
+| **Input** | `gres.total` / `gres.supported` / `gres.contradicted` / `gres.support_rate`、`cc` の 2 設定 |
+| **Process** | 1. `decided = supported + contradicted`<br>2. `strength <= 0` / `target <= 0` / `total <= 0` / `decided <= 0` のいずれかなら**素の `support_rate` を返す**<br>3. 上式で減衰後の値を返す |
+| **Output** | `float`: 減衰後の支持率 |
+
+> ⚠️ **なぜ減衰が要るか。** `support_rate` は
+> `supported / (supported + contradicted)` で **neutral（情報源に関連記述が無く
+> 判断できない claim）を分母から外して**います。このため「11 claim 中 7 しか
+> 判定できず、その 7 が全部 supported」でも支持率は **1.0** になり、
+> **根拠が見つからなかった 4 件がスコアに出ません**。
+> 実測でこの状態（decided 7/11）で overall 0.92 が出ていました。
+
+> 📝 **strength を控えめにしている理由**: neutral には「詳しくはお問い合わせください」等、
+> 原理的にどの情報源でも支持されない定型句も含まれます。全損させないよう
+> `strength` は既定 0.3 で、**判定率が target 以上なら減衰しません**。
+> `strength=0` で従来どおりの挙動に戻せます。
+
+**戻り値例**:
+```python
+# support_rate=1.0, decided=7, total=11, strength=0.3, target=0.8
+# damping = min(1.0, (7/11)/0.8) = 0.795
+# effective = 1.0 * (1 - 0.3 + 0.3*0.795) = 0.939
+0.939
 ```
 
 ---
@@ -1707,6 +1898,7 @@ __all__ = [
 | 2.0 | フォーマット v1.4準拠: ASCII図をMermaid v9に全面変更、「各責務対応のモジュール」テーブル追加、補助メソッドのIPO詳細を追加 |
 | 3.0 | web_search対応: アーキテクチャ図にWebSearch Tool追加、`_prepare_tool_kwargs`にweb_search引数追加、内部依存にcreate_source_agreement_calculator追加 |
 | 4.0 | フォーマット v1.5準拠（黒背景Mermaid必須化）。技術スタック表記を Anthropic Claude（`claude-sonnet-4-6`、`llm_compat`経由）/ Gemini Embedding に統一。新規メソッドを実ソースから追記（`execute`／`_handle_ask_user_response`／`_run_tool_with_timeout`／`_prefetch_parallel_searches`／`_should_trigger_replan`／`_evaluate_rag_relevance`／`_execute_dynamic_web_search`／`_execute_dynamic_ask_user`／`_build_confidence_factors`／`_blend_groundedness_confidence`）。`_calculate_overall_confidence`を groundedness ブレンド＋温度較正に更新。`_SEARCH_ACTIONS`定数とexecutor/groundedness/replan関連の設定を5章に追加。各IPO項目に戻り値例・使用例を補完。 |
+| 4.1 | 実装（07-26〜27）へ追随（2026-08-01）。P-01b の `get_completed_source_texts()` / `_extract_source_texts()`（識別子ではなく**出典本文**を groundedness へ渡す。識別子だと全 neutral 化して支持率の分母が 0 になる）、M-3 の `_relevance_check_model()`（軽量モデル解決）、M-5 の `_format_rag_snippet()` / `RELEVANCE_SNIPPET_LIMIT`、M-6 の `_damp_support_rate()`（判定できた claim の割合で支持率を減衰）を追加。あわせて `_evaluate_rag_relevance` の記述を実装へ修正 — **「検索結果は先頭500文字」は誤りで、修正前は要素数でスライスしていた**（`ToolResult.output` がリストのため）。担当範囲（`llm.prompt_addendum`）を判定に反映する M-5 の 2 点も追記 |
 
 ---
 

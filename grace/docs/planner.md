@@ -1,6 +1,6 @@
 # planner.py - GRACE 計画生成エージェント ドキュメント
 
-**Version 3.3** | 最終更新: 2026-06-27
+**Version 3.4** | 最終更新: 2026-08-01
 
 ---
 
@@ -216,7 +216,7 @@ style FACTORY fill:#1a1a1a,stroke:#fff,color:#fff
 | モジュール | 用途 |
 |-----------|------|
 | `grace.schemas` | `ExecutionPlan` / `PlanStep` / `create_plan_id` / `validate_plan_dependencies` |
-| `grace.config` | `GraceConfig` / `get_config` |
+| `grace.config` | `GraceConfig` / `get_config` / **`resolve_heavy_model` / `heavy_thinking_budget`**（M-1 論理層モデルと拡張思考予算の解決） |
 | `grace.llm_compat` | `create_chat_client`（Anthropic Claude の genai互換クライアント生成） |
 | `grace.memory` | `create_execution_memory`（P4 実行メモリ層・優先コレクションの学習） |
 | `services.qdrant_service` | `get_all_collections`（コレクション一覧取得） |
@@ -285,12 +285,12 @@ Planner(
 | パラメータ | 型 | デフォルト | 説明 |
 |------------|------|-----------|------|
 | `config` | Optional[GraceConfig] | None | GRACE設定（Noneの場合は `get_config()` を使用） |
-| `model_name` | Optional[str] | None | 使用するモデル名（Noneの場合は `config.llm.model`） |
+| `model_name` | Optional[str] | None | 使用するモデル名。None なら **`resolve_heavy_model(config)`**（`llm.heavy_model` → 未設定なら `llm.model`）で解決する（M-1 論理層） |
 
 | 項目 | 内容 |
 |------|------|
 | **Input** | `config: Optional[GraceConfig] = None`, `model_name: Optional[str] = None` |
-| **Process** | 1. `config` を解決（未指定なら `get_config()`）<br>2. `model_name` を解決（未指定なら `config.llm.model`）<br>3. `create_chat_client(config)` でLLMクライアントを生成<br>4. `config.memory.enabled` が真なら `create_execution_memory(config.memory.path)` で実行メモリ層を初期化（無効時は `None`） |
+| **Process** | 1. `config` を解決（未指定なら `get_config()`）<br>2. `model_name` を解決（未指定なら **`resolve_heavy_model(config)`** = 論理層モデル。M-1）<br>3. `create_chat_client(config)` でLLMクライアントを生成<br>4. `config.memory.enabled` が真なら `create_execution_memory(config.memory.path)` で実行メモリ層を初期化（無効時は `None`） |
 | **Output** | Plannerインスタンス |
 
 **戻り値例**:
@@ -1089,6 +1089,7 @@ __all__ = [
 | 3.1 | 2026-06-16: 実装に合わせて改訂。LLMを Anthropic Claude（`llm_compat.create_chat_client` 経由）に統一、`_should_use_llm_plan` / `_create_rule_based_plan` / `_create_llm_plan` / `_get_available_collections` を反映、Mermaid を黒背景・白文字スタイルに統一 |
 | 3.2 | 2026-06-27: 曖昧クエリ検知（`is_ambiguous_query` / `_create_clarification_plan`）と P4 実行メモリ層（`_prioritized_collection` / `grace.memory` 連携・`MemoryConfig`）を追加反映。`create_plan` / `__init__` / `_create_rule_based_plan` / `_create_fallback_plan` のフローを更新、図・一覧表・定数を最新化 |
 | 3.3 | 2026-06-27: PR-1/PR-2 のリファクタを反映。KeywordExtractor 撤去、_build_rag_reasoning_plan による計画構築の共通化、_create_llm_plan の _build_plan_prompt/_generate_plan_with_retry/_finalize_plan への分割、refine_plan のリトライ共通化、PlannerConfig へのマジックナンバー外出し（step_timeout_seconds 等）、_COMPLEXITY_FACTORS 定数化を文書化 |
+| 3.4 | 2026-08-01: 実装（07-27）へ追随。`model_name` の解決を **`resolve_heavy_model(config)`**（M-1 論理層モデル。`llm.heavy_model` → 未設定なら `llm.model`）へ更新。内部依存に `resolve_heavy_model` / `heavy_thinking_budget` を追記 |
 
 ---
 

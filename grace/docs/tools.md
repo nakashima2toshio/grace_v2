@@ -1,6 +1,6 @@
 # tools.py - ツール定義モジュール ドキュメント
 
-**Version 2.1** | 最終更新: 2026-06-16
+**Version 2.2** | 最終更新: 2026-08-01
 
 ---
 
@@ -262,7 +262,14 @@ style REG fill:#1a1a1a,stroke:#fff,color:#fff
 | `_search_google(query, num_results, language)` | Google CSE バックエンド |
 | `_search_serpapi(query, num_results, language)` | SerpAPI バックエンド（リトライ付き） |
 | `_parse_to_rag_format(raw_results, num_results)` | RAG 互換フォーマットへ変換 |
+| `_prefer_domains(formatted)` | **優先ドメインを加点して上位へ並べ替える**（W-1・除外はしない） |
 | `_calculate_confidence_factors(scores)` | スコア統計を算出 |
+
+#### モジュール関数
+
+| 関数名 | 概要 |
+|-------|------|
+| `_url_host(url)` | URL からホスト名（小文字・ポート除去）を取り出す。取れなければ空文字 |
 
 #### ToolRegistry
 
@@ -806,6 +813,46 @@ print(result.confidence_factors["search_engine"])
 # serpapi
 ```
 
+#### メソッド: `_prefer_domains`（W-1）
+
+**概要**: 優先ドメインの結果を**加点して上位へ並べ替える**。**除外はしない。**
+
+```python
+def _prefer_domains(self, formatted: list) -> list
+```
+
+| パラメータ | 型 | デフォルト | 説明 |
+|------------|------|-----------|------|
+| `formatted` | list | - | `_parse_to_rag_format` の出力（RAG 互換 dict のリスト） |
+
+| 項目 | 内容 |
+|------|------|
+| **Input** | `formatted`、`config.web_search.preferred_domains` / `preferred_domain_boost` |
+| **Process** | 1. 優先ドメインを正規化（`strip` / 小文字化 / 先頭 `.` 除去）。**空なら何もせず返す**<br>2. 各結果の `payload.source` から `_url_host()` でホストを取り出す<br>3. `host == d` または `host.endswith("." + d)` で**接尾辞一致**を判定し `preferred_domain` を立てる<br>4. 一致した結果の `score` に `boost` を足す（上限 1.0・小数 2 桁）<br>5. 「一致 → スコア」の順で**安定ソート**（同条件なら元の検索順位を保つ） |
+| **Output** | `list`: 並べ替え済みの結果（**件数は変わらない**） |
+
+> ⚠️ **絞り込みではなく順位付けである理由。** 検索スコープ（`VerticalProfile.collections`）が
+> 効くのは内部 RAG だけで、Web 検索にはドメインの概念がありません。`gov` プロファイルで
+> 一般の天気サイトが引用に載る取り違えが実測で確認されています。ただし取得側を
+> 「一致したものだけ」に絞ると、**優先ドメインに情報が無い質問で結果が 0 件**になり、
+> 情報なし回答 → ④' の誤エスカレへ連鎖します。順位だけを変えるので、
+> 最悪でも「並び順が変わるだけ」で情報量は減りません。
+
+> 📝 **スコア加点だけで並べ替えない理由**: スコアが 1.0 で頭打ちになると一致・非一致の
+> 区別がつかなくなるため、`preferred_domain` フラグを第 1 キーにしています。
+
+**戻り値例**:
+```python
+[{"score": 0.95, "preferred_domain": True,  "payload": {"source": "https://www.city.example.lg.jp/..."}},
+ {"score": 0.90, "preferred_domain": False, "payload": {"source": "https://tenki.example.com/..."}}]
+```
+
+```python
+# 使用例（gov プロファイル適用時）
+config.web_search.preferred_domains = ["go.jp", "lg.jp"]
+# → 公的機関のページが上位へ。非一致の結果も残る
+```
+
 ---
 
 ### 4.7 ToolRegistry クラス
@@ -1030,6 +1077,7 @@ __all__ = [
 | 1.0 | 初版作成 |
 | 2.0 | WebSearchTool 追加、動的コレクションフォールバック・動的閾値の反映 |
 | 2.1 | 実ソース（v2）に整合（2026-06-16）。LLM を Anthropic Claude（`llm_compat` 経由）として正確化、`ReasoningTool`/`RAGSearchTool` の挙動・パラメータ・`confidence_factors` を実装に一致、Mermaid 図を黒背景・白文字スタイルに統一、設定・定数を `GraceConfig` 実値で更新 |
+| 2.2 | 実装（07-27）へ追随（2026-08-01）。`WebSearchTool._prefer_domains`（W-1・優先ドメインの**加点並べ替え**）とモジュール関数 `_url_host` を追加。絞り込みにすると 0 件化 → 情報なし回答 → 誤エスカレへ連鎖するため順位付けだけを変えること、スコアが 1.0 で頭打ちになるため `preferred_domain` フラグを第 1 ソートキーにしていることを明記 |
 
 ---
 

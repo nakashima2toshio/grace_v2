@@ -1,6 +1,6 @@
 # schemas.py - GRACE Pydanticスキーマ定義 ドキュメント
 
-**Version 1.1** | 最終更新: 2026-06-16
+**Version 1.2** | 最終更新: 2026-08-01
 
 ---
 
@@ -225,7 +225,8 @@ style UTILS fill:#1a1a1a,stroke:#fff,color:#fff
 | `status` | `Literal[...]` | 実行結果ステータス |
 | `output` | `Optional[str]` | 出力内容 |
 | `confidence` | `float` | 信頼度スコア（0.0-1.0） |
-| `sources` | `List[str]` | 引用ソース |
+| `sources` | `List[str]` | 引用ソース（**表示用の識別子**。ファイル名等） |
+| `source_texts` | `List[str]` | **根拠検証用の出典本文**（P-01b）。`GroundednessVerifier` へ渡す。本文を取得できない経路（legacy agent 等）では空 |
 | `error` | `Optional[str]` | エラーメッセージ |
 | `execution_time_ms` | `Optional[int]` | 実行時間（ミリ秒） |
 | `token_usage` | `Optional[dict]` | トークン使用量 |
@@ -528,6 +529,7 @@ class StepResult(BaseModel):
     output: Optional[str] = Field(None, description="出力内容")
     confidence: float = Field(..., ge=0.0, le=1.0, description="信頼度スコア（0.0-1.0）")
     sources: List[str] = Field(default_factory=list, description="引用ソース")
+    source_texts: List[str] = Field(default_factory=list, description="根拠検証用の出典本文")
     error: Optional[str] = Field(None, description="エラーメッセージ（失敗時）")
     execution_time_ms: Optional[int] = Field(None, description="実行時間（ミリ秒）")
     token_usage: Optional[dict] = Field(None, description="トークン使用量")
@@ -539,6 +541,12 @@ class StepResult(BaseModel):
 | **Input** | 各フィールドの値（`step_id`, `status`, `output`等） |
 | **Process** | Pydanticによるバリデーション（型チェック、範囲チェック） |
 | **Output** | `StepResult`インスタンス |
+
+> ⚠️ **`sources` と `source_texts` は用途が違う。** `sources` は**表示用の識別子**
+> （ファイル名等）、`source_texts` は**根拠検証用の本文**です。識別子を
+> `GroundednessVerifier` へ渡すとどの主張も検証できず全て neutral になり、
+> `support_rate = supported / (supported + contradicted)` の**分母が 0** になります。
+> 収集は `executor.py::_extract_source_texts` / `ExecutionState.get_completed_source_texts`。
 
 **戻り値例**:
 
@@ -1027,6 +1035,7 @@ __all__ = [
 |-----------|------|---------|
 | 1.0 | 2025-01-29 | 初版作成 |
 | 1.1 | 2026-06-16 | 検索結果スキーマ（`SearchResultPayload`/`SearchResultItem`）を追加、全Mermaid図に黒背景・白文字スタイルを適用 |
+| 1.2 | 2026-08-01 | 実装（07-26）へ追随。`StepResult.source_texts`（P-01b・**根拠検証用の出典本文**）をフィールド表と定義ブロックへ追加。表示用の `sources`（識別子）との用途の違いと、識別子を検証器へ渡すと全 neutral 化して支持率の分母が 0 になることを明記 |
 
 ---
 
