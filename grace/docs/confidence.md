@@ -1,6 +1,6 @@
 # confidence.py - 信頼度計算システム ドキュメント
 
-**Version 2.1** | 最終更新: 2026-06-16
+**Version 2.2** | 最終更新: 2026-08-01
 
 ---
 
@@ -203,7 +203,7 @@ style FACT fill:#1a1a1a,stroke:#fff,color:#fff
 
 | モジュール | 用途 |
 |-----------|------|
-| `grace.config` | `get_config` / `GraceConfig`（重み・閾値・モデル名） |
+| `grace.config` | `get_config` / `GraceConfig`（重み・閾値・モデル名）/ **`resolve_heavy_model` / `heavy_thinking_budget`**（M-1 論理層モデルと拡張思考予算の解決） |
 | `grace.llm_compat` | `create_chat_client`（genai 互換 Anthropic クライアント） |
 
 ---
@@ -1010,13 +1010,19 @@ def __init__(
 | パラメータ | 型 | デフォルト | 説明 |
 |------------|------|-----------|------|
 | `config` | Optional[GraceConfig] | None | 設定 |
-| `model_name` | Optional[str] | None | モデル名（既定は `config.llm.model`） |
+| `model_name` | Optional[str] | None | モデル名。None なら **`resolve_heavy_model(config)`**（`llm.heavy_model` → 未設定なら `llm.model`）で解決する（M-1 論理層） |
 
 | 項目 | 内容 |
 |------|------|
 | **Input** | `config`, `model_name` |
-| **Process** | config / model_name 解決後、`create_chat_client(config)` でクライアント生成 |
+| **Process** | config を解決後、`model_name` 未指定なら **`resolve_heavy_model(config)`** で論理層モデルを解決し、`create_chat_client(config)` でクライアント生成 |
 | **Output** | `GroundednessVerifier` インスタンス |
+
+> 📝 **claim 分解と支持判定は論理層（M-1）。** 主張を切り出して情報源との
+> entailment を取る作業は推論の質が効くため、`llm.heavy_model` を設定していれば
+> そちらを使います。LLM 呼び出し時には `heavy_thinking_budget(config)` を
+> `thinking_budget_tokens` として渡し、**`heavy_model` 未設定なら 0（拡張思考なし）**
+> になります（詳細は [`config.md`](./config.md) §4.5）。
 
 **戻り値例**:
 ```python
@@ -1533,6 +1539,7 @@ __all__ = [
 | 1.0 | 初版作成 |
 | 2.0 | groundedness（S1）検証・統合評価（evaluate_final）の追加に対応 |
 | 2.1 | 実ソースに整合（2026-06-16）。LLM 呼び出しを `llm_compat`（Anthropic 互換）経由として明記、Embedding を Gemini に統一、全 Mermaid 図を黒背景・白文字スタイルに更新、IPO 詳細・設定値・`__all__` を最新化 |
+| 2.2 | 実装（07-27）へ追随（2026-08-01）。`GroundednessVerifier.__init__` のモデル解決を **`resolve_heavy_model(config)`**（M-1 論理層）へ更新し、`heavy_thinking_budget(config)` を `thinking_budget_tokens` として渡すこと、**`heavy_model` 未設定なら拡張思考は無効（0）**であることを明記。内部依存に `grace.config` の新関数 2 つを追記 |
 
 ---
 

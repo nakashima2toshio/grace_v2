@@ -1,6 +1,6 @@
 # config.py - GRACE 設定管理 ドキュメント
 
-**Version 1.0** | 最終更新: 2026-06-16
+**Version 1.1** | 最終更新: 2026-08-01
 
 ---
 
@@ -222,6 +222,13 @@ style LOGGING fill:#1a1a1a,stroke:#fff,color:#fff
 | `get_config(config_path)` | 設定を取得（シングルトン） |
 | `reload_config()` | 設定を再読み込み |
 | `reset_config()` | 設定をリセット（テスト用） |
+
+#### 論理層モデルの解決（M-1）
+
+| 関数名 | 概要 |
+|-------|------|
+| `resolve_heavy_model(config)` | 論理層に使うモデル名を返す（未設定なら `llm.model`） |
+| `heavy_thinking_budget(config)` | 論理層の拡張思考トークン予算を返す（`heavy_model` 未設定なら 0） |
 
 ---
 
@@ -525,6 +532,69 @@ from grace.config import reset_config
 reset_config()
 ```
 
+### 4.5 論理層モデルの解決関数（M-1）
+
+計画生成（planner）・claim 分解・支持判定（confidence）は**論理層**として、
+標準層より強いモデルを割り当てられる。両モジュールがこの 2 関数を通してモデルと
+思考予算を解決するため、設定の解釈が 1 箇所に集まる。
+
+#### `resolve_heavy_model`
+
+**概要**: 論理層に使うモデル名を解決する（未設定なら `llm.model` にフォールバック）。
+
+```python
+def resolve_heavy_model(config: Any) -> str
+```
+
+| パラメータ | 型 | デフォルト | 説明 |
+|------------|------|-----------|------|
+| `config` | Any | - | `GraceConfig`（`llm` 属性を持てばよい） |
+
+| 項目 | 内容 |
+|------|------|
+| **Input** | `config.llm.heavy_model` / `config.llm.model` |
+| **Process** | `heavy_model` を `strip()` して非空ならそれを返し、空なら `model` を返す。`llm` が無ければ空文字 |
+| **Output** | `str`: 使用するモデル名 |
+
+**戻り値例**:
+```python
+"claude-sonnet-4-6"   # heavy_model 未設定 → llm.model と同じ
+```
+
+```python
+# 使用例（planner / confidence の __init__）
+self.model_name = model_name or resolve_heavy_model(self.config)
+```
+
+#### `heavy_thinking_budget`
+
+**概要**: 論理層の拡張思考トークン予算を返す（0 = 無効）。
+
+```python
+def heavy_thinking_budget(config: Any) -> int
+```
+
+| 項目 | 内容 |
+|------|------|
+| **Input** | `config.llm.heavy_model` / `config.llm.heavy_thinking_budget_tokens` |
+| **Process** | 1. `llm` が無い、または `heavy_model` が空なら **0 を返す**<br>2. `heavy_thinking_budget_tokens` を `int` 化し、負値は 0 に丸める<br>3. 型変換に失敗したら 0 |
+| **Output** | `int`: 思考トークン予算（0=無効） |
+
+> ⚠️ **`heavy_model` を設定していない間は必ず 0 を返します。** 標準層と同じモデルを
+> 使っているのに思考コストだけ増えるのを防ぐための意図的な仕様です。
+> 拡張思考を効かせるには `heavy_model` と `heavy_thinking_budget_tokens` を**両方**設定します。
+
+**戻り値例**:
+```python
+0        # heavy_model 未設定
+2048     # heavy_model 設定済み＋heavy_thinking_budget_tokens=2048
+```
+
+```python
+# 使用例（confidence の LLM 呼び出し）
+"thinking_budget_tokens": heavy_thinking_budget(self.config),
+```
+
 ---
 
 ## 5. 設定・定数
@@ -542,8 +612,15 @@ LLM（本プロジェクトは Anthropic Claude を使用）の設定。
 | `temperature` | float | `0.7` | 生成温度 |
 | `max_tokens` | int | `4096` | 最大出力トークン数 |
 | `timeout` | int | `30` | タイムアウト秒数 |
+| `light_model` | str | `"claude-haiku-4-5-20251001"` | **軽量モデル**。二値判定（RAG 適合性・意図分類等）に使う |
+| `heavy_model` | str | `""` | **論理層モデル**（M-1）。計画生成・claim 分解・支持判定に使う。空なら `model` と同じ |
+| `heavy_thinking_budget_tokens` | int | `0` | 論理層の**拡張思考**トークン予算。0=無効 |
 
 > 📝 **注意**: 既定 LLM は `claude-sonnet-4-6`。軽量用途では `claude-haiku-4-5-20251001` を環境変数 `GRACE_LLM_MODEL` で指定できます。APIキーは `ANTHROPIC_API_KEY`。
+
+> ⚠️ **`heavy_thinking_budget_tokens` は `heavy_model` を設定していない間は効きません。**
+> `heavy_thinking_budget()` が `heavy_model` 未設定時に 0 を返すためです
+> （モデルを上げていないのに思考コストだけ増えるのを防ぐ）。§4 の同関数を参照。
 
 ### 5.2 EmbeddingConfig
 
@@ -591,6 +668,14 @@ Embedding（Gemini）の設定。
 | `coverage_weight` | float | `0.15` | 網羅度（従）の重み |
 | `search_aux_weight` | float | `0.2` | 検索ベース集約値（補助）の重み |
 | `calibration_path` | str | `"config/calibration.json"` | 較正パラメータの保存先 |
+| `groundedness_coverage_strength` | float | `0.3` | **支持率の網羅度減衰**の強さ（0=減衰なし） |
+| `groundedness_coverage_target` | float | `0.8` | 減衰をかけ始める網羅度の目標値 |
+
+> 📝 **支持率の網羅度減衰**: `support_rate` は
+> `supported / (supported + contradicted)` で neutral を分母から外すため、
+> **判定できた主張が少ないほど値が楽観的に振れます**（1 主張だけ supported なら 1.00）。
+> 網羅度が `groundedness_coverage_target` に届かない場合に支持率を減衰させて
+> この偏りを補正します。実装は `executor.py::_damp_support_rate`。
 
 ### 5.6 InterventionConfig
 
@@ -659,6 +744,13 @@ Embedding（Gemini）の設定。
 | `google_cse_api_key` | str | `""` | Google CSE APIキー（新規受付停止） |
 | `google_cse_engine_id` | str | `""` | Google CSE エンジンID |
 | `serpapi_api_key` | str | `""` | SerpAPI APIキー |
+| `preferred_domains` | list | `[]` | **優先ドメイン**（接尾辞一致・W-1）。業界プロファイルから注入される |
+| `preferred_domain_boost` | float | `0.15` | 一致した結果に足すスコア |
+
+> ⚠️ **`preferred_domains` は絞り込みではなく加点です。** 一致した結果のスコアを
+> `preferred_domain_boost` だけ底上げして上位へ並べ替えるだけで、**非一致の結果も残します**。
+> 絞り込むと 0 件化 → 情報なし回答 → 誤エスカレの連鎖を招くためです。
+> 実装は `tools.py::WebSearchTool._prefer_domains`。
 
 ### 5.13 ToolsConfig
 
@@ -681,6 +773,19 @@ Embedding（Gemini）の設定。
 | `fallback_chain` | Dict[str, str] | `{"rag_search": "web_search", "web_search": "ask_user"}` | フォールバック連鎖 |
 | `parallel_search` | bool | `True` | 依存なし検索ステップを並列実行するか |
 | `max_parallel_steps` | int | `4` | 並列実行ステップ数の上限 |
+| `relevance_check_model` | str | `""` | **RAG 適合性チェックのモデルを明示指定**（M-3・A/B や巻き戻し用）。空なら `llm.light_model` → `llm.model` の順にフォールバック |
+
+> 📝 **RAG 適合性チェックを軽量モデルへ（M-3）**: 検索結果が問いに答えているかの判定は
+> 出力が **YES / NO の 2 値**だけなので、論理層モデルを使う必要がありません。
+> 主モデルを使っていた頃はこの判定 1 回に数秒かかり、**十分だった RAG 経路を捨てて
+> Web 検索へ落とす原因**になっていました（実測）。
+>
+> 解決順は次の 3 段です（`executor.py::_relevance_check_model`）。
+> 1. `executor.relevance_check_model`（明示指定）
+> 2. `llm.light_model`（**既定**。`claude-haiku-4-5-20251001`）
+> 3. `llm.model`（軽量モデルが未設定の環境向けの最終フォールバック）
+>
+> つまり**既定でも軽量モデルが使われる**ため、通常はこのフィールドを設定する必要はありません。
 
 ### 5.16 ConfigLoader クラス定数
 
@@ -773,6 +878,7 @@ __all__ = [
 | バージョン | 日付 | 変更内容 |
 |-----------|------|---------|
 | 1.0 | 2026-06-16 | 初版作成（`config.py` の実装に基づく全設定モデル・ローダー・シングルトン関数を文書化） |
+| 1.1 | 2026-08-01 | 実装（07-26〜27）へ追随。`LLMConfig` に `heavy_model` / `heavy_thinking_budget_tokens`（M-1 論理層）、`ConfidenceConfig` に `groundedness_coverage_strength` / `groundedness_coverage_target`（支持率の網羅度減衰）、`WebSearchConfig` に `preferred_domains` / `preferred_domain_boost`（W-1・**加点であって絞り込みではない**）、`ExecutorConfig` に `relevance_check_model`（M-3 軽量モデル）を追加。§3.2 と §4.5 に `resolve_heavy_model` / `heavy_thinking_budget` を追記し、`heavy_model` 未設定時に思考予算が 0 になる意図的な仕様を明記 |
 
 ---
 

@@ -1,6 +1,6 @@
 # llm_compat.py - GRACE LLM 互換クライアント ドキュメント
 
-**Version 1.0** | 最終更新: 2026-06-16
+**Version 1.1** | 最終更新: 2026-08-01
 
 ---
 
@@ -241,6 +241,7 @@ style RESPONSE fill:#1a1a1a,stroke:#fff,color:#fff
 | 関数名 | 概要 |
 |-------|------|
 | `_extract_config(config)` | GenerateContentConfig から設定キーを抽出 |
+| `_thinking_budget(requested, max_tokens)` | **拡張思考の budget を正規化**（0 / None / 不正値は無効。有効時は API 下限まで引き上げ） |
 | `_schema_hint(response_schema)` | response_schema から JSON Schema ヒント文字列を生成 |
 | `_strip_to_json(text)` | Markdown フェンス・散文を除去し JSON 本体を抽出 |
 
@@ -639,7 +640,38 @@ DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-4-6"
 |-------|-----|------|
 | `DEFAULT_ANTHROPIC_MODEL` | `"claude-sonnet-4-6"` | provider=anthropic かつ model 未指定時の既定モデル |
 
-### 5.3 関連環境変数
+### 5.3 拡張思考の下限（M-1）
+
+拡張思考（thinking）を有効にしたとき、Anthropic API が要求する下限を満たすための定数。
+
+```python
+_MIN_TEXT_TOKENS = 1024      # 本文用に確保する最小トークン
+_MIN_THINKING_BUDGET = 1024  # Anthropic が要求する thinking budget の下限
+```
+
+| 定数名 | 値 | 説明 |
+|-------|-----|------|
+| `_MIN_TEXT_TOKENS` | `1024` | 思考とは別に本文出力へ確保する最小トークン |
+| `_MIN_THINKING_BUDGET` | `1024` | thinking budget の下限（API 要件） |
+
+**`_thinking_budget(requested, max_tokens)` の挙動**:
+
+| 入力 | 戻り値 |
+|---|---|
+| `None` / `0` / 負値 / 型変換不能 | `0`（**無効**） |
+| `1` 〜 `1023` | `1024`（下限まで引き上げ） |
+| `1024` 以上 | そのままの値 |
+
+> 📝 **呼び出し側を壊さないための正規化。** 呼び出し元が `max_output_tokens` しか
+> 意識していないケースがあるため、budget を要求されたときはここで API 要件
+> （下限）を満たすまで引き上げます。`max_tokens` 側は呼び出し元で
+> `budget + _MIN_TEXT_TOKENS` まで広げます。
+
+> ⚠️ **思考予算をいくつにしても、`llm.heavy_model` が未設定なら拡張思考は走りません。**
+> `config.heavy_thinking_budget()` が 0 を返すためです
+> （[`config.md`](./config.md) §4.5）。
+
+### 5.4 関連環境変数
 
 | 環境変数 | 用途 |
 |----------|------|
@@ -724,6 +756,7 @@ from .llm_compat import create_chat_client
 | バージョン | 変更内容 |
 |-----------|---------|
 | 1.0 | 初版作成（llm_compat.py のソースに基づくドキュメント化） |
+| 1.1 | 実装（07-27）へ追随（2026-08-01）。`_thinking_budget()` と `_MIN_TEXT_TOKENS` / `_MIN_THINKING_BUDGET`（M-1 拡張思考）を §3.2 と §5.3 に追加。0 / None / 不正値は無効、有効時は API 下限 1024 まで引き上げるという正規化の表を付け、`heavy_model` 未設定ならそもそも走らない点を明記。旧 §5.3（関連環境変数）を §5.4 へ繰り下げ |
 
 ---
 
