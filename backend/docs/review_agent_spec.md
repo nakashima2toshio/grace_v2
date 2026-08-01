@@ -1,6 +1,13 @@
 # GRACE-Review 設計書 — 業界特化・文書レビューエージェント
 
-**Version 1.0** | 最終更新: 2026-07-29 | ステータス: **レビュー待ち（未実装）**
+**Version 1.1** | 最終更新: 2026-08-01 | ステータス: **実装済み（STEP1〜7 完了・master マージ済み）**
+
+> 📌 本書は**設計書**（意図と判断の記録）。実装後の各モジュール仕様は IPO 形式の
+> モジュールドキュメントを正とする — [`core_rulesets.md`](./core_rulesets.md) /
+> [`core_review_gates.md`](./core_review_gates.md) / [`core_review_agent.md`](./core_review_agent.md) /
+> [`api_review.md`](./api_review.md)、フロントは
+> [`../../frontend/docs/review_ui.md`](../../frontend/docs/review_ui.md)。
+> 設計と実装が食い違う場合は**実装とモジュールドキュメントが正**。
 
 ---
 
@@ -954,17 +961,23 @@ def test_edge_sample_suppresses_negated_mentions(...):
 | `frontend/src/App.tsx` | タブ切替を追加 | 低 |
 | `frontend/src/types.ts` | Review 型を追記（**CI 必須**） | 低 |
 
-### 10.3 実装順序
+### 10.3 実装順序（**全 STEP 完了**）
 
-1. `rulesets.py`（ec_ad 定義）+ テストデータ ← **LLM 不要で単体検証できる**
-2. `review_gates.py` + `test_review_gates.py` ← 純関数なのでテストが速い
-3. `jobs.py` 汎用化 + `test_jobs_generic.py` ← **Support の回帰をここで固める**
-4. `review_agent.py` + `test_review_agent_core.py`
-5. `api/review.py` + `schemas.py` + `meta.py` + `main.py` + `test_review_api.py`
-6. フロントエンド（`types.ts` → `reviewReducer` → コンポーネント → `App.tsx`）
-7. ドキュメント（`backend/docs/review_agent.md` を IPO 形式、`frontend/docs/*.md`）
+| STEP | 内容 | 状態 |
+|:--:|---|:--:|
+| 1 | `rulesets.py`（ec_ad 定義）+ テストデータ ← **LLM 不要で単体検証できる** | ✅ |
+| 2 | `review_gates.py` + `test_review_gates.py` ← 純関数なのでテストが速い | ✅ |
+| 3 | `jobs.py` 汎用化 + `test_jobs_generic.py` ← **Support の回帰をここで固める** | ✅ |
+| 4 | `review_agent.py` + `test_review_agent_core.py` | ✅ |
+| 5 | `api/review.py` + `schemas.py` + `meta.py` + `main.py` + `test_review_api.py` | ✅ |
+| 6 | フロントエンド（`types.ts` → `reviewReducer` → コンポーネント → `App.tsx`） | ✅ |
+| 7 | ドキュメント（IPO 形式のモジュール仕様、`frontend/docs/*.md`） | ✅ |
 
-各ステップで CI 4 ゲート（`ruff` / `pytest backend` / `compileall` / `frontend`）を通す。
+各ステップで CI 4 ゲート（`ruff` / `pytest backend` / `compileall` / `frontend`）を通した。
+
+> 📝 STEP7 のドキュメントは計画時の `backend/docs/review_agent.md` ではなく、
+> モジュール単位に分割して **`core_review_agent.md` / `core_review_gates.md` /
+> `core_rulesets.md` / `api_review.md`** として作成した（1 モジュール 1 ドキュメントの規約に合わせた）。
 
 ---
 
@@ -989,3 +1002,4 @@ def test_edge_sample_suppresses_negated_mentions(...):
 | バージョン | 変更内容 |
 |-----------|---------|
 | 1.0 | 初版作成。パイプライン ①〜⑦、`ReviewFinding` スキーマ、`ec_ad` RuleSet（21ルール）、ジョブ基盤の汎用化方針、API / フロント設計、テスト方針、実装計画を記述 |
+| 1.1 | ステータスを「レビュー待ち（未実装）」→「実装済み（STEP1〜7 完了・master マージ済み）」へ更新（計画された新規ファイル・テスト・テストデータの実在を確認済み）。§10.3 を STEP 別の完了表に変更し、STEP7 のドキュメントが計画時の単一 `review_agent.md` ではなくモジュール単位 4 本として作成された旨を追記。冒頭に「設計書と実装が食い違う場合は実装とモジュールドキュメントが正」の位置づけを明記 |

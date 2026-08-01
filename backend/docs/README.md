@@ -1,14 +1,28 @@
 # backend/ ドキュメント整備インデックス
 
-**Version 1.5** | 最終更新: 2026-07-29
+**Version 1.6** | 最終更新: 2026-08-01
 
-> ✅ **本インデックス掲載のモジュール仕様（IPO）9 ファイルはすべて作成済み**（§4 参照）。
+> ✅ **本インデックス掲載のモジュール仕様（IPO）13 ファイルはすべて作成済み**（§4 参照）。
 
-`backend/`（GRACE-Support Web API: FastAPI + コアサービス）配下のモジュールについて、
+`backend/`（GRACE Web API: FastAPI + コアサービス）配下のモジュールについて、
 アーキテクチャ・処理フロー・データフローの全体像と、ドキュメント作成対象・出力先・進捗を
 一覧化した資料。個別モジュールの詳細ドキュメントは IPO 形式
 （`.claude/skills/grace-agent-docs/a_class_method_md_format.md`）で作成し、
 **`backend/docs/<module>.md`**（本 README と同じディレクトリ）に配置する。
+
+### エージェントは 2 つ
+
+`backend/app/` は**2 つの自律型エージェント**を提供する。両者は**ジョブ基盤
+（`core/jobs.py`）・SSE・HITL ブリッジ・アクション実行を共有**し、違うのは
+パラメータ型・結果型・パイプライン中身だけである。
+
+| エージェント | 何をするか | コア | ルータ |
+|---|---|---|---|
+| **GRACE-Support**（問い合わせ → 回答） | 問い合わせに内部 RAG ＋ Web 裏取りで答え、確度が足りなければ有人へ倒す | `core/support_agent.py` | `/api/support/*` |
+| **GRACE-Review**（文書 → 指摘） | 文書を規程（景表法・特商法・薬機法）に照らし、根拠条文つきの指摘を返す | `core/review_agent.py` | `/api/review/*` |
+
+> 📌 **Support は CLI と Web の両方**から同じコアを通るが、**Review は Web 専用**
+> （CLI エントリポイントは存在しない）。
 
 ---
 
@@ -16,7 +30,9 @@
 
 0. [アプリの実行方法（クイックスタート）](#0-アプリの実行方法クイックスタート)
 1. [アーキテクチャ構成図](#1-アーキテクチャ構成図)
-2. [処理フロー（GRACE-Support パイプライン ①〜⑥）](#2-処理フローgrace-support-パイプライン-)
+2. [処理フロー](#2-処理フロー)
+   - [2-1. GRACE-Support パイプライン（①〜⑥）](#2-1-grace-support-パイプライン)
+   - [2-2. GRACE-Review パイプライン（S1・①〜⑦）](#2-2-grace-review-パイプライン)
 3. [データフロー（Web リクエスト → SSE → HITL 承認）](#3-データフローweb-リクエスト--sse--hitl-承認)
 4. [モジュール仕様（IPO 形式）一覧](#4-モジュール仕様ipo-形式一覧)
 5. [テスト仕様（SAE 形式）で扱うファイル](#5-テスト仕様sae-形式で扱うファイル)
@@ -28,8 +44,9 @@
 
 ## 0. アプリの実行方法（クイックスタート）
 
-GRACE-Support は **FastAPI（バックエンド, :8000）＋ Vite + React（フロントエンド, :5173）** の
+GRACE は **FastAPI（バックエンド, :8000）＋ Vite + React（フロントエンド, :5173）** の
 2 プロセス構成。**画面は :5173 で開く**（:8000 は API 専用で、`/` は 404 が正常）。
+Support / Review はフロントの**タブ切替**で使い分ける（同一プロセス・同一ジョブ基盤）。
 
 > 📦 初回のインストール・環境構築（uv / Node / Docker / `.env` / トラブルシュート）は
 > **[`install_and_setup.md`](./install_and_setup.md)** を参照。以下は導入済み前提の起動手順。
@@ -74,13 +91,25 @@ npm run dev
 ブラウザで **http://localhost:5173** を開く。フロントの `/api/*` は Vite の proxy
 （`frontend/vite.config.ts`）で :8000 の FastAPI へ中継される（SSE 進捗も同経路）。
 
-**CLI 版**（従来どおり・コア共有）:
+**CLI 版**（Support のみ・コア共有）:
 
 ```bash
 uv run python agent_support_example.py --vertical ec "返品したい"
 ```
 
+> ⚠️ **Review に CLI は無い。** `run_review_agent_core()` を直接呼ぶことは可能だが、
+> エントリポイントスクリプトは存在しないため、動作確認は :5173 の Review タブか
+> `POST /api/review/submit` を使う。
+
 **動作確認だけ**したい場合: `http://localhost:8000/api/health`（APIキー設定の有無を返す）。
+
+**API の入口**（詳細は [`api_support.md`](./api_support.md) / [`api_review.md`](./api_review.md)）:
+
+| エージェント | 起動 | 進捗（SSE） | HITL 応答 | 結果 |
+|---|---|---|---|---|
+| Support | `POST /api/support/query` | `GET /api/support/stream/{job_id}` | `POST /api/support/confirm/{job_id}` | `GET /api/support/result/{job_id}` |
+| Review | `POST /api/review/submit` | `GET /api/review/stream/{job_id}` | `POST /api/review/confirm/{job_id}` | `GET /api/review/result/{job_id}` |
+| メタ | `GET /api/verticals`（Support のプロファイル）・`GET /api/rulesets`（Review のルールセット）・`GET /api/health` | | | |
 
 ---
 
@@ -90,29 +119,38 @@ uv run python agent_support_example.py --vertical ec "返品したい"
 コアパイプライン層（判定ロジック）」の 3 層で、LLM 呼び出し・RAG 検索・Web 検索などの
 実行部品はリポジトリルートの **GRACE フレームワーク（`grace/`）** と `support_actions.py` に委譲する。
 
+**ジョブ層より上は 2 エージェントで完全に共通**、分岐するのはコアパイプライン層だけ。
+
 ```mermaid
 flowchart TB
     subgraph CLIENT["クライアント層"]
-        REACT["Vite + React (:5173)<br>/api は proxy で :8000 へ中継"]
-        CLI["CLI: agent_support_example.py<br>（コア共有・print 出力）"]
+        REACT["Vite + React (:5173)<br>Support / Review タブ切替<br>/api は proxy で :8000 へ中継"]
+        CLI["CLI: agent_support_example.py<br>（Support のみ・コア共有・print 出力）"]
     end
 
     subgraph APILAYER["API 層 (FastAPI :8000)"]
         MAIN["main.py<br>app 生成・CORS・ルーター結線"]
-        SUPPORT["api/support.py<br>POST /query (202)<br>GET /stream/{job_id} (SSE)<br>POST /confirm/{job_id}<br>GET /result/{job_id}"]
-        META["api/meta.py<br>GET /api/verticals<br>GET /api/health"]
+        SUPPORTAPI["api/support.py<br>/api/support/*<br>query / stream(SSE) / confirm / result"]
+        REVIEWAPI["api/review.py<br>/api/review/*<br>submit / stream(SSE) / confirm / result"]
+        META["api/meta.py<br>GET /api/verticals<br>GET /api/rulesets<br>GET /api/health"]
         SCHEMAS["schemas.py<br>Pydantic リクエスト/レスポンス/イベント型"]
     end
 
-    subgraph JOBLAYER["ジョブ層 (backend/app/core)"]
-        JOBS["jobs.py<br>JobManager / SupportJob<br>ワーカースレッド実行・イベント蓄積<br>インメモリ（完了 50 件で GC）"]
+    subgraph JOBLAYER["ジョブ層（2 エージェント共通）"]
+        JOBS["jobs.py<br>JobManager / Job<br>runner 注入（params 型で解決）<br>インメモリ（完了 50 件で GC）"]
         BRIDGE["intervention_bridge.py<br>InterventionBridge<br>HITL 承認の同期⇔非同期変換<br>タイムアウト時は安全側（実行せず有人へ）"]
     end
 
-    subgraph CORELAYER["コアパイプライン層 (backend/app/core)"]
-        AGENT["support_agent.py<br>run_support_agent_core()<br>①〜⑥ イベント発行型パイプライン"]
+    subgraph SUPPORTCORE["コア: GRACE-Support"]
+        AGENT["support_agent.py<br>run_support_agent_core()<br>①〜⑥ イベント発行型"]
         GATES["gates.py<br>回答ゲート・強制エスカレ・<br>情報なし検知・救済（純関数群）"]
-        VERT["verticals.py<br>PROFILES (gov / saas / ec)<br>検索スコープ・しきい値・本人確認"]
+        VERT["verticals.py<br>PROFILES (gov / saas / ec)"]
+    end
+
+    subgraph REVIEWCORE["コア: GRACE-Review"]
+        RAGENT["review_agent.py<br>run_review_agent_core()<br>S1・①〜⑦ イベント発行型"]
+        RGATES["review_gates.py<br>二段判定・誤検知抑止・<br>救済・重大度（純関数群）"]
+        RULES["rulesets.py<br>RULESETS (ec_ad・21 ルール)"]
     end
 
     subgraph GRACEFW["GRACE フレームワーク（リポジトリルート）"]
@@ -130,21 +168,34 @@ flowchart TB
     end
 
     REACT --> MAIN
-    MAIN --> SUPPORT
+    MAIN --> SUPPORTAPI
+    MAIN --> REVIEWAPI
     MAIN --> META
-    SUPPORT --> SCHEMAS
-    SUPPORT --> JOBS
+    SUPPORTAPI --> SCHEMAS
+    REVIEWAPI --> SCHEMAS
+    SUPPORTAPI --> JOBS
+    REVIEWAPI --> JOBS
     META --> VERT
+    META --> RULES
     JOBS --> BRIDGE
     JOBS --> AGENT
+    JOBS --> RAGENT
     BRIDGE --> AGENT
+    BRIDGE --> RAGENT
     CLI --> AGENT
     AGENT --> GATES
     AGENT --> VERT
+    RAGENT --> RGATES
+    RAGENT --> RULES
+    RAGENT --> AGENT
     AGENT --> PLANNER
     AGENT --> VERIFIER
     AGENT --> HANDLER
     AGENT --> ACTIONS
+    RAGENT --> PLANNER
+    RAGENT --> VERIFIER
+    RAGENT --> HANDLER
+    RAGENT --> ACTIONS
     HANDLER --> BRIDGE
     PLANNER --> ANTHROPIC
     PLANNER --> GEMINI
@@ -152,13 +203,15 @@ flowchart TB
     PLANNER --> WEB
     VERIFIER --> ANTHROPIC
     GATES --> ANTHROPIC
+    RGATES --> ANTHROPIC
 classDef default fill:#000,stroke:#fff,color:#fff
 classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
-class REACT,CLI,MAIN,SUPPORT,META,SCHEMAS,JOBS,BRIDGE,AGENT,GATES,VERT,PLANNER,VERIFIER,HANDLER,ACTIONS,ANTHROPIC,GEMINI,QDRANT,WEB default
+class REACT,CLI,MAIN,SUPPORTAPI,REVIEWAPI,META,SCHEMAS,JOBS,BRIDGE,AGENT,GATES,VERT,RAGENT,RGATES,RULES,PLANNER,VERIFIER,HANDLER,ACTIONS,ANTHROPIC,GEMINI,QDRANT,WEB default
 style CLIENT fill:#1a1a1a,stroke:#fff,color:#fff
 style APILAYER fill:#1a1a1a,stroke:#fff,color:#fff
 style JOBLAYER fill:#1a1a1a,stroke:#fff,color:#fff
-style CORELAYER fill:#1a1a1a,stroke:#fff,color:#fff
+style SUPPORTCORE fill:#1a1a1a,stroke:#fff,color:#fff
+style REVIEWCORE fill:#1a1a1a,stroke:#fff,color:#fff
 style GRACEFW fill:#1a1a1a,stroke:#fff,color:#fff
 style EXTERNAL fill:#1a1a1a,stroke:#fff,color:#fff
 ```
@@ -168,13 +221,29 @@ style EXTERNAL fill:#1a1a1a,stroke:#fff,color:#fff
 - **CLI と Web は同一コア**を共有する。`run_support_agent_core()` は入出力を
   `emit`（進捗イベント）/ `confirm`（HITL 承認）のコールバックに抽象化しており、
   CLI は print / 自動承認、Web は SSE / `InterventionBridge` を配線するだけの違い。
-- **Web 側に自動承認を持ち込まない**（受け入れ条件 §5-2）。副作用のあるアクションは
-  必ずフロントの承認（CONFIRM モーダル）を経由し、タイムアウト時は実行せず有人対応へ倒す。
+  Review も同じ形（`run_review_agent_core()`）だが、CLI エントリポイントは持たない。
+- **ジョブ基盤は runner 注入で汎用化**されている。`job_manager.start(params)` が
+  `params` の型（`JobParams` / `ReviewParams`）から runner を解決するため、
+  `jobs.py` は Review 側のモジュールを一切知らない（循環 import も起きない）。
+  runner の登録は各コアが import 時に `register_runner()` で行う。
+- **Review は Support の機構を再利用する**。`GroundednessVerifier` を
+  「主張が出典で裏付けられるか」→「**指摘が規程で裏付けられるか**」と読み替え、
+  `_perform_action` / `ActionBackend` / `InterventionBridge` はそのまま使う。
+  新規実装は Segment / Detect / Severity の 3 つだけ。
+- **Web 側に自動承認を持ち込まない**。副作用のあるアクションは必ずフロントの承認
+  （CONFIRM モーダル）を経由し、タイムアウト時は実行せず有人対応へ倒す。
 - ジョブ管理はローカル開発用の**インメモリ・シングルプロセス前提**（永続化なし）。
+- **設定はリクエスト単位で `copy.deepcopy`**（P-08）。両コアとも検索スコープ・方針を
+  config へ書き込むため、シングルトンのままだとジョブ間で値を奪い合う。
 
 ---
 
-## 2. 処理フロー（GRACE-Support パイプライン ①〜⑥）
+## 2. 処理フロー
+
+2 エージェントとも「ステップ列を `step`（started / finished / skipped）イベントとして
+SSE へ配信し、UI のタイムラインと 1:1 対応させる」構造は同じ。中身だけが異なる。
+
+### 2-1. GRACE-Support パイプライン
 
 `run_support_agent_core()`（`core/support_agent.py`）が実行するステップ列。
 各ステップは `step`（started / finished / skipped）イベントとして SSE に配信され、
@@ -218,7 +287,8 @@ classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
 class START,KEY,ERR,S1,P1,P2,P3,P4,FORCE,FESC,RESCUE,RESC,WEBQ,P5,NOINFO,NOINFO2,TOESC,P6,IDCHK,NOEXEC,HITL,CONFIRM,EXEC,DONE default
 ```
 
-**判定ロジックの要点**（詳細は [`core_gates.md`](./core_gates.md) / [`core_support_agent.md`](./core_support_agent.md)）:
+**判定ロジックの要点**（詳細は [`core_gates.md`](./core_gates.md) / [`core_support_agent.md`](./core_support_agent.md) /
+ステップ別の IPO は [`backend_flow.md`](./backend_flow.md)）:
 
 | 機構 | 目的 | 実装 |
 |------|------|------|
@@ -231,10 +301,94 @@ class START,KEY,ERR,S1,P1,P2,P3,P4,FORCE,FESC,RESCUE,RESC,WEBQ,P5,NOINFO,NOINFO2
 
 ---
 
+### 2-2. GRACE-Review パイプライン
+
+`run_review_agent_core()`（`core/review_agent.py`）が実行するステップ列。
+Support が「問い合わせ → 回答」なのに対し、**「文書 → 指摘」**と情報の流れが逆になる。
+
+> ⚠️ **番号順 ≠ 実行順。** 番号は Support との**対応**を示す呼称で、実際の実行順は
+> `REVIEW_STEP_IDS` の並び **S1 → ① → ② → ③ → ④ → ④' → ⑥ → ⑤ → ⑦**。
+> **⑥ Web 裏取りが ⑤ Severity より先**に来る（Support で ④' が ⑤ の後に来るのと同じ事情）。
+
+```mermaid
+flowchart TB
+    START(["文書 document"]) --> KEY{"ANTHROPIC_API_KEY<br>設定済み？"}
+    KEY -- "未設定" --> ERR["error イベント → 終了"]
+    KEY -- "OK" --> S1["S1 ruleset: RuleSet 適用<br>検索スコープ・しきい値・重大リスク語<br>（既定 ec_ad・21 ルール）"]
+    S1 --> P1["① segment: 文書を検査単位へ分割<br>決定的・LLM 不使用<br>原文の文字オフセットを保持（UI ハイライト用）"]
+    P1 --> EMPTY{"セグメント 0 件<br>または RuleSet 未解決？"}
+    EMPTY -- "はい" --> DONE0(["空の result イベント → 終了"])
+    EMPTY -- "いいえ" --> LOOP["②〜④' セグメント × 候補ルールの二重ループ"]
+    LOOP --> P2["② retrieve: 規程を RAG 検索<br>（rag_search 無改造・limit 5）<br>0 件なら RuleItem.description へフォールバック"]
+    P2 --> P3["③ detect: 二段判定<br>第1段 キーワードで候補ルール抽出<br>→ 第2段 LLM で violates 判定"]
+    P3 --> P4["④ ground: GroundednessVerifier<br>「指摘が規程で裏付けられるか」<br>→ confidence = support_rate"]
+    P4 --> P5{"④' suppress: 状態判定<br>confirmed / review_required / suppressed"}
+    P5 -- "suppressed だが<br>矛盾なし・根拠あり・実質的" --> RESC["救済 → review_required"]
+    P5 -- "suppressed" --> SUP["findings から除外<br>（理由を記録・件数のみ集計）"]
+    P5 -- "confirmed / review_required" --> KEEP["findings に追加"]
+    RESC --> KEEP
+    KEEP --> GUARD{"LLM 呼び出しが<br>上限 300 に到達？"}
+    SUP --> GUARD
+    GUARD -- "はい" --> TRUNC["truncated=True で打ち切り"]
+    GUARD -- "いいえ・ループ継続" --> LOOP
+    TRUNC --> P6
+    LOOP --> P6{"⑥ web: use_web かつ指摘あり？"}
+    P6 -- "いいえ" --> P7
+    P6 -- "はい" --> WEBC["法改正・ガイドラインを確認<br>⚠️ 新しい指摘は作らない<br>web_checked を立てるだけ"]
+    WEBC --> P7["⑤ severity: 重大度の確定<br>adjust_severity（確信度で上下）<br>＋ 重大リスク語の二段判定で強制 high"]
+    P7 --> P8{"⑦ action: 指摘あり かつ do_action？"}
+    P8 -- "いいえ" --> DONE
+    P8 -- "high あり" --> ESC["escalate_to_human<br>（承認不要・引き継ぎの取りこぼし防止）"]
+    P8 -- "high なし" --> TICKET["create_ticket（要承認）<br>→ HITL CONFIRM 待ち"]
+    ESC --> EXEC["ActionBackend で実行<br>（dry-run / webhook / pseudo）<br>本人確認は不要"]
+    TICKET -- "承認" --> EXEC
+    TICKET -- "拒否 / タイムアウト" --> NOEXEC["実行せず有人対応へ"]
+    EXEC --> DONE(["result イベント（ReviewResult）"])
+    NOEXEC --> DONE
+classDef default fill:#000,stroke:#fff,color:#fff
+classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
+class START,KEY,ERR,S1,P1,EMPTY,DONE0,LOOP,P2,P3,P4,P5,RESC,SUP,KEEP,GUARD,TRUNC,P6,WEBC,P7,P8,ESC,TICKET,EXEC,NOEXEC,DONE default
+```
+
+**判定ロジックの要点**（詳細は [`core_review_gates.md`](./core_review_gates.md) /
+[`core_review_agent.md`](./core_review_agent.md) / ステップ別の IPO は [`review_flow.md`](./review_flow.md)）:
+
+| 機構 | 目的 | 実装 |
+|------|------|------|
+| ① 決定的分割 | 空行→段落、箇条書き・見出しは行単位、400 字超は文末で再分割。**原文オフセットを保持**（正規化するとハイライトがずれる） | `split_segments` |
+| ③ 二段判定 | 第1段のキーワードで候補ルールを絞り、第2段の LLM で違反判定。全組合せを流すと 200×21=4,200 回になるため | `select_candidate_rules` + `create_violation_detector` |
+| 組合せ爆発ガード | `MAX_SEGMENTS=200` / `MAX_LLM_CALLS=300` で必ず打ち切り、`truncated` に記録 | `run_review_agent_core` 内 |
+| ④ Ground | Support の `GroundednessVerifier` をそのまま流用し、「指摘が規程で裏付けられるか」を検証 | `create_groundedness_verifier` |
+| ④' 抑止 + 救済 | 根拠不足・実質性なしを `suppressed` で落とす。ただし「矛盾なし・根拠あり」は保留として救済 | `decide_finding_status` + `should_rescue_finding` |
+| ⑥ Web 裏取り | 法改正の確認**のみ**。⚠️ Web を根拠に新しい指摘は作らない（出典の信頼性を担保できない）。既定 OFF | `_web_crosscheck` |
+| ⑤ 強制 high（二段判定） | 重大リスク語の一致 → 言及種別の分類で「単なる言及」の誤検知を抑止 | `should_force_high` + `create_mention_classifier` |
+| ⑦ Action | high があれば `escalate_to_human`（承認不要）、無ければ `create_ticket`（要承認）。**本人確認は不要** | `_decide_review_action` + `_perform_action` |
+
+**Support との対応関係**:
+
+| 観点 | GRACE-Support | GRACE-Review |
+|---|---|---|
+| 入力 | 問い合わせ（短文） | 文書（長文・最大 `MAX_DOCUMENT_CHARS`） |
+| 出力 | 回答 ＋ 出典 ＋ decision | 指摘リスト ＋ 根拠条文 ＋ severity |
+| 検証の読み替え | 回答の主張が出典で裏付けられるか | **指摘が規程で裏付けられるか** |
+| 二段判定の用途 | 強制エスカレ・情報なし検知 | 違反検出・強制 high |
+| 本人確認 | プロファイル次第（`ec` は必須） | **不要** |
+| Web の役割 | 内部で答えられない時の**フォールバック**（回答を作る） | 法改正の**裏取り**（判定は変えない） |
+| CLI | あり（`agent_support_example.py`） | **なし**（Web 専用） |
+
+---
+
 ## 3. データフロー（Web リクエスト → SSE → HITL 承認）
 
-1 クエリ = 1 ジョブ。パイプラインはワーカースレッドで実行され、進捗は `SupportJob.events`
+1 リクエスト = 1 ジョブ。パイプラインはワーカースレッドで実行され、進捗は `Job.events`
 に蓄積される。SSE は**常に先頭からリプレイ**されるため、再接続・途中購読でも取りこぼさない。
+
+> 📌 **この流れは 2 エージェント共通。** 以下は Support で描くが、Review も
+> エンドポイントが `/api/review/*`、パラメータが `ReviewParams`、結果が `ReviewResult`
+> に変わるだけで、ジョブ起動・SSE・HITL・結果取得の構造は**完全に同一**
+> （`api/review.py` は `api/support.py` と同じ形をしている）。
+> イベント形式も同一（`data: {SupportEventModel の JSON}`・イベント名なし・末尾に done 番兵）
+> なので、**フロントは同じパーサを使える**。
 
 ```mermaid
 %%{ init: { "theme": "base", "themeVariables": {
@@ -245,13 +399,13 @@ class START,KEY,ERR,S1,P1,P2,P3,P4,FORCE,FESC,RESCUE,RESC,WEBQ,P5,NOINFO,NOINFO2
   "noteTextColor": "#ffffff", "noteBorderColor": "#ffffff" } } }%%
 sequenceDiagram
     participant B as "ブラウザ (React :5173)"
-    participant A as "FastAPI (api/support)"
+    participant A as "FastAPI (api/support | api/review)"
     participant J as "JobManager (core/jobs)"
-    participant W as "ワーカースレッド (run_support_agent_core)"
+    participant W as "ワーカースレッド (runner)"
     participant BR as "InterventionBridge"
 
     B->>A: POST /api/support/query {query, vertical, ...}
-    A->>J: start(JobParams)
+    A->>J: start(JobParams) — params 型で runner を解決
     J->>W: スレッド起動（emit=job.emit, confirm=bridge.resolver）
     A-->>B: 202 Accepted {job_id, stream_url}
 
@@ -319,7 +473,7 @@ sequenceDiagram
 |---|---|---:|---:|---|---|:--:|
 | 6 | `backend/app/api/support.py` | 83 | 4 | `/api/support/*`（query / stream(SSE) / confirm / result） | [`api_support.md`](./api_support.md) | ✅ |
 | 7 | `backend/app/core/support_agent.py` | 568 | 5 | ★コア（①〜⑥ イベント発行型パイプライン） | [`core_support_agent.md`](./core_support_agent.md) | ✅ |
-| 8 | `backend/app/core/gates.py` | 393 | 14 | 回答ゲート/強制エスカレ/情報なし検知/救済（純関数群） | [`core_gates.md`](./core_gates.md) | ✅ |
+| 8 | `backend/app/core/gates.py` | 393 | 15 | 回答ゲート/強制エスカレ/情報なし検知/救済/出典整形（純関数群） | [`core_gates.md`](./core_gates.md) | ✅ |
 | 9 | `backend/app/core/verticals.py` | 123 | 2 | VerticalProfile 定義（gov / saas / ec） | [`core_verticals.md`](./core_verticals.md) | ✅ |
 
 #### GRACE-Review（文書 → 指摘）
@@ -331,7 +485,8 @@ sequenceDiagram
 | 12 | `backend/app/core/review_gates.py` | 418 | 12 | 二段判定・指摘ゲート・誤検知抑止・重大度（純関数群＋ファクトリ） | [`core_review_gates.md`](./core_review_gates.md) | ✅ |
 | 13 | `backend/app/core/rulesets.py` | 450 | 5 | RuleSet 定義（ec_ad・21 ルール） | [`core_rulesets.md`](./core_rulesets.md) | ✅ |
 
-> **設計書**: GRACE-Review の全体設計は [`review_agent_spec.md`](./review_agent_spec.md) にある。
+> **設計書**: GRACE-Review の全体設計は [`review_agent_spec.md`](./review_agent_spec.md)（実装済み）。
+> **ステップ別 IPO**: Support は [`backend_flow.md`](./backend_flow.md)、Review は [`review_flow.md`](./review_flow.md)。
 > **フロントエンド**: Review の UI は [`../../frontend/docs/review_ui.md`](../../frontend/docs/review_ui.md)。
 
 **ドキュメント不要（対象外）**: いずれも空ファイル（0 行）—
@@ -372,11 +527,17 @@ sequenceDiagram
 
 モジュール仕様（IPO・§4）以外に、`backend/docs/` には以下の横断ドキュメントがある。
 
-| ファイル | 内容 |
-|---|---|
-| [`install_and_setup.md`](./install_and_setup.md) | インストール・環境設定ガイド（uv / Node / Docker / `.env` / トラブルシュート） |
-| [`react_processing_flow.md`](./react_processing_flow.md) | `run_dev.sh` 起点の React ↔ FastAPI 処理フロー詳細 |
-| [`confidence_flow_grace_vs_backend.md`](./confidence_flow_grace_vs_backend.md) | 信頼度測定フローの比較（`grace/` 自律エージェント本体 vs `backend/app/` Web 判定層） |
+| ファイル | 対象 | 内容 |
+|---|:--:|---|
+| [`install_and_setup.md`](./install_and_setup.md) | 共通 | インストール・環境設定ガイド（uv / Node / Docker / `.env` / トラブルシュート） |
+| [`react_processing_flow.md`](./react_processing_flow.md) | 共通 | `run_dev.sh` 起点の React ↔ FastAPI 処理フロー詳細 |
+| [`confidence_flow_grace_vs_backend.md`](./confidence_flow_grace_vs_backend.md) | 共通 | 信頼度測定フローの比較（`grace/` 自律エージェント本体 vs `backend/app/` Web 判定層） |
+| [`backend_flow.md`](./backend_flow.md) | Support | 処理フロー ステップ詳細 (0)〜(8)（実装関数・シグネチャ・IPO・戻り値例） |
+| [`review_flow.md`](./review_flow.md) | Review | 処理フロー ステップ詳細 S1・①〜⑦（同上） |
+| [`review_agent_spec.md`](./review_agent_spec.md) | Review | 設計書（意図と判断の記録）。**実装後はモジュール仕様が正** |
+
+> 📝 `backend_flow.md` は元々 `backend/app/` にあったが、CLAUDE.md §7.1
+> （backend のドキュメントは `backend/docs/`）に合わせて本ディレクトリへ移設した。
 
 ---
 
@@ -385,19 +546,27 @@ sequenceDiagram
 ```
 backend/
 ├── app/
-│   ├── main.py                     # FastAPI 起動・CORS・ルーター結線
-│   ├── schemas.py                  # Pydantic: リクエスト/レスポンス/イベント
+│   ├── main.py                     # FastAPI 起動・CORS・ルーター結線（support / review / meta）
+│   ├── schemas.py                  # Pydantic: リクエスト/レスポンス/イベント（Support + Review）
 │   ├── api/
-│   │   ├── support.py              # POST /api/support/query, GET /stream(SSE), POST /confirm, GET /result
-│   │   └── meta.py                 # GET /api/verticals, GET /api/health
+│   │   ├── support.py              # /api/support/*  query / stream(SSE) / confirm / result
+│   │   ├── review.py               # /api/review/*   submit / stream(SSE) / confirm / result
+│   │   └── meta.py                 # GET /api/verticals, /api/rulesets, /api/health
 │   └── core/
-│       ├── support_agent.py        # ★コアサービス（①〜⑥ イベント発行型パイプライン）
-│       ├── gates.py                # 回答ゲート/強制エスカレ/情報なし検知/救済（純関数）
+│       │  ── 共通（2 エージェントで共有）──
+│       ├── jobs.py                 # ジョブ管理（runner 注入・インメモリ・スレッド実行）
 │       ├── intervention_bridge.py  # HITL ↔ フロント承認の非同期ブリッジ
-│       ├── jobs.py                 # ジョブ管理（インメモリ・スレッド実行）
-│       └── verticals.py            # VerticalProfile 定義（gov / saas / ec）
+│       │  ── GRACE-Support ──
+│       ├── support_agent.py        # ★コア（①〜⑥ イベント発行型パイプライン）
+│       ├── gates.py                # 回答ゲート/強制エスカレ/情報なし検知/救済（純関数）
+│       ├── verticals.py            # VerticalProfile 定義（gov / saas / ec）
+│       │  ── GRACE-Review ──
+│       ├── review_agent.py         # ★コア（S1・①〜⑦ イベント発行型パイプライン）
+│       ├── review_gates.py         # 二段判定/誤検知抑止/救済/重大度（純関数）
+│       └── rulesets.py             # RuleSet 定義（ec_ad・21 ルール）
 ├── docs/                           # ← 本 README とモジュールドキュメント（IPO形式）の配置先
 └── tests/                          # pytest（スタブベース・API キー不要）
+    └── data/                       # Review のテストデータ（ec_ad_{ok,ng,edge}_sample.txt）
 ```
 
 ---
@@ -410,5 +579,6 @@ backend/
 | 1.1 | モジュール仕様（IPO）残り 8 ファイル（schemas / api_support / api_meta / core_support_agent / core_gates / core_jobs / core_intervention_bridge / core_verticals）を作成し、状態列を全て「作成済」に更新 |
 | 1.2 | 先頭に「§0 アプリの実行方法（クイックスタート）」を追加し、`install_and_setup.md`（インストール・環境設定）へのリンクを追記 |
 | 1.3 | §0 に「最短（1 コマンド `./run_dev.sh`）」の起動方法を追加（backend + frontend を一括起動） |
-| 1.5 | GRACE-Review の追加に追随（PR #37〜#43）: モジュール一覧を Support / Review / 共通の 3 区分へ再編し、Review の 4 モジュール（`review_agent` / `review_gates` / `rulesets` / `api_review`）を追加。行数を実測に更新。テスト一覧に Review の 4 ファイルとフロントの vitest を追記 |
 | 1.4 | 実コード再読による全面最新化: §1 アーキテクチャ構成図（6 層）・§2 処理フロー（パイプライン ①〜⑥＋二段判定・救済・HITL）・§3 データフロー（SSE / HITL 承認のシーケンス図）を新設。ドキュメント出力先の誤記を実配置（`backend/docs/`）に修正し、各ドキュメントへのリンクを追加。行数を実測に更新（support_agent 538 / gates 374 / test_support_agent_core 235）。補足ドキュメント一覧（§6）を追加し、目次を整備 |
+| 1.5 | GRACE-Review の追加に追随（PR #37〜#43）: モジュール一覧を Support / Review / 共通の 3 区分へ再編し、Review の 4 モジュール（`review_agent` / `review_gates` / `rulesets` / `api_review`）を追加。行数を実測に更新。テスト一覧に Review の 4 ファイルとフロントの vitest を追記 |
+| 1.6 | **2 エージェント構成へ全面改訂**: 冒頭に Support / Review の対比表を追加（Review は Web 専用＝CLI なし）。§1 構成図に Review のコア 3 モジュール・`api/review.py` を追加し、ジョブ層が runner 注入で共通化されている点・Review が Support の機構を再利用する点・P-08 の設定分離を設計の要点へ追記。§2 を 2-1（Support）/ 2-2（Review）に分割し、Review のパイプライン図（S1・①〜⑦）＋判定ロジック表＋Support との対応関係表を新設（**番号順 ≠ 実行順**、⑥ Web が ⑤ Severity より先である点を明記）。§0 に両エージェントのエンドポイント表と「Review に CLI は無い」注記を追加。§3 に 2 エージェント共通である旨を明記。§6 に `backend_flow.md`（移設）・`review_flow.md`（新規）・`review_agent_spec.md` を掲載。§7 構成ツリーを Review 込みへ更新。`gates.py` の関数数を実測に修正（14 → 15） |
