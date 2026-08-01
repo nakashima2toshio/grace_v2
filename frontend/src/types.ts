@@ -71,6 +71,12 @@ export interface QueryParams {
   use_web: boolean;
   do_action: boolean;
   verbose: boolean;
+  /**
+   * 本人確認の識別子（CLI の --identity KEY=VALUE 相当）。
+   * 実際に照合されるのは require_identity のプロファイル（ec）かつ
+   * dry_run=false かつ SUPPORT_IDENTITY_FILE 設定時のみ。
+   */
+  identity?: Record<string, string> | null;
 }
 
 // ===========================================================================

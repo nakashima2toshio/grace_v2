@@ -98,6 +98,54 @@ class TestSupportRegression:
         # emit されたイベントが SSE 用に蓄積されること
         assert any(e["type"] == "log" for e in job.events)
 
+    def test_identity_is_passed_through_to_core(self, monkeypatch):
+        """`JobParams.identity` がコアへ素通しされること。
+
+        当初 `_support_runner` は `identity=None` を直書きしていた（画面から
+        本人確認の識別子を渡せなかった）。ここを固定して再発を防ぐ。
+        """
+        calls: List[Dict[str, Any]] = []
+
+        def fake_core(query, **kwargs):
+            calls.append({"query": query, **kwargs})
+            return SimpleNamespace(answer="ok", decision="answer")
+
+        monkeypatch.setattr(
+            "backend.app.core.jobs.run_support_agent_core", fake_core
+        )
+        monkeypatch.setattr(
+            "backend.app.core.jobs.result_to_dict", lambda r: {"answer": r.answer}
+        )
+
+        manager = JobManager()
+        identity = {"order_id": "1001", "email": "a@example.com"}
+        job = manager.start(JobParams(
+            query="返品したい", vertical="ec", identity=identity,
+        ))
+        _drain(job)
+
+        assert calls[0]["identity"] == identity
+        assert job.status == "completed"
+
+    def test_identity_defaults_to_none(self, monkeypatch):
+        """未指定なら None のまま（従来の呼び出し形を壊さない）。"""
+        calls: List[Dict[str, Any]] = []
+
+        monkeypatch.setattr(
+            "backend.app.core.jobs.run_support_agent_core",
+            lambda query, **kwargs: (
+                calls.append(kwargs), SimpleNamespace(answer="ok")
+            )[1],
+        )
+        monkeypatch.setattr(
+            "backend.app.core.jobs.result_to_dict", lambda r: {"answer": r.answer}
+        )
+
+        manager = JobManager()
+        _drain(manager.start(JobParams(query="パスワードを忘れました")))
+
+        assert calls[0]["identity"] is None
+
     def test_core_returning_none_marks_failed(self, monkeypatch):
         """コアが None（APIキー未設定）を返したら failed。"""
         monkeypatch.setattr(

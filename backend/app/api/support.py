@@ -30,6 +30,7 @@ def start_query(request: QueryRequest) -> QueryAccepted:
         use_web=request.use_web,
         do_action=request.do_action,
         verbose=request.verbose,
+        identity=request.identity,
     ))
     return QueryAccepted(job_id=job.job_id, stream_url=f"/api/support/stream/{job.job_id}")
 

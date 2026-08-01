@@ -1,6 +1,6 @@
 # GRACE アプリ（`./run_dev.sh`）- 画面・操作・プログラム対応 ドキュメント
 
-**Version 2.3** | 最終更新: 2026-08-01
+**Version 2.4** | 最終更新: 2026-08-01
 
 `./run_dev.sh` で起動するローカル開発アプリの README。**画面で何ができるか**、
 **操作がどのプログラム（コンポーネント・API・関数）に対応するか**、
@@ -35,14 +35,38 @@
 
 `./run_dev.sh` は、**FastAPI（:8000）＋ Vite + React（:5173）** の 2 プロセスを同時起動する
 ローカル開発用スクリプト。ブラウザで開くのは **http://localhost:5173** の 1 画面だけで、
-そこから**タブ切替**で 2 つのエージェントを使い分ける。
+そこから**タブ切替**で 3 つのメニューを使い分ける。
 
-| エージェント | コア | ルータ |
+| メニュー | 業界特化 | コア | ルータ |
+|---|---|---|---|
+| **基本版**（問い合わせ → 回答） | **なし** | `core/support_agent.py` | `/api/support/*` |
+| **GRACE-Support**（問い合わせ → 回答） | `VerticalProfile`（gov / saas / ec） | `core/support_agent.py` | `/api/support/*` |
+| **GRACE-Review**（文書 → 指摘） | `RuleSet`（ec_ad） | `core/review_agent.py` | `/api/review/*` |
+
+タブの並びは「**業界特化を足していく順**」である。基本版が素のパイプラインで、
+Support は `VerticalProfile`、Review は `RuleSet` を差し替えたもの。
+
+> 📌 **基本版と GRACE-Support は同一のパイプライン**（`run_support_agent_core`）を通る。
+> 違いは業界プロファイルを適用するかどうかだけなので、画面も
+> `SupportPanel` 1 つを `variant`（`basic` / `vertical`）で振り分けて共用する。
+> CLI（`agent_support_example.py`）が公開している操作は、この基本版タブで一通り行える。
+
+### 業界定義の 2 つはほぼ同型
+
+Support の `VerticalProfile` と Review の `RuleSet` は、**9 フィールド中 6 つが同名・同役**である。
+「共通パイプライン ＋ 差し替え可能な業界定義」がこのアプリの設計の芯にあたる。
+
+| 概念 | Support: `VerticalProfile` | Review: `RuleSet` |
 |---|---|---|
-| GRACE-Support（問い合わせ → 回答） | `core/support_agent.py` | `/api/support/*` |
-| GRACE-Review（文書 → 指摘） | `core/review_agent.py` | `/api/review/*` |
+| 表示名 | `name` | `name` |
+| 検索スコープ | `collections` | `collections` |
+| 危険語 | `escalate_keywords` | `critical_keywords` |
+| アクション対応 | `action_map` | `action_map` |
+| しきい値 | `notify_th` / `confirm_th` | `notify_th` / `confirm_th` |
+| 方針注入 | `prompt_addendum` | `prompt_addendum` |
+| 固有 | `require_identity` / `preferred_domains` | `rules` / `always_check_rules` |
 
-どちらのタブも**操作の型は同じ**である。
+どのタブも**操作の型は同じ**である。
 
 ```
 入力フォームに書く → 実行ボタン → ステップトレースが逐次流れる
@@ -117,7 +141,7 @@
 
 | 機能 | 説明 |
 |------|------|
-| タブ切替 | `GRACE-Support` / `GRACE-Review` を上部タブで切り替え |
+| タブ切替 | `基本版` / `GRACE-Support` / `GRACE-Review` を上部タブで切り替え |
 | 例文チップ | ワンクリックで入力欄に例を流し込む（Support 4 種・Review 2 種） |
 | 業界プロファイル選択 | Support: `gov` / `saas` / `ec`（`/api/verticals` から取得） |
 | ルールセット選択 | Review: `ec_ad`（`/api/rulesets` から取得） |
@@ -263,7 +287,7 @@ style SCREEN fill:#1a1a1a,stroke:#fff,color:#fff
 
 | 領域 | Support | Review |
 |---|---|---|
-| `header` | `GRACE-Support` / `GRACE-Review` の 2 タブ（共通） | 同左 |
+| `header` | `基本版` / `GRACE-Support` / `GRACE-Review` の 3 タブ（共通） | 同左 |
 | `p.panel-lead` | 「内部RAG＋出典 / Web裏取り・相互検証 / アクション＋HITL 承認」 | 「規程 RAG＋根拠検証（groundedness）で広告表示を点検し、条文つきの指摘を出します」 |
 | `form` | `QueryForm`（問い合わせ 1 行 + プロファイル + トグル） | `ReviewForm`（文書 textarea + ルールセット + トグル） |
 | バナー | `error-banner`（エラー）／`running-banner`「実行中…」 | 同左（文言は「点検中…」） |
@@ -316,22 +340,48 @@ style PANES fill:#1a1a1a,stroke:#fff,color:#fff
 
 ## 3. 画面・操作とプログラムの対応表
 
-### 3.1 GRACE-Support タブ
+### 3.1 基本版タブ / GRACE-Support タブ
+
+**両タブは同じ表**である（`SupportPanel` を `variant` で共用しているため）。
+違いは業界プロファイル関連の 2 行（#2・#4）だけで、**基本版ではこの 2 行が存在しない**
+（`vertical` は常に `null` で送られる）。
 
 | # | 画面上の操作 | UI コンポーネント | フロント処理 | API | バックエンド関数 |
 |---|---|---|---|---|---|
-| 1 | タブ「GRACE-Support」を押す | `App.tsx` `nav.tabs` | `setTab('support')` | — | — |
-| 2 | 画面表示時（自動） | `SupportPanel` | `useEffect` → `fetchVerticals()` | `GET /api/verticals` | `api/meta.py::list_verticals` |
+| 1 | タブを押す | `App.tsx` `nav.tabs` | `setTab('basic'\|'support')` → `SupportPanel variant` | — | — |
+| 2 | 画面表示時（自動）**※Support のみ** | `SupportPanel` | `useEffect` → `fetchVerticals()` | `GET /api/verticals` | `api/meta.py::list_verticals` |
 | 3 | 問い合わせを入力 | `QueryForm` `input[type=text]` | `setQuery` | — | — |
-| 4 | 業界プロファイルを選ぶ | `QueryForm` `select` | `setVertical` | — | `PROFILES`（表示元） |
-| 5 | dry-run を切り替え | `QueryForm` `checkbox` | `setDryRun` | — | — |
-| 6 | 詳細ログを切り替え | `QueryForm` `checkbox` | `setVerbose` | — | — |
-| 7 | 例文チップを押す | `QueryForm` `button.example-chip` | `setQuery` + `setVertical` | — | — |
-| 8 | **「送信」を押す** | `QueryForm` `button[type=submit]` | `onSubmit` → `SupportPanel.submit` → `startQuery()` | `POST /api/support/query` | `api/support.py::start_query` → `JobManager.start(JobParams)` |
-| 9 | （自動）進捗を受信 | `StepTimeline` | `subscribeStream()` → `dispatch({type:'event'})` | `GET /api/support/stream/{job_id}`（SSE） | `api/support.py::stream_events` → `Job.stream_events` |
-| 10 | ステップのログを開く | `Timeline` `details.step-logs` | （ブラウザ標準） | — | — |
-| 11 | **承認 / 拒否を押す** | `ConfirmModal` `button.approve` / `.reject` | `respond()` → `confirmIntervention()` | `POST /api/support/confirm/{job_id}` | `api/support.py::confirm_intervention` → `JobManager.confirm` |
-| 12 | 結果を読む | `AnswerCard` | `state.result` を描画 | （`result` イベント） | `run_support_agent_core` の戻り |
+| 4 | 業界プロファイルを選ぶ **※Support のみ** | `QueryForm` `select` | `setVertical` | — | `PROFILES`（表示元） |
+| 5 | **Web フォールバックを切り替え** | `QueryForm` `checkbox` | `setUseWeb`（`--no-web` 相当） | — | `run_support_agent_core(use_web=…)` |
+| 6 | **アクション実行を切り替え** | `QueryForm` `checkbox` | `setDoAction`（`--no-action` 相当） | — | `run_support_agent_core(do_action=…)` |
+| 7 | dry-run を切り替え | `QueryForm` `checkbox` | `setDryRun` | — | — |
+| 8 | 詳細ログを切り替え | `QueryForm` `checkbox` | `setVerbose` | — | — |
+| 9 | **本人確認の識別子を入力** | `QueryForm` `fieldset.identity-fields` | `setOrderId` / `setEmail`（`--identity` 相当） | — | `support_actions.IdentityVerifier.verify` |
+| 10 | 例文チップを押す | `QueryForm` `button.example-chip` | `setQuery`（+ Support なら `setVertical`） | — | — |
+| 11 | **「送信」を押す** | `QueryForm` `button[type=submit]` | `onSubmit` → `SupportPanel.submit` → `startQuery()` | `POST /api/support/query` | `api/support.py::start_query` → `JobManager.start(JobParams)` |
+| 12 | （自動）進捗を受信 | `StepTimeline` | `subscribeStream()` → `dispatch({type:'event'})` | `GET /api/support/stream/{job_id}`（SSE） | `api/support.py::stream_events` → `Job.stream_events` |
+| 13 | ステップのログを開く | `Timeline` `details.step-logs` | （ブラウザ標準） | — | — |
+| 14 | **承認 / 拒否を押す** | `ConfirmModal` `button.approve` / `.reject` | `respond()` → `confirmIntervention()` | `POST /api/support/confirm/{job_id}` | `api/support.py::confirm_intervention` → `JobManager.confirm` |
+| 15 | 結果を読む | `AnswerCard` | `state.result` を描画 | （`result` イベント） | `run_support_agent_core` の戻り |
+
+#### CLI（`agent_support_example.py`）との対応
+
+基本版タブは CLI の引数を**すべて**画面から操作できる。
+
+| CLI 引数 | 画面の操作 | 送信されるフィールド |
+|---|---|---|
+| `query` | 問い合わせ入力 | `query` |
+| `--vertical` | 業界プロファイル セレクタ（**Support タブのみ**） | `vertical` |
+| `--no-web` | Web フォールバック トグルをオフ | `use_web: false` |
+| `--no-action` | アクション実行 トグルをオフ | `do_action: false` |
+| `--dry-run` / `--no-dry-run` | dry-run トグル | `dry_run` |
+| `-v` / `--verbose` | 詳細ログ トグル | `verbose` |
+| `--identity KEY=VALUE` | 識別子欄（`order_id` / `email`） | `identity` |
+
+> ⚠️ **CLI と Web で HITL の扱いだけが違う。** CLI は非対話なので
+> `confirm=lambda _req: _AUTO_PROCEED`（自動承認・既定ドライランのため安全）だが、
+> Web は必ず `InterventionBridge.resolver` を通し、**人が承認するまで実行しない**。
+> 自動承認は CLI 限定であり Web 側へは持ち込まない。
 
 ### 3.2 GRACE-Review タブ
 
@@ -393,67 +443,122 @@ style PANES fill:#1a1a1a,stroke:#fff,color:#fff
 
 ### 4.1 共通ヘッダ（タブ切替）
 
-**概要**: 画面最上部。`h1` にアクティブなタブ名、その下にタブボタン 2 つ。
+**概要**: 画面最上部。`h1` にアクティブなタブ名、その下にタブボタン 3 つ。
 
 ```tsx
 // frontend/src/App.tsx
 const TABS = [
-  { id: 'support', label: 'GRACE-Support', description: '問い合わせ → 回答' },
-  { id: 'review',  label: 'GRACE-Review',  description: '文書 → 指摘' },
+  { id: 'basic',   label: '基本版',        description: '問い合わせ → 回答（業界特化なし）' },
+  { id: 'support', label: 'GRACE-Support', description: '問い合わせ → 回答（業界特化）' },
+  { id: 'review',  label: 'GRACE-Review',  description: '文書 → 指摘（業界特化）' },
 ];
-{tab === 'support' ? <SupportPanel /> : <ReviewPanel />}
+
+{tab === 'review'
+  ? <ReviewPanel />
+  : <SupportPanel key={tab} variant={tab === 'basic' ? 'basic' : 'vertical'} />}
 ```
 
 | 項目 | 内容 |
 |------|------|
 | **Input** | タブボタンのクリック |
-| **Process** | `setTab(id)` → 条件レンダリングで**非アクティブ側をアンマウント** |
+| **Process** | `setTab(id)` → 条件レンダリングで**非アクティブ側をアンマウント**。基本版 / Support は同じ `SupportPanel` を `variant` で振り分ける |
 | **Output** | 選択したパネルの描画。副作用: 離れた側の `EventSource` が `useEffect` のクリーンアップで閉じる |
 
 > ⚠️ **表示切替（CSS の hide）ではなくアンマウント**にしているのは、SSE 接続を
 > 確実に閉じるため。タブを離れた側のジョブは**サーバ側では走り続ける**が、
 > ブラウザは購読をやめる（再度そのタブへ戻っても購読は復元されない）。
 
+> ⚠️ **`key={tab}` は必須。** これが無いと基本版 ⇄ Support の切替で React が
+> `SupportPanel` のインスタンスを再利用してしまい、前のタブの reducer 状態と
+> SSE 購読が残る。`key` を変えることで**別コンポーネント扱いになり確実に作り直される**。
+
+> 📝 **基本版と Support を別コンポーネントに複製しない。** 両者は同一の
+> `run_support_agent_core` を通り、違いは業界プロファイルの有無だけ。複製すると
+> §3.1 の操作対応表もテストも二重管理になる。
+
 ---
 
-### 4.2 GRACE-Support 画面
+### 4.2 基本版 / GRACE-Support 画面
+
+**この節は 2 タブ共通**である（`SupportPanel` を `variant` で共用）。
+基本版との差分は業界プロファイル セレクタと例文チップの内容だけで、明示的に記す。
 
 #### 4.2.1 入力フォーム（`QueryForm`）
 
-**概要**: 問い合わせ 1 行入力＋オプション＋例文チップ。
+**概要**: 問い合わせ 1 行入力＋実行オプション＋本人確認の識別子＋例文チップ。
+**CLI の全引数がここに揃っている**（§3.1 の対応表を参照）。
 
 > 📷 **[S-02] Support 入力フォーム** — 業界プロファイルのセレクタを開いた状態で、
 > `gov（自治体）` `saas（SaaS）` `ec（EC・本人確認必須）` の 3 件が見えるように撮影。
+> 4 つのトグルと識別子欄も入るように。
 > <!-- ![S-02 Support 入力フォーム](docs/images/s-02-support-form.png) -->
 
-| UI 要素 | 種類 | 説明 |
-|---|---|---|
-| 問い合わせ入力 | `input[type=text]` | プレースホルダ「問い合わせ内容を入力（例: パスワードを忘れました）」 |
-| 送信ボタン | `button[type=submit]` | 実行中は「実行中…」になり **disabled**。空入力でも disabled |
-| 業界プロファイル | `select` | `（なし）` ＋ `/api/verticals` の一覧。`require_identity` なら「・本人確認必須」を併記 |
-| dry-run | `checkbox` | **既定 ON**。「アクションを実行せずログのみ」 |
-| 詳細ログ | `checkbox` | 既定 OFF。CLI の `-v` 相当 |
-| 例文チップ | `button.example-chip` × 4 | 押すと入力欄とプロファイルが同時に埋まる |
+| UI 要素 | 種類 | 既定 | 説明 |
+|---|---|---|---|
+| 問い合わせ入力 | `input[type=text]` | 空 | プレースホルダ「問い合わせ内容を入力（例: パスワードを忘れました）」 |
+| 送信ボタン | `button[type=submit]` | — | 実行中は「実行中…」になり **disabled**。空入力でも disabled |
+| 業界プロファイル **※Support のみ** | `select` | `（なし）` | `/api/verticals` の一覧。`require_identity` なら「・本人確認必須」を併記 |
+| Web フォールバック | `checkbox` | **ON** | オフで内部 RAG のみ（`--no-web` 相当） |
+| アクション実行 | `checkbox` | **ON** | オフで判定のみ（`--no-action` 相当） |
+| dry-run | `checkbox` | **ON** | アクションを実行せずログのみ |
+| 詳細ログ | `checkbox` | OFF | `-v` 相当 |
+| 本人確認の識別子 | `fieldset` `order_id` / `email` | 空 | `--identity` 相当。**常時表示**だが、本人確認が起動しない設定では disabled（下記） |
+| 例文チップ | `button.example-chip` | — | 基本版 2 件 / Support 4 件 |
 
-**例文チップの中身**（`QueryForm.tsx` の `EXAMPLES`）:
+**例文チップの中身**（`QueryForm.tsx`）:
 
-| ラベル | query | vertical |
+| タブ | 定数 | 中身 |
 |---|---|---|
-| パスワードを忘れました | パスワードを忘れました | （なし） |
-| gov: 住民票の写しの取り方は？ | 住民票の写しの取り方は？ | `gov` |
-| ec: 返品したい | 返品したい | `ec` |
-| saas: サービスが落ちています | サービスが落ちています | `saas` |
+| 基本版 | `BASIC_EXAMPLES` | 「パスワードを忘れました」「領収書は発行できますか？」（vertical なし） |
+| Support | `VERTICAL_EXAMPLES` | 上記＋`gov:` 住民票 / `ec:` 返品 / `saas:` 障害（押すとプロファイルも同時に切替） |
 
 | 項目 | 内容 |
 |------|------|
-| **Input** | `query`（必須・空白のみ不可）、`vertical`、`dry_run`、`verbose` |
-| **Process** | `submit()` が `trim()` して `QueryParams` を組み立てる。`use_web` と `do_action` は**画面に出さず常に `true` 固定** |
+| **Input** | `query`（必須・空白のみ不可）、`vertical`（Support のみ）、`use_web`、`do_action`、`dry_run`、`verbose`、`order_id` / `email` |
+| **Process** | `submit()` が `trim()` して `QueryParams` を組み立てる。基本版は `vertical` を**常に `null`** にする。識別子は `order_id` / `email` のどちらかが入っていれば `identity` として送り、両方空なら `null` |
 | **Output** | `onSubmit(QueryParams)` → `SupportPanel.submit()` |
 
 ```ts
-// 実際に送られる JSON（use_web / do_action は UI に無く常に true）
-{ query: "返品したい", vertical: "ec", dry_run: true, use_web: true, do_action: true, verbose: false }
+// 実際に送られる JSON（Support タブで ec を選び、識別子を入れた例）
+{
+  query: "返品したい", vertical: "ec",
+  use_web: true, do_action: true, dry_run: true, verbose: false,
+  identity: { order_id: "1001", email: "a@example.com" }
+}
 ```
+
+#### 4.2.2 本人確認の識別子が「効く条件」
+
+識別子欄は**常時表示**するが、実際に照合される経路は狭い。誤解を防ぐため
+`p.identity-note` に状態を必ず出す。
+
+| 状態 | 欄 | 表示されるメッセージ |
+|---|:--:|---|
+| 基本版タブ / `gov` / `saas`（`require_identity=false`） | **disabled** | 現在の設定では本人確認を行いません |
+| `ec` ＋ dry-run **ON** | 有効 | dry-run 中はデモ照合のため、入力値は照合に使われません |
+| `ec` ＋ dry-run **OFF** | 有効 | `SUPPORT_IDENTITY_FILE` の顧客台帳と照合します（未設定の場合は常に未確認） |
+
+**根拠となる実装**:
+
+```python
+# core/support_agent.py — プロファイルが require_identity でなければ検証器を作らない
+require_identity = bool(profile and profile.require_identity)
+identity_verifier = create_identity_verifier(dry_run=dry_run) if require_identity else None
+```
+
+```python
+# support_actions.py — dry_run=True はデモ照合（required_fields=() で入力値を見ない）
+if dry_run:
+    return IdentityVerifier(checker=_demo_checker, method="demo", required_fields=())
+path = identity_file if identity_file is not None else os.environ.get(ENV_IDENTITY_FILE, "")
+if path:
+    return IdentityVerifier(checker=CsvIdentityChecker(path), method="csv")
+return IdentityVerifier(checker=None, method="none")   # 常に未確認（安全側）
+```
+
+つまり入力値が本当に使われるのは **`ec` ＋ `dry_run=false` ＋ `SUPPORT_IDENTITY_FILE` 設定**
+の 1 経路だけである。照合フィールドは `support_actions.IDENTITY_FIELDS`（`order_id` / `email`）
+と一致させること。
 
 #### 4.2.2 ステップトレース（`StepTimeline`）
 
@@ -942,6 +1047,7 @@ uv run python agent_support_example.py --vertical gov -v "住民票の写しの�
 | 2.1 | **「責務」の記述をフォーマット仕様に適合させた。** 2.0 では「主な責務」がアプリの責務ではなく UI の配線（タブ切替・パラメータ組み立て等）を並べたものになっており、かつ「各責務対応のモジュール」が 12 行と箇条書き 5 項目に対応していなかった（`a_class_method_md_format.md` §2.5「責務の数（行数）は主な責務の項目数と一致させる」「責務列は主な責務の箇条書きと 1 対 1 で対応させる」に違反）。主な責務を**アプリが引き受ける役割**として 7 項目に書き直し、対応表を同じ文言の 7 行へ揃えて 1 対 1 を回復。さらに「エージェント別の責務」を新設し、GRACE-Support / GRACE-Review それぞれの**引き受けること・引き受けないこと**を実装（関数名）と対応づけて明示。責務が長い前置きに埋もれていたため「画面ショット挿入位置について」を概要の後ろへ移動し、目次に責務の各節を掲載 |
 | 2.2 | **§2 モジュール構成図（画面構成）の 2 図を縦積みに変更。** 図が横に広がって描画時に文字が縮み、読めなくなっていたため。(1) 画面レイアウト図は `MODALL` が `RESULT` から横へ枝分かれしていたのを単一の縦チェーンへ直し、長いノードラベル（`header: h1（アクティブなタブ名）+ nav.tabs（GRACE-Support / GRACE-Review）` 等）を短縮。図から外した各領域の中身は Support / Review 対比表として本文へ移した。(2) 左右ペイン図は `flowchart LR`（横並び）＋長いエッジラベルが原因で最も横長だったため `flowchart TB` へ変更し、エッジラベルを「ハイライトをクリック」等へ短縮。ペインの内容と連動の動きは表として本文へ移し、「図は縦だが実画面では左右に並ぶ」旨を注記 |
 | 2.3 | **§2 の 2 図に `direction TB` を追加し、実際に縦積みになることを描画して確認した。** 2.2 で `flowchart TB` にしたが**表示は横並びのままだった**（Mermaid はサブグラフ内の並びに外側の `flowchart TB` を適用しないため）。Mermaid 9.4.3 ＋ ヘッドレス Chromium で描画してノード座標を実測し、修正候補を比較して確定: エッジをサブグラフ内へ移すだけでは変化なし（1457×158 のまま）、**サブグラフ内の `direction TB` の 1 行だけが効く**。適用後は画面レイアウト図が 1457×158 → **298×759**（7 ノードすべて x=149 で同一列）、左右ペイン図が 623×183 → **324×272** となり、いずれも同じ行に複数ノードが並ばないことを確認 |
+| 2.4 | **メニューを 3 つに拡張し、`agent_support_example.py`（CLI）と同等の操作を画面に載せた。** タブを「基本版（業界特化なし）／ GRACE-Support（`VerticalProfile`）／ GRACE-Review（`RuleSet`）」の 3 つにし、**業界特化を足していく順**に並べた。基本版と Support は同一パイプラインのため `SupportPanel` を `variant` で共用する（複製しない・`key={tab}` で確実に作り直す）。CLI 引数のうち画面に無かった **`--no-web` / `--no-action` をトグルとして追加**し、**`--identity` を API → `JobParams` → コアまで新規に通した**（従来は `identity=None` 直書きで画面から渡せなかった）。識別子欄は常時表示しつつ、本人確認が起動しない設定では disabled にして理由を表示する（§4.2.2）。§概要に `VerticalProfile` と `RuleSet` がほぼ同型である旨の対比表、§3.1 に CLI 引数との対応表を追加 |
 
 ---
 

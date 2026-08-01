@@ -22,6 +22,15 @@ class QueryRequest(BaseModel):
     use_web: bool = Field(default=True, description="Web フォールバック（--no-web 相当の逆）")
     do_action: bool = Field(default=True, description="アクション実行（--no-action 相当の逆）")
     verbose: bool = Field(default=False, description="詳細ログ（-v 相当）")
+    identity: Optional[Dict[str, str]] = Field(
+        default=None,
+        description=(
+            "本人確認の識別子（--identity KEY=VALUE 相当。例 {\"order_id\": \"1001\", "
+            "\"email\": \"a@example.com\"}）。実際に照合されるのは "
+            "require_identity のプロファイル（ec）かつ dry_run=False かつ "
+            "SUPPORT_IDENTITY_FILE 設定時のみ"
+        ),
+    )
 
 
 class QueryAccepted(BaseModel):

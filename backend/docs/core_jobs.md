@@ -1,6 +1,6 @@
 # core/jobs.py - ジョブ管理（インメモリ）ドキュメント
 
-**Version 1.1** | 最終更新: 2026-07-29
+**Version 1.2** | 最終更新: 2026-08-01
 
 ---
 
@@ -271,6 +271,7 @@ JobParams(
     use_web: bool = True,
     do_action: bool = True,
     verbose: bool = False,
+    identity: Optional[Dict[str, str]] = None,
 )
 ```
 
@@ -280,6 +281,14 @@ JobParams(
 | `vertical` | Optional[str] | None | 業界プロファイル |
 | `dry_run` / `use_web` / `do_action` | bool | True | ドライラン／Web／アクション |
 | `verbose` | bool | False | 詳細ログ |
+| `identity` | Optional[Dict[str, str]] | None | 本人確認の識別子（`--identity` 相当。`order_id` / `email`） |
+
+> 📝 **`identity` は当初 `_support_runner` が `None` を直書きしていた**（画面から渡せなかった）。
+> 現在は `params.identity` を素通しする。実際に照合されるのは
+> **`require_identity` のプロファイル（`ec`）＋ `dry_run=False` ＋ `SUPPORT_IDENTITY_FILE` 設定**
+> の経路だけで、`dry_run=True` ではデモ照合が値を見ない
+> （[`core_verticals.md`](./core_verticals.md) / `support_actions.create_identity_verifier`）。
+> 回帰は `test_jobs_generic.py::test_identity_is_passed_through_to_core` で固定。
 
 | 項目 | 内容 |
 |------|------|
@@ -612,6 +621,7 @@ register_runner, job_manager, MAX_FINISHED_JOBS
 |-----------|------|---------|
 | 1.0 | 2026-07-15 | 初版作成（JobParams / SupportJob / JobManager / job_manager の IPO ドキュメント） |
 | 1.1 | 2026-07-29 | runner 注入方式へ汎用化（PR #39）。`SupportJob` → `Job` へ改名し後方互換エイリアスを追加。`register_runner` / `_resolve_runner` / `_support_runner` / `JobRunner` を追記 |
+| 1.2 | 2026-08-01 | `JobParams` に `identity` を追加し、`_support_runner` の `identity=None` 直書きを `params.identity` の素通しへ変更。画面から本人確認の識別子を渡せるようにしたもので、回帰は `test_jobs_generic.py::test_identity_is_passed_through_to_core` で固定 |
 
 ---
 

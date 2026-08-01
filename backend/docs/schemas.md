@@ -1,6 +1,6 @@
 # schemas.py - API スキーマ（Pydantic）ドキュメント
 
-**Version 1.1** | 最終更新: 2026-07-29
+**Version 1.2** | 最終更新: 2026-08-01
 
 ---
 
@@ -221,6 +221,7 @@ class QueryRequest(BaseModel):
     use_web: bool = True
     do_action: bool = True
     verbose: bool = False
+    identity: Optional[Dict[str, str]] = None
 ```
 
 | フィールド | 型 | デフォルト | 説明 |
@@ -231,12 +232,18 @@ class QueryRequest(BaseModel):
 | `use_web` | bool | True | Web フォールバック有効 |
 | `do_action` | bool | True | アクション実行有効 |
 | `verbose` | bool | False | 詳細ログ |
+| `identity` | Optional[Dict[str, str]] | None | 本人確認の識別子（`--identity` 相当。`order_id` / `email`） |
 
 | 項目 | 内容 |
 |------|------|
-| **Input** | `query`, `vertical`, `dry_run`, `use_web`, `do_action`, `verbose` |
+| **Input** | `query`, `vertical`, `dry_run`, `use_web`, `do_action`, `verbose`, `identity` |
 | **Process** | Pydantic が型・`min_length`・`Literal` を検証 |
 | **Output** | 検証済み `QueryRequest`（不正時は 422 バリデーションエラー） |
+
+> 📝 **`identity` が実際に照合される条件は狭い**: `require_identity` のプロファイル（`ec`）
+> ＋ `dry_run=False` ＋ `SUPPORT_IDENTITY_FILE` 設定。`dry_run=True` ではデモ照合が
+> 値を見ないため、入力しても挙動は変わらない。UI 側はこの状態を明示している
+> （ルート `README.md` §4.2.2）。
 
 **戻り値例**:
 ```python
@@ -779,6 +786,7 @@ ReviewResultModel, ReviewJobStatusResponse, RuleSetInfo
 |-----------|------|---------|
 | 1.0 | 2026-07-15 | 初版作成（9 スキーマモデルの IPO ドキュメント） |
 | 1.1 | 2026-07-29 | GRACE-Review のスキーマ 7 モデル＋`MAX_DOCUMENT_CHARS` を追加（PR #41）。Support 側のモデルは無変更 |
+| 1.2 | 2026-08-01 | `QueryRequest` に `identity`（本人確認の識別子・CLI の `--identity` 相当）を追加。実際に照合される条件（`ec` ＋ `dry_run=False` ＋ `SUPPORT_IDENTITY_FILE`）を注記 |
 
 ---
 
