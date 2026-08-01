@@ -1,6 +1,6 @@
 # GRACE アプリ（`./run_dev.sh`）- 画面・操作・プログラム対応 ドキュメント
 
-**Version 2.0** | 最終更新: 2026-08-01
+**Version 2.1** | 最終更新: 2026-08-01
 
 `./run_dev.sh` で起動するローカル開発アプリの README。**画面で何ができるか**、
 **操作がどのプログラム（コンポーネント・API・関数）に対応するか**、
@@ -11,6 +11,10 @@
 ## 目次
 
 1. [概要](#概要)
+   - [主な責務](#主な責務)
+   - [各責務対応のモジュール](#各責務対応のモジュール)
+   - [エージェント別の責務](#エージェント別の責務)
+   - [主要機能一覧](#主要機能一覧)
 2. [アーキテクチャ構成図](#1-アーキテクチャ構成図)
 3. [モジュール構成図（画面構成）](#2-モジュール構成図画面構成)
 4. [画面・操作とプログラムの対応表](#3-画面操作とプログラムの対応表)
@@ -24,29 +28,6 @@
 8. [エクスポート](#7-エクスポート)
 9. [変更履歴](#8-変更履歴)
 10. [付録: 依存関係図](#付録-依存関係図)
-
----
-
-## 画面ショット挿入位置について
-
-本ドキュメントには**画面ショットの挿入位置**を先に確保してある。以下の記法で
-埋め込み位置と撮影内容を明示しているので、撮影後に**コメントを外して**差し替える。
-
-```markdown
-> 📷 **[X-00] スロット名** — 撮影内容の説明
-> <!-- ![X-00 スロット名](docs/images/x-00-example.png) -->
-```
-
-差し替え後（コメントを外した状態）:
-
-```markdown
-> 📷 **[X-00] スロット名** — 撮影内容の説明
-> ![X-00 スロット名](docs/images/x-00-example.png)
-```
-
-- 画像の置き場所: **`docs/images/`**（ディレクトリごと新規作成してよい）
-- ファイル名: **スロット ID を先頭に付ける**（例 `s-01-support-initial.png`）
-- 一覧は §6.4「画面ショット一覧」を参照（全 13 枚）
 
 ---
 
@@ -73,28 +54,64 @@
 
 ### 主な責務
 
-- 2 エージェントをタブで切り替え、それぞれ独立した状態・SSE 購読を持たせる
-- 入力フォームから実行パラメータを組み立て、ジョブを起動する
-- SSE で届くステップ進捗を、タイムライン UI へリアルタイムに畳み込む
-- 副作用のあるアクションを、承認モーダル経由でユーザに確認させる
-- 結果を読める形で提示する（Support = 回答カード、Review = 原文ハイライト＋指摘カード）
+本アプリが担う役割・責任。**画面の配線ではなく、アプリとして何を引き受けるか**を挙げる。
+
+- 問い合わせに対する回答を、社内ナレッジを根拠として生成する（GRACE-Support）
+- 文書を規程に照らして点検し、根拠条文つきの指摘を生成する（GRACE-Review）
+- 生成した回答・指摘が出典で裏付けられるかを検証し、確度を数値化する
+- 確度が足りない・誤検知の疑いがある結果を、抑止または有人対応へ倒す
+- 副作用のあるアクションを、人間の承認を得るまで実行しない
+- 処理の進捗を隠さず、ステップ単位で逐次可視化する
+- 結果を根拠まで辿れる形で提示する
 
 ### 各責務対応のモジュール
 
+上記「主な責務」の各項目が**どこで実現されているか**の対応表（責務と 1:1）。
+
 | # | 責務 | 対応モジュール | 説明 |
 |---|------|--------------|------|
-| 1 | タブ切替 | `frontend/src/App.tsx` | `useState<Tab>`。**アンマウントで切替**（SSE を確実に閉じる） |
-| 2 | Support タブ本体 | `components/SupportPanel.tsx` | 起動・購読・承認の配線 |
-| 3 | Review タブ本体 | `components/ReviewPanel.tsx` | 同上＋指摘の選択状態 |
-| 4 | 入力フォーム | `components/QueryForm.tsx` / `ReviewForm.tsx` | パラメータ組み立て・例文チップ |
-| 5 | 進捗表示 | `components/Timeline.tsx` ＋ `StepTimeline` / `ReviewTimeline` | 表示は共通、ステップ ID とバッジはエージェント別 |
-| 6 | 結果表示 | `components/AnswerCard.tsx` / `DocumentView.tsx` / `FindingList.tsx` | 回答カード／原文ハイライト／指摘カード |
-| 7 | 承認 | `components/ConfirmModal.tsx` | **両エージェント共用** |
-| 8 | 状態管理 | `state/jobReducer.ts` / `state/reviewReducer.ts` | SSE イベント列 → UI 状態（純 reducer・副作用ゼロ） |
-| 9 | ハイライト計算 | `state/highlight.ts` | 原文の分割・重なり解消（純関数） |
-| 10 | 通信 | `api/client.ts` | POST（起動・承認）＋ EventSource（進捗） |
-| 11 | Web API | `backend/app/api/` | `/api/support/*` `/api/review/*` `/api/*`（meta） |
-| 12 | パイプライン | `backend/app/core/` | `run_support_agent_core` / `run_review_agent_core` |
+| 1 | 問い合わせに対する回答を、社内ナレッジを根拠として生成する（GRACE-Support） | `backend/app/core/support_agent.py` | `run_support_agent_core()` が ①Plan → ②Execute（内部RAG → reasoning）を統括。検索は `grace` の executor + tools |
+| 2 | 文書を規程に照らして点検し、根拠条文つきの指摘を生成する（GRACE-Review） | `backend/app/core/review_agent.py` | `run_review_agent_core()` が ①Segment → ②Retrieve → ③Detect を統括。ルールは `core/rulesets.py`（`ec_ad`・21 ルール） |
+| 3 | 生成した回答・指摘が出典で裏付けられるかを検証し、確度を数値化する | `grace/confidence.py` | `GroundednessVerifier` を両エージェントで共用。`support_rate = supported / (supported + contradicted)` |
+| 4 | 確度が足りない・誤検知の疑いがある結果を、抑止または有人対応へ倒す | `backend/app/core/gates.py` / `core/review_gates.py` | Support=回答ゲート・強制エスカレ・情報なし検知・救済／Review=指摘ゲート・誤検知抑止・救済（いずれも純関数） |
+| 5 | 副作用のあるアクションを、人間の承認を得るまで実行しない | `backend/app/core/intervention_bridge.py` ＋ `components/ConfirmModal.tsx` | HITL 承認の同期⇔非同期変換とモーダル。**タイムアウト時は実行せず有人へ**（安全側） |
+| 6 | 処理の進捗を隠さず、ステップ単位で逐次可視化する | `backend/app/core/jobs.py` ＋ `state/jobReducer.ts` / `reviewReducer.ts` | SSE でイベント配信 → 純 reducer が UI 状態へ畳み込み → `Timeline` が描画 |
+| 7 | 結果を根拠まで辿れる形で提示する | `components/AnswerCard.tsx` / `DocumentView.tsx` / `FindingList.tsx` | 出典リスト（社内/Web）・原文ハイライト・指摘カードの根拠条文 |
+
+### エージェント別の責務
+
+上表のうち #1・#2 は各エージェント固有である。それぞれが**何を引き受け、何を引き受けないか**を分けて示す。
+
+#### GRACE-Support の責務
+
+| 引き受けること | 実装 |
+|---|---|
+| 問い合わせを実行計画に分解する | `grace` planner（① Plan） |
+| 社内ナレッジ（Qdrant）を検索し、回答を生成する | `grace` executor + tools（② Execute） |
+| 業界プロファイルに応じて検索スコープ・しきい値・方針を切り替える | `core/verticals.py`（`gov` / `saas` / `ec`） |
+| 回答の主張ごとに出典で裏付けを検証する | `GroundednessVerifier`（③ Confidence） |
+| 支持率・出典数から answer / escalate を判定する | `gates._answer_gate`（④ 回答ゲート） |
+| エスカレ語を検知したら二段判定で有人へ倒す | `gates._should_force_escalate` |
+| 内部で答えられないとき Web で裏取りする | ⑤ Web フォールバック |
+| 「情報なし回答」を検知して有人へ倒す | `gates._detect_no_info_answer`（④'） |
+| 本人確認 → HITL 承認 → 起票・返信を実行する | `_decide_action` / `_perform_action`（⑥ Action） |
+
+**引き受けないこと**: 担当範囲外の話題への回答（`SCOPE_POLICY` で断り、窓口を案内する）。
+
+#### GRACE-Review の責務
+
+| 引き受けること | 実装 |
+|---|---|
+| 文書を検査単位へ分割する（**原文オフセットを保持**） | `split_segments()`（① Segment） |
+| セグメントごとに規程を検索する | `_retrieve_evidence()`（② Retrieve） |
+| 二段判定で違反候補を検出する | `select_candidate_rules` + `create_violation_detector`（③ Detect） |
+| 指摘そのものが規程で裏付けられるかを検証する | `GroundednessVerifier`（④ Ground） |
+| 根拠不足・実質性なしの指摘を抑止し、惜しいものは救済する | `decide_finding_status` / `should_rescue_finding`（④'） |
+| 重大度を確定し、重大リスク語は強制的に high にする | `adjust_severity` / `should_force_high`（⑤ Severity） |
+| 指摘レポートを作り、HITL 承認を経て起票・引き継ぎする | `_decide_review_action` / `_build_report`（⑦ Action） |
+
+**引き受けないこと**: Web を根拠にした新規の指摘（出典の信頼性を担保できないため、
+⑥ Web 裏取りは**法改正の確認のみで判定を変えない**）。文書の自動修正（修正案の提示までに留める）。
 
 ### 主要機能一覧
 
@@ -108,6 +125,29 @@
 | ステップトレース | SSE で逐次更新。ステップごとにログを折りたたみ表示 |
 | HITL CONFIRM | 承認するまでアクションは実行されない |
 | 原文ハイライト連動 | Review: 原文の色付き箇所 ⇄ 指摘カードを相互ジャンプ |
+
+---
+
+## 画面ショット挿入位置について
+
+本ドキュメントには**画面ショットの挿入位置**を先に確保してある。以下の記法で
+埋め込み位置と撮影内容を明示しているので、撮影後に**コメントを外して**差し替える。
+
+```markdown
+> 📷 **[X-00] スロット名** — 撮影内容の説明
+> <!-- ![X-00 スロット名](docs/images/x-00-example.png) -->
+```
+
+差し替え後（コメントを外した状態）:
+
+```markdown
+> 📷 **[X-00] スロット名** — 撮影内容の説明
+> ![X-00 スロット名](docs/images/x-00-example.png)
+```
+
+- 画像の置き場所: **`docs/images/`**（ディレクトリごと新規作成してよい）
+- ファイル名: **スロット ID を先頭に付ける**（例 `s-01-support-initial.png`）
+- 一覧は §6.4「画面ショット一覧」を参照（全 13 枚）
 
 ---
 
@@ -866,6 +906,7 @@ uv run python agent_support_example.py --vertical gov -v "住民票の写しの�
 |-----------|---------|
 | 1.0 | 初版作成。`backend/docs/README.md` v1.6 をベースに、リポジトリ全体のルート README として IPO 形式で構成 |
 | 2.0 | **`./run_dev.sh` アプリの README として全面改訂。** 対象をリポジトリ全体からアプリ（画面・操作）へ移し、実装（`frontend/src/` 全 13 コンポーネント・2 reducer・API クライアント）を読み直して構成。§3 に「画面上の操作 → UI コンポーネント → フロント処理 → API → バックエンド関数」の対応表を Support / Review 別に新設し、ステップトレースの表示ラベルとバックエンド実装の 1:1 対応表も追加。§4 を画面別 IPO 詳細（共通ヘッダ／Support／Review／CONFIRM モーダル）へ再構成し、各 UI 要素・バッジ・分岐条件を実装から起こして記載。§6 に操作シナリオ 2 本とトラブルシュートを追加。**画面ショット挿入位置を 13 スロット（S-01〜S-05 / R-01〜R-06 / C-01 / E-01）確保**し、§6.4 に一覧表を用意 |
+| 2.1 | **「責務」の記述をフォーマット仕様に適合させた。** 2.0 では「主な責務」がアプリの責務ではなく UI の配線（タブ切替・パラメータ組み立て等）を並べたものになっており、かつ「各責務対応のモジュール」が 12 行と箇条書き 5 項目に対応していなかった（`a_class_method_md_format.md` §2.5「責務の数（行数）は主な責務の項目数と一致させる」「責務列は主な責務の箇条書きと 1 対 1 で対応させる」に違反）。主な責務を**アプリが引き受ける役割**として 7 項目に書き直し、対応表を同じ文言の 7 行へ揃えて 1 対 1 を回復。さらに「エージェント別の責務」を新設し、GRACE-Support / GRACE-Review それぞれの**引き受けること・引き受けないこと**を実装（関数名）と対応づけて明示。責務が長い前置きに埋もれていたため「画面ショット挿入位置について」を概要の後ろへ移動し、目次に責務の各節を掲載 |
 
 ---
 
