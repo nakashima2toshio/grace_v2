@@ -1,6 +1,6 @@
 # core/gates.py - 回答ゲート・判定ロジック ドキュメント
 
-**Version 1.0** | 最終更新: 2026-07-15
+**Version 1.1** | 最終更新: 2026-08-01
 
 ---
 
@@ -39,6 +39,7 @@
 - 出典付き・矛盾なし内部回答の救済判定（`_should_rescue_unaffirmed`）
 - アクション種別の決定（`_decide_action`）
 - 出典（`[社内]`/`[Web]`）の収集・整形・マージ（`_collect_citations` 他）
+- groundedness 検証へ渡す出典**本文**の集約（`_collect_source_texts` / `_web_source_texts`）
 
 ### 各責務対応のモジュール
 
@@ -49,7 +50,8 @@
 | 3 | 情報なし検知 | `gates.py` | `_detect_no_info_answer` ＋ `create_no_info_judge` |
 | 4 | 救済判定 | `gates.py` | `_should_rescue_unaffirmed` |
 | 5 | アクション決定 | `gates.py` | `_decide_action` |
-| 6 | 出典整形 | `gates.py` | `_collect_citations`/`_merge_citations`/`_web_citations` 他 |
+| 6 | 出典整形（表示用） | `gates.py` | `_collect_citations`/`_merge_citations`/`_web_citations` 他 |
+| 7 | 出典本文の集約（検証用） | `gates.py` | `_collect_source_texts`/`_web_source_texts` |
 
 ### 主要機能一覧
 
@@ -64,7 +66,8 @@
 | `_pick_groundedness()` | 複数検証から (支持率, 判定数) を選ぶ |
 | `_decide_action()` | アクション種別を決定 |
 | `_match_keyword()` | キーワード部分一致（第 1 段） |
-| `_collect_citations()` / `_merge_citations()` / `_web_citations()` / `_web_source_texts()` / `_citation_text()` | 出典の収集・整形・抽出 |
+| `_collect_citations()` / `_merge_citations()` / `_web_citations()` / `_citation_text()` | 出典（識別子）の収集・整形 — **表示用** |
+| `_collect_source_texts()` / `_web_source_texts()` | 出典**本文**の集約 — **groundedness 検証用**（P-01） |
 
 ---
 
@@ -144,6 +147,7 @@ flowchart TB
         CT["_citation_text()"]
         MC["_merge_citations()"]
         WC["_web_citations()"]
+        CST["_collect_source_texts()"]
         WST["_web_source_texts()"]
     end
 
@@ -156,7 +160,7 @@ flowchart TB
     DNA --> SRU
 classDef default fill:#000,stroke:#fff,color:#fff
 classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
-class NIM,IM,CIC,CNJ,AG,SFE,DNA,SRU,PG,DA,MK,CC,CT,MC,WC,WST default
+class NIM,IM,CIC,CNJ,AG,SFE,DNA,SRU,PG,DA,MK,CC,CT,MC,WC,CST,WST default
 style CONST fill:#1a1a1a,stroke:#fff,color:#fff
 style FACTORY fill:#1a1a1a,stroke:#fff,color:#fff
 style PURE fill:#1a1a1a,stroke:#fff,color:#fff
@@ -209,7 +213,8 @@ style CITE fill:#1a1a1a,stroke:#fff,color:#fff
 
 | 関数名 | 概要 |
 |-------|------|
-| `_collect_citations(step_results)` | 出典を収集・ラベル付け |
+| `_collect_citations(step_results)` | 出典を収集・ラベル付け（**表示用**） |
+| `_collect_source_texts(step_results)` | 出典**本文**を収集（**groundedness 検証用**） |
 | `_citation_text(citation)` | ラベルを外して中身を返す |
 | `_merge_citations(internal, web)` | 内部と Web の出典を重複なく結合 |
 | `_web_citations(web_output)` | Web 検索結果から出典表示を作る |
@@ -570,6 +575,45 @@ def _collect_citations(step_results) -> List[str]
 citations = _collect_citations(result.step_results)
 ```
 
+#### `_collect_source_texts`
+
+**概要**: 各ステップの `source_texts`（出典**本文**）を重複排除して集約する（P-01）。
+表示用の `_collect_citations`（出典**識別子**）とは用途が異なる。
+
+```python
+def _collect_source_texts(step_results) -> List[str]
+```
+
+| パラメータ | 型 | デフォルト | 説明 |
+|------------|------|-----------|------|
+| `step_results` | list | - | executor のステップ結果（None 可） |
+
+| 項目 | 内容 |
+|------|------|
+| **Input** | `step_results`（各要素の `source_texts` 属性を参照。無ければ空扱い） |
+| **Process** | `getattr(sr, "source_texts", None) or []` を走査し、空文字を除いて重複排除 |
+| **Output** | `List[str]`: 出典本文のリスト（該当なしなら `[]`） |
+
+> ⚠️ **なぜ本文が要るか**: 識別子（ファイル名）だけを `GroundednessVerifier` へ渡すと、
+> どの主張も裏付けられず**すべて neutral** になる。`support_rate` は
+> `supported / (supported + contradicted)` なので**分母が 0** になり、支持率が
+> 算出できずに誤エスカレへ倒れる。これを防ぐため本文を集めて検証器へ渡す。
+
+> 📝 `source_texts` を持たない経路（legacy agent 等）では空を返し、
+> 呼び出し側が従来の出典ラベルへフォールバックできるようにしている。
+> Web 側の同等処理は `_web_source_texts`。
+
+**戻り値例**:
+```python
+["返品は商品到着後14日以内に限り受け付けます。…", "交換は同一商品のみ対象です。…"]
+```
+
+```python
+# 使用例（groundedness 検証へ本文を渡す）
+source_texts = _collect_source_texts(result.step_results) or citations
+verifier.verify(answer, source_texts)
+```
+
 #### `_citation_text` / `_merge_citations` / `_web_citations` / `_web_source_texts`
 
 **概要**: 出典文字列のラベル除去・内部×Web のマージ・Web 結果からの出典表示生成・本文抽出。
@@ -669,7 +713,8 @@ action = _decide_action(query, decision, profile, classify)
 create_intent_classifier, create_no_info_judge,
 _answer_gate, _should_force_escalate, _detect_no_info_answer,
 _should_rescue_unaffirmed, _pick_groundedness, _decide_action, _match_keyword,
-_collect_citations, _citation_text, _merge_citations, _web_citations, _web_source_texts,
+_collect_citations, _collect_source_texts, _citation_text, _merge_citations,
+_web_citations, _web_source_texts,
 NO_INFO_MARKERS
 ```
 
@@ -680,6 +725,7 @@ NO_INFO_MARKERS
 | バージョン | 変更内容 |
 |-----------|---------|
 | 1.0 | 初版作成（回答ゲート・二段判定・救済・出典整形の純関数群と 2 ファクトリの IPO ドキュメント） |
+| 1.1 | 実コード再読による最新化: 未記載だった `_collect_source_texts()`（P-01・groundedness 検証へ出典**本文**を渡す）の IPO を §4.3 に追加し、識別子のみを渡すと全主張が neutral 化して支持率の分母が 0 になる理由を明記。関数一覧・責務表・主要機能一覧・モジュール構成図・エクスポートに反映（純関数 14 → 15） |
 
 ---
 

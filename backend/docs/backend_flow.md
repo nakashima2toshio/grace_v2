@@ -1,6 +1,8 @@
 # backend_flow.md - GRACE-Support 処理フロー ステップ詳細（(0)〜(8)）ドキュメント
 
-**Version 1.0** | 最終更新: 2026-07-24
+**Version 1.1** | 最終更新: 2026-08-01
+
+> 📌 GRACE-**Review** 側の対応ドキュメントは [`review_flow.md`](./review_flow.md)（S1・①〜⑦）。
 
 ---
 
@@ -24,7 +26,7 @@
 本ドキュメントは、GRACE-Support パイプライン（`backend/app/core/support_agent.py` の
 `run_support_agent_core()`）が実行する **処理フローの各ステップ (0)〜(8)** を、
 実装関数・シグネチャ・IPO（Input-Process-Output）・戻り値例・使用例つきで記述する。
-全体像（アーキテクチャ・データフロー）は [`backend/docs/README.md`](../docs/README.md) §1〜§3 を参照。
+全体像（アーキテクチャ・データフロー）は [`README.md`](./README.md) §1〜§3 を参照。
 
 > 📝 **注意（実行順）**: 本ドキュメントの番号は `backend/docs/README.md` §2 の
 > フロー図の並びに従う。パイプラインの**実際の実行順**は
@@ -874,6 +876,7 @@ InterventionBridge
 | バージョン | 変更内容 |
 |-----------|---------|
 | 1.0 | 初版作成（`backend/docs/README.md` §2 処理フローの (0)〜(8) を IPO 形式でステップ別に詳細化。実装関数・シグネチャ・戻り値例・使用例・実行順の注記を記載） |
+| 1.1 | 配置を `backend/app/backend_flow.md` → **`backend/docs/backend_flow.md`** へ移設（CLAUDE.md §7.1「backend のドキュメントは `backend/docs/`」準拠）。README への相対リンクを `./README.md` に修正し、README §6 の補足ドキュメント一覧へ掲載。Review 版の対応ドキュメントとして [`review_flow.md`](./review_flow.md) を新設 |
 
 ---
 

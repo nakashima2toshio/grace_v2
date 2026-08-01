@@ -1,6 +1,6 @@
 # core/support_agent.py - GRACE-Support コアサービス ドキュメント
 
-**Version 1.0** | 最終更新: 2026-07-15
+**Version 1.1** | 最終更新: 2026-08-01
 
 ---
 
@@ -36,7 +36,8 @@ Gemini（検索）。同等性は `backend/tests/test_support_agent_core.py` で
 
 - パイプライン進捗を `SupportEvent` として発行（step/log/intervention/result/error）
 - ①Plan → ②Execute（内部RAG）→ ③Groundedness → ④回答ゲート → ⑤Web裏取り → ④'情報なし検知 → ⑥Action の統括
-- 業界プロファイル（`--vertical`）によるしきい値・検索スコープ・方針の切り替え
+- 業界プロファイル（`--vertical`）によるしきい値・検索スコープ・方針・Web優先ドメインの切り替え
+- **リクエスト単位の設定分離**（`copy.deepcopy(get_config())`・並行実行時の相互汚染防止／P-08）
 - HITL CONFIRM の解決（CLI=自動承認 / Web=InterventionBridge 承認待ち）
 - 副作用アクションの本人確認 → CONFIRM → バックエンド実行の統括
 - KPI 計測用メタデータ（強制エスカレ・本人確認・情報なし検知・Web再利用）の付与
@@ -47,8 +48,9 @@ Gemini（検索）。同等性は `backend/tests/test_support_agent_core.py` で
 |---|------|--------------|------|
 | 1 | 進捗イベント発行 | `support_agent.py` | `SupportEvent` を `emit` で通知 |
 | 2 | パイプライン統括 | `support_agent.py` | `run_support_agent_core()` が①〜⑥を実行 |
-| 3 | 業界プロファイル適用 | `core/verticals.py` | `PROFILES` からしきい値・スコープを取得 |
+| 3 | 業界プロファイル適用 | `core/verticals.py` | `PROFILES` からしきい値・スコープ・`build_prompt_addendum()` を取得 |
 | 4 | 回答ゲート等の判定 | `core/gates.py` | 純関数群（`_answer_gate` 他）へ委譲 |
+| 7 | 検証用の出典本文集約 | `core/gates.py` | `_collect_source_texts` / `_web_source_texts`（P-01） |
 | 5 | HITL 承認の解決 | `core/intervention_bridge.py` | Web の `resolver` を `confirm` に渡す |
 | 6 | Plan/Execute/検証/アクション | `grace` / `support_actions.py` | planner/executor/verifier/backend |
 
@@ -374,7 +376,7 @@ def run_support_agent_core(
 | 項目 | 内容 |
 |------|------|
 | **Input** | `query`, `verbose`, `use_web`, `do_action`, `dry_run`, `vertical`, `identity`, `emit`, `confirm` |
-| **Process** | 1. `ANTHROPIC_API_KEY` チェック（未設定なら error イベント→None）<br>2. config/planner/executor/verifier/handler を生成、意図分類・情報なし判定をメモ化配線<br>3. S1 業界プロファイル適用（検索スコープ・方針を config へ注入）<br>4. ①Plan → ②Execute（内部RAG＋動的Web検知）<br>5. ③Groundedness → ④回答ゲート＋強制エスカレ＋④救済<br>6. ⑤Web フォールバック（escalate かつ非強制時。重複時は再検証のみ）<br>7. ④'情報なし回答検知（Webのみ出典は強制判定）<br>8. ⑥本人確認→HITL CONFIRM→アクション実行<br>9. KPI メタ付与→`result` イベント発行 |
+| **Process** | 1. `ANTHROPIC_API_KEY` チェック（未設定なら error イベント→None）<br>2. **`config = copy.deepcopy(get_config())`（P-08・リクエスト単位の設定分離）**、planner/executor/verifier/handler を生成、意図分類・情報なし判定をメモ化配線<br>3. S1 業界プロファイル適用（検索スコープ・方針・Web優先ドメインを config へ注入。§4.3.1）<br>4. ①Plan → ②Execute（内部RAG＋動的Web検知）<br>5. ③Groundedness（**出典本文を渡す**・P-01） → ④回答ゲート＋強制エスカレ＋④救済<br>6. ⑤Web フォールバック（escalate かつ非強制時。重複時は再検証のみ）<br>7. ④'情報なし回答検知（Webのみ出典は強制判定）<br>8. ⑥本人確認→HITL CONFIRM→アクション実行<br>9. KPI メタ付与→`result` イベント発行 |
 | **Output** | `Optional[SupportResult]`: 成功時は結果、APIキー未設定時は `None` |
 
 **戻り値例**:
@@ -395,6 +397,53 @@ result = run_support_agent_core(
     confirm=bridge.resolver,        # InterventionBridge の承認待ち
 )
 ```
+
+#### 4.3.1 リクエスト単位の設定分離とプロファイル配線（S1 の内部）
+
+`run_support_agent_core` が**冒頭で必ず行う**設定の扱い。ここを誤ると並行実行時に
+リクエスト同士が干渉するため、パイプライン本体より先に押さえる必要がある。
+
+```python
+# P-08: シングルトン config をそのまま書き換えない
+config = copy.deepcopy(get_config())
+...
+# S1: 業界プロファイルを config へ配線（tools は config 参照を保持＝実行時に効く）
+config.qdrant.allowed_collections   = list(profile.collections) if profile else []
+config.llm.prompt_addendum          = profile.build_prompt_addendum() if profile else ""
+config.web_search.preferred_domains = list(profile.preferred_domains) if profile else []
+```
+
+| 配線先 | 値 | 効果範囲 | 対応 |
+|---|---|---|---|
+| `config.qdrant.allowed_collections` | `profile.collections` | **内部 RAG 検索のみ** | S1 |
+| `config.llm.prompt_addendum` | `profile.build_prompt_addendum()`（業界方針＋`SCOPE_POLICY`） | reasoning（生成側） | W-2 |
+| `config.web_search.preferred_domains` | `profile.preferred_domains` | Web 検索の**並べ替え（加点）** | W-1 |
+
+> ⚠️ **P-08（設定分離）**: 業界プロファイルに合わせて config を書き換えるため、
+> シングルトンをそのまま使うと `jobs.py` がジョブごとに立てるワーカースレッド同士で
+> 値を奪い合う（**gov のリクエストが ec の検索スコープで走る**等）。リクエスト単位の
+> ディープコピーを作り、以降の生成物（planner / executor / tools / verifier …）は
+> すべてこのコピーを参照させる。
+
+> 📝 **なぜ生成側でスコープを担保するか（W-2）**: 検索スコープが効くのは内部 RAG だけで、
+> ⑤ Web フォールバックと executor の動的 `web_search` にはドメイン制限が無い。
+> よって「担当範囲外の話題を回答しない」ことは `SCOPE_POLICY` の注入で担保する。
+> 詳細は [`core_verticals.md`](./core_verticals.md) §5.2。
+
+> 📝 **W-1 は絞り込みではない**: `preferred_domains` は一致した結果を加点して上位へ
+> 並べ替えるだけで、非一致も残す。絞り込むと 0 件化 → 情報なし回答 → ④' の誤エスカレへ連鎖する。
+
+**③ Groundedness へ渡す出典（P-01）**: 識別子ではなく**本文**を渡す。本文が取れない
+経路では出典ラベルへフォールバックする。
+
+```python
+internal_source_texts = _collect_source_texts(result.step_results)
+verify_sources = internal_source_texts or [_citation_text(c) for c in internal_citations]
+```
+
+識別子（ファイル名）だけを渡すとどの主張も裏付けられず全 neutral になり、
+`support_rate = supported / (supported + contradicted)` の**分母が 0** になる
+（詳細は [`core_gates.md`](./core_gates.md) §4.3 `_collect_source_texts`）。
 
 ### 4.4 アクション関数
 
@@ -537,6 +586,7 @@ ConfirmFn     # type alias: Callable[[InterventionRequest], InterventionResponse
 | バージョン | 変更内容 |
 |-----------|---------|
 | 1.0 | 初版作成（イベント発行型コアパイプライン・SupportEvent/SupportResult・_perform_action の IPO ドキュメント） |
+| 1.1 | 実コード再読による最新化: §4.3.1「リクエスト単位の設定分離とプロファイル配線」を新設し、P-08（`copy.deepcopy(get_config())` による並行実行時の相互汚染防止）・W-2（`build_prompt_addendum()` で `SCOPE_POLICY` を reasoning へ注入）・W-1（`preferred_domains` は除外ではなく加点）・P-01（groundedness へ出典**本文**を渡す／識別子のみだと全 neutral 化して支持率の分母が 0 になる）を追記。`run_support_agent_core` の Process 欄と責務表・主な責務に反映 |
 
 ---
 

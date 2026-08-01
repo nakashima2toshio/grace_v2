@@ -1,6 +1,6 @@
 # core/verticals.py - 業界プロファイル定義 ドキュメント
 
-**Version 1.0** | 最終更新: 2026-07-15
+**Version 1.1** | 最終更新: 2026-08-01
 
 ---
 
@@ -30,12 +30,18 @@ CLI・API の双方から参照される（後方互換のため `agent_support_
 組み込みで自治体・SaaS・EC の 3 プロファイル（`PROFILES`）を持つ。意図分類には Anthropic の
 軽量モデル `claude-haiku-4-5-20251001`（`INTENT_MODEL`）を使う。
 
+さらに、検索スコープ（`collections`）が効くのは**内部 RAG だけ**で Web 検索には及ばないという
+制約に対処するため、生成側（reasoning）で担当範囲を明示する共通方針 `SCOPE_POLICY`（W-2）と、
+Web 検索結果を**加点で並べ替える** `preferred_domains`（W-1）を持つ。
+
 ### 主な責務
 
 - 業界プロファイルのデータ構造（`VerticalProfile`）とアクション要求（`ActionRequest`）の定義
 - 型エイリアス（`Decision` / `ActionType` / `Intent`）の定義
 - 組み込みプロファイル（`PROFILES`: gov / saas / ec）の提供
 - 既定クエリ（`DEFAULT_QUERY`）と意図分類モデル（`INTENT_MODEL`）の定義
+- 担当範囲外の断り方を定める共通スコープ方針（`SCOPE_POLICY`）の定義と、
+  業界固有方針との合成（`VerticalProfile.build_prompt_addendum()`）
 
 ### 各責務対応のモジュール
 
@@ -45,6 +51,7 @@ CLI・API の双方から参照される（後方互換のため `agent_support_
 | 2 | アクション要求 | `verticals.py` | `ActionRequest` dataclass |
 | 3 | 型エイリアス | `verticals.py` | `Decision` / `ActionType` / `Intent` |
 | 4 | 組み込みプロファイル | `verticals.py` | `PROFILES`（gov/saas/ec） |
+| 5 | スコープ方針の合成 | `verticals.py` | `SCOPE_POLICY` + `build_prompt_addendum()` |
 
 ### 主要機能一覧
 
@@ -52,7 +59,9 @@ CLI・API の双方から参照される（後方互換のため `agent_support_
 |------|------|
 | `ActionRequest` | 副作用のある操作の要求（v3・擬似） |
 | `VerticalProfile` | 業界プロファイル（差し替えの共通枠） |
+| `VerticalProfile.build_prompt_addendum()` | 業界固有方針＋`SCOPE_POLICY` を合成して reasoning へ注入する文字列を作る |
 | `PROFILES` | 組み込みプロファイル辞書（gov/saas/ec） |
+| `SCOPE_POLICY` | 全プロファイル共通の担当範囲方針（W-2・範囲外の断り方） |
 | `DEFAULT_QUERY` | 既定クエリ |
 | `INTENT_MODEL` | 意図分類の軽量モデル |
 | `Decision` / `ActionType` / `Intent` | 型エイリアス（Literal） |
@@ -172,11 +181,13 @@ style PROFILES fill:#1a1a1a,stroke:#fff,color:#fff
 
 | メソッド | 概要 |
 |---------|------|
-| （dataclass） | name / collections / escalate_keywords / action_map / require_identity / notify_th / confirm_th / prompt_addendum |
+| （dataclass） | name / collections / escalate_keywords / action_map / require_identity / notify_th / confirm_th / prompt_addendum / preferred_domains |
+| `build_prompt_addendum()` | 業界固有方針に共通 `SCOPE_POLICY` を足して reasoning 注入用の文字列を返す |
 
 ### 3.2 関数一覧
 
-本モジュールに関数定義はない（データクラス・定数のみ）。
+モジュールレベルの関数定義はない（データクラス・メソッド・定数のみ）。
+唯一のメソッドは `VerticalProfile.build_prompt_addendum()`（§4.2）。
 
 ---
 
@@ -231,6 +242,7 @@ VerticalProfile(
     notify_th: Optional[float] = None,
     confirm_th: Optional[float] = None,
     prompt_addendum: str = "",
+    preferred_domains: List[str] = [],
 )
 ```
 
@@ -244,6 +256,11 @@ VerticalProfile(
 | `notify_th` | Optional[float] | None | 高信頼しきい値（None なら config 既定） |
 | `confirm_th` | Optional[float] | None | 中信頼しきい値 |
 | `prompt_addendum` | str | "" | 業界固有の方針（表示・プロンプト注入用） |
+| `preferred_domains` | List[str] | `[]` | Web 検索で優先するドメイン（接尾辞一致）。**除外ではなく加点**（W-1） |
+
+> ⚠️ **`preferred_domains` は絞り込みではない。** 一致した結果のスコアを底上げして上位へ
+> 並べ替えるだけで、非一致の結果も残す。絞り込むと 0 件化 → 情報なし回答 → 誤エスカレの
+> 連鎖を招くため（`gov` は `go.jp` / `lg.jp` を優先、`saas` / `ec` は現状空）。
 
 | 項目 | 内容 |
 |------|------|
@@ -267,6 +284,42 @@ VerticalProfile(
 # 使用例
 profile = PROFILES.get("ec")
 config.qdrant.allowed_collections = list(profile.collections)
+```
+
+#### 4.2.1 VerticalProfile.build_prompt_addendum()
+
+**概要**: reasoning へ実際に注入する業務方針を組み立てる。業界固有の方針
+（`prompt_addendum`）に共通の `SCOPE_POLICY` を足したもの。
+
+```python
+def build_prompt_addendum(self) -> str
+```
+
+| パラメータ | 型 | デフォルト | 説明 |
+|------------|------|-----------|------|
+| （なし） | - | - | インスタンスの `prompt_addendum` を参照する |
+
+| 項目 | 内容 |
+|------|------|
+| **Input** | `self.prompt_addendum`（業界固有方針）、モジュール定数 `SCOPE_POLICY` |
+| **Process** | 空文字を除外した `[prompt_addendum, SCOPE_POLICY]` を改行で連結する |
+| **Output** | `str` — reasoning プロンプトへ注入する業務方針 |
+
+> **なぜフィールドを直接使わないか**: `prompt_addendum` 単体は「この業界の方針」を表す値として
+> `/api/verticals` がそのまま返す。スコープ方針をフィールドへ混ぜると API レスポンスまで
+> 汚れるため、**注入時にだけ合成**してフィールドは汚さない。
+
+**戻り値例**:
+```python
+"注文情報の照会・変更は本人確認必須。返品・交換は規定の版に基づいて回答。\n"
+"担当範囲は上記の業務領域に限る。範囲外の話題（天気・ニュース・一般常識・"
+"他業種の手続き等）は、参照情報に含まれていても内容を回答せず、…"
+```
+
+```python
+# 使用例（support_agent が reasoning へ注入する）
+profile = PROFILES.get("ec")
+addendum = profile.build_prompt_addendum()   # 業界方針 + SCOPE_POLICY
 ```
 
 ---
@@ -304,6 +357,13 @@ INTENT_MODEL = "claude-haiku-4-5-20251001"  # 意図分類の軽量モデル
 Decision   = Literal["answer", "escalate"]
 ActionType = Literal["create_ticket", "send_reply", "escalate_to_human"]
 Intent     = Literal["question", "request", "incident"]
+
+SCOPE_POLICY = (
+    "担当範囲は上記の業務領域に限る。範囲外の話題（天気・ニュース・一般常識・"
+    "他業種の手続き等）は、参照情報に含まれていても内容を回答せず、"
+    "担当範囲外である旨を明示したうえで適切な窓口を案内すること。"
+    "ただし担当範囲内の質問が同時に含まれる場合は、そちらには通常どおり回答する。"
+)
 ```
 
 | 定数/型 | 説明 |
@@ -313,6 +373,22 @@ Intent     = Literal["question", "request", "incident"]
 | `Decision` | 回答可否（answer / escalate） |
 | `ActionType` | アクション種別 |
 | `Intent` | 意図分類（question=FAQ質問 / request=実行依頼 / incident=障害報告） |
+| `SCOPE_POLICY` | 全プロファイル共通のスコープ方針（W-2）。`build_prompt_addendum()` が業界方針へ合成する |
+
+#### SCOPE_POLICY の背景（W-2）
+
+検索スコープ（`collections`）が効くのは**内部 RAG だけ**で、⑤ Web フォールバックと
+executor の動的 `web_search` にはドメイン制限が無い（`grace/config.py::WebSearchConfig` に
+`allowed_domains` 相当のフィールドが無く、`WebSearchTool.execute` も query/num_results/language
+しか受け取らない）。その結果、`gov` プロファイルで「明日の東京の天気は？」を投げると
+天気サイトが引用に載る取り違えが実測で確認された。
+
+取得側（retrieval）を絞るのは 0 件化 → 情報なし回答 → 誤エスカレの連鎖を招きやすいため、
+まず**生成側（reasoning）で担当範囲を明示する**という方針を採る。
+
+> ⚠️ **最終文（「ただし担当範囲内の質問が同時に含まれる場合は…」）は必須。**
+> これが無いと「住民票の取り方は？ ところで明日の天気は？」のような複合質問で、
+> 担当範囲内の質問まで丸ごと断られうる。
 
 ---
 
@@ -329,8 +405,13 @@ profile = PROFILES.get("ec")
 # 検索スコープ・しきい値・方針を config へ注入（core が行う）
 collections = list(profile.collections)          # ["ec_policy_anthropic", "ec_faq_anthropic"]
 require_identity = profile.require_identity        # True
-addendum = profile.prompt_addendum                 # "注文情報の照会・変更は本人確認必須。…"
+addendum = profile.build_prompt_addendum()         # 業界方針 + SCOPE_POLICY（reasoning 注入用）
+preferred = list(profile.preferred_domains)        # [] （gov なら ["go.jp", "lg.jp"]）
 ```
+
+> 📝 reasoning へ注入するのは `prompt_addendum`（生フィールド）ではなく
+> **`build_prompt_addendum()`（合成済み）**。生フィールドは `/api/verticals` の
+> レスポンス値としてそのまま返される。
 
 ### 6.2 応用: プロファイルの追加
 
@@ -357,7 +438,7 @@ PROFILES["fin"] = VerticalProfile(
 
 ```python
 # 公開シンボル（明示的 __all__ はなし）
-DEFAULT_QUERY, INTENT_MODEL,
+DEFAULT_QUERY, INTENT_MODEL, SCOPE_POLICY,
 Decision, ActionType, Intent,
 ActionRequest, VerticalProfile, PROFILES
 ```
@@ -369,6 +450,7 @@ ActionRequest, VerticalProfile, PROFILES
 | バージョン | 変更内容 |
 |-----------|---------|
 | 1.0 | 初版作成（ActionRequest / VerticalProfile / PROFILES と型エイリアスの IPO ドキュメント） |
+| 1.1 | 実コード再読による最新化: `SCOPE_POLICY`（W-2・担当範囲外の断り方）と背景・必須の最終文を §5.2 に追加。`VerticalProfile.preferred_domains`（W-1・**除外ではなく加点**）をパラメータ表へ追加。`build_prompt_addendum()` の IPO を §4.2.1 として新設し、生フィールドとの使い分け（`/api/verticals` は生値を返す）を明記。§6.1 の使用例を合成メソッド呼び出しへ修正 |
 
 ---
 
