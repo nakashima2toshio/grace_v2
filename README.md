@@ -1,6 +1,6 @@
 # GRACE アプリ（`./run_dev.sh`）- 画面・操作・プログラム対応 ドキュメント
 
-**Version 2.1** | 最終更新: 2026-08-01
+**Version 2.2** | 最終更新: 2026-08-01
 
 `./run_dev.sh` で起動するローカル開発アプリの README。**画面で何ができるか**、
 **操作がどのプログラム（コンポーネント・API・関数）に対応するか**、
@@ -237,22 +237,38 @@ style CORE fill:#1a1a1a,stroke:#fff,color:#fff
 ```mermaid
 flowchart TB
     subgraph SCREEN["画面レイアウト（上から順）"]
-        HEAD["header: h1（アクティブなタブ名）<br>+ nav.tabs（GRACE-Support / GRACE-Review）"]
-        LEAD["p.panel-lead: タブの説明文"]
-        FORM["form: 入力フォーム<br>Support=QueryForm / Review=ReviewForm"]
-        BANNER["div.error-banner / div.running-banner<br>エラー・実行中の通知"]
-        TIME["section.timeline: ステップトレース"]
-        RESULT["結果エリア<br>Support=AnswerCard / Review=サマリ+左右ペイン"]
-        MODALL["div.modal-backdrop: ConfirmModal<br>（承認待ちのときだけ最前面に出る）"]
+        HEAD["header<br>h1（アクティブなタブ名）<br>nav.tabs"]
+        LEAD["p.panel-lead<br>タブの説明文"]
+        FORM["form<br>入力フォーム"]
+        BANNER["div.error-banner<br>div.running-banner"]
+        TIME["section.timeline<br>ステップトレース"]
+        RESULT["結果エリア"]
+        MODALL["div.modal-backdrop<br>ConfirmModal"]
     end
 
-    HEAD --> LEAD --> FORM --> BANNER --> TIME --> RESULT
+    HEAD --> LEAD
+    LEAD --> FORM
+    FORM --> BANNER
+    BANNER --> TIME
+    TIME --> RESULT
     RESULT -.承認待ちで重畳.-> MODALL
 classDef default fill:#000,stroke:#fff,color:#fff
 classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
 class HEAD,LEAD,FORM,BANNER,TIME,RESULT,MODALL default
 style SCREEN fill:#1a1a1a,stroke:#fff,color:#fff
 ```
+
+各領域の中身（図を細くするため本文へ出す）:
+
+| 領域 | Support | Review |
+|---|---|---|
+| `header` | `GRACE-Support` / `GRACE-Review` の 2 タブ（共通） | 同左 |
+| `p.panel-lead` | 「内部RAG＋出典 / Web裏取り・相互検証 / アクション＋HITL 承認」 | 「規程 RAG＋根拠検証（groundedness）で広告表示を点検し、条文つきの指摘を出します」 |
+| `form` | `QueryForm`（問い合わせ 1 行 + プロファイル + トグル） | `ReviewForm`（文書 textarea + ルールセット + トグル） |
+| バナー | `error-banner`（エラー）／`running-banner`「実行中…」 | 同左（文言は「点検中…」） |
+| `section.timeline` | `StepTimeline`（8 ステップ） | `ReviewTimeline`（9 ステップ） |
+| 結果エリア | `AnswerCard` | `FindingSummaryBar` ＋ 左右ペイン ＋ KPI 行 |
+| モーダル | `ConfirmModal`（**両エージェント共用**・承認待ちのときだけ最前面に出る） | 同左 |
 
 > 📷 **[S-01] 起動直後（Support タブ 初期表示）** — ヘッダのタブ 2 つ、説明文、
 > 空の入力フォーム、例文チップまでが入るように全体を撮影。タイムラインと結果は未表示。
@@ -263,21 +279,36 @@ style SCREEN fill:#1a1a1a,stroke:#fff,color:#fff
 Review だけ、結果エリアが**左右 2 ペイン**（`div.review-panes`）になる。
 
 ```mermaid
-flowchart LR
+flowchart TB
     subgraph PANES["div.review-panes"]
-        DOC["DocumentView（左）<br>原文＋ハイライト<br>mark.hl-{severity}"]
-        LIST["FindingList（右）<br>指摘カード一覧<br>severity 降順 → 出現順"]
+        DOC["DocumentView（左ペイン）<br>原文＋ハイライト"]
+        LIST["FindingList（右ペイン）<br>指摘カード一覧"]
     end
-    DOC -- "ハイライトをクリック<br>→ 該当カードへスクロール" --> LIST
-    LIST -- "カードをクリック<br>→ 該当ハイライトを強調" --> DOC
+    DOC -- "ハイライトを<br>クリック" --> LIST
+    LIST -- "カードを<br>クリック" --> DOC
 classDef default fill:#000,stroke:#fff,color:#fff
 classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
 class DOC,LIST default
 style PANES fill:#1a1a1a,stroke:#fff,color:#fff
 ```
 
+> 📝 図は縦に並べているが、**実際の画面では左右に並ぶ**（`div.review-panes`）。
+
+| ペイン | コンポーネント | 表示 | 並び順 |
+|---|---|---|---|
+| 左 | `DocumentView` | 原文＋指摘箇所のハイライト（`mark.hl-{severity}`） | 原文のまま |
+| 右 | `FindingList` | 指摘カード一覧 | severity 降順 → 原文の出現順 |
+
+**連動の動き**:
+
+| 操作 | 結果 |
+|---|---|
+| 左のハイライトをクリック | 右の該当カードへ自動スクロール（`scrollIntoView`） |
+| 右のカードをクリック | 左の該当ハイライトを強調（`hl-selected`） |
+| 選択中の要素を再クリック | 選択解除 |
+
 選択状態は `ReviewJobState.selectedFindingId` の**1 個の状態**を左右で共有しているため、
-どちらをクリックしても相互に連動する。同じ要素をもう一度クリックすると選択解除。
+どちらをクリックしても相互に連動する。
 
 ---
 
@@ -907,6 +938,7 @@ uv run python agent_support_example.py --vertical gov -v "住民票の写しの�
 | 1.0 | 初版作成。`backend/docs/README.md` v1.6 をベースに、リポジトリ全体のルート README として IPO 形式で構成 |
 | 2.0 | **`./run_dev.sh` アプリの README として全面改訂。** 対象をリポジトリ全体からアプリ（画面・操作）へ移し、実装（`frontend/src/` 全 13 コンポーネント・2 reducer・API クライアント）を読み直して構成。§3 に「画面上の操作 → UI コンポーネント → フロント処理 → API → バックエンド関数」の対応表を Support / Review 別に新設し、ステップトレースの表示ラベルとバックエンド実装の 1:1 対応表も追加。§4 を画面別 IPO 詳細（共通ヘッダ／Support／Review／CONFIRM モーダル）へ再構成し、各 UI 要素・バッジ・分岐条件を実装から起こして記載。§6 に操作シナリオ 2 本とトラブルシュートを追加。**画面ショット挿入位置を 13 スロット（S-01〜S-05 / R-01〜R-06 / C-01 / E-01）確保**し、§6.4 に一覧表を用意 |
 | 2.1 | **「責務」の記述をフォーマット仕様に適合させた。** 2.0 では「主な責務」がアプリの責務ではなく UI の配線（タブ切替・パラメータ組み立て等）を並べたものになっており、かつ「各責務対応のモジュール」が 12 行と箇条書き 5 項目に対応していなかった（`a_class_method_md_format.md` §2.5「責務の数（行数）は主な責務の項目数と一致させる」「責務列は主な責務の箇条書きと 1 対 1 で対応させる」に違反）。主な責務を**アプリが引き受ける役割**として 7 項目に書き直し、対応表を同じ文言の 7 行へ揃えて 1 対 1 を回復。さらに「エージェント別の責務」を新設し、GRACE-Support / GRACE-Review それぞれの**引き受けること・引き受けないこと**を実装（関数名）と対応づけて明示。責務が長い前置きに埋もれていたため「画面ショット挿入位置について」を概要の後ろへ移動し、目次に責務の各節を掲載 |
+| 2.2 | **§2 モジュール構成図（画面構成）の 2 図を縦積みに変更。** 図が横に広がって描画時に文字が縮み、読めなくなっていたため。(1) 画面レイアウト図は `MODALL` が `RESULT` から横へ枝分かれしていたのを単一の縦チェーンへ直し、長いノードラベル（`header: h1（アクティブなタブ名）+ nav.tabs（GRACE-Support / GRACE-Review）` 等）を短縮。図から外した各領域の中身は Support / Review 対比表として本文へ移した。(2) 左右ペイン図は `flowchart LR`（横並び）＋長いエッジラベルが原因で最も横長だったため `flowchart TB` へ変更し、エッジラベルを「ハイライトをクリック」等へ短縮。ペインの内容と連動の動きは表として本文へ移し、「図は縦だが実画面では左右に並ぶ」旨を注記 |
 
 ---
 
