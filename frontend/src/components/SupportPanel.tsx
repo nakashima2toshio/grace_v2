@@ -1,5 +1,14 @@
-// GRACE-Support（問い合わせ → 回答）のタブ本体。
-// App.tsx から切り出したもので、パイプラインの配線は変えていない。
+// 問い合わせ → 回答 のタブ本体。**基本版タブと GRACE-Support タブで共用**する。
+//
+// 両者はまったく同じパイプライン（run_support_agent_core）を通り、違いは
+// **業界特化（VerticalProfile）を使うかどうか**だけ。そのため画面を 2 つに
+// 複製せず、`variant` で振り分ける。
+//
+//   variant="basic"    — 業界特化なし。vertical は常に null（素のパイプライン）
+//   variant="vertical" — 業界プロファイル（gov / saas / ec）を選べる
+//
+// ⚠️ ここを 2 コンポーネントへ複製しないこと。同一パイプラインの画面が 2 つに
+//    なると、README の操作対応表もテストも二重管理になる。
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import {
   confirmIntervention,
@@ -14,18 +23,30 @@ import { ConfirmModal } from './ConfirmModal';
 import { QueryForm } from './QueryForm';
 import { StepTimeline } from './StepTimeline';
 
-export function SupportPanel() {
+export type SupportVariant = 'basic' | 'vertical';
+
+const LEAD: Record<SupportVariant, string> = {
+  basic:
+    '業界特化なしの素のパイプライン: 内部RAG＋出典 / Web裏取り・相互検証 / アクション＋HITL 承認',
+  vertical:
+    '内部RAG＋出典 / Web裏取り・相互検証 / アクション＋HITL 承認（業界プロファイル適用）',
+};
+
+export function SupportPanel({ variant = 'vertical' }: { variant?: SupportVariant }) {
   const [state, dispatch] = useReducer(jobReducer, initialJobState);
   const [verticals, setVerticals] = useState<VerticalInfo[]>([]);
   const [confirming, setConfirming] = useState(false);
   const unsubscribeRef = useRef<(() => void) | null>(null);
+  const showVertical = variant === 'vertical';
 
   useEffect(() => {
+    // 基本版は業界プロファイルを使わないので取得しない。
+    if (!showVertical) return () => unsubscribeRef.current?.();
     fetchVerticals()
       .then(setVerticals)
       .catch(() => setVerticals([]));
     return () => unsubscribeRef.current?.();
-  }, []);
+  }, [showVertical]);
 
   const submit = useCallback(async (params: QueryParams) => {
     unsubscribeRef.current?.();
@@ -67,11 +88,14 @@ export function SupportPanel() {
 
   return (
     <>
-      <p className="panel-lead">
-        内部RAG＋出典 / Web裏取り・相互検証 / アクション＋HITL 承認
-      </p>
+      <p className="panel-lead">{LEAD[variant]}</p>
 
-      <QueryForm verticals={verticals} running={state.phase === 'running'} onSubmit={submit} />
+      <QueryForm
+        verticals={verticals}
+        running={state.phase === 'running'}
+        onSubmit={submit}
+        showVertical={showVertical}
+      />
 
       {state.error && <div className="error-banner">{state.error}</div>}
       {state.phase === 'running' && !state.intervention && (

@@ -1,8 +1,24 @@
-// チャット入力フォーム: 質問・vertical セレクタ・dry-run トグル・詳細ログトグル。
+// 問い合わせ入力フォーム。CLI（agent_support_example.py）の引数と 1:1 に対応する。
+//
+//   query        → 問い合わせ入力
+//   --vertical   → 業界プロファイル セレクタ（基本版タブでは出さない）
+//   --no-web     → Web フォールバック トグル
+//   --no-action  → アクション実行 トグル
+//   --dry-run    → dry-run トグル
+//   -v           → 詳細ログ トグル
+//   --identity   → 本人確認の識別子（order_id / email）
 import { FormEvent, useState } from 'react';
 import type { QueryParams, VerticalInfo } from '../types';
 
-const EXAMPLES: Array<{ label: string; query: string; vertical: string | null }> = [
+/** support_actions.py の IDENTITY_FIELDS と一致させる。 */
+const IDENTITY_FIELDS = ['order_id', 'email'] as const;
+
+const BASIC_EXAMPLES: Array<{ label: string; query: string; vertical: string | null }> = [
+  { label: 'パスワードを忘れました', query: 'パスワードを忘れました', vertical: null },
+  { label: '領収書は発行できますか？', query: '領収書は発行できますか？', vertical: null },
+];
+
+const VERTICAL_EXAMPLES: Array<{ label: string; query: string; vertical: string | null }> = [
   { label: 'パスワードを忘れました', query: 'パスワードを忘れました', vertical: null },
   { label: 'gov: 住民票の写しの取り方は？', query: '住民票の写しの取り方は？', vertical: 'gov' },
   { label: 'ec: 返品したい', query: '返品したい', vertical: 'ec' },
@@ -13,24 +29,50 @@ interface Props {
   verticals: VerticalInfo[];
   running: boolean;
   onSubmit: (params: QueryParams) => void;
+  /** 業界プロファイル セレクタを出すか。基本版タブでは false（vertical は常に null）。 */
+  showVertical?: boolean;
 }
 
-export function QueryForm({ verticals, running, onSubmit }: Props) {
+export function QueryForm({ verticals, running, onSubmit, showVertical = true }: Props) {
   const [query, setQuery] = useState('');
   const [vertical, setVertical] = useState<string>('');
   const [dryRun, setDryRun] = useState(true);
   const [verbose, setVerbose] = useState(false);
+  const [useWeb, setUseWeb] = useState(true);
+  const [doAction, setDoAction] = useState(true);
+  const [orderId, setOrderId] = useState('');
+  const [email, setEmail] = useState('');
+
+  // 本人確認が実際に起動するのは require_identity のプロファイルのときだけ。
+  // 基本版（showVertical=false）は vertical を送らないので、常に起動しない。
+  const selected = showVertical ? verticals.find((v) => v.id === vertical) : undefined;
+  const requireIdentity = selected?.require_identity === true;
+
+  // 識別子欄は常に出すが、実際に照合されるかは設定次第なので状態を明示する。
+  const identityNote = !requireIdentity
+    ? '現在の設定では本人確認を行いません（このプロファイルは require_identity=false）'
+    : dryRun
+      ? 'dry-run 中はデモ照合のため、入力値は照合に使われません'
+      : 'SUPPORT_IDENTITY_FILE の顧客台帳と照合します（未設定の場合は常に未確認）';
+
+  const examples = showVertical ? VERTICAL_EXAMPLES : BASIC_EXAMPLES;
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
     if (!query.trim() || running) return;
+    const identityValues: Record<string, string> = {
+      order_id: orderId.trim(),
+      email: email.trim(),
+    };
+    const hasIdentity = IDENTITY_FIELDS.some((f) => identityValues[f]);
     onSubmit({
       query: query.trim(),
-      vertical: vertical || null,
+      vertical: showVertical ? vertical || null : null,
       dry_run: dryRun,
-      use_web: true,
-      do_action: true,
+      use_web: useWeb,
+      do_action: doAction,
       verbose,
+      identity: hasIdentity ? identityValues : null,
     });
   };
 
@@ -48,22 +90,43 @@ export function QueryForm({ verticals, running, onSubmit }: Props) {
           {running ? '実行中…' : '送信'}
         </button>
       </div>
+
       <div className="query-options">
+        {showVertical && (
+          <label>
+            業界プロファイル:
+            <select
+              value={vertical}
+              onChange={(e) => setVertical(e.target.value)}
+              disabled={running}
+            >
+              <option value="">（なし）</option>
+              {verticals.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.id}（{v.name}
+                  {v.require_identity ? '・本人確認必須' : ''}）
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <label>
-          業界プロファイル:
-          <select
-            value={vertical}
-            onChange={(e) => setVertical(e.target.value)}
+          <input
+            type="checkbox"
+            checked={useWeb}
+            onChange={(e) => setUseWeb(e.target.checked)}
             disabled={running}
-          >
-            <option value="">（なし）</option>
-            {verticals.map((v) => (
-              <option key={v.id} value={v.id}>
-                {v.id}（{v.name}
-                {v.require_identity ? '・本人確認必須' : ''}）
-              </option>
-            ))}
-          </select>
+          />
+          Web フォールバック（オフで内部RAGのみ・<code>--no-web</code> 相当）
+        </label>
+        <label>
+          <input
+            type="checkbox"
+            checked={doAction}
+            onChange={(e) => setDoAction(e.target.checked)}
+            disabled={running}
+          />
+          アクション実行（オフで判定のみ・<code>--no-action</code> 相当）
         </label>
         <label>
           <input
@@ -81,11 +144,35 @@ export function QueryForm({ verticals, running, onSubmit }: Props) {
             onChange={(e) => setVerbose(e.target.checked)}
             disabled={running}
           />
-          詳細ログ（-v 相当）
+          詳細ログ（<code>-v</code> 相当）
         </label>
       </div>
+
+      <fieldset className="identity-fields" disabled={running || !requireIdentity}>
+        <legend>本人確認の識別子（<code>--identity</code> 相当）</legend>
+        <label>
+          order_id:
+          <input
+            type="text"
+            value={orderId}
+            placeholder="1001"
+            onChange={(e) => setOrderId(e.target.value)}
+          />
+        </label>
+        <label>
+          email:
+          <input
+            type="text"
+            value={email}
+            placeholder="a@example.com"
+            onChange={(e) => setEmail(e.target.value)}
+          />
+        </label>
+      </fieldset>
+      <p className={`identity-note${requireIdentity ? '' : ' muted'}`}>{identityNote}</p>
+
       <div className="query-examples">
-        {EXAMPLES.map((example) => (
+        {examples.map((example) => (
           <button
             key={example.label}
             type="button"
@@ -93,7 +180,7 @@ export function QueryForm({ verticals, running, onSubmit }: Props) {
             disabled={running}
             onClick={() => {
               setQuery(example.query);
-              setVertical(example.vertical ?? '');
+              if (showVertical) setVertical(example.vertical ?? '');
             }}
           >
             {example.label}

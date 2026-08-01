@@ -95,6 +95,47 @@ header p {
   border-radius: 6px;
 }
 
+/* ---- 本人確認の識別子（--identity 相当） ---- */
+.identity-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: center;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 0.88rem;
+  color: var(--muted);
+}
+
+.identity-fields legend {
+  padding: 0 6px;
+  font-size: 0.82rem;
+}
+
+.identity-fields input {
+  margin-left: 6px;
+  padding: 4px 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+/* 本人確認が起動しない設定では欄ごと無効化する（入力しても照合されないため） */
+.identity-fields:disabled {
+  opacity: 0.55;
+}
+
+.identity-note {
+  margin: 6px 2px 0;
+  font-size: 0.8rem;
+  color: var(--accent);
+}
+
+.identity-note.muted {
+  color: var(--muted);
+}
+
 .query-examples {
   display: flex;
   flex-wrap: wrap;

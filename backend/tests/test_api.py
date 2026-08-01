@@ -146,6 +146,23 @@ class TestSupportApi:
         response = client.post("/api/support/query", json={"query": ""})
         assert response.status_code == 422
 
+    def test_identity_reaches_job_params(self, pipeline_stub):
+        """`--identity` 相当の識別子が API → JobParams まで届くこと。"""
+        response = client.post("/api/support/query", json={
+            "query": "返品したい", "vertical": "ec",
+            "identity": {"order_id": "1001", "email": "a@example.com"},
+        })
+        assert response.status_code == 202
+        job = job_manager.get(response.json()["job_id"])
+        assert job.params.identity == {"order_id": "1001", "email": "a@example.com"}
+
+    def test_identity_is_optional(self, pipeline_stub):
+        """未指定でも 202（従来のリクエスト形を壊さない）。"""
+        response = client.post("/api/support/query", json={"query": "返品したい"})
+        assert response.status_code == 202
+        job = job_manager.get(response.json()["job_id"])
+        assert job.params.identity is None
+
 
 class TestMetaApi:
     def test_verticals_lists_builtin_profiles(self):

@@ -1,6 +1,6 @@
 # api/support.py - サポート問い合わせ API ドキュメント
 
-**Version 1.0** | 最終更新: 2026-07-15
+**Version 1.1** | 最終更新: 2026-08-01
 
 ---
 
@@ -187,7 +187,7 @@ def start_query(request: QueryRequest) -> QueryAccepted
 
 | パラメータ | 型 | デフォルト | 説明 |
 |------------|------|-----------|------|
-| `request` | QueryRequest | - | query / vertical / dry_run / use_web / do_action / verbose |
+| `request` | QueryRequest | - | query / vertical / dry_run / use_web / do_action / verbose / identity |
 
 | 項目 | 内容 |
 |------|------|
@@ -342,6 +342,7 @@ router  # APIRouter(prefix="/api/support", tags=["support"])
 | バージョン | 変更内容 |
 |-----------|---------|
 | 1.0 | 初版作成（4 エンドポイント: query / stream(SSE) / confirm / result の IPO ドキュメント） |
+| 1.1 | 2026-08-01 | `start_query` の受け取るフィールドに `identity`（`--identity` 相当）を追加 |
 
 ---
 

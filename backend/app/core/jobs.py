@@ -84,6 +84,11 @@ class JobParams:
     use_web: bool = True
     do_action: bool = True
     verbose: bool = False
+    # 本人確認の識別子（CLI の --identity KEY=VALUE 相当）。
+    # None は「提示なし」。照合されるのは require_identity のプロファイルのときだけで、
+    # さらに dry_run=True ではデモ照合が値を見ないため、実照合は
+    # 「ec ＋ dry_run=False ＋ SUPPORT_IDENTITY_FILE 設定」の経路に限られる。
+    identity: Optional[Dict[str, str]] = None
 
 
 @dataclass
@@ -236,8 +241,9 @@ def _support_runner(
 ) -> Optional[Dict[str, Any]]:
     """`JobParams` → `run_support_agent_core` の呼び出し。
 
-    従来 `JobManager._run` に直書きされていた処理をそのまま切り出したもの。
-    渡すパラメータ・順序・`identity=None` は変更していない。
+    従来 `JobManager._run` に直書きされていた処理を切り出したもの。
+    `identity` は当初 `None` 固定だったが、画面から本人確認の識別子を
+    渡せるようにしたため `params.identity` を素通しする（未指定なら None）。
     """
     result = run_support_agent_core(
         params.query,
@@ -246,7 +252,7 @@ def _support_runner(
         do_action=params.do_action,
         dry_run=params.dry_run,
         vertical=params.vertical,
-        identity=None,
+        identity=params.identity,
         emit=emit,
         confirm=confirm,
     )
