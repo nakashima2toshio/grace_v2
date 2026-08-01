@@ -26,7 +26,7 @@
 本ドキュメントは、GRACE-Review パイプライン（`backend/app/core/review_agent.py` の
 `run_review_agent_core()`）が実行する **処理フローの各ステップ（S1・①〜⑦）** を、
 実装関数・シグネチャ・IPO（Input-Process-Output）・戻り値例・使用例つきで記述する。
-全体像（アーキテクチャ・データフロー）は [`README.md`](./README.md) §1〜§3 を参照。
+全体像（アーキテクチャ・データフロー）はリポジトリルートの [`README.md`](../../README.md) §1〜§2 を参照。
 
 Support（`support_agent.py`）が「問い合わせ → 回答」なのに対し、本パイプラインは
 **「文書 → 指摘」**と情報の流れが逆になる。それでも中核部品は無改造で機能する。
