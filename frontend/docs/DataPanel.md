@@ -1,6 +1,6 @@
 # DataPanel.tsx - データ管理タブのルート ドキュメント
 
-**Version 1.0** | 最終更新: 2026-08-05
+**Version 1.1** | 最終更新: 2026-08-05
 
 ---
 
@@ -182,11 +182,12 @@ class U,S,K,UM,MT default
 | 要素 | イベント | ハンドラ | 効果 | 無効化条件 |
 |---|---|---|---|---|
 | サブタブボタン | `click` | `setSub(tab.id)` | 表示中の工程を切り替える | **なし** |
+| サブタブボタン | `keydown` | `onKeyDown(event, index)` | 左右/上下矢印で移動、Home/End で端へ。フォーカスも運ぶ | **なし** |
 
-> ⚠️ **実行中でもタブを切り替えられる。** 切り替えるとパネルがアンマウントされ、
-> `useEffect` のクリーンアップで SSE 購読が解除される。**ジョブ自体はバックエンドで
-> 走り続ける**が、進捗は見えなくなる。戻っても再購読しない（`job_id` を保持していない）。
-> 結果は `GET /api/data/result/{job_id}` で取れるが、画面からその導線は無い。
+> **実行中でもタブを切り替えられる。** 切り替えるとパネルがアンマウントされ、
+> `useEffect` のクリーンアップで SSE 購読が解除される。ジョブ自体はバックエンドで
+> 走り続け、**戻ると `state/activeJobs.ts` に残した `job_id` で購読し直す**ので
+> タイムラインごと復元される（[`DataJobPanel.md`](./DataJobPanel.md) §4.1.1）。
 
 ### 6.2 操作フロー図
 
@@ -232,10 +233,11 @@ class Open,C1,C2,C3 default
 | 状態表示が色のみに依存していないか（記号併用） | ✅ 選択中のタブは `aria-selected` ＋ 太字 ＋ 背景色。ラベルに ①②③ の番号も入る |
 | キーボードのみで操作できるか | ✅ ネイティブ `<button>` なので Tab + Enter で切替可 |
 | タブに `role` が付いているか | ✅ `role="tablist"` / `role="tab"` / `aria-selected` |
-| タブが矢印キーで移動できるか | ❌ 未対応。WAI-ARIA の tablist は左右矢印での移動が期待されるが、Tab キーのみ |
-| `tabpanel` が関連付けられているか | ❌ `aria-controls` / `role="tabpanel"` を付けていない |
+| タブが矢印キーで移動できるか | ✅ 左右/上下矢印で移動（端で回り込む）、Home/End で端へ。移動時は `preventDefault()` でページスクロールを止め、フォーカスも運ぶ |
+| `tabpanel` が関連付けられているか | ✅ `aria-controls` / `role="tabpanel"` / `aria-labelledby` |
+| 選択中タブだけが Tab キーの到達点か | ✅ roving tabindex（選択中 `0` / それ以外 `-1`）。タブ群を素通りして本文へ行ける |
 
-> 上記 ❌ は `App.tsx` のタブと同じ未対応項目。消さずに残す。
+矢印キーの移動先計算は `state/tabKeys.ts` の純関数（テスト済み）。`App.tsx` のタブと共用している。
 
 ---
 
@@ -245,6 +247,7 @@ class Open,C1,C2,C3 default
 |---|---|---|
 | `src/state/dataReducer.test.ts` | 子が使う reducer（21 ケース） | `npm test` |
 | `src/state/dataParams.test.ts` | 子が使うフォーム純関数（26 ケース） | `npm test` |
+| `src/state/tabKeys.test.ts` | 矢印キーの移動先計算（12 ケース） | `npm test` |
 | （本コンポーネントの専用テストなし） | — | — |
 
 **専用テストは未整備。** `@testing-library/react` を導入していないため
@@ -260,3 +263,4 @@ JSX のレンダリングテストが書けず、`tsc --noEmit` でガードし�
 | 版 | 日付 | 変更内容 |
 |---|---|---|
 | 1.0 | 2026-08-05 | 初版作成 |
+| 1.1 | 2026-08-05 | サブタブの矢印キー移動・roving tabindex・`role="tabpanel"` を追加。タブ離脱で進捗を失う記述を、再購読するよう修正 |

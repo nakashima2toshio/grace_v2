@@ -5,15 +5,22 @@
 //
 // ⚠️ 登録で `recreate: true` を選ぶと intervention が飛んでくる。
 // 承認 UI は Support / Review と同じ `ConfirmModal` を使う。
+//
+// タブを離れるとアンマウントされて SSE 購読が切れるが、`activeJobs` に
+// `job_id` を残しておき、再マウント時に購読し直す。バックエンドの
+// `stream_events()` は常にイベントを先頭からリプレイするため、
+// 再購読するだけでタイムラインごと復元される。
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 
 import {
   confirmDataIntervention,
+  fetchDataJobStatus,
   fetchInputFiles,
   startChunking,
   startRegister,
   subscribeStream,
 } from '../api/client';
+import { forgetJob, recallJob, rememberJob } from '../state/activeJobs';
 import {
   buildChunkingParams,
   buildRegisterParams,
@@ -86,7 +93,45 @@ export function DataJobPanel({ variant }: { variant: DataJobVariant }) {
     };
   }, [dir]);
 
-  useEffect(() => () => unsubscribeRef.current?.(), []);
+  // 購読を張り直す共通処理。起動直後と再マウント時の両方から使う
+  const subscribe = useCallback(
+    (jobId: string) => {
+      unsubscribeRef.current?.();
+      unsubscribeRef.current = subscribeStream(
+        jobId,
+        (e) => dispatch({ type: 'event', event: e }),
+        (message) => dispatch({ type: 'failed', message }),
+        'data',
+      );
+    },
+    [],
+  );
+
+  // 再マウント時、前回のジョブがまだ生きていれば購読し直す。
+  // **SSE へ直接つなぐ前に存在確認する** — 完了ジョブは 50 件で GC されるため、
+  // 消えた job_id に EventSource でつなぐと onerror が「切断されました」という
+  // 誤ったエラーになる。
+  useEffect(() => {
+    const remembered = recallJob(kind);
+    if (!remembered) return () => unsubscribeRef.current?.();
+
+    let cancelled = false;
+    void fetchDataJobStatus(remembered)
+      .then(() => {
+        if (cancelled) return;
+        dispatch({ type: 'started', jobId: remembered, kind });
+        subscribe(remembered);
+      })
+      .catch(() => {
+        // 404（GC 済み・サーバ再起動）。黙って忘れて初期状態から始める
+        if (!cancelled) forgetJob(kind);
+      });
+
+    return () => {
+      cancelled = true;
+      unsubscribeRef.current?.();
+    };
+  }, [kind, subscribe]);
 
   const chunkingState: ChunkingFormState = {
     inputFile,
@@ -129,13 +174,9 @@ export function DataJobPanel({ variant }: { variant: DataJobVariant }) {
           variant === 'chunking'
             ? await startChunking(buildChunkingParams(chunkingState))
             : await startRegister(buildRegisterParams(registerState));
+        rememberJob(kind, job_id);
         dispatch({ type: 'started', jobId: job_id, kind });
-        unsubscribeRef.current = subscribeStream(
-          job_id,
-          (e) => dispatch({ type: 'event', event: e }),
-          (message) => dispatch({ type: 'failed', message }),
-          'data',
-        );
+        subscribe(job_id);
       } catch (error) {
         dispatch({
           type: 'failed',
@@ -144,7 +185,7 @@ export function DataJobPanel({ variant }: { variant: DataJobVariant }) {
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [canSubmit, variant, kind, chunkingState, registerState],
+    [canSubmit, variant, kind, chunkingState, registerState, subscribe],
   );
 
   const respond = useCallback(
@@ -388,7 +429,11 @@ export function DataJobPanel({ variant }: { variant: DataJobVariant }) {
         </button>
       </form>
 
-      {state.error && <div className="error-banner">{state.error}</div>}
+      {state.error && (
+        <div className="error-banner" role="alert">
+          {state.error}
+        </div>
+      )}
       {running && !state.intervention && (
         <div className="running-banner">
           実行中… 進捗は下のタイムラインに逐次表示されます

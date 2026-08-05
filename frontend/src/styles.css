@@ -1117,3 +1117,18 @@ header p {
   max-width: 320px;
   overflow-wrap: anywhere;
 }
+
+/* 視覚的には隠すが支援技術には読ませる（進捗アナウンス用のライブ領域）。
+   display:none や visibility:hidden にすると読み上げからも消えるため、
+   1px に潰してクリップする定番の手法を使う。 */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

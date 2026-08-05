@@ -1,6 +1,6 @@
 # App.tsx - 4 タブのルートコンテナ ドキュメント
 
-**Version 1.1** | 最終更新: 2026-08-05
+**Version 1.2** | 最終更新: 2026-08-05
 
 ---
 
@@ -200,6 +200,7 @@ class Click,Set,Render,RP,SP,Unmount,Cleanup default
 | 要素 | イベント | ハンドラ | 効果 | 無効化条件 |
 |---|---|---|---|---|
 | タブボタン ×4 | `click` | `() => setTab(t.id)` | パネルを切り替える | **なし**（実行中でも切替可能） |
+| タブボタン ×4 | `keydown` | `onKeyDown(event, index)` | 左右/上下矢印で移動、Home/End で端へ。フォーカスも運ぶ | **なし** |
 
 > 📝 **実行中でもタブを切り替えられる。** `disabled` は付けていない。切り替えると
 > 購読は切れるがサーバ側の処理は継続するため、UI が固まることはない。
@@ -247,7 +248,9 @@ class Start,Show,Tab,Same,Swap,New default
 |---|:--:|---|
 | タブに `role="tablist"` / `role="tab"` があるか | ✅ | `nav.tabs` に `role="tablist"`、各ボタンに `role="tab"` |
 | 選択状態が支援技術へ伝わるか | ✅ | `aria-selected={t.id === tab}` |
-| キーボードで切り替えられるか | ✅ | `<button>` 要素なので Tab / Enter で操作可能 |
+| キーボードで切り替えられるか | ✅ | `<button>` 要素なので Enter / Space で操作可能。加えて左右/上下矢印で移動、Home/End で端へ（WAI-ARIA の tablist パターン）。移動先計算は `state/tabKeys.ts` の純関数 |
+| 選択中タブだけが Tab キーの到達点か | ✅ | roving tabindex（選択中 `0` / それ以外 `-1`）。タブ群を素通りして本文へ行ける |
+| `tabpanel` が関連付けられているか | ✅ | `aria-controls` / `role="tabpanel"` / `aria-labelledby` |
 | 矢印キーでのタブ移動（WAI-ARIA 準拠） | ❌ | 未実装。左右キーでの移動には対応していない |
 | `role="tabpanel"` と `aria-controls` の対応付け | ❌ | パネル側に `tabpanel` を付けていない |
 | 状態表示が色のみに依存していないか | ✅ | アクティブタブは `.active` の枠線＋説明文で区別 |
@@ -280,3 +283,4 @@ JSX のレンダリングテストは持たない。ガードは以下 2 つ。
 |---|---|---|
 | 1.0 | 2026-08-01 | 初版作成。3 タブ化（基本版 / GRACE-Support / GRACE-Review）後の実装に基づく。`key={tab}` が必要な理由と、それが型検査では守られない点を明記 |
 | 1.1 | 2026-08-05 | 4 タブ目「データ管理」（`DataPanel`）を追加。前 3 つ（使う）と最後（準備する）の区分を明記 |
+| 1.2 | 2026-08-05 | タブの矢印キー移動・roving tabindex・`role="tabpanel"` を追加 |

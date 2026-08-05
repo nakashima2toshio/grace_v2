@@ -1,6 +1,6 @@
 # CollectionPanel.tsx - コレクション管理（一覧・詳細・削除） ドキュメント
 
-**Version 1.0** | 最終更新: 2026-08-05
+**Version 1.1** | 最終更新: 2026-08-05
 
 ---
 
@@ -145,7 +145,8 @@ const [state, dispatch] = useReducer(dataReducer, 'delete', initialDataState);
 |---|---|---|---|---|
 | 1 | 初回ロード | `[reload]` | `unsubscribeRef.current?.()` を返す | `reload` は `useCallback([])` なので実質マウント時 1 回 |
 | 2 | 詳細・プレビューの取得 | `[selected]` | `cancelled = true` を返す | 選択が変わったら古い応答を捨てる |
-| 3 | 削除完了後の再読み込み | `[state.phase, state.result, reload]` | なし | 状態を見て一度だけ走る。購読を張らないので解除不要 |
+| 3 | 削除完了後の再読み込み ＋ 記憶の破棄 | `[state.phase, state.result, reload]` | なし | 状態を見て一度だけ走る。購読を張らないので解除不要 |
+| 4 | **前回ジョブの再購読** | `[subscribe]` | `cancelled = true` を返す | 承認待ちのまま離脱して戻ったときにモーダルを取り戻す |
 
 ```tsx
 // #1 — 初回ロード + アンマウント時の SSE 解除
@@ -167,6 +168,26 @@ useEffect(() => {
 > ⚠️ **#3 で `cancelled` を見るのが重要。** 承認を拒否した場合もジョブは
 > `completed` で終わる（失敗ではない）。`cancelled` を見ずに再読み込みすると
 > 「何も消えていないのに選択が解除される」ため、拒否したことが分かりにくくなる。
+
+### 4.1.1 承認待ちのまま離脱しても取り戻せる
+
+サブタブを離れるとアンマウントされ、承認モーダルごと消える。バックエンドの
+`resolver` は承認が来るまでブロックし続けるため、**戻る手段が無いとタイムアウトまで
+放置される**ことになる。
+
+`state/activeJobs.ts` に `job_id` を残し、再マウント時に購読し直すことで解決している。
+`Job.stream_events()` は常に index 0 からリプレイするので、**承認待ちの
+`intervention` イベントも含めて**復元される。
+
+```tsx
+const remembered = recallJob('delete');
+void fetchDataJobStatus(remembered)
+  .then(() => { dispatch({ type: 'started', jobId: remembered, kind: 'delete' }); subscribe(remembered); })
+  .catch(() => forgetJob('delete'));   // 404 = GC 済み。黙って忘れる
+```
+
+> `DataJobPanel` と違い、**完了したら記憶を捨てる**（#3）。削除後に見たいのは
+> 更新された一覧であって、済んだ削除のタイムラインではないため。
 
 ### 4.2 削除フロー
 
@@ -225,6 +246,7 @@ payload のキーはコレクションごとに違うため、**列を固定で�
 | 関数 | メソッド | パス | 用途 |
 |---|---|---|---|
 | `fetchQdrantHealth` | GET | `/api/qdrant/health` | 稼働確認 |
+| `fetchDataJobStatus` | GET | `/api/data/result/{job_id}` | 再購読前の存在確認 |
 | `fetchCollections` | GET | `/api/qdrant/collections` | 一覧 |
 | `fetchCollectionDetail` | GET | `/api/qdrant/collections/{name}` | 詳細 |
 | `fetchCollectionPoints` | GET | `/api/qdrant/collections/{name}/points?limit=20` | プレビュー |
@@ -323,8 +345,9 @@ Qdrant の Named vectors 構成では、`fetch_collection_info()` が
 | キーボードのみで操作できるか | ✅ すべてネイティブ `<button>` / `<input type="checkbox">`。コレクション名も `<button className="link-button">`（`<a>` や `<span onClick>` ではない） |
 | 表にヘッダセルがあるか | ✅ `<th scope="col">` |
 | 削除の危険性が事前に伝わるか | ✅ ボタンに `title="削除には承認が必要です"`、モーダルに「元に戻せません」 |
-| エラーが支援技術に伝わるか | ❌ `.error-banner` / `.warn-banner` に `role="alert"` が無い |
-| 一覧の更新が支援技術に伝わるか | ❌ `aria-live` が無いため、削除後の再読み込みが読み上げられない |
+| エラーが支援技術に伝わるか | ✅ `.error-banner` / `.warn-banner` に `role="alert"` |
+| 削除の進捗が支援技術に伝わるか | ✅ `Timeline` のライブ領域が実行中ステップを読み上げる |
+| 一覧の更新そのものが支援技術に伝わるか | ❌ 一覧テーブルに `aria-live` は付けていない（行数が多いと読み上げが長すぎるため）。削除完了は Timeline のライブ領域が伝える |
 | 選択件数が支援技術に伝わるか | ✅ ボタン文言に件数が入るので、フォーカス時に読み上げられる |
 
 > 上記 ❌ は既知の未対応。消さずに残す。
@@ -364,3 +387,4 @@ Qdrant の Named vectors 構成では、`fetch_collection_info()` が
 | 版 | 日付 | 変更内容 |
 |---|---|---|
 | 1.0 | 2026-08-05 | 初版作成 |
+| 1.1 | 2026-08-05 | 承認待ちのまま離脱すると取り戻せない不具合を修正（`activeJobs` による再購読）。`role="alert"` を追加 |

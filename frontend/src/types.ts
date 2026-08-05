@@ -316,3 +316,14 @@ export interface DataJobResult {
   cancelled?: boolean;
   reason?: string;
 }
+
+/**
+ * GET /api/data/result/{job_id}。
+ * ジョブが存在するかの確認（再購読前のチェック）にも使う。
+ */
+export interface DataJobStatusResponse {
+  job_id: string;
+  kind: string;
+  status: 'running' | 'completed' | 'failed';
+  result: DataJobResult | null;
+}

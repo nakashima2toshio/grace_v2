@@ -1,6 +1,6 @@
 # DataJobPanel.tsx - チャンキング / Qdrant 登録の実行パネル ドキュメント
 
-**Version 1.0** | 最終更新: 2026-08-05
+**Version 1.1** | 最終更新: 2026-08-05
 
 ---
 
@@ -212,7 +212,7 @@ stateDiagram-v2
 | # | 目的 | 依存配列 | クリーンアップ | 備考 |
 |---|---|---|---|---|
 | 1 | ファイル一覧の取得 | `[dir]` | `cancelled = true` を返す | 取得中に dir が変わったら結果を捨てる（古い応答で上書きしない） |
-| 2 | SSE 購読の解除 | `[]` | `unsubscribeRef.current?.()` を返す | **必須**。返さないとアンマウント時に `EventSource` が残る |
+| 2 | **前回ジョブの再購読** ＋ SSE 購読の解除 | `[kind, subscribe]` | `cancelled = true` と `unsubscribeRef.current?.()` を返す | 再購読の前に存在確認する（下記） |
 
 ```tsx
 // #1 — 競合状態の回避
@@ -230,6 +230,35 @@ useEffect(() => () => unsubscribeRef.current?.(), []);
 
 > ⚠️ **#1 の `cancelled` フラグは必須。** ディレクトリを素早く切り替えると、
 > 遅い方の応答が後に届いて**古いディレクトリのファイル一覧で上書き**される。
+
+### 4.1.1 タブを離れても進捗を失わない仕組み
+
+タブ（サブタブ）はアンマウントで切り替わるため、離れると reducer 状態と
+SSE 購読が破棄される。**ジョブはバックエンドで走り続けるのに `job_id` を失う**ので、
+戻っても進捗を追えなかった。
+
+これを `state/activeJobs.ts`（モジュールスコープの小さなストア）で解決している。
+
+```tsx
+// 起動時
+rememberJob(kind, job_id);
+
+// 再マウント時
+const remembered = recallJob(kind);
+if (!remembered) return () => unsubscribeRef.current?.();
+void fetchDataJobStatus(remembered)
+  .then(() => { dispatch({ type: 'started', jobId: remembered, kind }); subscribe(remembered); })
+  .catch(() => forgetJob(kind));   // 404 = もう無い。黙って忘れる
+```
+
+| 論点 | 説明 |
+|---|---|
+| なぜ再購読だけで復元できるのか | `Job.stream_events()` は**常に index 0 からリプレイする**（`backend/app/core/jobs.py`）。購読し直せばステップもログも承認待ちも戻る |
+| なぜ React の state ではないのか | 覚えたいのは「アンマウントされても消えない」情報なので、state では目的を果たせない |
+| **なぜ SSE の前に存在確認するのか** | 完了ジョブは 50 件で GC される（`MAX_FINISHED_JOBS`）。消えた `job_id` に `EventSource` でつなぐと `onerror` が発火し、**「切断されました」という誤ったエラー**になる。先に `GET /api/data/result/{job_id}` を叩き、404 なら黙って忘れる |
+| なぜ `sessionStorage` にしないのか | 復元先のジョブがサーバ再起動で消えている可能性があり、かえって不整合を招く |
+
+> 完了後も記憶を残すのは意図的。タブを離れて戻ったときに**結果カードが見える**。
 
 ### 4.2 ジョブ起動から結果まで
 
@@ -277,6 +306,7 @@ const selectFile = (path: string) => {
 | 関数 | メソッド | パス | 用途 |
 |---|---|---|---|
 | `fetchInputFiles` | GET | `/api/files?dir=` | 入力ファイル候補 |
+| `fetchDataJobStatus` | GET | `/api/data/result/{job_id}` | 再購読前の存在確認 |
 | `startChunking` | POST | `/api/chunking/run` | チャンク化ジョブの起動 |
 | `startRegister` | POST | `/api/qdrant/register` | 登録ジョブの起動 |
 | `subscribeStream` | GET(SSE) | `/api/data/stream/{job_id}` | 進捗の購読（`kind='data'`） |
@@ -394,8 +424,8 @@ LLM 用途（Anthropic Claude）とは別系統なので、画面から切り替
 | 状態表示が色のみに依存していないか（記号併用） | ✅ `recreate` は色に加えて「⚠️ 既存の同名コレクションを削除して作り直します」と文言で警告 |
 | キーボードのみで送信・承認できるか | ✅ ネイティブ `<form>` / `<button>` / `<select>` / `<input>` のみ |
 | 実行中であることが伝わるか | ✅ ボタン文言が「実行中…」に変わり、バナーも出る |
-| 進捗が支援技術に伝わるか | ❌ `Timeline` に `aria-live` が無い |
-| エラーが支援技術に伝わるか | ❌ `.error-banner` に `role="alert"` が無い |
+| 進捗が支援技術に伝わるか | ✅ `Timeline` が `aria-live="polite"` のライブ領域で**実行中のステップ名だけ**を読み上げる（ログ 1 行ごとに読み上げると実用にならないため） |
+| エラーが支援技術に伝わるか | ✅ `.error-banner` に `role="alert"` |
 | 必須項目が示されているか | ❌ `required` / `aria-required` を付けていない（送信ボタンの `disabled` のみ） |
 
 > 上記 ❌ は既知の未対応。消さずに残す。
@@ -429,6 +459,7 @@ LLM 用途（Anthropic Claude）とは別系統なので、画面から切り替
 |---|:---:|
 | `useEffect` #1 の `cancelled` フラグ漏れ | ❌ |
 | `useEffect` #2 のクリーンアップ漏れ | ❌ |
+| `rememberJob` の呼び忘れ（進捗が復元されない） | ❌ |
 | `step.data` のキー名（バッジの表示） | ❌ `Record<string, unknown>` のため |
 
 ---
@@ -438,3 +469,4 @@ LLM 用途（Anthropic Claude）とは別系統なので、画面から切り替
 | 版 | 日付 | 変更内容 |
 |---|---|---|
 | 1.0 | 2026-08-05 | 初版作成 |
+| 1.1 | 2026-08-05 | タブ離脱時に進捗を失う不具合を修正（`activeJobs` による再購読）。`role="alert"` と `Timeline` のライブ領域を追加 |

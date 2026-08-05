@@ -97,7 +97,11 @@ export function ReviewPanel() {
         onSubmit={submit}
       />
 
-      {state.error && <div className="error-banner">{state.error}</div>}
+      {state.error && (
+        <div className="error-banner" role="alert">
+          {state.error}
+        </div>
+      )}
       {state.phase === 'running' && !state.intervention && (
         <div className="running-banner">
           点検中… ステップ進捗は下のタイムラインに逐次表示されます
