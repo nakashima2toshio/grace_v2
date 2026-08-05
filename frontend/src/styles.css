@@ -1132,3 +1132,16 @@ header p {
   white-space: nowrap;
   border: 0;
 }
+
+/* メタ情報（業界プロファイル / ルールセット）の取得失敗バナー。
+   文言と再取得ボタンを横に並べる。 */
+.meta-error {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.meta-error button {
+  flex-shrink: 0;
+}

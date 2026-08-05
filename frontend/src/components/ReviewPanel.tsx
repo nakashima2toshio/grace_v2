@@ -10,9 +10,11 @@ import {
   startReview,
   subscribeStream,
 } from '../api/client';
+import { metaErrorMessage } from '../state/metaFetch';
 import { initialReviewState, reviewReducer } from '../state/reviewReducer';
 import type { ReviewParams, RuleSetInfo } from '../types';
 import { ConfirmModal } from './ConfirmModal';
+import { MetaErrorBanner } from './MetaErrorBanner';
 import { DocumentView } from './DocumentView';
 import { FindingList, FindingSummaryBar } from './FindingList';
 import { ReviewForm } from './ReviewForm';
@@ -21,15 +23,32 @@ import { ReviewTimeline } from './ReviewTimeline';
 export function ReviewPanel() {
   const [state, dispatch] = useReducer(reviewReducer, initialReviewState);
   const [rulesets, setRulesets] = useState<RuleSetInfo[]>([]);
+  // 取得に失敗した理由。null なら成功（または未取得）
+  const [rulesetsError, setRulesetsError] = useState<string | null>(null);
+  const [loadingRulesets, setLoadingRulesets] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const unsubscribeRef = useRef<(() => void) | null>(null);
 
-  useEffect(() => {
-    fetchRuleSets()
-      .then(setRulesets)
-      .catch(() => setRulesets([]));
-    return () => unsubscribeRef.current?.();
+  const loadRulesets = useCallback(() => {
+    setLoadingRulesets(true);
+    setRulesetsError(null);
+    return fetchRuleSets()
+      .then((list) => {
+        setRulesets(list);
+        setRulesetsError(null);
+      })
+      .catch((error: unknown) => {
+        // 空配列に倒すのは正しいが、**理由を伝えないと「選べない」だけに見える**。
+        setRulesets([]);
+        setRulesetsError(metaErrorMessage(error, 'ルールセット'));
+      })
+      .finally(() => setLoadingRulesets(false));
   }, []);
+
+  useEffect(() => {
+    void loadRulesets();
+    return () => unsubscribeRef.current?.();
+  }, [loadRulesets]);
 
   const submit = useCallback(async (params: ReviewParams) => {
     unsubscribeRef.current?.();
@@ -97,6 +116,13 @@ export function ReviewPanel() {
         onSubmit={submit}
       />
 
+      {rulesetsError && (
+        <MetaErrorBanner
+          message={rulesetsError}
+          onRetry={() => void loadRulesets()}
+          retrying={loadingRulesets}
+        />
+      )}
       {state.error && (
         <div className="error-banner" role="alert">
           {state.error}
