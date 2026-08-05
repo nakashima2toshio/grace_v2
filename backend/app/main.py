@@ -10,7 +10,9 @@ CLI と同じコアサービスを Web から呼ぶための API。エージェ�
 | GRACE-Review（文書 → 指摘） | `core/review_agent.py` | `/api/review/*` |
 
 これに加えて、データ準備（チャンキング → Q/A 生成 → Qdrant 登録 → コレクション管理）
-の API を `/api/qdrant/*` `/api/files` に持つ（`api/qdrant.py`）。
+の API を持つ。参照系は `api/qdrant.py`（`/api/qdrant/*`・`/api/files`）、
+ジョブ系は `api/data.py`（`/api/chunking/run`・`/api/qdrant/register`・
+`/api/qdrant/delete`・`/api/data/*`）。ジョブ基盤・SSE・HITL は共通。
 
 ローカル開発専用（認証なし）。フロントエンドは frontend/（Vite + React + TS）。
 
@@ -26,7 +28,7 @@ from __future__ import annotations
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from backend.app.api import meta, qdrant, review, support
+from backend.app.api import data, meta, qdrant, review, support
 
 # .env から ANTHROPIC_API_KEY / GOOGLE_API_KEY 等を読み込む（未導入でも続行）
 try:
@@ -61,3 +63,4 @@ app.include_router(support.router)
 app.include_router(review.router)
 app.include_router(meta.router)
 app.include_router(qdrant.router)
+app.include_router(data.router)

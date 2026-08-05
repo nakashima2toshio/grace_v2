@@ -314,3 +314,66 @@ class InputFileListResponse(BaseModel):
     dir: str
     allowed_dirs: List[str]
     files: List[InputFileInfo] = Field(default_factory=list)
+
+
+class ChunkingRequest(BaseModel):
+    """POST /api/chunking/run（CLI 引数と 1:1 対応）。"""
+
+    # 'ディレクトリ名/ファイル名' 形式。許可ディレクトリ外は 400
+    input_file: str = Field(min_length=1, description="入力ファイル（--input-file 相当）")
+    output_dir: str = Field(default="output_chunked", description="出力先（--output 相当）")
+    model: str = Field(default="claude-haiku-4-5", description="チャンク化に使う LLM")
+    workers: int = Field(default=8, ge=1, le=32, description="並列ワーカー数")
+    block_size: int = Field(default=1000, ge=100, le=8000, description="ブロックサイズ（文字）")
+    text_column: Optional[str] = Field(default=None, description="CSV のテキストカラム名")
+    max_rows: Optional[int] = Field(default=None, ge=1, description="最大処理行数（CSV）")
+    combine_rows: bool = Field(default=False, description="CSV 全行を結合する")
+    resume: Optional[str] = Field(default=None, description="再開するジョブ ID")
+    verbose: bool = False
+
+
+class RegisterRequest(BaseModel):
+    """POST /api/qdrant/register。
+
+    ⚠️ `recreate=True` は既存コレクションを削除して作り直す。
+    その場合のみ HITL CONFIRM（intervention イベント）が発生する。
+    """
+
+    input_file: str = Field(min_length=1, description="Q/A CSV（'ディレクトリ名/ファイル名'）")
+    collection: str = Field(min_length=1, description="登録先コレクション名")
+    recreate: bool = Field(default=False, description="既存を削除して作り直す（要承認）")
+    batch_size: int = Field(default=100, ge=1, le=1000)
+    embed_workers: int = Field(default=2, ge=1, le=16)
+    text_col: Optional[str] = None
+    domain: Optional[str] = None
+    max_docs: Optional[int] = Field(default=None, ge=1)
+    # Embedding は Gemini（CLAUDE.md のプロバイダ方針）
+    provider: str = Field(default="gemini")
+    normalize_filename: bool = True
+    create_ui_csv: bool = True
+    ui_output_dir: str = "qa_output"
+    verbose: bool = False
+
+
+class DeleteCollectionsRequest(BaseModel):
+    """POST /api/qdrant/delete。**必ず HITL CONFIRM を通る。**
+
+    単発の DELETE エンドポイントにしていないのは、誤操作で不可逆に消えるのを
+    防ぐため（承認を経ずに削除する経路を用意しない）。
+    """
+
+    collections: List[str] = Field(min_length=1, description="削除するコレクション名")
+    verbose: bool = False
+
+
+class DataJobStatusResponse(BaseModel):
+    """GET /api/data/result/{job_id}。
+
+    結果の形はジョブ種別（chunking / register / delete）で異なるため、
+    `result` は素の dict にして `kind` で判別させる。
+    """
+
+    job_id: str
+    kind: str
+    status: Literal["running", "completed", "failed"]
+    result: Optional[Dict[str, Any]] = None

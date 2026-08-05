@@ -1,11 +1,13 @@
-// GRACE のローカル開発用 UI。3 つのメニューをタブで切り替える。
+// GRACE のローカル開発用 UI。4 つのメニューをタブで切り替える。
 //
 //   基本版         — 問い合わせ → 回答（業界特化なし・/api/support/*）
 //   GRACE-Support  — 問い合わせ → 回答（業界プロファイル適用・/api/support/*）
 //   GRACE-Review   — 文書 → 指摘（ルールセット適用・/api/review/*）
+//   データ管理     — チャンキング → Qdrant 登録 → コレクション管理（/api/data/* ほか）
 //
-// タブの並びは「業界特化を足していく順」。基本版が素のパイプラインで、
-// Support は VerticalProfile、Review は RuleSet を差し替えたもの。
+// 前 3 つは「エージェントを使う」側、最後の 1 つは「データを準備する」側で、
+// モードが異なる。前者の並びは「業界特化を足していく順」で、基本版が素の
+// パイプライン、Support は VerticalProfile、Review は RuleSet を差し替えたもの。
 // この 2 つの業界定義はほぼ同型（collections / *_keywords / action_map /
 // notify_th / confirm_th / prompt_addendum を共有）である。
 //
@@ -13,15 +15,17 @@
 // reducer・SSE 購読・承認状態を持つため、離れた側の EventSource が
 // useEffect のクリーンアップで確実に閉じる。
 import { useState } from 'react';
+import { DataPanel } from './components/DataPanel';
 import { ReviewPanel } from './components/ReviewPanel';
 import { SupportPanel } from './components/SupportPanel';
 
-type Tab = 'basic' | 'support' | 'review';
+type Tab = 'basic' | 'support' | 'review' | 'data';
 
 const TABS: Array<{ id: Tab; label: string; description: string }> = [
   { id: 'basic', label: '基本版', description: '問い合わせ → 回答（業界特化なし）' },
   { id: 'support', label: 'GRACE-Support', description: '問い合わせ → 回答（業界特化）' },
   { id: 'review', label: 'GRACE-Review', description: '文書 → 指摘（業界特化）' },
+  { id: 'data', label: 'データ管理', description: 'チャンク化 → 登録 → コレクション管理' },
 ];
 
 export default function App() {
@@ -48,7 +52,9 @@ export default function App() {
         </nav>
       </header>
 
-      {tab === 'review' ? (
+      {tab === 'data' ? (
+        <DataPanel />
+      ) : tab === 'review' ? (
         <ReviewPanel />
       ) : (
         // 基本版と Support は同一パイプライン。variant で業界特化の有無だけを切り替える。
