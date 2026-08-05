@@ -1,5 +1,9 @@
 // 文書レビューの入力フォーム: 文書 textarea・RuleSet セレクタ・実行オプション。
-import { FormEvent, useState } from 'react';
+//
+// ⚠️ 入力内容は `state/formMemory.ts` へ退避する。タブ切替はアンマウントなので、
+//    退避しないと貼り付けた文書もチェックも既定値へ戻る（詳細はそちらの冒頭）。
+import { FormEvent, useEffect, useState } from 'react';
+import { recallReviewForm, rememberReviewForm } from '../state/formMemory';
 import type { ReviewParams, RuleSetInfo } from '../types';
 
 // backend/app/schemas.py の MAX_DOCUMENT_CHARS と一致させる（超過は API が 422）。
@@ -40,12 +44,18 @@ interface Props {
 }
 
 export function ReviewForm({ rulesets, running, onSubmit }: Props) {
-  const [document, setDocument] = useState('');
-  const [title, setTitle] = useState('');
-  const [ruleset, setRuleset] = useState<string>('ec_ad');
-  const [useWeb, setUseWeb] = useState(false);
-  const [dryRun, setDryRun] = useState(true);
-  const [verbose, setVerbose] = useState(false);
+  // マウント時に 1 度だけ引く（毎レンダーで読み直すと入力中に上書きされる）。
+  const [restored] = useState(() => recallReviewForm());
+  const [document, setDocument] = useState(restored.document);
+  const [title, setTitle] = useState(restored.title);
+  const [ruleset, setRuleset] = useState<string>(restored.ruleset);
+  const [useWeb, setUseWeb] = useState(restored.useWeb);
+  const [dryRun, setDryRun] = useState(restored.dryRun);
+  const [verbose, setVerbose] = useState(restored.verbose);
+
+  useEffect(() => {
+    rememberReviewForm({ document, title, ruleset, useWeb, dryRun, verbose });
+  }, [document, title, ruleset, useWeb, dryRun, verbose]);
 
   const tooLong = document.length > MAX_DOCUMENT_CHARS;
   const canSubmit = !!document.trim() && !tooLong && !running;
