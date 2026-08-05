@@ -532,3 +532,86 @@ def test_chunking_endpoint_validates_params():
     assert client.post("/api/chunking/run", json={**base, "workers": 999}).status_code == 422
     assert client.post("/api/chunking/run", json={**base, "block_size": 10}).status_code == 422
     assert client.post("/api/chunking/run", json={"input_file": ""}).status_code == 422
+
+
+# =============================================================================
+# 再購読（タブを離れて戻ったときの復元）
+#
+# フロントはタブ切替でパネルをアンマウントするため SSE 購読が切れる。
+# `activeJobs` に job_id を残して再購読する設計だが、それが成立するのは
+# **バックエンドがイベントを先頭からリプレイし、完了ジョブも一定期間残す**
+# ためである。この前提が壊れると画面側が黙って進捗を失う。
+# =============================================================================
+
+def test_stream_events_replays_from_beginning(stub_qdrant):
+    """**購読し直すとイベントが先頭から流れる**（再購読でタイムラインが復元できる）。"""
+    response = client.post("/api/qdrant/delete", json={"collections": ["faq_anthropic"]})
+    job_id = response.json()["job_id"]
+    job = job_manager.get(job_id)
+
+    # 承認待ちまで進める
+    intervention = _wait(
+        lambda: next(
+            (e for e in list(job.events)
+             if e["type"] == "intervention" and e.get("status") == "waiting"),
+            None,
+        )
+    )
+
+    # 「タブを離れて戻った」= 新しい購読を開く
+    replayed = []
+    for event in job.stream_events(poll_timeout=0.1):
+        if event is None:  # keepalive = これ以上は来ない
+            break
+        replayed.append(event)
+        if event["type"] == "intervention":
+            break
+
+    steps = [(e.get("step"), e.get("status")) for e in replayed if e["type"] == "step"]
+    assert ("inspect", "started") in steps, "先頭のステップが復元されていない"
+    assert ("inspect", "finished") in steps
+    assert ("confirm", "started") in steps
+    assert any(e["type"] == "intervention" for e in replayed), "承認待ちが復元されていない"
+
+    # 後片付け（ジョブを完了させる）
+    client.post(
+        f"/api/data/confirm/{job_id}",
+        json={"intervention_id": intervention["data"]["intervention_id"], "approve": False},
+    )
+    _wait(lambda: job.done)
+
+
+def test_result_endpoint_reports_running_before_completion(stub_qdrant):
+    """承認待ちのジョブは `running` を返す（再購読の前に存在確認できる）。"""
+    response = client.post("/api/qdrant/delete", json={"collections": ["gov_anthropic"]})
+    job_id = response.json()["job_id"]
+    job = job_manager.get(job_id)
+
+    intervention = _wait(
+        lambda: next(
+            (e for e in list(job.events)
+             if e["type"] == "intervention" and e.get("status") == "waiting"),
+            None,
+        )
+    )
+
+    status = client.get(f"/api/data/result/{job_id}")
+    assert status.status_code == 200
+    assert status.json()["status"] == "running"
+    assert status.json()["kind"] == "delete"
+
+    client.post(
+        f"/api/data/confirm/{job_id}",
+        json={"intervention_id": intervention["data"]["intervention_id"], "approve": False},
+    )
+    _wait(lambda: job.done)
+
+
+def test_missing_job_returns_404_not_500(stub_qdrant):
+    """**消えた job_id は 404。**
+
+    フロントは 404 を「ジョブはもう無い」と解釈して記憶を捨てる。
+    500 やタイムアウトになると、SSE の onerror 経由で
+    「切断されました」という誤ったエラーを出してしまう。
+    """
+    assert client.get("/api/data/result/deadbeef1234").status_code == 404

@@ -2,6 +2,9 @@
 //
 // 削除は不可逆なので、単発の DELETE ではなく**ジョブ + 承認モーダル**を通す。
 // 承認 UI は Support / Review と同じ `ConfirmModal` を再利用する。
+//
+// サブタブを離れるとアンマウントされるが、`activeJobs` に job_id を残して
+// 再マウント時に購読し直す（承認待ちのまま見失わないようにするため）。
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 
 import {
@@ -9,10 +12,12 @@ import {
   fetchCollectionDetail,
   fetchCollectionPoints,
   fetchCollections,
+  fetchDataJobStatus,
   fetchQdrantHealth,
   startDelete,
   subscribeStream,
 } from '../api/client';
+import { forgetJob, recallJob, rememberJob } from '../state/activeJobs';
 import { dataReducer, initialDataState, stepIdsFor, stepLabelsFor } from '../state/dataReducer';
 import type {
   CollectionDetail,
@@ -55,11 +60,45 @@ export function CollectionPanel() {
     }
   }, []);
 
+  const subscribe = useCallback((jobId: string) => {
+    unsubscribeRef.current?.();
+    unsubscribeRef.current = subscribeStream(
+      jobId,
+      (event) => dispatch({ type: 'event', event }),
+      (message) => dispatch({ type: 'failed', message }),
+      'data',
+    );
+  }, []);
+
   // 初回ロード。SSE の購読解除も忘れずに返す
   useEffect(() => {
     void reload();
     return () => unsubscribeRef.current?.();
   }, [reload]);
+
+  // 再マウント時、前回の削除ジョブがまだ生きていれば購読し直す。
+  // **承認待ちのまま離脱して戻ったときに、モーダルを取り戻せるようにする。**
+  // SSE へ直接つなぐ前に存在確認するのは、GC 済みの job_id だと onerror が
+  // 「切断されました」という誤ったエラーになるため。
+  useEffect(() => {
+    const remembered = recallJob('delete');
+    if (!remembered) return;
+
+    let cancelled = false;
+    void fetchDataJobStatus(remembered)
+      .then(() => {
+        if (cancelled) return;
+        dispatch({ type: 'started', jobId: remembered, kind: 'delete' });
+        subscribe(remembered);
+      })
+      .catch(() => {
+        if (!cancelled) forgetJob('delete');
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [subscribe]);
 
   // 選択が変わったら詳細とプレビューを取り直す
   useEffect(() => {
@@ -106,20 +145,16 @@ export function CollectionPanel() {
     unsubscribeRef.current?.();
     try {
       const { job_id } = await startDelete(targets);
+      rememberJob('delete', job_id);
       dispatch({ type: 'started', jobId: job_id, kind: 'delete' });
-      unsubscribeRef.current = subscribeStream(
-        job_id,
-        (event) => dispatch({ type: 'event', event }),
-        (message) => dispatch({ type: 'failed', message }),
-        'data',
-      );
+      subscribe(job_id);
     } catch (error) {
       dispatch({
         type: 'failed',
         message: error instanceof Error ? error.message : String(error),
       });
     }
-  }, [checked]);
+  }, [checked, subscribe]);
 
   const respond = useCallback(
     async (approve: boolean) => {
@@ -143,6 +178,9 @@ export function CollectionPanel() {
   // 削除完了後は一覧を取り直し、選択とチェックを解除する
   useEffect(() => {
     if (state.phase !== 'completed' || !state.result) return;
+    // 完了したら記憶を捨てる。残すと、GC 後に戻ったとき無駄な問い合わせが走る
+    forgetJob('delete');
+    // 中止（承認を拒否）なら何も変わっていないので一覧を触らない
     if (state.result.cancelled) return;
     setChecked(new Set());
     setSelected(null);
@@ -175,13 +213,21 @@ export function CollectionPanel() {
       </section>
 
       {health && !health.available && (
-        <div className="warn-banner">
+        <div className="warn-banner" role="alert">
           ⚠️ Qdrant に接続できません（{health.message}）。<br />
           <code>docker-compose -f docker-compose/docker-compose.yml up -d</code> で起動してください。
         </div>
       )}
-      {loadError && <div className="error-banner">{loadError}</div>}
-      {state.error && <div className="error-banner">{state.error}</div>}
+      {loadError && (
+        <div className="error-banner" role="alert">
+          {loadError}
+        </div>
+      )}
+      {state.error && (
+        <div className="error-banner" role="alert">
+          {state.error}
+        </div>
+      )}
 
       <section className="collection-list">
         <h2>コレクション（{collections.length}）</h2>

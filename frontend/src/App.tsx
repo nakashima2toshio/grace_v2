@@ -14,7 +14,8 @@
 // ⚠️ タブは**アンマウントで切り替える**（条件レンダリング）。各パネルが自分の
 // reducer・SSE 購読・承認状態を持つため、離れた側の EventSource が
 // useEffect のクリーンアップで確実に閉じる。
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { handleTabKeyDown } from './state/tabKeys';
 import { DataPanel } from './components/DataPanel';
 import { ReviewPanel } from './components/ReviewPanel';
 import { SupportPanel } from './components/SupportPanel';
@@ -31,19 +32,37 @@ const TABS: Array<{ id: Tab; label: string; description: string }> = [
 export default function App() {
   const [tab, setTab] = useState<Tab>('basic');
   const active = TABS.find((t) => t.id === tab) ?? TABS[0];
+  // 矢印キーで移動したときにフォーカスも運ぶ（WAI-ARIA の tablist パターン）
+  const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
+
+  const onKeyDown = (event: React.KeyboardEvent, index: number) => {
+    const next = handleTabKeyDown(event, index, TABS.length);
+    if (next === null) return;
+    setTab(TABS[next].id);
+    tabRefs.current[next]?.focus();
+  };
 
   return (
     <div className="app">
       <header>
         <h1>{active.label}</h1>
-        <nav className="tabs" role="tablist">
-          {TABS.map((t) => (
+        <nav className="tabs" role="tablist" aria-label="エージェントとデータ準備">
+          {TABS.map((t, index) => (
             <button
               key={t.id}
+              type="button"
               role="tab"
+              id={`tab-${t.id}`}
               aria-selected={t.id === tab}
+              aria-controls={`tabpanel-${t.id}`}
+              // 選択中のタブだけを Tab キーの到達点にする（roving tabindex）
+              tabIndex={t.id === tab ? 0 : -1}
+              ref={(el) => {
+                tabRefs.current[index] = el;
+              }}
               className={`tab${t.id === tab ? ' active' : ''}`}
               onClick={() => setTab(t.id)}
+              onKeyDown={(event) => onKeyDown(event, index)}
             >
               {t.label}
               <span className="tab-sub">{t.description}</span>
@@ -52,14 +71,16 @@ export default function App() {
         </nav>
       </header>
 
-      {tab === 'data' ? (
-        <DataPanel />
-      ) : tab === 'review' ? (
-        <ReviewPanel />
-      ) : (
-        // 基本版と Support は同一パイプライン。variant で業界特化の有無だけを切り替える。
-        <SupportPanel key={tab} variant={tab === 'basic' ? 'basic' : 'vertical'} />
-      )}
+      <div role="tabpanel" id={`tabpanel-${tab}`} aria-labelledby={`tab-${tab}`}>
+        {tab === 'data' ? (
+          <DataPanel />
+        ) : tab === 'review' ? (
+          <ReviewPanel />
+        ) : (
+          // 基本版と Support は同一パイプライン。variant で業界特化の有無だけを切り替える。
+          <SupportPanel key={tab} variant={tab === 'basic' ? 'basic' : 'vertical'} />
+        )}
+      </div>
     </div>
   );
 }

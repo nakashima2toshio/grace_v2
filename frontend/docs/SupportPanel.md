@@ -1,6 +1,6 @@
 # SupportPanel.tsx - 問い合わせ → 回答 パネル ドキュメント
 
-**Version 1.0** | 最終更新: 2026-08-01
+**Version 1.1** | 最終更新: 2026-08-05
 
 ---
 
@@ -392,7 +392,7 @@ class S,V,R,Go,Err,Fail,Stream,I,M,D default
 
 | 観点 | 状態 | 補足 |
 |---|:--:|---|
-| エラーが支援技術へ通知されるか | ❌ | `.error-banner` に `role="alert"` / `aria-live` を付けていない |
+| エラーが支援技術へ通知されるか | ✅ | `.error-banner` に `role="alert"` |
 | 実行中であることが伝わるか | ❌ | `.running-banner` は視覚のみ。`aria-busy` 等は未設定 |
 | 二重送信が防げるか | ✅ | `running` で送信ボタンを `disabled` |
 | 承認の二重送信が防げるか | ✅ | `confirming` でモーダルのボタンを `disabled` |
@@ -428,3 +428,4 @@ class S,V,R,Go,Err,Fail,Stream,I,M,D default
 | 版 | 日付 | 変更内容 |
 |---|---|---|
 | 1.0 | 2026-08-01 | 初版作成。基本版 / GRACE-Support で共用する `variant` 方式に基づく。早期 return でもクリーンアップを返す必要があること、多重購読を 2 段で防いでいること、承認待ち中は実行中バナーを出さないことを明記 |
+| 1.1 | 2026-08-05 | エラーバナーに `role="alert"` を追加 |

@@ -1,6 +1,6 @@
 # データ準備パイプライン（チャンキング / 登録 / 削除） ドキュメント
 
-**Version 1.0** | 最終更新: 2026-08-05
+**Version 1.1** | 最終更新: 2026-08-05
 
 ---
 
@@ -394,7 +394,25 @@ JOB=$(curl -s -X POST localhost:8000/api/chunking/run \
 curl -N localhost:8000/api/data/stream/$JOB
 ```
 
-### 5.3 削除（承認が要る）
+### 5.3 進捗を見失ったとき（再購読）
+
+フロントはタブ切替でパネルをアンマウントするため SSE 購読が切れるが、
+`job_id` を覚えておけば購読し直せる。**`Job.stream_events()` は常にイベントを
+先頭からリプレイする**ので、再購読するだけでタイムラインも承認待ちも復元される。
+
+```bash
+# ジョブがまだ存在するかを先に確かめる（消えていれば 404）
+curl -s localhost:8000/api/data/result/$JOB | jq '{status, kind}'
+
+# 生きていれば購読し直す。先頭から全イベントが流れてくる
+curl -N localhost:8000/api/data/stream/$JOB
+```
+
+> ⚠️ **存在確認を挟むのが重要。** 完了ジョブは 50 件で GC される
+> （`MAX_FINISHED_JOBS`）。消えた `job_id` に SSE で直接つなぐと、
+> フロント側では `onerror` が発火して「切断されました」という**誤ったエラー**になる。
+
+### 5.4 削除（承認が要る）
 
 ```bash
 JOB=$(curl -s -X POST localhost:8000/api/qdrant/delete \
@@ -458,6 +476,7 @@ CHUNKING_STEP_LABELS, REGISTER_STEP_LABELS, DELETE_STEP_LABELS
 | 版 | 日付 | 変更内容 |
 |---|---|---|
 | 1.0 | 2026-08-05 | 初版作成（D0〜D10） |
+| 1.1 | 2026-08-05 | 再購読（タブ離脱後の進捗復元）の節を追加。`stream_events()` が先頭からリプレイする性質に依存することを明記 |
 
 ---
 

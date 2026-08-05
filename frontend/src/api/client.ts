@@ -5,6 +5,7 @@
 // SSE のイベント形式も同一。そのため購読関数は 1 本を共用する。
 import type {
   ChunkingParams,
+  DataJobStatusResponse,
   CollectionDetail,
   CollectionInfo,
   CollectionPoints,
@@ -242,5 +243,18 @@ export async function confirmDataIntervention(
       body: JSON.stringify({ intervention_id: interventionId, approve }),
     }),
   );
+  return response.json();
+}
+
+/**
+ * データ準備ジョブの状態を問い合わせる。
+ *
+ * **再購読の前に「ジョブがまだ存在するか」を確かめる**用途で使う。
+ * `JobManager` は完了ジョブを 50 件までしか保持しないため（`MAX_FINISHED_JOBS`）、
+ * 古い job_id は 404 になる。SSE で直接つなぐと 404 が `onerror` として届き、
+ * 「切断されました」という誤ったエラーになってしまう。
+ */
+export async function fetchDataJobStatus(jobId: string): Promise<DataJobStatusResponse> {
+  const response = await requireOk(await fetch(`/api/data/result/${jobId}`));
   return response.json();
 }

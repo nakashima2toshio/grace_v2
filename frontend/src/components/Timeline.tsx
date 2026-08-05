@@ -3,6 +3,7 @@
 // Support（`StepTimeline`）と Review（`ReviewTimeline`）で見た目が同じなので、
 // マークアップだけをここへ寄せた。**ステップ ID の集合とバッジの出し方は
 // エージェントごとに違う**ため、そこは呼び出し側から渡す。
+import { timelineAnnouncement } from '../state/timelineAnnounce';
 
 export interface TimelineStep {
   id: string;
@@ -30,9 +31,15 @@ interface Props {
 }
 
 export function Timeline({ title, stepIds, labels, steps, logs, badges }: Props) {
+  // 支援技術向けの進捗アナウンス（判定は state/timelineAnnounce.ts の純関数）
+  const announcement = timelineAnnouncement(stepIds, steps, labels, title);
+
   return (
     <section className="timeline">
       <h2>{title}</h2>
+      <p className="sr-only" aria-live="polite" aria-atomic="true">
+        {announcement}
+      </p>
       <ol>
         {stepIds.map((id) => {
           const step = steps[id];
