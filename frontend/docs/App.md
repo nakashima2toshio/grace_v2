@@ -1,6 +1,6 @@
-# App.tsx - 3 タブのルートコンテナ ドキュメント
+# App.tsx - 4 タブのルートコンテナ ドキュメント
 
-**Version 1.0** | 最終更新: 2026-08-01
+**Version 1.1** | 最終更新: 2026-08-05
 
 ---
 
@@ -26,24 +26,27 @@
 | ファイル | `frontend/src/App.tsx` |
 | 種別 | **コンテナコンポーネント**（`useState` によるタブ選択のみ） |
 | 親 | `main.tsx`（`createRoot`） |
-| 子 | `SupportPanel`（基本版 / Support の 2 用途）・`ReviewPanel` |
-| 主な依存 | `./components/SupportPanel` / `./components/ReviewPanel` |
+| 子 | `SupportPanel`（基本版 / Support の 2 用途）・`ReviewPanel`・`DataPanel` |
+| 主な依存 | `./components/SupportPanel` / `./components/ReviewPanel` / `./components/DataPanel` |
 | 対応バックエンド | なし（API を直接呼ばない。子パネルが呼ぶ） |
 
 `App.tsx` は**タブの選択だけ**を持つ薄いルート。ジョブ状態・SSE 購読・承認状態は
 **各パネルが自分で持つ**ため、`App` は reducer も `useEffect` も持たない。
 
-タブは 3 つで、並びは「**業界特化を足していく順**」である。
+タブは 4 つ。前 3 つは**「エージェントを使う」**側で、並びは
+「**業界特化を足していく順**」である。最後の 1 つだけが**「データを準備する」**側で、
+モードが異なる。
 
-| タブ | 業界特化 | 描画されるもの |
-|---|---|---|
-| **基本版** | なし | `<SupportPanel variant="basic" />` |
-| **GRACE-Support** | `VerticalProfile`（gov / saas / ec） | `<SupportPanel variant="vertical" />` |
-| **GRACE-Review** | `RuleSet`（ec_ad） | `<ReviewPanel />` |
+| タブ | 区分 | 業界特化 | 描画されるもの |
+|---|---|---|---|
+| **基本版** | 使う | なし | `<SupportPanel variant="basic" />` |
+| **GRACE-Support** | 使う | `VerticalProfile`（gov / saas / ec） | `<SupportPanel variant="vertical" />` |
+| **GRACE-Review** | 使う | `RuleSet`（ec_ad） | `<ReviewPanel />` |
+| **データ管理** | 準備 | — | `<DataPanel />`（内部に 3 サブタブ） |
 
 ### 主な責務
 
-- 3 つのタブを提示し、選択されたパネルだけを描画する
+- 4 つのタブを提示し、選択されたパネルだけを描画する
 - 非アクティブなパネルを**アンマウント**して、離れた側の `EventSource` を確実に閉じる
 - 基本版 / Support で `SupportPanel` を**複製せず** `variant` で振り分ける
 - `key={tab}` を与えて、基本版 ⇄ Support の切替時にパネルを作り直させる
@@ -55,7 +58,7 @@
 |---|---|---|
 | タブ定義 | `TABS` 定数 | `id` / `label` / `description` の 3 つ組 |
 | タブ選択 | `useState<Tab>('basic')` | **既定は基本版** |
-| パネル振り分け | 条件レンダリング | `review` なら `ReviewPanel`、他は `SupportPanel` |
+| パネル振り分け | 条件レンダリング | `data` なら `DataPanel`、`review` なら `ReviewPanel`、他は `SupportPanel` |
 | 業界特化の有無 | `variant` prop | `tab === 'basic' ? 'basic' : 'vertical'` |
 | 再マウント強制 | `key={tab}` | 基本版 ⇄ Support の状態持ち越しを防ぐ |
 
@@ -77,14 +80,16 @@ flowchart TB
         direction TB
         SP["SupportPanel.tsx<br>useReducer(jobReducer)<br>useState(verticals, confirming)"]
         RP["ReviewPanel.tsx<br>useReducer(reviewReducer)<br>useState(rulesets, confirming)"]
+        DP["DataPanel.tsx<br>useState(sub)<br>※内部に 3 サブタブ"]
     end
 
     Main --> App
     App -->|"variant + key（basic / vertical）"| SP
     App -->|"props なし"| RP
+    App -->|"props なし"| DP
 classDef default fill:#000,stroke:#fff,color:#fff
 classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
-class Main,App,SP,RP default
+class Main,App,SP,RP,DP default
 style Entry fill:#1a1a1a,stroke:#fff,color:#fff
 style Root fill:#1a1a1a,stroke:#fff,color:#fff
 style Panels fill:#1a1a1a,stroke:#fff,color:#fff
@@ -106,6 +111,7 @@ style Panels fill:#1a1a1a,stroke:#fff,color:#fff
 |---|---|---|
 | `SupportPanel` | `variant` / `key` | `variant` は `'basic'` or `'vertical'`。`key` は `tab` の値 |
 | `ReviewPanel` | なし | — |
+| `DataPanel` | なし | サブタブの選択は `DataPanel` 自身が持つ |
 
 ---
 
@@ -143,10 +149,20 @@ style Panels fill:#1a1a1a,stroke:#fff,color:#fff
 ### 4.2 アンマウントによる SSE 解放
 
 ```tsx
-{tab === 'review'
-  ? <ReviewPanel />
-  : <SupportPanel key={tab} variant={tab === 'basic' ? 'basic' : 'vertical'} />}
+{tab === 'data' ? (
+  <DataPanel />
+) : tab === 'review' ? (
+  <ReviewPanel />
+) : (
+  <SupportPanel key={tab} variant={tab === 'basic' ? 'basic' : 'vertical'} />
+)}
 ```
+
+> `DataPanel` と `ReviewPanel` に `key` が無いのは、**それぞれ 1 つのタブにしか
+> 対応しないため**。同じコンポーネント型が複数タブで使い回される
+> `SupportPanel`（基本版 / Support）だけが `key` を必要とする。
+> なお `DataPanel` は内部のサブタブ切替で同じ理由の `key={sub}` を持つ
+> （[`DataPanel.md`](./DataPanel.md) §4.2）。
 
 | 仕組み | 効果 |
 |---|---|
@@ -183,7 +199,7 @@ class Click,Set,Render,RP,SP,Unmount,Cleanup default
 
 | 要素 | イベント | ハンドラ | 効果 | 無効化条件 |
 |---|---|---|---|---|
-| タブボタン ×3 | `click` | `() => setTab(t.id)` | パネルを切り替える | **なし**（実行中でも切替可能） |
+| タブボタン ×4 | `click` | `() => setTab(t.id)` | パネルを切り替える | **なし**（実行中でも切替可能） |
 
 > 📝 **実行中でもタブを切り替えられる。** `disabled` は付けていない。切り替えると
 > 購読は切れるがサーバ側の処理は継続するため、UI が固まることはない。
@@ -263,3 +279,4 @@ JSX のレンダリングテストは持たない。ガードは以下 2 つ。
 | 版 | 日付 | 変更内容 |
 |---|---|---|
 | 1.0 | 2026-08-01 | 初版作成。3 タブ化（基本版 / GRACE-Support / GRACE-Review）後の実装に基づく。`key={tab}` が必要な理由と、それが型検査では守られない点を明記 |
+| 1.1 | 2026-08-05 | 4 タブ目「データ管理」（`DataPanel`）を追加。前 3 つ（使う）と最後（準備する）の区分を明記 |
