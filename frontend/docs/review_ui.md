@@ -1,6 +1,6 @@
 # components/ReviewPanel ほか - GRACE-Review UI ドキュメント
 
-**Version 1.1** | 最終更新: 2026-07-29
+**Version 1.2** | 最終更新: 2026-08-05
 
 ---
 
@@ -214,12 +214,19 @@ interface Props {
 
 | 変数 | 型 | 初期値 | 更新契機 | 説明 |
 |---|---|---|---|---|
-| `document` | `string` | `''` | `onChange` / サンプル投入 | 点検対象の文書 |
-| `title` | `string` | `''` | `onChange` / サンプル投入 | 空なら送信時に `'無題'` |
-| `ruleset` | `string` | `'ec_ad'` | セレクタ変更 | 適用するルールセット |
-| `useWeb` | `boolean` | `false` | チェックボックス | **既定 OFF**（Support と逆） |
-| `dryRun` | `boolean` | `true` | チェックボックス | 既定 ON（起票せずログのみ） |
-| `verbose` | `boolean` | `false` | チェックボックス | 詳細ログ |
+| `restored` | `ReviewFormMemory` | `recallReviewForm()` | **マウント時のみ** | 前回の入力内容。以降の state 初期値になる |
+| `document` | `string` | `restored.document`（既定 `''`） | `onChange` / サンプル投入 | 点検対象の文書 |
+| `title` | `string` | `restored.title`（既定 `''`） | `onChange` / サンプル投入 | 空なら送信時に `'無題'` |
+| `ruleset` | `string` | `restored.ruleset`（既定 `'ec_ad'`） | セレクタ変更 | 適用するルールセット |
+| `useWeb` | `boolean` | `restored.useWeb`（既定 `false`） | チェックボックス | **既定 OFF**（Support と逆） |
+| `dryRun` | `boolean` | `restored.dryRun`（既定 `true`） | チェックボックス | 既定 ON（起票せずログのみ） |
+| `verbose` | `boolean` | `restored.verbose`（既定 `false`） | チェックボックス | 詳細ログ |
+
+> ⚠️ **タブ切替はアンマウント**（`App.tsx` の条件レンダリング）なので、退避しないと
+> 貼り付けた文書もチェックも既定値へ戻る。入力内容は `state/formMemory.ts`
+> （モジュールスコープのストア）へ逃がし、再マウント時に復元する。
+> 文書 textarea は貼り直しのコストが最も大きいため、ここが実害の中心だった。
+> 仕組みの詳細と設計判断は [`QueryForm.md`](./QueryForm.md#タブを切り替えても入力が消えない仕組み) を参照。
 
 #### `FindingList`
 
@@ -292,6 +299,7 @@ stateDiagram-v2
 |---|---|---|---|---|---|
 | 1 | `ReviewPanel` | ルールセット一覧の初回取得 ＋ 購読解除の登録 | `[]` | `unsubscribeRef.current?.()` を返す | マウント時 1 回。**アンマウント時に SSE を閉じる** |
 | 2 | `FindingList` | 選択カードへスクロール | `[selectedFindingId]` | なし | `scrollIntoView` のみで解除不要 |
+| 3 | `ReviewForm` | 入力内容を `rememberReviewForm()` でストアへ退避 | `[document, title, ruleset, useWeb, dryRun, verbose]` | なし | タブ切替（アンマウント）で入力が消えないようにするため |
 
 > ⚠️ **SSE の購読解除は `unsubscribeRef` で管理する。** `submit()` の先頭でも
 > `unsubscribeRef.current?.()` を呼び、再実行時に前のジョブの購読が残らないようにしている。
@@ -547,3 +555,4 @@ document.slice(finding.start, finding.end) === finding.excerpt
 |---|---|---|
 | 1.0 | 2026-07-29 | 初版作成（GRACE-Review STEP6・PR #42 に対応） |
 | 1.1 | 2026-08-05 | **ルールセット取得の失敗を握りつぶしていた不具合を修正。** バックエンド停止時にセレクタが空になるだけで理由が出なかったため、`MetaErrorBanner` で復旧手順を表示し再取得できるようにした |
+| 1.2 | 2026-08-05 | **タブを切り替えると入力が既定値へ戻る不具合を修正。** 貼り付けた文書・タイトル・ルールセット・チェックを `state/formMemory.ts` へ退避し、再マウント時に復元する |

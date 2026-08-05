@@ -1,6 +1,6 @@
 # QueryForm.tsx - 問い合わせ入力フォーム ドキュメント
 
-**Version 1.0** | 最終更新: 2026-08-01
+**Version 1.1** | 最終更新: 2026-08-05
 
 ---
 
@@ -24,10 +24,10 @@
 | 項目 | 内容 |
 |---|---|
 | ファイル | `frontend/src/components/QueryForm.tsx` |
-| 種別 | **状態保持コンポーネント**（`useState` × 8。API は呼ばない） |
+| 種別 | **状態保持コンポーネント**（入力 8 項目 + 復元用の `useState`。API は呼ばない） |
 | 親 | `SupportPanel.tsx` |
 | 子 | なし |
-| 主な依存 | `../state/queryParams`（`buildQueryParams` / `isIdentityActive` / `identityNote`） |
+| 主な依存 | `../state/queryParams`（`buildQueryParams` / `isIdentityActive` / `identityNote`）<br>`../state/formMemory`（`recallQueryForm` / `rememberQueryForm`） |
 | 対応バックエンド | `backend/app/schemas.py`（`QueryRequest`）／ `support_actions.py`（`IDENTITY_FIELDS`） |
 
 **CLI（`agent_support_example.py`）の引数と 1:1 に対応する**入力フォーム。
@@ -76,7 +76,7 @@ flowchart TB
     end
     subgraph Form["本コンポーネント"]
         direction TB
-        QF["QueryForm.tsx<br>useState × 8"]
+        QF["QueryForm.tsx<br>入力 8 項目の useState"]
     end
     subgraph Logic["純ロジック（非コンポーネント）"]
         direction TB
@@ -130,17 +130,44 @@ interface Props {
 
 | 変数 | 型 | 初期値 | 更新契機 | 説明 |
 |---|---|---|---|---|
-| `query` | `string` | `''` | `input` の `onChange` | 問い合わせ内容 |
-| `vertical` | `string` | `''` | セレクタ変更・例文チップ | 空文字は「プロファイルなし」 |
-| `dryRun` | `boolean` | **`true`** | チェックボックス | 既定 ON（副作用のあるアクションを実行しない） |
-| `verbose` | `boolean` | `false` | チェックボックス | 詳細ログ |
-| `useWeb` | `boolean` | **`true`** | チェックボックス | Web フォールバック |
-| `doAction` | `boolean` | **`true`** | チェックボックス | アクション実行 |
-| `orderId` | `string` | `''` | 識別子欄 | 本人確認の `order_id` |
-| `email` | `string` | `''` | 識別子欄 | 本人確認の `email` |
+| `restored` | `QueryFormMemory` | `recallQueryForm(memoryKey)` | **マウント時のみ** | 前回の入力内容。以降の state 初期値になる |
+| `query` | `string` | `restored.query`（既定 `''`） | `input` の `onChange` | 問い合わせ内容 |
+| `vertical` | `string` | `restored.vertical`（既定 `''`） | セレクタ変更・例文チップ | 空文字は「プロファイルなし」 |
+| `dryRun` | `boolean` | `restored.dryRun`（既定 **`true`**） | チェックボックス | 既定 ON（副作用のあるアクションを実行しない） |
+| `verbose` | `boolean` | `restored.verbose`（既定 `false`） | チェックボックス | 詳細ログ |
+| `useWeb` | `boolean` | `restored.useWeb`（既定 **`true`**） | チェックボックス | Web フォールバック |
+| `doAction` | `boolean` | `restored.doAction`（既定 **`true`**） | チェックボックス | アクション実行 |
+| `orderId` | `string` | `restored.orderId`（既定 `''`） | 識別子欄 | 本人確認の `order_id` |
+| `email` | `string` | `restored.email`（既定 `''`） | 識別子欄 | 本人確認の `email` |
 
 > 📝 **`dryRun` / `useWeb` / `doAction` の既定 `true` は CLI と一致**させている
 > （CLI も `--no-web` / `--no-action` / `--no-dry-run` で**打ち消す**形）。
+
+#### タブを切り替えても入力が消えない仕組み
+
+`App.tsx` はタブを**条件レンダリングで切り替える**＝離れたタブはアンマウントされる。
+これは `EventSource` を `useEffect` のクリーンアップで確実に閉じるための意図的な設計だが、
+そのままだと `useState` が 8 個すべて初期値へ戻る。
+**チェックを外した dry-run が勝手に ON へ復帰する**のは実行結果を変えてしまうため、
+入力内容だけを `state/formMemory.ts`（モジュールスコープのストア）へ退避する。
+
+```tsx
+const memoryKey: QueryFormKey = showVertical ? 'vertical' : 'basic';
+const [restored] = useState(() => recallQueryForm(memoryKey));   // マウント時に 1 度だけ
+const [dryRun, setDryRun] = useState(restored.dryRun);
+// …
+
+useEffect(() => {                                                 // 変更のたびに退避
+  rememberQueryForm(memoryKey, { query, vertical, dryRun, /* … */ });
+}, [memoryKey, query, vertical, dryRun, /* … */]);
+```
+
+| 論点 | 決定 |
+|---|---|
+| 記憶のキー | `'basic'` / `'vertical'` に**分ける**。基本版で外した dry-run が GRACE-Support へ漏れない |
+| 復元のタイミング | `useState` の遅延初期化で**マウント時 1 回だけ**。毎レンダーで読むと入力中に上書きされる |
+| 保存のタイミング | `useEffect` で毎回。アンマウント時のクリーンアップに寄せると古い値を書きやすい |
+| 寿命 | ページ再読み込みで消える（`sessionStorage` にはしない。起動直後は既定値から始まるほうが分かりやすい） |
 
 ### 3.2 reducer state（`useReducer`）
 
@@ -171,8 +198,12 @@ interface Props {
 
 ### 4.1 副作用一覧（`useEffect`）
 
-**なし。** 本コンポーネントは `useEffect` を持たない。API 取得は親の責務であり、
-ここは入力の保持と組み立てだけを行う。
+| # | 依存配列 | 処理 | クリーンアップ |
+|---|---|---|---|
+| 1 | `[memoryKey, query, vertical, dryRun, verbose, useWeb, doAction, orderId, email]` | `rememberQueryForm()` で入力内容をストアへ退避 | なし（保存だけなので解放するものが無い） |
+
+**API 取得も SSE 購読も行わない。** それらは親（`SupportPanel`）の責務であり、
+ここは入力の保持・退避と組み立てだけを行う。
 
 ### 4.2 送信ペイロードの組み立て
 
@@ -232,7 +263,7 @@ if dry_run:
 
 ```mermaid
 flowchart TB
-    Input["入力・トグル・識別子"] --> State["useState × 8"]
+    Input["入力・トグル・識別子"] --> State["useState（入力 8 項目）"]
     State --> Derive["派生値<br>requireIdentity / note / examples"]
     Derive --> Render["フォーム描画<br>（fieldset の disabled・注記）"]
     State --> Submit{"submit"}
@@ -346,6 +377,7 @@ class S,Opt,Push,V,R,Build,Vert,Null,Sel,Id,Send1,Send2 default
 | テストファイル | 対象 | 件数 | 実行 |
 |---|---|---:|---|
 | `src/state/queryParams.test.ts` | `buildQueryParams` / `isIdentityActive` / `identityNote` | 19 | `npm test` |
+| `src/state/formMemory.test.ts` | `recallQueryForm` / `rememberQueryForm` とその既定値 | 13 | `npm test` |
 
 ### テスト方針
 
@@ -353,6 +385,14 @@ class S,Opt,Push,V,R,Build,Vert,Null,Sel,Id,Send1,Send2 default
   `@testing-library/react` は未導入のため、`QueryForm` 自体のレンダリングテストは持たない。
 - コンポーネント側に残るのは**入力の保持と描画だけ**にして、壊れると困る分岐
   （基本版の `vertical` 固定・識別子の有無・`trim`）を関数側で押さえている。
+
+> ⚠️ **`formMemory.test.ts` はストアの単体テストであって、配線の回帰テストではない。**
+> `QueryForm` が `recall` / `remember` を呼ぶのをやめてもこのテストは緑のままである。
+> レンダリングテストが無い以上ここが限界で、**配線はブラウザで実測して確認した**
+> （タブ往復でチェックと入力が保たれること、基本版と Support が独立していること、
+> リロードで既定値へ戻ること）。
+> `formMemory.ts` の既定値が `useState` の初期値とずれる事故は
+> 「既定値がコンポーネントの初期値と一致していること」の 2 件が押さえている。
 
 ### 何がテストで守られているか
 
@@ -362,6 +402,7 @@ class S,Opt,Push,V,R,Build,Vert,Null,Sel,Id,Send1,Send2 default
 | 識別子の有無・`trim` | 例文チップのクリック挙動 |
 | トグル値の受け渡し | `running` による入力無効化 |
 | 状態メッセージの文言 | ラベルと入力の対応（a11y） |
+| ストアの記憶・キー分離・既定値 | **`QueryForm` がストアを実際に呼ぶこと**（配線） |
 
 > ⚠️ **描画側の分岐は型検査でも vitest でも捕まらない。** `showVertical &&` の条件や
 > `disabled={running || !requireIdentity}` を消しても CI は通る。変更時は
@@ -375,3 +416,4 @@ class S,Opt,Push,V,R,Build,Vert,Null,Sel,Id,Send1,Send2 default
 | 版 | 日付 | 変更内容 |
 |---|---|---|
 | 1.0 | 2026-08-01 | 初版作成。CLI 引数との 1:1 対応、`showVertical` による基本版 / Support の出し分け、識別子欄が「効く条件」（`ec` ＋ dry-run OFF ＋ `SUPPORT_IDENTITY_FILE` の 1 経路のみ）、判断ロジックを `state/queryParams.ts` へ出してテストしている構成を記載 |
+| 1.1 | 2026-08-05 | **タブを切り替えると入力が既定値へ戻る不具合を修正。** タブ切替はアンマウントなので `useState` が全部リセットされていた（外した dry-run が ON へ復帰する＝実行結果が変わる）。入力内容を `state/formMemory.ts` へ退避し、再マウント時に復元する。記憶は基本版 / Support で分離 |
