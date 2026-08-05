@@ -17,9 +17,11 @@ import {
   subscribeStream,
 } from '../api/client';
 import { initialJobState, jobReducer } from '../state/jobReducer';
+import { metaErrorMessage } from '../state/metaFetch';
 import type { QueryParams, VerticalInfo } from '../types';
 import { AnswerCard } from './AnswerCard';
 import { ConfirmModal } from './ConfirmModal';
+import { MetaErrorBanner } from './MetaErrorBanner';
 import { QueryForm } from './QueryForm';
 import { StepTimeline } from './StepTimeline';
 
@@ -35,18 +37,38 @@ const LEAD: Record<SupportVariant, string> = {
 export function SupportPanel({ variant = 'vertical' }: { variant?: SupportVariant }) {
   const [state, dispatch] = useReducer(jobReducer, initialJobState);
   const [verticals, setVerticals] = useState<VerticalInfo[]>([]);
+  // 取得に失敗した理由。null なら成功（または未取得）。
+  // ⚠️ **握りつぶさない**。以前は空配列に倒すだけで、バックエンドが落ちていても
+  //    「選択肢が（なし）しか無い」としか見えず、原因がユーザーに伝わらなかった。
+  const [verticalsError, setVerticalsError] = useState<string | null>(null);
+  const [loadingVerticals, setLoadingVerticals] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const unsubscribeRef = useRef<(() => void) | null>(null);
   const showVertical = variant === 'vertical';
 
+  const loadVerticals = useCallback(() => {
+    setLoadingVerticals(true);
+    setVerticalsError(null);
+    return fetchVerticals()
+      .then((list) => {
+        setVerticals(list);
+        setVerticalsError(null);
+      })
+      .catch((error: unknown) => {
+        // 空配列に倒すのは正しい（古い選択肢を残すより安全）。
+        // 足りていなかったのは「なぜ空なのか」を伝えること。
+        setVerticals([]);
+        setVerticalsError(metaErrorMessage(error, '業界プロファイル'));
+      })
+      .finally(() => setLoadingVerticals(false));
+  }, []);
+
   useEffect(() => {
     // 基本版は業界プロファイルを使わないので取得しない。
     if (!showVertical) return () => unsubscribeRef.current?.();
-    fetchVerticals()
-      .then(setVerticals)
-      .catch(() => setVerticals([]));
+    void loadVerticals();
     return () => unsubscribeRef.current?.();
-  }, [showVertical]);
+  }, [showVertical, loadVerticals]);
 
   const submit = useCallback(async (params: QueryParams) => {
     unsubscribeRef.current?.();
@@ -97,6 +119,13 @@ export function SupportPanel({ variant = 'vertical' }: { variant?: SupportVarian
         showVertical={showVertical}
       />
 
+      {verticalsError && (
+        <MetaErrorBanner
+          message={verticalsError}
+          onRetry={() => void loadVerticals()}
+          retrying={loadingVerticals}
+        />
+      )}
       {state.error && (
         <div className="error-banner" role="alert">
           {state.error}

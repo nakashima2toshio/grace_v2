@@ -1,6 +1,6 @@
 # components/ReviewPanel ほか - GRACE-Review UI ドキュメント
 
-**Version 1.0** | 最終更新: 2026-07-29
+**Version 1.1** | 最終更新: 2026-07-29
 
 ---
 
@@ -546,3 +546,4 @@ document.slice(finding.start, finding.end) === finding.excerpt
 | 版 | 日付 | 変更内容 |
 |---|---|---|
 | 1.0 | 2026-07-29 | 初版作成（GRACE-Review STEP6・PR #42 に対応） |
+| 1.1 | 2026-08-05 | **ルールセット取得の失敗を握りつぶしていた不具合を修正。** バックエンド停止時にセレクタが空になるだけで理由が出なかったため、`MetaErrorBanner` で復旧手順を表示し再取得できるようにした |
