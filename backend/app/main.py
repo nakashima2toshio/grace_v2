@@ -9,6 +9,9 @@ CLI と同じコアサービスを Web から呼ぶための API。エージェ�
 | GRACE-Support（問い合わせ → 回答） | `core/support_agent.py` | `/api/support/*` |
 | GRACE-Review（文書 → 指摘） | `core/review_agent.py` | `/api/review/*` |
 
+これに加えて、データ準備（チャンキング → Q/A 生成 → Qdrant 登録 → コレクション管理）
+の API を `/api/qdrant/*` `/api/files` に持つ（`api/qdrant.py`）。
+
 ローカル開発専用（認証なし）。フロントエンドは frontend/（Vite + React + TS）。
 
 起動（リポジトリルートで）::
@@ -23,7 +26,7 @@ from __future__ import annotations
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from backend.app.api import meta, review, support
+from backend.app.api import meta, qdrant, review, support
 
 # .env から ANTHROPIC_API_KEY / GOOGLE_API_KEY 等を読み込む（未導入でも続行）
 try:
@@ -57,3 +60,4 @@ app.add_middleware(
 app.include_router(support.router)
 app.include_router(review.router)
 app.include_router(meta.router)
+app.include_router(qdrant.router)

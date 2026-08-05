@@ -235,3 +235,82 @@ class RuleSetInfo(BaseModel):
     notify_th: float
     confirm_th: float
     prompt_addendum: str = ""
+
+
+# =============================================================================
+# データ準備パイプライン（チャンキング → Q/A 生成 → Qdrant 登録 → コレクション管理）
+#
+# エージェント 2 種とは別系統の「データを準備する」側の API。
+# 実処理は chunking/ qa_generation/ qa_qdrant/ services/qdrant_service.py が持ち、
+# ここはその入出力を JSON で表現するだけ。
+# =============================================================================
+
+
+class QdrantHealth(BaseModel):
+    """GET /api/qdrant/health。Qdrant が起動しているかの確認。"""
+
+    available: bool
+    message: str
+    url: Optional[str] = None
+    collections_count: Optional[int] = None
+
+
+class CollectionInfo(BaseModel):
+    """GET /api/qdrant/collections の 1 要素（一覧表示用の最小情報）。"""
+
+    name: str
+    points_count: int = 0
+    status: str = "unknown"
+
+
+class CollectionDetail(BaseModel):
+    """GET /api/qdrant/collections/{name}。
+
+    `vector_size` / `distance` は Named vectors 構成だと dict になりうるため
+    型を緩めてある（`QdrantDataFetcher.fetch_collection_info` の実装に合わせる）。
+    """
+
+    name: str
+    points_count: int = 0
+    vectors_count: Optional[int] = None
+    indexed_vectors: Optional[int] = None
+    status: str = "unknown"
+    vector_size: Any = None
+    distance: Any = None
+    # payload の source を集計したデータ元情報（fetch_collection_source_info）
+    sources: Dict[str, Any] = Field(default_factory=dict)
+    sample_size: int = 0
+    error: Optional[str] = None
+
+
+class CollectionPoints(BaseModel):
+    """GET /api/qdrant/collections/{name}/points。
+
+    payload のキーはコレクションごとに異なるため、列は固定できない。
+    `columns` に出現順の列名を、`rows` に素の dict を返し、
+    画面側は `columns` の順で描画する。
+    """
+
+    name: str
+    columns: List[str] = Field(default_factory=list)
+    rows: List[Dict[str, Any]] = Field(default_factory=list)
+    limit: int = 50
+
+
+class InputFileInfo(BaseModel):
+    """GET /api/files の 1 要素。"""
+
+    name: str
+    # 'ディレクトリ名/ファイル名' 形式。絶対パスは返さない
+    path: str
+    size: int
+    modified: float
+    suffix: str
+
+
+class InputFileListResponse(BaseModel):
+    """GET /api/files。"""
+
+    dir: str
+    allowed_dirs: List[str]
+    files: List[InputFileInfo] = Field(default_factory=list)
