@@ -2,10 +2,13 @@
 
 **Version 1.0** | 最終更新: 2026-08-10
 
-> 本書は「**コードに解説を入れる**」形式を取る。全行にインラインコメントを付けた
-> 注釈版を示し、そのあとブロックごとに掘り下げる。
-> 同じコードを別の切り口（設計判断・使い分け中心）で扱った
-> [`react_sonnet5.md`](./react_sonnet5.md) と対になっている。
+> **Claude Opus 5 による回答ログ。** 「コードに解説を入れる」形式を取り、
+> 全行にインラインコメントを付けた注釈版を示したうえで、ブロックごとに掘り下げる。
+>
+> 同じコードについて Claude Sonnet 5 が答えたログは
+> [`react_sonnet5.md`](./react_sonnet5.md) にある（Q1 が本書と同じ設問）。
+> **モデルごとの回答を並べて比較するためのディレクトリ**なので、
+> 本書に他モデルの回答を混ぜないこと。
 
 ---
 
@@ -711,7 +714,7 @@ const [state, dispatch] = useReducer(dataReducer, kind, initialDataState);
 
 | 対象 | 場所 |
 |---|---|
-| 同じコードの別解説（設計判断・使い分け中心） | [`react_sonnet5.md`](./react_sonnet5.md) |
+| 同じ設問への Claude Sonnet 5 の回答ログ | [`react_sonnet5.md`](./react_sonnet5.md) の Q1 |
 | 本リポジトリの reducer 実装 | `frontend/src/state/jobReducer.ts`, `reviewReducer.ts`, `dataReducer.ts` |
 | reducer の単体テスト（純関数なので描画不要） | `frontend/src/state/jobReducer.test.ts` ほか |
 | コンポーネント側の使用例 | `frontend/src/components/SupportPanel.tsx`, `DataJobPanel.tsx` |
