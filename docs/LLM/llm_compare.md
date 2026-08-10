@@ -1,6 +1,6 @@
 # LLM 7 モデル比較 — 同一設問「React useReducer カウンタの解説」
 
-**Version 1.0** | 最終更新: 2026-08-10
+**Version 1.1** | 最終更新: 2026-08-10
 
 同一の設問を 7 つのモデル（ローカル 3 / クラウド 4）に投げ、生成されたドキュメントの
 優劣を比較した記録。`docs/LLM/react_*.md` が各モデルの生の出力である。
@@ -27,7 +27,7 @@
 
 ### 1.1 設問
 
-全モデルに同一の指示を与えた（`docs/LLM/react_llm_Q.md` に記録される想定の内容）。
+全モデルに同一の指示を与えた。
 
 > 以下をのコードをそれぞれのブロックごと、1行ごとに、解説を入れて、
 > 日本語のmarkdown のソースとして表示せよ。
@@ -56,8 +56,8 @@ const Counter => () {
 }
 ```
 
-> ⚠️ **`docs/LLM/react_llm_Q.md` は現在 0 バイト（空）である。** 設問が記録されていないと
-> 後から条件を再現できないため、上記を書き戻しておくことを推奨する。
+> 📝 `docs/LLM/react_llm_Q.md` は空ファイルであり、**本比較の対象外**とする。
+> 設問は上記のとおり本書に転記してあるので、比較の再現には本書だけで足りる。
 
 ### 1.2 比較対象
 
@@ -68,7 +68,7 @@ const Counter => () {
 | 3 | Claude Sonnet 5 | クラウド | `react_sonnet5.md`（Q1 のみ） | 134 | 5,568 |
 | 4 | OpenAI GPT-5.6 Sol | クラウド | `react_gpt56sol.md` | 281 | 6,285 |
 | 5 | qwen3.5:9b | ローカル（Ollama・6.6 GB） | `react_ollama_qwen3_5_9b.md` | 282 | 6,286 |
-| 6 | gemma4:e4b | ローカル（Ollama・9.6 GB） | `react_ollama_gemma4_e4b .md` | 148 | 6,227 |
+| 6 | gemma4:e4b | ローカル（Ollama・9.6 GB） | `react_ollama_gemma4_e4b.md` | 148 | 6,227 |
 | 7 | gemma4:26b-a4b-it-q4_K_M | ローカル（Ollama・17 GB） | `react_ollama_gemma4_26b-a4b-it-q4_K_M.md` | 51 | 3,136 |
 
 **評価対象の範囲について**
@@ -77,8 +77,8 @@ const Counter => () {
   **本比較では Q1 のみを対象**とした（Q2 は別設問のため）。
 - `react_opus5.md` は本設問に対する Opus 5 の回答そのものである。
 
-> 📝 ファイル名 `react_ollama_gemma4_e4b .md` には**拡張子の前に半角スペース**が入っている。
-> リンク切れや CLI での扱いづらさの原因になるため、リネームを推奨する（本 PR では変更していない）。
+> 📝 `react_ollama_gemma4_e4b.md` は当初 `react_ollama_gemma4_e4b .md`（拡張子の前に半角スペース）
+> という名前だった。リンク切れや CLI での扱いづらさの原因になるためリネーム済み。
 
 ---
 
@@ -153,10 +153,10 @@ $ diff react_gpt56sol.md react_ollama_qwen3_5_9b.md
 ### 4.1 最も危険な失敗 — gemma4:e4b の「黙って修正」
 
 `gemma4:e4b` は自分の掲載コードでは `const Counter = () => {` と**正しく書き直している**
-（`react_ollama_gemma4_e4b .md` L32・L115）が、**元コードが誤っていた事実を一言も述べていない**。
+（`react_ollama_gemma4_e4b.md` L32・L115）が、**元コードが誤っていた事実を一言も述べていない**。
 
 ```
-$ grep -c "構文\|誤り\|修正" 'react_ollama_gemma4_e4b .md'
+$ grep -c "構文\|誤り\|修正" react_ollama_gemma4_e4b.md
 0
 ```
 
@@ -449,7 +449,6 @@ fences = [(i+1, l.strip()) for i, l in enumerate(lines) if l.strip().startswith(
 
 | 対象 | 場所 |
 |---|---|
-| 設問（現在空） | `docs/LLM/react_llm_Q.md` |
 | 各モデルの出力 | `docs/LLM/react_*.md`（7 本） |
 | 本リポジトリの reducer 実装 | `frontend/src/state/jobReducer.ts`, `reviewReducer.ts`, `dataReducer.ts` |
 
@@ -460,3 +459,4 @@ fences = [(i+1, l.strip()) for i, l in enumerate(lines) if l.strip().startswith(
 | 版 | 日付 | 変更内容 |
 |---|---|---|
 | 1.0 | 2026-08-10 | 初版作成。7 本の機械的比較（規模・網羅 20 項目・バグ指摘 3 件・体裁）。`react_gpt56sol.md` と `react_ollama_qwen3_5_9b.md` が同一である事実、`gemma4:e4b` がバグを黙って修正している事実、`gemma4:26b` の Markdown が壊れている事実を記載 |
+| 1.1 | 2026-08-10 | `react_ollama_gemma4_e4b .md` を `react_ollama_gemma4_e4b.md` へリネーム（拡張子前の半角スペースを除去）し、本文の参照 4 箇所を追随。空ファイルの `react_llm_Q.md` を比較対象外と明記（設問は §1.1 に転記済み）|
