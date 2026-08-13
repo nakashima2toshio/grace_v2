@@ -1,6 +1,8 @@
 # GRACE アプリ（`./run_dev.sh`）- 画面・操作・プログラム対応 ドキュメント
 
-**Version 2.5** | 最終更新: 2026-08-01
+**Version 2.7** | 最終更新: 2026-08-13
+
+![B-01 起動直後（基本版）](docs/images/b-01-basic-initial.png)
 
 `./run_dev.sh` で起動するローカル開発アプリの README。**画面で何ができるか**、
 **操作がどのプログラム（コンポーネント・API・関数）に対応するか**、
@@ -175,16 +177,57 @@ Support の `VerticalProfile` と Review の `RuleSet` は、**9 フィールド
 > <!-- ![X-00 スロット名](docs/images/x-00-example.png) -->
 ```
 
-差し替え後（コメントを外した状態）:
+差し替え後（**画像行は引用の外へ出す**）:
 
 ```markdown
 > 📷 **[X-00] スロット名** — 撮影内容の説明
-> ![X-00 スロット名](docs/images/x-00-example.png)
+
+![X-00 スロット名](docs/images/x-00-example.png)
 ```
+
+> ⚠️ **画像行を `>` の中に残さない。** 引用ブロック内に置くと縦罫線の内側へ
+> インデントされて表示が窮屈になる。**説明は引用のまま、画像だけを外に出す**のが
+> 本リポジトリの様式である（撮影済みの B-01 / S-01 / S-02 / S-06a / S-06b が実例）。
 
 - 画像の置き場所: **`docs/images/`**（ディレクトリごと新規作成してよい）
 - ファイル名: **スロット ID を先頭に付ける**（例 `s-01-support-initial.png`）
-- 一覧は §6.4「画面ショット一覧」を参照（全 23 枚）
+- 一覧は §6.4「画面ショット一覧」を参照（**全 28 枚**）
+
+### 撮影の進捗
+
+| 状態 | 枚数 | スロット |
+|---|---:|---|
+| ✅ **撮影済み・掲載中** | 5 | `B-01` / `S-01` / `S-02` / `S-06a` / `S-06b` |
+| ⬜ 未撮影（コメントのまま） | 23 | `H-01` / `H-02a` / `H-02b` / `S-03`〜`S-05` / `R-01`〜`R-06` / `C-01` / `D-01`〜`D-08` / `E-01` / `E-02` |
+
+撮影済みの 5 枚は `docs/images/` に配置済み。**`B-01` は README 冒頭にも再掲**して
+あり（アプリの第一印象を最初に見せるため）、§2 の本文と 2 箇所で参照している。
+
+### 各スロットが書いてあること
+
+撮る人が迷わないよう、スロットの説明は次の 3 つを含める形で統一している。
+
+| 要素 | 例（[E-02] より） |
+|---|---|
+| **どの画面か** | `MetaErrorBanner`（`div.warn-banner.meta-error`） |
+| **どうやって出すか** | backend（:8000）を落としたまま画面を開く |
+| **何が読み取れるべきか** | 文言 ＋ `./run_dev.sh` の案内 ＋「再取得」ボタンの 3 つが読めること |
+
+**3 つ目が最も重要**である。「何を撮るか」だけ書くと、写ってはいるが肝心の箇所が
+小さすぎて読めない、という画像になりやすい。**その画面ショットで読者に何を
+納得させたいのか**をスロットごとに明示してある。
+
+### スロット ID の接頭辞
+
+| 接頭辞 | 対象 |
+|:--:|---|
+| **H** | 共通ヘッダ（タブ切替・タブ往復での入力保持） |
+| **B** | 基本版タブ |
+| **S** | GRACE-Support タブ |
+| **R** | GRACE-Review タブ |
+| **C** | HITL CONFIRM モーダル（Support / Review 共用） |
+| **D** | データ管理タブ |
+| **E** | エラー表示 |
 
 ---
 
@@ -269,12 +312,24 @@ style CORE fill:#1a1a1a,stroke:#fff,color:#fff
 
 | テスト | 件数 | 対象 |
 |---|---:|---|
-| `state/jobReducer.test.ts` | 7 | Support の SSE → UI 状態 |
+| `state/queryParams.test.ts` | 25 | 送信ペイロードの組み立て（基本版の `vertical` 固定・識別子の有無・状態メッセージ） |
+| `state/dataParams.test.ts` | 26 | データ管理の入力値変換・送信可否・コレクション名の補完 |
+| `state/dataReducer.test.ts` | 21 | データ管理ジョブの SSE → UI 状態 |
 | `state/reviewReducer.test.ts` | 13 | Review の SSE → UI 状態 |
 | `state/highlight.test.ts` | 13 | 原文の分割・重なり解消 |
-| `state/queryParams.test.ts` | 19 | 送信ペイロードの組み立て（基本版の `vertical` 固定・識別子の有無・状態メッセージ） |
+| `state/formMemory.test.ts` | 13 | タブ往復での入力保持（§4.1） |
+| `state/tabKeys.test.ts` | 12 | タブの矢印キー移動（roving tabindex） |
 | `markdown/parseMarkdown.test.ts` | 10 | Markdown パーサ |
-| **計** | **62** | |
+| `state/metaFetch.test.ts` | 10 | メタ取得失敗の分類と文言（§6.5） |
+| `state/timelineAnnounce.test.ts` | 9 | タイムラインの読み上げ文言（a11y） |
+| `state/activeJobs.test.ts` | 8 | 実行中ジョブ ID の保持（再購読用） |
+| `state/jobReducer.test.ts` | 7 | Support の SSE → UI 状態 |
+| **計** | **167** | 12 ファイル |
+
+> ⚠️ **テストは `.test.ts` のみ収集される。** `frontend/vite.config.ts` の
+> `test.include` が `['src/**/*.test.ts']` なので、**`.test.tsx` を置くと 1 件も
+> 実行されないまま「成功」扱いになる**。また `environment: 'node'` で DOM が無く、
+> `@testing-library/react` も未導入のため、**コンポーネントのレンダリングテストは書けない**。
 
 ---
 
@@ -321,12 +376,14 @@ style SCREEN fill:#1a1a1a,stroke:#fff,color:#fff
 > 説明文、空の入力フォーム、4 つのトグル、識別子欄（**disabled** で理由が出ている状態）、
 > 例文チップ 2 つまでが入るように全体を撮影。**業界プロファイル セレクタが無い**ことが
 > 分かるように。タイムラインと結果は未表示。
-> <!-- ![B-01 起動直後（基本版）](docs/images/b-01-basic-initial.png) -->
+
+![B-01 起動直後（基本版）](docs/images/b-01-basic-initial.png)
 
 > 📷 **[S-01] GRACE-Support タブ 初期表示** — タブを Support に切り替えた直後。
 > B-01 との差分（**業界プロファイル セレクタが増える**・例文チップが 4 つになる）が
 > 分かるように、同じ縮尺で撮影。
-> <!-- ![S-01 Support タブ 初期表示](docs/images/s-01-support-initial.png) -->
+
+![S-01 Support タブ 初期表示](docs/images/s-01-support-initial.png)
 
 ### 2.1 Review タブの左右ペイン
 
@@ -472,30 +529,64 @@ style PANES fill:#1a1a1a,stroke:#fff,color:#fff
 
 ### 4.1 共通ヘッダ（タブ切替）
 
-**概要**: 画面最上部。`h1` にアクティブなタブ名、その下にタブボタン 3 つ。
+**概要**: 画面最上部。`h1` にアクティブなタブ名、その下に**タブボタン 4 つ**。
 
 ```tsx
 // frontend/src/App.tsx
-const TABS = [
+const TABS: Array<{ id: Tab; label: string; description: string }> = [
   { id: 'basic',   label: '基本版',        description: '問い合わせ → 回答（業界特化なし）' },
   { id: 'support', label: 'GRACE-Support', description: '問い合わせ → 回答（業界特化）' },
   { id: 'review',  label: 'GRACE-Review',  description: '文書 → 指摘（業界特化）' },
+  { id: 'data',    label: 'データ管理',     description: 'チャンク化 → 登録 → コレクション管理' },
 ];
 
-{tab === 'review'
-  ? <ReviewPanel />
-  : <SupportPanel key={tab} variant={tab === 'basic' ? 'basic' : 'vertical'} />}
+{tab === 'data'
+  ? <DataPanel />
+  : tab === 'review'
+    ? <ReviewPanel />
+    : <SupportPanel key={tab} variant={tab === 'basic' ? 'basic' : 'vertical'} />}
 ```
+
+**前 3 つが「エージェントを使う」側、最後の 1 つが「データを準備する」側**でモードが
+異なる。前者は**業界特化を足していく順**（素 → `VerticalProfile` → `RuleSet`）に並ぶ。
 
 | 項目 | 内容 |
 |------|------|
-| **Input** | タブボタンのクリック |
+| **Input** | タブボタンのクリック、または**矢印キー / Home / End**（`state/tabKeys.ts`） |
 | **Process** | `setTab(id)` → 条件レンダリングで**非アクティブ側をアンマウント**。基本版 / Support は同じ `SupportPanel` を `variant` で振り分ける |
 | **Output** | 選択したパネルの描画。副作用: 離れた側の `EventSource` が `useEffect` のクリーンアップで閉じる |
+
+> 📷 **[H-01] タブヘッダ 4 つ** — ヘッダ部分だけを横長に切り取る。
+> **4 つのタブ名とサブ説明（`span.tab-sub`）が読めること**、アクティブなタブに
+> `.active` が付いて見た目が変わっていることが分かるように撮る。
+> この 1 枚で「このアプリで何ができるか」が伝わるので、README の顔になる。
+> <!-- ![H-01 タブヘッダ 4 つ](docs/images/h-01-tab-header.png) -->
 
 > ⚠️ **表示切替（CSS の hide）ではなくアンマウント**にしているのは、SSE 接続を
 > 確実に閉じるため。タブを離れた側のジョブは**サーバ側では走り続ける**が、
 > ブラウザは購読をやめる（再度そのタブへ戻っても購読は復元されない）。
+
+#### 入力内容はタブを離れても保持される
+
+アンマウントすると `useState` はすべて初期値へ戻る。**外した dry-run が勝手に ON へ
+復帰する**のは実行結果を変えてしまうため、入力内容だけを
+`state/formMemory.ts`（モジュールスコープのストア）へ退避し、再マウント時に復元する。
+
+| 論点 | 決定 |
+|---|---|
+| 何を覚えるか | `QueryForm` の 8 項目 / `ReviewForm` の 6 項目（チェック・入力テキスト・選択） |
+| 記憶のキー | **基本版と Support で分ける**。片方で外した dry-run がもう片方へ漏れない |
+| 復元のタイミング | `useState` の遅延初期化で**マウント時 1 回だけ** |
+| 寿命 | **ページ再読み込みで消える**（`sessionStorage` にはしない） |
+
+> 📷 **[H-02a] タブ往復の前** — GRACE-Support で **dry-run と Web フォールバックの
+> チェックを外し、問い合わせ文を入力した状態**。トグルの状態が読めるように撮る。
+> <!-- ![H-02a タブ往復の前](docs/images/h-02a-form-before.png) -->
+
+> 📷 **[H-02b] タブ往復の後** — GRACE-Review へ移動してから Support へ戻った直後。
+> **H-02a とチェック・入力欄が一致していること**が分かるように、同じ範囲・同じ縮尺で撮る。
+> 2 枚を並べるのが目的なので、単独では意味を持たない。
+> <!-- ![H-02b タブ往復の後](docs/images/h-02b-form-after.png) -->
 
 > ⚠️ **`key={tab}` は必須。** これが無いと基本版 ⇄ Support の切替で React が
 > `SupportPanel` のインスタンスを再利用してしまい、前のタブの reducer 状態と
@@ -521,15 +612,23 @@ const TABS = [
 > 開いた状態で、`gov（自治体）` `saas（SaaS）` `ec（EC・本人確認必須）` の 3 件が見えるように撮影。
 > **4 つのトグル（Web フォールバック / アクション実行 / dry-run / 詳細ログ）**も
 > 同じ画面に入るように。
-> <!-- ![S-02 Support 入力フォーム](docs/images/s-02-support-form.png) -->
 
-> 📷 **[S-06] 識別子欄の状態（2 枚 1 組）** — §4.2.2 の表の裏付け。
-> **(a)** `ec` **以外**を選んだ状態: 欄が **disabled** で「`gov` は本人確認を行いません
-> （`require_identity=false`）／本人確認を行うプロファイル: `ec`」。
-> **(b)** `ec` ＋ dry-run **ON**: 欄が有効で「dry-run 中はデモ照合のため、入力値は照合に
-> 使われません」。識別子欄と直下の `p.identity-note` が両方入るように拡大して撮影。
-> <!-- ![S-06a 識別子欄 disabled](docs/images/s-06a-identity-disabled.png) -->
-> <!-- ![S-06b 識別子欄 有効](docs/images/s-06b-identity-enabled.png) -->
+![S-02 Support 入力フォーム](docs/images/s-02-support-form.png)
+
+> 📷 **[S-06a] 識別子欄が disabled** — `ec` **以外**（例 `gov`）を選んだ状態。
+> 欄がグレーアウトし、直下に「`gov` は本人確認を行いません（`require_identity=false`）
+> ／本人確認を行うプロファイル: `ec`」と出る。
+> **無効の理由と、どれを選べば有効になるかの 2 つが読めること**。
+> 識別子欄と `p.identity-note` が両方入るように拡大して撮る。
+
+![S-06a 識別子欄 disabled](docs/images/s-06a-identity-disabled.png)
+
+> 📷 **[S-06b] 識別子欄が有効** — `ec` ＋ dry-run **ON**。欄が入力可能になり、
+> 「dry-run 中はデモ照合のため、入力値は照合に使われません」と出る。
+> **有効なのに照合されない**という状態を伝えるのが目的なので、この注記が読めること。
+> S-06a と同じ範囲・同じ縮尺で撮り、2 枚を並べて §4.2.2 の表の裏付けにする。
+
+![S-06b 識別子欄 有効](docs/images/s-06b-identity-enabled.png)
 
 | UI 要素 | 種類 | 既定 | 説明 |
 |---|---|---|---|
@@ -1062,7 +1161,7 @@ docker-compose -f docker-compose/docker-compose.yml up -d
 6. タブ **GRACE-Support** を押す → 📷 **[S-01]**
    - B-01 との差分（プロファイル セレクタが増える・例文チップが 4 つになる）
 7. 例文チップ **`ec: 返品したい`** を押す（入力欄とプロファイルが同時に埋まる）→ 📷 **[S-02]**
-   - `ec` を選ぶと**識別子欄が有効化**される → 📷 **[S-06]**（(a) 無効 / (b) 有効の 2 枚）
+   - `ec` を選ぶと**識別子欄が有効化**される → 📷 **[S-06a]**（無効）/ **[S-06b]**（有効）
 8. `dry-run` が **ON** であることを確認（既定 ON）
 9. **「送信」** を押す
 10. ステップトレースが上から順に進む（`業界プロファイル適用` → `① Plan` → …）→ 📷 **[S-03]**
@@ -1097,46 +1196,61 @@ docker-compose -f docker-compose/docker-compose.yml up -d
 ### 6.4 画面ショット一覧
 
 **撮影は改修が一段落してから**まとめて行う。撮った画像を `docs/images/` に置き、
-本文中のコメントアウトを外す。**全 23 枚**（S-06 のみ 2 枚 1 組）。
+本文中のコメントアウトを外す。**全 28 枚**（`S-06a`/`S-06b` と `H-02a`/`H-02b` は 2 枚 1 組）。
 
-| スロット | ファイル名（推奨） | 撮影内容 | 記載セクション |
-|:--:|---|---|---|
-| **B-01** | `b-01-basic-initial.png` | 起動直後の**基本版**タブ全体（プロファイル セレクタ無し・識別子欄 disabled） | §2 |
-| **S-01** | `s-01-support-initial.png` | **Support** タブ初期表示（B-01 との差分が分かる同縮尺） | §2 |
-| **S-02** | `s-02-support-form.png` | 入力フォーム（プロファイル選択を開く＋トグル 4 つ） | §4.2.1 |
-| **S-06a** | `s-06a-identity-disabled.png` | 識別子欄が **disabled**（`ec` 以外） | §4.2.1 / §4.2.2 |
-| **S-06b** | `s-06b-identity-enabled.png` | 識別子欄が**有効**（`ec` ＋ dry-run ON の注記） | §4.2.1 / §4.2.2 |
-| **S-03** | `s-03-support-running.png` | 実行中のタイムライン（ログを 1 つ開く） | §4.2.3 |
-| **S-04** | `s-04-support-answer.png` | 回答カード（answer・出典あり） | §4.2.4 |
-| **S-05** | `s-05-support-escalate.png` | 回答カード（escalate・理由表示） | §4.2.4 |
-| **R-01** | `r-01-review-initial.png` | Review タブ初期表示 | §4.3.1 |
-| **R-02** | `r-02-review-form.png` | 文書貼付後（文字数カウンタ表示） | §4.3.1 |
-| **R-03** | `r-03-review-running.png` | 実行中のタイムライン（バッジ付き） | §4.3.2 |
-| **R-04** | `r-04-finding-summary.png` | 指摘サマリバー | §4.3.3 |
-| **R-05** | `r-05-review-panes.png` | 左右ペイン全体（1 件選択状態） | §4.3.4 |
-| **R-06** | `r-06-finding-card.png` | 指摘カード拡大（根拠を開く） | §4.3.5 |
-| **C-01** | `c-01-confirm-modal.png` | HITL CONFIRM モーダル | §4.4 |
-| **D-01** | `d-01-data-initial.png` | **データ管理**タブ初期表示（タブ 4 つ＋サブタブ 3 つ） | §4.5.1 |
-| **D-02** | `d-02-chunking-form.png` | チャンキング フォーム（モデル既定値が見えること） | §4.5.2 |
-| **D-03** | `d-03-chunking-running.png` | チャンキング 実行中のタイムライン（ログを 1 つ開く） | §4.5.2 |
-| **D-04** | `d-04-register-form.png` | Qdrant 登録 フォーム（コレクション名の自動補完） | §4.5.3 |
-| **D-05** | `d-05-register-confirm.png` | 登録の CONFIRM（`recreate=ON` のときだけ出る） | §4.5.3 |
-| **D-06** | `d-06-collection-list.png` | コレクション一覧（件数・ステータス） | §4.5.4 |
-| **D-07** | `d-07-collection-detail.png` | コレクション詳細＋ポイントプレビュー | §4.5.4 |
-| **D-08** | `d-08-delete-confirm.png` | 削除の CONFIRM（**常に**出る・不可逆の警告） | §4.5.4 |
-| **E-01** | `e-01-error-banner.png` | エラーバナー（APIキー未設定など） | §6.5 |
+| スロット | 状態 | ファイル名 | 撮影内容 | 記載セクション |
+|:--:|:--:|---|---|---|
+| **H-01** | ⬜ | `h-01-tab-header.png` | **タブヘッダ 4 つ**（サブ説明まで読めること）。README の顔になる 1 枚 | §4.1 |
+| **H-02a** | ⬜ | `h-02a-form-before.png` | タブ往復の**前**（dry-run と Web を外し、問い合わせ文を入力） | §4.1 |
+| **H-02b** | ⬜ | `h-02b-form-after.png` | タブ往復の**後**（H-02a と一致していること・同縮尺） | §4.1 |
+| **B-01** | ✅ | `b-01-basic-initial.png` | 起動直後の**基本版**タブ全体（プロファイル セレクタ無し・識別子欄 disabled） | §2 |
+| **S-01** | ✅ | `s-01-support-initial.png` | **Support** タブ初期表示（B-01 との差分が分かる同縮尺） | §2 |
+| **S-02** | ✅ | `s-02-support-form.png` | 入力フォーム（プロファイル選択を開く＋トグル 4 つ） | §4.2.1 |
+| **S-06a** | ✅ | `s-06a-identity-disabled.png` | 識別子欄が **disabled**（`ec` 以外） | §4.2.1 / §4.2.2 |
+| **S-06b** | ✅ | `s-06b-identity-enabled.png` | 識別子欄が**有効**（`ec` ＋ dry-run ON の注記） | §4.2.1 / §4.2.2 |
+| **S-03** | ⬜ | `s-03-support-running.png` | 実行中のタイムライン（ログを 1 つ開く） | §4.2.3 |
+| **S-04** | ⬜ | `s-04-support-answer.png` | 回答カード（answer・出典あり） | §4.2.4 |
+| **S-05** | ⬜ | `s-05-support-escalate.png` | 回答カード（escalate・理由表示） | §4.2.4 |
+| **R-01** | ⬜ | `r-01-review-initial.png` | Review タブ初期表示 | §4.3.1 |
+| **R-02** | ⬜ | `r-02-review-form.png` | 文書貼付後（文字数カウンタ表示） | §4.3.1 |
+| **R-03** | ⬜ | `r-03-review-running.png` | 実行中のタイムライン（バッジ付き） | §4.3.2 |
+| **R-04** | ⬜ | `r-04-finding-summary.png` | 指摘サマリバー | §4.3.3 |
+| **R-05** | ⬜ | `r-05-review-panes.png` | 左右ペイン全体（1 件選択状態） | §4.3.4 |
+| **R-06** | ⬜ | `r-06-finding-card.png` | 指摘カード拡大（根拠を開く） | §4.3.5 |
+| **C-01** | ⬜ | `c-01-confirm-modal.png` | HITL CONFIRM モーダル | §4.4 |
+| **D-01** | ⬜ | `d-01-data-initial.png` | **データ管理**タブ初期表示（タブ 4 つ＋サブタブ 3 つ） | §4.5.1 |
+| **D-02** | ⬜ | `d-02-chunking-form.png` | チャンキング フォーム（モデル既定値が見えること） | §4.5.2 |
+| **D-03** | ⬜ | `d-03-chunking-running.png` | チャンキング 実行中のタイムライン（ログを 1 つ開く） | §4.5.2 |
+| **D-04** | ⬜ | `d-04-register-form.png` | Qdrant 登録 フォーム（コレクション名の自動補完） | §4.5.3 |
+| **D-05** | ⬜ | `d-05-register-confirm.png` | 登録の CONFIRM（`recreate=ON` のときだけ出る） | §4.5.3 |
+| **D-06** | ⬜ | `d-06-collection-list.png` | コレクション一覧（件数・ステータス） | §4.5.4 |
+| **D-07** | ⬜ | `d-07-collection-detail.png` | コレクション詳細＋ポイントプレビュー | §4.5.4 |
+| **D-08** | ⬜ | `d-08-delete-confirm.png` | 削除の CONFIRM（**常に**出る・不可逆の警告） | §4.5.4 |
+| **E-01** | ⬜ | `e-01-error-banner.png` | **実行エラー**のバナー（APIキー未設定など・実行後に出る） | §6.5 |
+| **E-02** | ⬜ | `e-02-meta-error-banner.png` | **メタ取得エラー**のバナー（backend 停止・実行前に出る・再取得ボタン） | §6.5 |
 
-> 📝 **撮影順は §6.2 → §6.3 のシナリオをなぞるのが早い。** B-01 → S-01 → S-02 → S-06 →
-> S-03 → C-01 → S-04/S-05 → R-01 …の順で自然に出てくる。
+> 📝 **撮影順は §6.2 → §6.3 のシナリオをなぞるのが早い。** H-01 → B-01 → S-01 → S-02 →
+> S-06a/b → S-03 → C-01 → S-04/S-05 → R-01 …の順で自然に出てくる。
+> **H-02a/b と E-02 だけはシナリオから外れる**ので個別に撮る
+> （H-02 はタブ往復、E-02 は backend を落とした状態）。
 
 ### 6.5 うまく動かないとき
 
-> 📷 **[E-01] エラーバナー** — `div.error-banner` が赤く出ている状態。
-> `.env` の APIキーを外して実行すると再現できる。
-> <!-- ![E-01 エラーバナー](docs/images/e-01-error-banner.png) -->
+> 📷 **[E-01] 実行エラーのバナー** — `div.error-banner` が赤く出ている状態。
+> **実行を押した後に出る**タイプのエラー。`.env` の APIキーを外して実行すると再現できる。
+> エラー文言が読める大きさで、タイムラインのどこで止まったかも一緒に入るように撮る。
+> <!-- ![E-01 実行エラーのバナー](docs/images/e-01-error-banner.png) -->
+
+> 📷 **[E-02] メタ取得エラーのバナー** — `MetaErrorBanner`（`div.warn-banner.meta-error`）。
+> **backend（:8000）を落としたまま画面を開く**と再現できる。実行前に出る点が E-01 と違う。
+> **「業界プロファイルを取得できませんでした」＋ `./run_dev.sh` の案内＋「再取得」ボタン**
+> の 3 つが読めるように撮る。この 3 点が揃っていることが修正の要点なので、
+> セレクタが `（なし）` だけになっている様子も同じ画面に入れる。
+> <!-- ![E-02 メタ取得エラーのバナー](docs/images/e-02-meta-error-banner.png) -->
 
 | 症状 | 原因 | 対処 |
 |---|---|---|
+| **業界プロファイル / ルールセットが選べない**（セレクタが空・`（なし）` のみ） | backend（:8000）が起動していない | 画面上部の**メタ取得エラーバナー**に理由と手順が出る。`./run_dev.sh` で起動し直し、**「再取得」ボタン**を押せばリロード不要で復帰する |
 | 画面は出るが実行するとエラーバナー | `ANTHROPIC_API_KEY` 未設定 | `.env` に設定して backend を再起動。`GET /api/health` で確認できる |
 | 「進捗ストリームが切断されました」 | backend が落ちた／再起動中 | ターミナルの uvicorn ログを確認 |
 | 検索結果が空・情報なし回答が続く | Qdrant 未起動 or データ未登録 | `docker-compose ... up -d` ＋ データ準備（下記） |
@@ -1191,6 +1305,7 @@ from backend.app.core.jobs import job_manager, JobParams
 | インストール・環境構築 | [`backend/docs/install_and_setup.md`](./backend/docs/install_and_setup.md) |
 | React コンポーネント仕様 | [`frontend/docs/`](./frontend/docs/) — [`App.md`](./frontend/docs/App.md)（4タブのルート）/ [`SupportPanel.md`](./frontend/docs/SupportPanel.md)（基本版・Support 共用）/ [`QueryForm.md`](./frontend/docs/QueryForm.md)（入力フォーム）/ [`AnswerCard.md`](./frontend/docs/AnswerCard.md)（回答カード）/ [`DocumentView.md`](./frontend/docs/DocumentView.md)（原文＋ハイライト）/ [`FindingList.md`](./frontend/docs/FindingList.md)（指摘カード一覧）/ [`ConfirmModal.md`](./frontend/docs/ConfirmModal.md)（HITL CONFIRM・Support/Review 共用）/ [`Timeline.md`](./frontend/docs/Timeline.md)（ステップトレース・Support/Review 共用）/ [`StepTimeline.md`](./frontend/docs/StepTimeline.md)（Support アダプタ）/ [`ReviewTimeline.md`](./frontend/docs/ReviewTimeline.md)（Review アダプタ）/ [`Markdown.md`](./frontend/docs/Markdown.md)（Markdown レンダラ＋パーサ）/ [`DataPanel.md`](./frontend/docs/DataPanel.md)（データ管理タブのルート）/ [`DataJobPanel.md`](./frontend/docs/DataJobPanel.md)（チャンク化・登録）/ [`CollectionPanel.md`](./frontend/docs/CollectionPanel.md)（コレクション管理・削除）/ [`review_ui.md`](./frontend/docs/review_ui.md)（Review UI） |
 | 自律エージェント基盤 | [`grace/docs/`](./grace/docs/) |
+| LLM 出力の比較記録（アプリ機能ではない参考資料） | [`docs/LLM/llm_compare.md`](./docs/LLM/llm_compare.md) |
 | データ準備（各モジュールの実装） | [`chunking/docs/`](./chunking/docs/) / [`qa_generation/docs/`](./qa_generation/docs/) / [`qa_qdrant/docs/`](./qa_qdrant/docs/) |
 
 ### 7.4 CLI（参考）
@@ -1217,7 +1332,8 @@ uv run python agent_support_example.py --vertical gov -v "住民票の写しの�
 | 2.3 | **§2 の 2 図に `direction TB` を追加し、実際に縦積みになることを描画して確認した。** 2.2 で `flowchart TB` にしたが**表示は横並びのままだった**（Mermaid はサブグラフ内の並びに外側の `flowchart TB` を適用しないため）。Mermaid 9.4.3 ＋ ヘッドレス Chromium で描画してノード座標を実測し、修正候補を比較して確定: エッジをサブグラフ内へ移すだけでは変化なし（1457×158 のまま）、**サブグラフ内の `direction TB` の 1 行だけが効く**。適用後は画面レイアウト図が 1457×158 → **298×759**（7 ノードすべて x=149 で同一列）、左右ペイン図が 623×183 → **324×272** となり、いずれも同じ行に複数ノードが並ばないことを確認 |
 | 2.4 | **メニューを 3 つに拡張し、`agent_support_example.py`（CLI）と同等の操作を画面に載せた。** タブを「基本版（業界特化なし）／ GRACE-Support（`VerticalProfile`）／ GRACE-Review（`RuleSet`）」の 3 つにし、**業界特化を足していく順**に並べた。基本版と Support は同一パイプラインのため `SupportPanel` を `variant` で共用する（複製しない・`key={tab}` で確実に作り直す）。CLI 引数のうち画面に無かった **`--no-web` / `--no-action` をトグルとして追加**し、**`--identity` を API → `JobParams` → コアまで新規に通した**（従来は `identity=None` 直書きで画面から渡せなかった）。識別子欄は常時表示しつつ、本人確認が起動しない設定では disabled にして理由を表示する（§4.2.2）。§概要に `VerticalProfile` と `RuleSet` がほぼ同型である旨の対比表、§3.1 に CLI 引数との対応表を追加 |
 | 2.5 | **画面ショットスロットを 3 タブ構成へ更新し、送信ペイロードの組み立てにテストを追加。** スロットは 2 タブ時代のままだったため、`B-01`（基本版タブ初期表示）と `S-06a/b`（識別子欄の disabled / 有効）を追加し、`S-01` を「Support タブ初期表示（B-01 との差分）」へ振り直して 16 枚に整理。§6.2 のシナリオを「基本版 → Support で業界特化の差を見る」構成に書き換え、CLI との対応も注記した。あわせて §4.2 の小節番号の重複（4.2.2 が 2 つ）と目次の見出しずれを修正。コード側は `QueryForm` の判断ロジック（基本版の `vertical` 固定・識別子を送るかどうか・状態メッセージ）を `state/queryParams.ts` の純関数へ切り出し、vitest 19 件を追加（frontend 計 43 → 62 件）。React テストライブラリは導入せず、既存の「純関数だけテストする」方針に揃えた |
-
+| 2.6 | **4 タブ構成と、その後に入った 3 つの改修へ追随させた。** §4.1 が 3 タブ時代のままで、`TABS` の定義もレンダリング分岐も**データ管理タブを欠いていた**ため実装から起こし直した（タブボタン 3 つ → 4 つ、矢印キー移動 `state/tabKeys.ts` を Input に追記）。あわせて (1) **タブ往復で入力が保持される**仕組み（`state/formMemory.ts`）を §4.1 に新設、(2) **メタ取得エラーバナー**（`MetaErrorBanner`・backend 停止時に業界プロファイル / ルールセットが空になる理由と復旧手順を出す）を §6.5 の症状表と新スロット E-02 に追加、(3) テスト表を実測へ更新（5 ファイル 62 件 → **12 ファイル 167 件**）。テスト表には `vite.config.ts` の `test.include` が `.test.ts` のみで **`.test.tsx` は 1 件も実行されない**という落とし穴を明記した。画面ショットは **H-01（タブヘッダ 4 つ）/ H-02a・H-02b（タブ往復の前後）/ E-02（メタ取得エラー）** の 4 枠を追加し、本文では 1 枠だった `S-06` を一覧に合わせて `S-06a` / `S-06b` へ分割して **28 枚**に統一した（本文と §6.4 一覧でスロット数が食い違っていたのを解消）。「画面ショット挿入位置について」に**各スロットが「どの画面か・どうやって出すか・何が読み取れるべきか」の 3 点を書く**という方針とスロット ID の接頭辞表を追加した |
+| 2.7 | **撮影済みの画面ショット 5 枚を掲載した。** `nakashima2toshio/grace_v2_local` の `docs/images/` にあった 5 枚（`b-01` / `s-01` / `s-02` / `s-06a` / `s-06b`）を本リポジトリへ取り込み、該当スロットのコメントを外した。あわせて**埋め込み様式を実態に合わせて修正**した——従来の説明では画像行を `> ` の中に残す形になっていたが、引用ブロック内だと縦罫線の内側へインデントされて窮屈になるため、**説明は引用のまま画像行だけを外に出す**形に改めた（grace_v2_local での実運用と一致）。`B-01` は README 冒頭にも再掲してアプリの第一印象を最初に見せる。§画面ショット挿入位置に「撮影の進捗」表（撮影済み 5 / 未撮影 23）を新設し、§6.4 の一覧にも状態列（✅ / ⬜）を追加した |
 ---
 
 ## 付録: 依存関係図
