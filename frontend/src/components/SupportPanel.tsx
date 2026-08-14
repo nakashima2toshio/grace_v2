@@ -18,9 +18,11 @@ import {
 } from '../api/client';
 import { initialJobState, jobReducer } from '../state/jobReducer';
 import { metaErrorMessage } from '../state/metaFetch';
+import { useJobTiming } from '../state/useJobTiming';
 import type { QueryParams, VerticalInfo } from '../types';
 import { AnswerCard } from './AnswerCard';
 import { ConfirmModal } from './ConfirmModal';
+import { JobFinishLine, JobStartLine } from './JobClock';
 import { MetaErrorBanner } from './MetaErrorBanner';
 import { QueryForm } from './QueryForm';
 import { StepTimeline } from './StepTimeline';
@@ -36,6 +38,8 @@ const LEAD: Record<SupportVariant, string> = {
 
 export function SupportPanel({ variant = 'vertical' }: { variant?: SupportVariant }) {
   const [state, dispatch] = useReducer(jobReducer, initialJobState);
+  // 開始・完了時刻。完了の記録は phase の決着を見て自動で入る（useJobTiming）。
+  const [timing, beginTiming] = useJobTiming(state.phase);
   const [verticals, setVerticals] = useState<VerticalInfo[]>([]);
   // 取得に失敗した理由。null なら成功（または未取得）。
   // ⚠️ **握りつぶさない**。以前は空配列に倒すだけで、バックエンドが落ちていても
@@ -72,6 +76,8 @@ export function SupportPanel({ variant = 'vertical' }: { variant?: SupportVarian
 
   const submit = useCallback(async (params: QueryParams) => {
     unsubscribeRef.current?.();
+    // 起動 API を待たずにここで開始時刻を打つ。ユーザーが押した瞬間が「開始」。
+    beginTiming();
     try {
       const { job_id } = await startQuery(params);
       dispatch({ type: 'started', jobId: job_id });
@@ -87,7 +93,7 @@ export function SupportPanel({ variant = 'vertical' }: { variant?: SupportVarian
         message: error instanceof Error ? error.message : String(error),
       });
     }
-  }, []);
+  }, [beginTiming]);
 
   const respond = useCallback(
     async (approve: boolean) => {
@@ -131,6 +137,8 @@ export function SupportPanel({ variant = 'vertical' }: { variant?: SupportVarian
           {state.error}
         </div>
       )}
+      <JobStartLine timing={timing} />
+
       {state.phase === 'running' && !state.intervention && (
         <div className="running-banner">
           実行中… ステップ進捗は下のタイムラインに逐次表示されます
@@ -138,7 +146,13 @@ export function SupportPanel({ variant = 'vertical' }: { variant?: SupportVarian
       )}
 
       <StepTimeline state={state} />
-      {state.result && <AnswerCard result={state.result} />}
+      {/* 完了行は回答カードの末尾に出す。**失敗時はカード自体が無い**ので、
+          そのときだけパネル直下へ出す（決着したのに時刻が消える、を防ぐ）。 */}
+      {state.result ? (
+        <AnswerCard result={state.result} timing={timing} />
+      ) : (
+        <JobFinishLine timing={timing} />
+      )}
 
       {state.intervention && (
         <ConfirmModal
