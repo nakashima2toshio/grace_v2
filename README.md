@@ -36,16 +36,16 @@
 
 ---
 ## grace_v2 で実装した機構
-| 軸 | 実装 | 状態 |
-|---|---|---|
-| 計画→実行→検証→ゲート | planner / executor / confidence / gates | ✅ |
-| 根拠検証 | support_rate（neutral 除外）、GroundednessVerifier | ✅ |
-| HITL 介入 | intervention.py（CONFIRM・タイムアウトで安全側） | ✅ |
-| RAG + Web 裏取り | Qdrant / agent_parallel_search | ✅ |
-| 動的リプラン | replan.py（失敗・低信頼・フィードバックの 3 トリガー） | ✅ |
-| 実行メモリ | memory.py（JSONL、コレクション優先度の事前分布） | ✅ |
-| 信頼度較正 | calibration.py（温度スケーリング、ECE） | ✅ |
-| タスク型の抽象化 | Support（問い→答え）／ Review（文書→指摘）の同型 | |
+| 軸 | 実装                                                     | 状態 |
+|---|--------------------------------------------------------|---|
+| 計画→実行→検証→ゲート | planner / executor / confidence / gates                | ✅ |
+| 根拠検証 | support_rate（neutral 除外）、GroundednessVerifier          | ✅ |
+| HITL 介入 | （Human-In-The-Loop）intervention.py（CONFIRM・タイムアウトで安全側） | ✅ |
+| RAG + Web 裏取り | Qdrant / agent_parallel_search                         | ✅ |
+| 動的リプラン | replan.py（失敗・低信頼・フィードバックの 3 トリガー）                      | ✅ |
+| 実行メモリ | memory.py（JSONL、コレクション優先度の事前分布）                        | ✅ |
+| 信頼度較正 | calibration.py（温度スケーリング、ECE）                           | ✅ |
+| タスク型の抽象化 | Support（問い→答え）／ Review（文書→指摘）の同型                       | |
 
 ## 概要
 
@@ -91,8 +91,9 @@ Support の `VerticalProfile` と Review の `RuleSet` は、**9 フィールド
 ```
 
 違うのは「入力が短文か長文か」「結果が回答カードか指摘リストか」だけで、
-進捗表示（SSE）・承認（HITL）・エラー表示の仕組みは共通コンポーネントである。
-
+進捗表示（SSE: Server-Sent Events）・承認（HITL: Human-In-The-Loop)）・エラー表示の仕組みは共通コンポーネントである。
+- SSE: サーバーから一方向にデータを流す。AIの回答の逐次出力や進捗状況のライブ通知
+- HITL: 勝手にデータを消したり、外部へ送信したりする危険な処理をストップします。ハルシネーション防止。
 ### 主な責務
 
 本アプリが担う役割・責任。**画面の配線ではなく、アプリとして何を引き受けるか**を挙げる。
