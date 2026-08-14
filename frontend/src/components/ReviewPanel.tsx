@@ -12,8 +12,10 @@ import {
 } from '../api/client';
 import { metaErrorMessage } from '../state/metaFetch';
 import { initialReviewState, reviewReducer } from '../state/reviewReducer';
+import { useJobTiming } from '../state/useJobTiming';
 import type { ReviewParams, RuleSetInfo } from '../types';
 import { ConfirmModal } from './ConfirmModal';
+import { JobFinishLine, JobStartLine } from './JobClock';
 import { MetaErrorBanner } from './MetaErrorBanner';
 import { DocumentView } from './DocumentView';
 import { FindingList, FindingSummaryBar } from './FindingList';
@@ -22,6 +24,8 @@ import { ReviewTimeline } from './ReviewTimeline';
 
 export function ReviewPanel() {
   const [state, dispatch] = useReducer(reviewReducer, initialReviewState);
+  // 開始・完了時刻。完了の記録は phase の決着を見て自動で入る（useJobTiming）。
+  const [timing, beginTiming] = useJobTiming(state.phase);
   const [rulesets, setRulesets] = useState<RuleSetInfo[]>([]);
   // 取得に失敗した理由。null なら成功（または未取得）
   const [rulesetsError, setRulesetsError] = useState<string | null>(null);
@@ -52,6 +56,8 @@ export function ReviewPanel() {
 
   const submit = useCallback(async (params: ReviewParams) => {
     unsubscribeRef.current?.();
+    // 起動 API を待たずにここで開始時刻を打つ。ユーザーが押した瞬間が「開始」。
+    beginTiming();
     try {
       const { job_id } = await startReview(params);
       dispatch({
@@ -72,7 +78,7 @@ export function ReviewPanel() {
         message: error instanceof Error ? error.message : String(error),
       });
     }
-  }, []);
+  }, [beginTiming]);
 
   const respond = useCallback(
     async (approve: boolean) => {
@@ -128,6 +134,8 @@ export function ReviewPanel() {
           {state.error}
         </div>
       )}
+      <JobStartLine timing={timing} />
+
       {state.phase === 'running' && !state.intervention && (
         <div className="running-banner">
           点検中… ステップ進捗は下のタイムラインに逐次表示されます
@@ -169,8 +177,12 @@ export function ReviewPanel() {
             {result.summary.suppressed} / 救済 {result.rescued} / 強制 high{' '}
             {result.forced_high}）
           </p>
+          <JobFinishLine timing={timing} />
         </>
       )}
+
+      {/* 失敗して結果が無いときも、決着した事実と所要時間は残す。 */}
+      {!result && <JobFinishLine timing={timing} />}
 
       {state.intervention && (
         <ConfirmModal
