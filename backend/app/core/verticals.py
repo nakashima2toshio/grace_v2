@@ -91,8 +91,14 @@ class VerticalProfile:
 PROFILES: Dict[str, VerticalProfile] = {
     "gov": VerticalProfile(
         name="自治体",
-        # wikipedia_ja は専用コレクション（gov_faq/gov_laws）登録までの代替
-        collections=["gov_faq_anthropic", "gov_laws_anthropic", "wikipedia_ja"],
+        # ⚠️ 以前は wikipedia_ja を「専用コレクション登録までの代替」として
+        #    許可していたが、gov_faq_anthropic / gov_laws_anthropic が登録済みに
+        #    なったため外した（実測 2026-08-17: gov_faq が 0.8011 でヒット）。
+        #
+        #    許可リストに残しておくと `qdrant.excluded_collections` の保護対象に
+        #    なり、汎用コーパスが自治体の回答の「社内ナレッジ」として提示され
+        #    うる。saas / ec は元から専用コレクションだけなので、それに揃える。
+        collections=["gov_faq_anthropic", "gov_laws_anthropic"],
         escalate_keywords=["法的", "訴訟", "減免", "個別", "例外", "不服"],
         action_map={"申請": "send_reply", "手続": "send_reply", "様式": "send_reply"},
         require_identity=False,
