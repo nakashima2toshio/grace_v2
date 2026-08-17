@@ -171,6 +171,16 @@ qdrant:
   # allowed_collections は業界プロファイルがリクエストごとに注入する。
   # ここで固定するとプロファイル選択が効かなくなるため空のままにする。
   allowed_collections: []
+  # 横断検索から常に外す汎用コーパス（部分一致）。
+  # ⚠️ allowed_collections は業界プロファイル指定時にしか効かないため、
+  #    基本版パイプラインを守るにはこの除外リストが要る。
+  #    汎用コーパスは話題の幅が広く、どんな質問にも 0.5〜0.6 台で当たる。
+  excluded_collections:
+    - "cc_news"
+    - "fineweb"
+    - "wikipedia"
+    - "livedoor"
+    - "japanese_text"
 
 # -----------------------------------------------------------------------------
 # Web検索設定
@@ -246,6 +256,19 @@ executor:
   # S3: ハイブリッド ReAct（観測駆動ループ）
   react_enabled: true
   react_complexity_threshold: 0.7
+  # RAG 検索結果を推論に使う／出典として採用するための最低スコア。
+  #
+  # ⚠️ 2 つの用途で同じ値を共有する。
+  #    不変条件: 推論に使えない文書は、出典としても採用しない。
+  #
+  # 0.64 は grace_v2_local での実測値（同一 Qdrant・同一 Embedding
+  # gemini-embedding-001 3072 次元を共有している）:
+  #   in_scope  n=12  最小 0.6650（TP フロア）
+  #   out_scope n= 5  最大 0.6190（FP シーリング）
+  #   → 中間の 0.64
+  #
+  # ⚠️ マージンは 0.046。サンプルが少なく暫定値。運用の質問ログで測り直すこと。
+  reasoning_min_rag_score: 0.64
   react_max_iterations: 8
   # RAG 適合性チェック（_evaluate_rag_relevance）のモデル。
   # ""（空）= llm.light_model へ委譲。"claude-sonnet-4-6" と書けば

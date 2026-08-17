@@ -21,7 +21,13 @@ from qdrant_client import QdrantClient
 # Import wrappers for robust execution
 from regex_mecab import KeywordExtractor
 
-from .config import GraceConfig, get_config, heavy_thinking_budget, resolve_heavy_model
+from .config import (
+    ExecutorConfig,
+    GraceConfig,
+    get_config,
+    heavy_thinking_budget,
+    resolve_heavy_model,
+)
 from .llm_compat import create_chat_client
 
 logger = logging.getLogger(__name__)
@@ -167,14 +173,21 @@ class RAGSearchTool(BaseTool):
             else self.config.qdrant.allowed_collections
         )
         search_candidates = self._apply_allowed_collections(search_candidates, allowed)
+        # 明示指定（collection 引数・業界プロファイルの許可リスト）は除外しない。
+        # 落とすのは動的取得された横断候補だけ。
+        search_candidates = self._apply_excluded_collections(
+            search_candidates, protected=[collection] if collection else None
+        )
 
         logger.info(f"RAGSearchTool: Search candidates: {search_candidates}")
 
         final_results = []
         used_collection = None
         # 緩和閾値でしか拾えなかった結果の保留先（後続に一次ヒットが無い場合のみ採用）
+        # ⚠️ 保留するのは **最も Top スコアが高い 1 コレクション**。検索順ではない。
         fallback_results: List[Dict[str, Any]] = []
         fallback_collection = None
+        fallback_top_score = 0.0
 
         # --- コレクションを順次検索 ---
         for target_collection in search_candidates:
@@ -230,9 +243,21 @@ class RAGSearchTool(BaseTool):
                         used_collection = target_collection
                         logger.info(f"Found {len(results)} valid results in {target_collection}")
                         break
-                    if not fallback_results:
+                    # ⚠️ 保留するのは「いちばんマシな 1 つ」。
+                    #
+                    # 以前は `if not fallback_results:` で **最初に検索された
+                    # コレクションだけ**を保留していたため、後続にもっと関連度の
+                    # 高いコレクションがあっても捨てていた。選択基準が「関連度」
+                    # ではなく「検索順」になっていた。
+                    # 実測（「明日の東京の天気は？」）:
+                    #   wikipedia_ja_5per      0.5375 ← 採用（最初だから）
+                    #   cc_news_2per_anthropic 0.6658 ← 最高スコアなのに破棄
+                    #   fineweb_edu_ja_5per    0.6058 ← 破棄
+                    # 12 コレクション中の **最下位**が採用されていた。
+                    if top_score > fallback_top_score:
                         fallback_results = results
                         fallback_collection = target_collection
+                        fallback_top_score = top_score
                     logger.info(
                         f"緩和閾値のみの結果（Top: {top_score:.4f}）のため保留し探索を継続: "
                         f"{target_collection}"
@@ -244,13 +269,46 @@ class RAGSearchTool(BaseTool):
 
         # 一次閾値に届くコレクションが 1 つも無ければ、保留していた緩和結果を採用する
         # （P-04 の「出典ゼロを救う」意図はここで果たされる）
-        if not final_results and fallback_results:
-            final_results = fallback_results
-            used_collection = fallback_collection
-            logger.info(
-                f"一次閾値に届くコレクションが無いため緩和結果を採用: "
-                f"{len(final_results)}件 ({fallback_collection})"
+        #
+        # ⚠️ ただし **reasoning に渡せないほど無関係な文書は、出典としても採用しない**。
+        #
+        # 以前はスコアがいくつでも無条件に採用していた。その結果、社内ナレッジに
+        # 存在しない話題（例「明日の東京の天気は？」）でも 0.53 の無関係文書
+        # （AI・インドネシア首都移転・著作権 …）が採用され、
+        #   - reasoning プロンプトに 【社内】情報源 として並ぶ
+        #   - 出典一覧に「社内 qa_pairs_combined_chunks.csv」が載る
+        #     ＝ 社内ナレッジを根拠にしたように見える（いちばんまずい）
+        #   - groundedness の検証ソースに無関係文書が混ざる
+        #   - step confidence が低スコアに引きずられる（実測 0.535）
+        # という実害が出ていた。
+        #
+        # 採用の下限は `executor.reasoning_min_rag_score` と**同じ値**にし、
+        # 「推論に使えない文書は引用もしない」という不変条件にする。恣意的な新しい
+        # 閾値を増やさず、2 箇所が食い違わないようにするのが狙い。
+        #
+        # ⚠️ getattr で読む。既存テストは `executor` を持たない config スタブを
+        #    組み立てるため、属性が無いことがある。その場合はクラス既定値を使う。
+        min_adopt_score = float(
+            getattr(
+                getattr(self.config, "executor", None),
+                "reasoning_min_rag_score",
+                ExecutorConfig().reasoning_min_rag_score,
             )
+        )
+        if not final_results and fallback_results:
+            if fallback_top_score >= min_adopt_score:
+                final_results = fallback_results
+                used_collection = fallback_collection
+                logger.info(
+                    f"一次閾値に届くコレクションが無いため緩和結果を採用: "
+                    f"{len(final_results)}件 ({fallback_collection}, Top: {fallback_top_score:.4f})"
+                )
+            else:
+                logger.info(
+                    f"緩和結果も関連度が低いため不採用: 最良 {fallback_top_score:.4f} < "
+                    f"{min_adopt_score}（{fallback_collection}）。"
+                    "社内ナレッジに該当なしとして 0 件で返し、Web 検索へ委ねます"
+                )
 
         # --- Dynamic Thresholding (動的な絞り込み) ---
         # 1位のスコアが非常に高い場合、2位以下のノイズを除去する
@@ -391,6 +449,56 @@ class RAGSearchTool(BaseTool):
     def clear_collections_cache(cls) -> None:
         """有効コレクションのキャッシュをクリアする（テスト・再登録後用）。"""
         cls._VALID_COLLECTIONS_CACHE.clear()
+
+    def _apply_excluded_collections(
+        self, candidates: List[str], protected: Optional[List[str]] = None
+    ) -> List[str]:
+        """汎用コーパスを横断検索から外す（部分一致）。
+
+        ⚠️ **なぜ許可リストでは足りないのか。**
+
+        `allowed_collections` は業界プロファイル（gov/saas/ec）を指定したときに
+        しか注入されない。業界指定なしの「基本版」パイプラインでは空のままなので、
+        Qdrant にあるコレクションが**全部**横断検索の対象になる。
+
+        汎用コーパス（Wikipedia / ニュース / Web クロール）は業務ナレッジでは
+        ないのに、話題の幅が広いぶん**どんな質問にも 0.5〜0.6 台で当たる**。
+        実測「明日の東京の天気は？」では:
+
+            wikipedia_ja_5per      0.5375
+            cc_news_2per_anthropic 0.6658
+            fineweb_edu_ja_5per    0.6058
+
+        が上位を占め、AI・インドネシア首都移転・著作権といった無関係文書が
+        「社内ナレッジ」として reasoning プロンプトと出典一覧に載っていた。
+
+        ⚠️ **明示指定は尊重する。** `collection` 引数や業界プロファイルの
+        `allowed_collections` で名指しされたコレクションは、除外リストに
+        当たっても落とさない（評価用に汎用コーパスを直接指定できる）。
+        ここで落とすのは「動的取得された横断候補」だけである。
+
+        全件除外になる場合はフィルタを適用しない（コレクション構成が想定と
+        違う環境で検索が丸ごと死なないようにするため。警告ログを出す）。
+        """
+        excluded = getattr(self.config.qdrant, "excluded_collections", None) or []
+        if not excluded:
+            return candidates
+
+        keep_always = set(protected or ())
+        kept = [
+            c for c in candidates
+            if c in keep_always or not any(keyword in c for keyword in excluded)
+        ]
+        dropped = [c for c in candidates if c not in kept]
+        if not kept:
+            logger.warning(
+                f"RAGSearchTool: excluded_collections={excluded} が全候補に一致した"
+                "ため除外を適用しません（コレクション構成を確認してください）"
+            )
+            return candidates
+        if dropped:
+            logger.info(f"RAGSearchTool: 汎用コーパスを除外: {dropped}")
+        return kept
 
     @staticmethod
     def _apply_allowed_collections(
