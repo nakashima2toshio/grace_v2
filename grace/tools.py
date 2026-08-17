@@ -1137,14 +1137,29 @@ class WebSearchTool(BaseTool):
             return {
                 "result_count": 0,
                 "avg_score": 0.0,
+                "max_score": 0.0,
+                "min_score": 0.0,
+                "score_variance": 1.0,
                 "top_score": 0.0,
                 "score_spread": 0.0,
                 "search_engine": backend,
             }
 
+        # ⚠️ **正準キー（max_score / score_variance）を必ず含める。**
+        # Executor は search_max_score を factors["max_score"]、
+        # search_score_variance を factors["score_variance"] から読む。
+        # ここが top_score / score_spread だけだと**例外にならず黙って既定値へ
+        # 落ちる**ため、最高スコアが平均に潰れ、ばらつきは常に最悪値（1.0）に
+        # なる。RAGSearchTool は正準名を返していたので Web だけが壊れていた。
+        # top_score / score_spread は既存ログとの互換のため併存させる。
+        avg_score = sum(scores) / len(scores)
+        variance = sum((s - avg_score) ** 2 for s in scores) / len(scores)
         return {
             "result_count": len(scores),
-            "avg_score": round(sum(scores) / len(scores), 2),
+            "avg_score": round(avg_score, 2),
+            "max_score": max(scores),
+            "min_score": min(scores),
+            "score_variance": variance,
             "top_score": max(scores),
             "score_spread": round(max(scores) - min(scores), 2),
             "search_engine": backend,
