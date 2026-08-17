@@ -300,6 +300,18 @@ confirm_th = ruleset.confirm_th # これ未満は誤検知抑止の対象
 クエリは、セグメントスコープではセグメント本文、文書全体スコープでは
 ルール本文（`title` + `description`）を使う。
 
+> ⚠️ **関連度の低い規程は根拠として採用しない**（`RuleSet.evidence_min_score`、既定 0.70）。
+> これは `agent_tools.COSINE_SIMILARITY_THRESHOLD`（RAG の一次閾値）と同じ値で、
+> **Review は緩和閾値（0.5）でしか拾えなかった結果を根拠にしない**という意味である。
+> Support の `executor.reasoning_min_rag_score`（0.64）より高いのは、Review では
+> 規程・条文が一次情報であり、無関係な規程を根拠に載せる害が大きいため。
+>
+> 閾値に届く規程が 0 件なら `citations` を空で返し、呼び出し側の
+> `citations or [rule.citation()]` により **`RuleItem.description` の条文
+> フォールバック**が使われる。低スコアの規程を 1 件でも返すと、正しい条文が
+> それに上書きされてしまう（実測 2026-08-17 20:07: 条文コレクション未登録の状態で
+> 返品 FAQ 5 件が「販売価格・送料の明示」の根拠として表示された）。
+
 ```python
 res = tool_registry.execute(
     "rag_search",

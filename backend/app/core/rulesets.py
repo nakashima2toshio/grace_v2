@@ -46,6 +46,23 @@ FindingStatus = Literal["confirmed", "review_required", "suppressed"]
 DEFAULT_NOTIFY_TH = 0.85
 DEFAULT_CONFIRM_TH = 0.60
 
+# ② Retrieve で規程を「根拠」として採用する最低スコア。
+#
+# ⚠️ **Support（`executor.reasoning_min_rag_score` = 0.64）より高くする。**
+# Review では規程・条文が一次情報であり（画面の注記どおり）、無関係な規程を根拠として
+# 載せる害は Support より大きい。「条文つきの指摘を出す」という機能の価値が崩れる。
+#
+# 0.70 は `agent_tools.COSINE_SIMILARITY_THRESHOLD`（RAG の一次閾値）と同じ値。
+# つまり **Review は緩和閾値（0.5）でしか拾えなかった結果を根拠にしない**。
+# 一次閾値に届かなければ `RuleItem.description`（条文フォールバック）を使う方が
+# 正確なので、無理に拾う理由が無い。
+#
+# 実測 2026-08-17 20:07 の裏付け（ec_policy_anthropic に特商法の条文は 1 件も無い）:
+#   採用されてしまった無関係な返品 FAQ の Top … 0.6581 / 0.6737 / 0.6765 / 0.6847
+#   規程が本当に関連していた唯一のケース   … 0.7914（返品期間 8日 vs 14日 の照合）
+#   → 0.70 で分離できる（マージン 0.1067）
+DEFAULT_EVIDENCE_MIN_SCORE = 0.70
+
 
 @dataclass
 class RuleItem:
@@ -79,6 +96,8 @@ class RuleSet:
     critical_keywords: List[str] = field(default_factory=list)
     notify_th: float = DEFAULT_NOTIFY_TH      # これ以上は confirmed（自動確定）
     confirm_th: float = DEFAULT_CONFIRM_TH    # これ未満は誤検知抑止の対象
+    # ② Retrieve で規程を根拠として採用する最低スコア（理由は定数の宣言箇所）
+    evidence_min_score: float = DEFAULT_EVIDENCE_MIN_SCORE
     action_map: Dict[str, str] = field(default_factory=dict)
     prompt_addendum: str = ""                 # ③ Detect のプロンプトへ注入する方針
 
