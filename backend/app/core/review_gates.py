@@ -92,29 +92,58 @@ class RuleCandidate(BaseModel):
 # ① 第1段: キーワード候補検出（LLM 呼び出しなし）
 # =============================================================================
 
+def select_document_rules(ruleset: Optional[RuleSet]) -> List[RuleCandidate]:
+    """**文書全体**に対して第2段へ回すルール候補（`always_check=True`）を返す。
+
+    ⚠️ **表記漏れの判定単位はセグメントではなく文書全体。**
+
+    以前は `select_candidate_rules` が `always_check` のルールを毎セグメントの候補に
+    加えていた。その結果、判定 LLM には**セグメント 1 行だけ**が「対象テキスト」として
+    渡り、次のような誤検知が構造的に発生していた（実測 2026-08-17 20:07）。
+
+        該当箇所「当社の美容液は、うるおいを与えて肌をなめらかに整えます。」
+          → 「事業者の氏名・住所・電話番号が一切含まれていません」
+             （実際は同じ文書の 3〜6 行目にすべて記載されている）
+
+    「見出しの行に会社名が書いていない」は当たり前で、LLM は与えられた 1 行について
+    正直に答えているだけ。**判定の入力スコープが誤っていた。**
+
+    `select_candidate_rules` の docstring が言うとおり「表記が『無い』ことの検出は
+    キーワード一致では原理的に不可能」だが、**同じ理屈はセグメント単位の判定にも
+    当てはまる**。1 行を見て「文書に無い」とは言えない。
+
+    Returns:
+        候補のリスト。文書 1 通あたり `len(always_check_rules)` 回の判定で済む
+        （以前は セグメント数 × ルール数 だった）。
+    """
+    if ruleset is None:
+        return []
+    return [
+        RuleCandidate(rule_id=rule.rule_id, always_check=True)
+        for rule in ruleset.always_check_rules
+    ]
+
+
 def select_candidate_rules(
     segment_text: str,
     ruleset: Optional[RuleSet],
 ) -> List[RuleCandidate]:
-    """セグメントに対して第2段へ回すルール候補を選ぶ。
+    """セグメントに対して第2段へ回すルール候補を選ぶ（キーワード型のみ）。
 
-    - `always_check=True` のルール（特商法の表記漏れ等）は常に候補にする。
-      表記が「無い」ことの検出はキーワード一致では原理的に不可能なため。
-    - それ以外は `RuleItem.keywords` の部分一致で絞る（`gates._match_keyword` を再利用）。
+    `RuleItem.keywords` の部分一致で絞る（`gates._match_keyword` を再利用）。
+    「その表現が書かれている」ことを見るルール（優良誤認・効能表現など）は
+    セグメント単位で正しく判定できる。
+
+    ⚠️ **`always_check` のルールはここには含まれない。** 表記漏れは文書全体で
+    判定するため `select_document_rules` が扱う（理由はそちらの docstring 参照）。
 
     Returns:
         候補のリスト。空なら第2段の LLM 呼び出しは 1 回も発生しない。
     """
-    if ruleset is None:
+    if ruleset is None or not segment_text:
         return []
 
     candidates: List[RuleCandidate] = []
-    for rule in ruleset.always_check_rules:
-        candidates.append(RuleCandidate(rule_id=rule.rule_id, always_check=True))
-
-    if not segment_text:
-        return candidates
-
     for rule in ruleset.keyword_rules:
         matched = _match_keyword(segment_text, rule.keywords)
         if matched is not None:

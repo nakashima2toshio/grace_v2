@@ -47,6 +47,7 @@ from backend.app.core.review_gates import (
     decide_finding_status,
     detect_vacuous_finding,
     select_candidate_rules,
+    select_document_rules,
     should_force_high,
     should_rescue_finding,
 )
@@ -89,6 +90,9 @@ REVIEW_STEP_IDS = (
 # 第1段のキーワードフィルタで実際はこの 1〜2 割だが、上限は必ず置く。
 MAX_SEGMENTS = 200
 MAX_LLM_CALLS = 300
+
+# 文書全体スコープの指摘に付ける segment_id。実セグメント（s001…）と衝突しない。
+DOCUMENT_SEGMENT_ID = "doc"
 MAX_SEGMENT_CHARS = 400      # これを超える段落は文末で再分割する
 RETRIEVE_LIMIT = 5           # ② のセグメントあたり取得件数
 
@@ -119,7 +123,7 @@ class Segment:
     text: str
     start: int
     end: int
-    kind: str = "paragraph"      # "paragraph" | "list_item" | "heading"
+    kind: str = "paragraph"      # "paragraph" | "list_item" | "heading" | "document"
 
 
 @dataclass
@@ -471,7 +475,12 @@ def run_review_agent_core(
         _emit(SupportEvent(type="result", data=review_result_to_dict(result)))
         return result
 
-    # --- ②〜④' セグメントごとのループ ---------------------------------------
+    # --- ②〜④' 判定 --------------------------------------------------------
+    # 判定単位は 2 つある。混ぜてはいけない。
+    #   1. 文書全体   … 表記漏れ（always_check）。「無い」ことの検出は文書全体でしか
+    #                    判定できない。1 文書あたり ルール数 回。
+    #   2. セグメント … キーワード型（優良誤認・効能表現など）。「書かれている」ことの
+    #                    検出なので、該当箇所を持つセグメント単位で正しい。
     step_started("retrieve", "② Retrieve（規程を RAG 検索）")
     step_started("detect", "③ Detect（二段判定で違反候補を検出）")
     step_started("ground", "④ Ground（指摘の根拠を検証）")
@@ -484,6 +493,93 @@ def run_review_agent_core(
     suppressed = 0
     truncated = seg_truncated
 
+    def _evaluate(rule, target: Segment, citations, source_texts) -> None:
+        """1 ルール × 1 判定単位を評価し、残すべきなら findings へ加える。
+
+        文書全体パスとセグメントパスで ③〜④' の扱いを完全に同じにするため、
+        両者で共有する。
+        """
+        nonlocal llm_calls, detected_raw, rescued, suppressed
+
+        # 規程コレクションが未登録なら RuleItem.description を根拠に使う
+        evidence_texts = source_texts or [rule.description]
+        evidence = "\n\n".join(evidence_texts)
+        rule_citations = citations or [rule.citation()]
+
+        verdict = detect(target.text, rule, evidence)
+        llm_calls += 1
+        if verdict is not None and not verdict.violates:
+            return
+
+        detected_raw += 1
+        finding = _build_finding(
+            index=len(findings) + 1,
+            segment=target,
+            rule=rule,
+            verdict=verdict,
+            citations=rule_citations,
+        )
+
+        # ④ Ground — 指摘そのものが規程で裏付けられるか
+        gres = verifier.verify(
+            f"次の記述は「{rule.title}」（{rule.law} {rule.article}）に抵触するか",
+            finding.message,
+            evidence_texts,
+        )
+        finding.confidence = gres.support_rate
+
+        # ④' Suppress — status 判定と救済
+        status = decide_finding_status(
+            gres.support_rate, gres.verified, len(finding.citations),
+            notify_th, confirm_th,
+        )
+        if status == "suppressed" and should_rescue_finding(
+            status, gres.has_contradiction, len(finding.citations),
+            finding.message, vacuous_judge,
+        ):
+            status = "review_required"
+            rescued += 1
+            log(f"  [rescue] {rule.rule_id}: 矛盾なし・根拠ありのため保留として維持",
+                step="suppress")
+        finding.status = status
+
+        if status == "suppressed":
+            vacuous, marker = detect_vacuous_finding(finding.message, vacuous_judge)
+            finding.suppress_reason = (
+                f"実質性なし（{marker}）" if vacuous else
+                f"根拠不足（支持率 {gres.support_rate:.2f}）"
+            )
+            suppressed += 1
+            if verbose:
+                log(f"  [suppress] {rule.rule_id}: {finding.suppress_reason}",
+                    step="suppress")
+            return
+
+        findings.append(finding)
+        log(f"  [{rule.rule_id}] {finding.message}", step="ground",
+            finding=asdict(finding))
+
+    # --- 判定単位 1: 文書全体（表記漏れ） -----------------------------------
+    whole = _document_segment(document)
+    for candidate in select_document_rules(rs):
+        if llm_calls >= MAX_LLM_CALLS:
+            truncated = True
+            break
+        rule = rs.rule_by_id(candidate.rule_id)
+        if rule is None:
+            continue
+        # ⚠️ 検索クエリは**ルール自身**（文書全体ではない）。
+        #    文書をそのままクエリにすると、長文では埋め込みが薄まって
+        #    関連する規程を引けない。探したいのは「このルールの根拠条文」である。
+        citations, source_texts = _retrieve_evidence(
+            tool_registry, f"{rule.title} {rule.description}", rs,
+        )
+        if verbose:
+            log(f"  {DOCUMENT_SEGMENT_ID}/{rule.rule_id}: 文書全体で判定 / "
+                f"規程 {len(citations)} 件", step="retrieve")
+        _evaluate(rule, whole, citations, source_texts)
+
+    # --- 判定単位 2: セグメント（キーワード型） -----------------------------
     for segment in segments:
         candidates = select_candidate_rules(segment.text, rs)
         if not candidates:
@@ -501,64 +597,7 @@ def run_review_agent_core(
             rule = rs.rule_by_id(candidate.rule_id)
             if rule is None:
                 continue
-
-            # 規程コレクションが未登録なら RuleItem.description を根拠に使う
-            evidence_texts = source_texts or [rule.description]
-            evidence = "\n\n".join(evidence_texts)
-            rule_citations = citations or [rule.citation()]
-
-            verdict = detect(segment.text, rule, evidence)
-            llm_calls += 1
-            if verdict is not None and not verdict.violates:
-                continue
-
-            detected_raw += 1
-            finding = _build_finding(
-                index=len(findings) + 1,
-                segment=segment,
-                rule=rule,
-                verdict=verdict,
-                citations=rule_citations,
-            )
-
-            # ④ Ground — 指摘そのものが規程で裏付けられるか
-            gres = verifier.verify(
-                f"次の記述は「{rule.title}」（{rule.law} {rule.article}）に抵触するか",
-                finding.message,
-                evidence_texts,
-            )
-            finding.confidence = gres.support_rate
-
-            # ④' Suppress — status 判定と救済
-            status = decide_finding_status(
-                gres.support_rate, gres.verified, len(finding.citations),
-                notify_th, confirm_th,
-            )
-            if status == "suppressed" and should_rescue_finding(
-                status, gres.has_contradiction, len(finding.citations),
-                finding.message, vacuous_judge,
-            ):
-                status = "review_required"
-                rescued += 1
-                log(f"  [rescue] {rule.rule_id}: 矛盾なし・根拠ありのため保留として維持",
-                    step="suppress")
-            finding.status = status
-
-            if status == "suppressed":
-                vacuous, marker = detect_vacuous_finding(finding.message, vacuous_judge)
-                finding.suppress_reason = (
-                    f"実質性なし（{marker}）" if vacuous else
-                    f"根拠不足（支持率 {gres.support_rate:.2f}）"
-                )
-                suppressed += 1
-                if verbose:
-                    log(f"  [suppress] {rule.rule_id}: {finding.suppress_reason}",
-                        step="suppress")
-                continue
-
-            findings.append(finding)
-            log(f"  [{rule.rule_id}] {finding.message}", step="ground",
-                finding=asdict(finding))
+            _evaluate(rule, segment, citations, source_texts)
 
         if llm_calls >= MAX_LLM_CALLS:
             log(f"  ⚠️ LLM 呼び出しが上限（{MAX_LLM_CALLS}）に達したため打ち切りました",
@@ -590,6 +629,10 @@ def run_review_agent_core(
         finding.severity = adjust_severity(
             base, finding.confidence, notify_th, confirm_th
         )
+        # ⚠️ 文書全体スコープの指摘は excerpt が空で `_segment_text` も "" を返す
+        #    （`segments` に "doc" は入っていない）。これは意図どおり。表記漏れの
+        #    指摘に重大リスク語の強制 high を適用すると、文書のどこかに危険表現が
+        #    あるだけで「価格の記載漏れ」まで high に格上げされてしまう。
         target_text = finding.excerpt or _segment_text(segments, finding.segment_id)
         forced, keyword, mention = should_force_high(target_text, rs, classify_mention)
         finding.severity, finding.status = apply_forced_high(
@@ -649,6 +692,21 @@ def run_review_agent_core(
 # 補助関数
 # =============================================================================
 
+def _document_segment(document: str) -> Segment:
+    """文書全体を 1 つの判定単位として表す擬似セグメント。
+
+    表記漏れ（`always_check`）の判定に使う。`result.segments` には入れない
+    （UI のセグメント一覧は実際の分割結果だけを見せる）。
+    """
+    return Segment(
+        segment_id=DOCUMENT_SEGMENT_ID,
+        text=document,
+        start=0,
+        end=len(document),
+        kind="document",
+    )
+
+
 def _build_finding(
     index: int,
     segment: Segment,
@@ -660,20 +718,32 @@ def _build_finding(
 
     `verdict is None`（LLM 判定失敗）の場合も指摘として残す。Review では
     指摘を消す方向のミスが最も痛いため、判定できないときは人に見せる。
+
+    ⚠️ **文書全体スコープでは「該当箇所なし」を許す。** 表記漏れは
+    「文書のどこにも書かれていない」ことの指摘なので、指し示せる箇所が
+    そもそも存在しない。セグメントスコープと同じく「見つからなければ全体を
+    ハイライト」にすると**文書全体が塗られる**ため、空スパン（start == end）を
+    返して何もハイライトしない。フロントの `resolveOverlaps` は
+    `end > start` で絞るので、空スパンは自然に無視される。
     """
-    excerpt = (verdict.excerpt if verdict else "") or segment.text
+    is_document = segment.kind == "document"
+    excerpt = (verdict.excerpt if verdict else "") or ("" if is_document else segment.text)
     message = (verdict.message if verdict else "") or (
         f"「{rule.title}」に該当する可能性があります（自動判定に失敗したため要確認）"
     )
     suggestion = (verdict.suggestion if verdict else "") or "内容を確認してください"
 
-    # excerpt がセグメント本文に含まれるなら、その位置を原文オフセットへ変換する。
-    # 含まれない（LLM が言い換えた）場合はセグメント全体をハイライト範囲にする。
+    # excerpt が本文に含まれるなら、その位置を原文オフセットへ変換する。
     offset = segment.text.find(excerpt) if excerpt else -1
     if offset >= 0:
         start = segment.start + offset
         end = start + len(excerpt)
+    elif is_document:
+        # 指し示せる箇所が無い（＝表記が存在しない）。ハイライトしない。
+        excerpt = ""
+        start = end = 0
     else:
+        # LLM が言い換えたためセグメント内に見つからない → セグメント全体を指す。
         excerpt = segment.text
         start, end = segment.start, segment.end
 

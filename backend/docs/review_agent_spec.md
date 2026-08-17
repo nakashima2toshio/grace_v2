@@ -229,7 +229,7 @@ flowchart TB
     KEY -- "未設定" --> ERR["error イベント → 終了"]
     KEY -- "OK" --> S0["S1 RuleSet 適用<br>規程コレクション・しきい値・重大リスク語を切替<br>config.qdrant.allowed_collections へ注入"]
     S0 --> S1["① Segment<br>文書を検査単位に分割 (段落・箇条書き・見出し)<br>各セグメントに文字オフセットを付与"]
-    S1 --> S2["② Retrieve<br>セグメントごとに規程を RAG 検索<br>rag_search (allowed_collections で範囲限定)"]
+    S1 --> S2["② Retrieve<br>判定単位ごとに規程を RAG 検索<br>rag_search (allowed_collections で範囲限定)"]
     S2 --> S3A{"③-1 候補検出<br>RuleItem.keywords の<br>キーワード一致？"}
     S3A -- "不一致" --> SKIP["このルールはスキップ<br>(LLM 呼び出しなし = 低コスト)"]
     S3A -- "一致" --> S3B["③-2 LLM 判定<br>実際に抵触するか + 指摘文 + 修正案を生成"]
@@ -296,7 +296,9 @@ confirm_th = ruleset.confirm_th # これ未満は誤検知抑止の対象
 
 #### ② Retrieve（`retrieve`）
 
-セグメントごとに規程コレクションを検索する。**既存の `rag_search` ツールを無改造で使う**。
+判定単位ごとに規程コレクションを検索する。**既存の `rag_search` ツールを無改造で使う**。
+クエリは、セグメントスコープではセグメント本文、文書全体スコープでは
+ルール本文（`title` + `description`）を使う。
 
 ```python
 res = tool_registry.execute(
@@ -335,9 +337,28 @@ class DetectVerdict(BaseModel):
 **安全側＝指摘として残し `review_required` にする**（Support の「判定失敗は escalate」と同方針）。
 
 > 💡 **キーワード方式の限界を承知の上で採用する。** キーワード非依存の違反
-> （例: 根拠のない体験談）は第1段をすり抜ける。これは `RuleItem.keywords` を空にすると
-> 「全セグメント × そのルール」で第2段を回す設定（`always_check=True`）で補う。
-> 常時チェックするルールは RuleSet 側で明示的に選ぶ（コストと精度のトレードオフを設定で持つ）。
+> （例: 根拠のない体験談）は第1段をすり抜ける。これは `always_check=True` の
+> ルールで補う。常時チェックするルールは RuleSet 側で明示的に選ぶ
+> （コストと精度のトレードオフを設定で持つ）。
+
+##### ⚠️ 判定単位は 2 つある（混ぜてはいけない）
+
+| 種別 | 対象テキスト | 選定関数 | 判定回数 |
+|---|---|---|---|
+| `always_check`（表記漏れ） | **文書全体** | `select_document_rules` | ルール数 |
+| キーワード型（優良誤認・効能表現等） | セグメント | `select_candidate_rules` | 一致した数 |
+
+表記漏れは「文書のどこにも書かれていない」ことの指摘なので、**文書全体でしか
+判定できない**。以前は `always_check` を毎セグメントの候補に入れており、判定 LLM に
+セグメント 1 行だけを渡していたため、同じ文書の別の行に記載がある事項まで
+「一切ありません」と誤検知していた（実測 2026-08-17 20:07: 適正な LP に対し
+11 件中 8 件が誤検知）。
+
+文書全体スコープの指摘は `segment_id = "doc"`（`DOCUMENT_SEGMENT_ID`）を持ち、
+指し示せる箇所が無いため **原文をハイライトしない**（`start == end == 0`。
+フロントの `resolveOverlaps` が `end > start` で絞るので自然に無視される）。
+根拠の検索クエリは**ルール自身**（`title` + `description`）を使う — 探しているのは
+「このルールの根拠条文」であり、文書をクエリにすると長文で埋め込みが薄まる。
 
 #### ④ Ground（`ground`）
 
@@ -579,7 +600,7 @@ class RuleItem:
     description: str                   # 判定基準（LLM プロンプトに埋め込む）
     keywords: List[str] = field(default_factory=list)   # 第1段の候補検出語
     severity_default: Severity = "medium"
-    always_check: bool = False         # True なら keywords 不問で第2段を必ず実行
+    always_check: bool = False         # True なら keywords 不問・文書全体で第2段を実行
     web_check: bool = False            # True なら ⑥ Web 裏取りの対象
 
 
