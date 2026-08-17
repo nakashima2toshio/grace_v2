@@ -567,9 +567,34 @@ def run_review_agent_core(
         )
         finding.confidence = gres.support_rate
 
+        # ⚠️ **`gres.verified` だけでは「判定が得られた」ことにならない。**
+        #
+        # `verified = total > 0` は「LLM が主張を分解できたか」であって
+        # 「支持／矛盾の判定が付いたか」ではない。全主張が neutral（＝規程で
+        # 支持も否定もされていない）でも `verified=True` で通る。そのとき
+        # `support_rate = supported / (supported + contradicted)` は分母 0 なので
+        # 0.0 になるが、これは「1 件も支持されなかった」ではなく**測れていない**。
+        #
+        # 実測 2026-08-17 20:08:30（tokusho-01・全 5 主張が neutral）:
+        #     判定内訳 — neutral / neutral / neutral / neutral / neutral
+        #     → 確信度 0.00 で `suppressed` に落ち、救済で `review_required` へ
+        #
+        # 支持率 0.0 として扱うと `confirm_th`（0.60）を下回るので必ず
+        # `suppressed` へ倒れ、救済（矛盾なし・根拠あり）に拾われて戻ってくる。
+        # 救済が効かない条件（指摘文が空・根拠ゼロ）では**判定できていない指摘が
+        # 黙って消える**。遠回りせず、最初から「未検証」として `review_required`
+        # に倒す。
+        #
+        # Support 側は既にこの区別をしている（`grace/executor.py`:
+        # `if not gres.verified or decided == 0:` で「判定不能（中立）」扱い、
+        # `backend/app/core/gates.py` にも「全 neutral（decided=0）」の記述がある）。
+        # **Review だけがこの `decided == 0` の判定を落としていた。**
+        decided = gres.supported + gres.contradicted
+        judged = gres.verified and decided > 0
+
         # ④' Suppress — status 判定と救済
         status = decide_finding_status(
-            gres.support_rate, gres.verified, len(finding.citations),
+            gres.support_rate, judged, len(finding.citations),
             notify_th, confirm_th,
         )
         if status == "suppressed" and should_rescue_finding(
@@ -582,11 +607,19 @@ def run_review_agent_core(
                 step="suppress")
         finding.status = status
 
+        if not judged and verbose:
+            # ⚠️ 「支持率 0.00」と書かない（測れていないだけで、否定されたのではない）
+            reason = (f"判定なし（{gres.total} 主張すべて neutral）" if gres.verified
+                      else f"検証不能（{gres.reason or '理由不明'}）")
+            log(f"  [ground] {rule.rule_id}: {reason} → 要確認として残します",
+                step="ground")
+
         if status == "suppressed":
             vacuous, marker = detect_vacuous_finding(finding.message, vacuous_judge)
             finding.suppress_reason = (
                 f"実質性なし（{marker}）" if vacuous else
-                f"根拠不足（支持率 {gres.support_rate:.2f}）"
+                f"根拠不足（支持率 {gres.support_rate:.2f} / "
+                f"{gres.supported}支持・{gres.contradicted}矛盾）"
             )
             suppressed += 1
             if verbose:

@@ -374,6 +374,23 @@ class DetectVerdict(BaseModel):
 
 #### ④ Ground（`ground`）
 
+> ⚠️ **`GroundednessResult.verified` だけでは「判定が得られた」ことにならない。**
+> `verified = total > 0` は「LLM が主張を**分解**できたか」であって「支持／矛盾の
+> **判定が付いたか**」ではない。全主張が neutral（規程で支持も否定もされていない）でも
+> `True` になる。そのとき `support_rate = supported / (supported + contradicted)` は
+> 分母 0 で 0.0 になるが、これは「1 件も支持されなかった」ではなく**測れていない**。
+>
+> 判定の有無は `decided = supported + contradicted` で見る。
+> Review では `verified and decided > 0` を `decide_finding_status` の `verified` へ
+> 渡し、未検証は素直に `review_required` へ倒す。支持率 0.0 として扱うと必ず
+> `suppressed` へ落ち、救済（矛盾なし・根拠あり）に拾われて戻るという遠回りになり、
+> 救済が効かない条件（指摘文が空・根拠ゼロ）では**判定できていない指摘が黙って
+> 消える**（実測 2026-08-17 20:08:30）。
+>
+> Support 側は既にこの区別をしている（`grace/executor.py` の
+> `if not gres.verified or decided == 0:`、`backend/app/core/gates.py` の
+> 「全 neutral（decided=0）」）。**Review だけが落としていた。**
+
 **`GroundednessVerifier` を無改造で使う。** 引数の意味を読み替えるだけで成立する。
 
 | verifier の引数 | Support での意味 | Review での意味 |
