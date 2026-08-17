@@ -175,8 +175,18 @@ class RAGSearchTool(BaseTool):
         search_candidates = self._apply_allowed_collections(search_candidates, allowed)
         # 明示指定（collection 引数・業界プロファイルの許可リスト）は除外しない。
         # 落とすのは動的取得された横断候補だけ。
+        #
+        # ⚠️ 許可リスト側も保護対象に含める。以前は `collection` 引数だけを
+        #    保護していたため、docstring の「業界プロファイルの
+        #    allowed_collections で名指しされたコレクションは落とさない」が
+        #    **実装されていなかった**（gov プロファイルが明示的に許可している
+        #    wikipedia_ja が黙って落ちる状態だった）。
+        protected = [c for c in search_candidates
+                     if any(keyword in c for keyword in (allowed or []))]
+        if collection:
+            protected.append(collection)
         search_candidates = self._apply_excluded_collections(
-            search_candidates, protected=[collection] if collection else None
+            search_candidates, protected=protected
         )
 
         logger.info(f"RAGSearchTool: Search candidates: {search_candidates}")
@@ -476,6 +486,12 @@ class RAGSearchTool(BaseTool):
         `allowed_collections` で名指しされたコレクションは、除外リストに
         当たっても落とさない（評価用に汎用コーパスを直接指定できる）。
         ここで落とすのは「動的取得された横断候補」だけである。
+        保護対象は呼び出し側が `protected` で渡す。
+
+        ⚠️ **メモリの推測は「明示指定」ではない。** `PlanStep.collection` には
+        実行メモリが学習した優先コレクションも入るため、ここでは区別が付かない。
+        除外対象がメモリ経由で復活しないよう、**Planner 側**（`_is_excluded`）で
+        先に落としている。
 
         全件除外になる場合はフィルタを適用しない（コレクション構成が想定と
         違う環境で検索が丸ごと死なないようにするため。警告ログを出す）。

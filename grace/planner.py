@@ -246,10 +246,33 @@ class Planner:
 
         return heuristic_complexity >= self.config.planner.llm_plan_complexity_threshold
 
+    def _is_excluded(self, collection: str) -> bool:
+        """`qdrant.excluded_collections` に部分一致するか。"""
+        excluded = getattr(self.config.qdrant, "excluded_collections", None) or []
+        return any(keyword in collection for keyword in excluded)
+
     def _prioritized_collection(self, query: str) -> Optional[str]:
         """P4: 実行メモリの事前分布から、この質問で当たりやすいコレクションを返す。
 
         十分な実績が無ければ None（=全コレクション検索）を返す。
+
+        ⚠️ **除外対象コレクションは返さない。**
+
+        メモリが返すのは「過去の実績からの**推測**」であって、運用者の明示指定では
+        ない。ところがこの戻り値は `PlanStep.collection` に入り、RAGSearchTool 側では
+        「明示指定」と区別が付かないため、`qdrant.excluded_collections` を素通りする。
+
+        実測（2026-08-17 11:41 / 11:39）でこうなっていた:
+
+            11:10 天気の実行で誤採用された wikipedia_ja_5per が success として記録
+              ↓
+            [memory] prioritized collection for query: wikipedia_ja_5per
+              ↑ 「住民票の写しの取り方は？」でも「明日の東京の天気は？」でも同じ
+              （collection_priors はキーワード重複が無いと全体集計へフォールバックする）
+              ↓
+            除外リストに載っているのに検索候補に残り、毎回無駄に検索される
+
+        除外は運用者が設定した恒久的な意思なので、学習結果より優先する。
         """
         if self._memory is None:
             return None
@@ -258,6 +281,12 @@ class Planner:
             best = self._memory.best_collection(
                 query=query, min_count=mc.min_count, min_score=mc.min_score
             )
+            if best and self._is_excluded(best):
+                logger.info(
+                    f"[memory] prioritized collection {best} は除外対象のため使わない"
+                    "（全コレクション検索へ）"
+                )
+                return None
             if best:
                 logger.info(f"[memory] prioritized collection for query: {best}")
             return best
