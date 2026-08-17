@@ -759,6 +759,15 @@ class GroundednessResult:
     has_contradiction: bool
     verified: bool               # ソースがあり検証を実施できたか
     reason: str = ""
+    # 主張ごとの判定（LLM が返した ClaimVerdict のまま）。
+    #
+    # ⚠️ **件数だけでは誤検知を切り分けられないので中身を残す。**
+    # 以前は supported/contradicted/total の数だけを保持し、判定された主張そのものを
+    # 捨てていた。`supported=2 / contradicted=1` と出たとき、**どの主張が矛盾と
+    # 判定されたのかログから追えず**、検証器の誤検知か回答の誤りかを判断できない
+    # （contradicted は answer_conf を 0.30 に cap するため、誤検知だと正しい回答の
+    # 信頼度を不当に下げる）。
+    claims: List[ClaimVerdict] = field(default_factory=list)
 
 
 class GroundednessVerifier:
@@ -837,7 +846,7 @@ class GroundednessVerifier:
             # neutral は「根拠なし」として支持率の分母には含めるが分子には入れない。
             decided = supported + contradicted
             support_rate = (supported / decided) if decided > 0 else 0.0
-            return GroundednessResult(
+            result = GroundednessResult(
                 support_rate=round(support_rate, 4),
                 supported=supported,
                 contradicted=contradicted,
@@ -845,10 +854,38 @@ class GroundednessVerifier:
                 has_contradiction=contradicted > 0,
                 verified=total > 0,
                 reason=parsed.reason or "",
+                claims=list(parsed.claims),
             )
+            self._log_claims(result)
+            return result
         except Exception as e:  # 検証失敗は評価を止めない（未検証扱い）
             logger.warning(f"Groundedness verification failed: {e}")
             return GroundednessResult(0.0, 0, 0, 0, False, False, f"error: {e}")
+
+    @staticmethod
+    def _abbreviate(text: str, limit: int = 120) -> str:
+        """ログ 1 行に収まる長さへ縮める。"""
+        flat = " ".join((text or "").split())
+        return flat if len(flat) <= limit else flat[:limit] + "…"
+
+    def _log_claims(self, result: GroundednessResult) -> None:
+        """判定の内訳をログへ出す。
+
+        ⚠️ **contradicted は必ず本文つきで出す。** 矛盾が 1 件でもあると
+        呼び出し側は `answer_conf` を 0.30 に cap する（executor）。誤検知だと
+        正しい回答の信頼度が不当に下がるため、後から誤検知かどうかを判断できる
+        だけの情報をログに残す必要がある。件数だけでは切り分けられない。
+        """
+        for claim in result.claims:
+            if claim.verdict == "contradicted":
+                logger.warning(
+                    "[groundedness] contradicted: %s", self._abbreviate(claim.claim)
+                )
+        if result.claims:
+            breakdown = " / ".join(
+                f"{c.verdict}: {self._abbreviate(c.claim, 60)}" for c in result.claims
+            )
+            logger.info("[groundedness] 判定内訳 — %s", breakdown)
 
 
 # =============================================================================

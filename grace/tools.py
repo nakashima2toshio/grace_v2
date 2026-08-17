@@ -13,6 +13,7 @@ import tempfile
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 from qdrant_client import QdrantClient
@@ -470,6 +471,28 @@ class ReasoningTool(BaseTool):
     name = "reasoning"
     description = "収集した情報を分析・統合して回答を生成"
 
+    # 曜日は「今週の金曜」等の解決に要る。日本語の曜日で出す。
+    _WEEKDAYS_JA = ("月", "火", "水", "木", "金", "土", "日")
+
+    @classmethod
+    def _now_text(cls, now: Optional[datetime] = None) -> str:
+        """プロンプトへ埋める現在日時の文字列。
+
+        「明日」「今週」「先月」といった相対表現を LLM が解決できるように、
+        **今日の日付と明日の日付を両方**明示する。明日を計算させると誤る
+        （月末・年末をまたぐケースで特に）ため、こちらで計算して渡す。
+        """
+        now = now or datetime.now()
+        tomorrow = now + timedelta(days=1)
+        return (
+            f"今日は {now:%Y年%m月%d日}"
+            f"（{cls._WEEKDAYS_JA[now.weekday()]}曜日）{now:%H:%M} です。\n"
+            f"「明日」は {tomorrow:%Y年%m月%d日}"
+            f"（{cls._WEEKDAYS_JA[tomorrow.weekday()]}曜日）を指します。\n"
+            "質問に「明日」「今週」「先月」などの相対的な日付表現が含まれる場合は、"
+            "上記を基準に具体的な日付へ読み替えて参照情報を解釈してください。"
+        )
+
     # 参照情報の見出しに出す種別。回答規則 3 がこの語をそのまま使う。
     _ORIGIN_INTERNAL = "社内"
     _ORIGIN_WEB = "Web"
@@ -610,6 +633,17 @@ class ReasoningTool(BaseTool):
             "あなたは社内ドキュメント検索システムと連携した「ハイブリッド・ナレッジ・エージェント」です。\n"
             "提供された【参照情報】を元に、ユーザーの質問に対して正確で誠実な回答を生成してください。\n"
         )
+
+        # ⚠️ **現在日時を渡す。** LLM は今日が何日かを知らないため、日付が無いと
+        # 相対表現（明日・今週・先月）を解決できず、参照情報に答えがあっても
+        # 取り出せない。
+        #
+        # 実測（「明日の東京の天気は？」）: 情報源に予報があったのに
+        #   「『明日』という日付が具体的にいつを指すのかについての定義が不足
+        #     しているため、確定した情報を提示することができませんでした」
+        # という回答になった。groundedness は 1.00（＝言っていること自体は
+        # 情報源に忠実）なので、ゲートでは弾けない。**プロンプト側の欠落**である。
+        prompt_parts.append(f"\n### 【現在日時】\n{self._now_text()}\n")
 
         # 業務方針の追記（業界プロファイルの prompt_addendum 注入口）
         addendum = getattr(self.config.llm, "prompt_addendum", "") or ""
