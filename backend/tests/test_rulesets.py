@@ -35,6 +35,11 @@ EXPECTED_LAW_COUNTS = {
     "景品表示法": 12,
     "医薬品医療機器等法": 3,
     "特定商取引法": 6,
+    # ⚠️ 法令ルールではない整合チェック（policy-01）。実測 2026-08-17 20:07 で
+    # 「規程では14日、表示は8日」という社内整合性の指摘が「重大 / 特商法第11条 /
+    # 確定」として出ていた（8日は法定の既定日数なので表示自体は適法）。帰属を
+    # 分けるために law="社内規程" のルールを別立てした。
+    "社内規程": 1,
 }
 EXPECTED_TOTAL = sum(EXPECTED_LAW_COUNTS.values())
 
@@ -50,7 +55,7 @@ def test_ec_ad_is_registered():
 
 
 def test_rule_count_matches_spec():
-    """ルール総数が設計書の 21 件と一致する。"""
+    """ルール総数が定義と一致する（法令 21 件 + 整合チェック 1 件）。"""
     assert len(EC_AD.rules) == EXPECTED_TOTAL
 
 
