@@ -191,6 +191,14 @@ class RAGSearchTool(BaseTool):
 
         logger.info(f"RAGSearchTool: Search candidates: {search_candidates}")
 
+        # ⚠️ クエリベクトルは 1 回だけ作って全コレクションで使い回す。
+        query_vector, sparse_vector = self._embed_query_once(query, len(search_candidates))
+        precomputed: Dict[str, Any] = {}
+        if query_vector is not None:
+            precomputed["precomputed_query_vector"] = query_vector
+        if sparse_vector is not None:
+            precomputed["precomputed_sparse_vector"] = sparse_vector
+
         final_results = []
         used_collection = None
         # 緩和閾値でしか拾えなかった結果の保留先（後続に一次ヒットが無い場合のみ採用）
@@ -206,7 +214,9 @@ class RAGSearchTool(BaseTool):
             
             try:
                 # 検索実行
-                results = search_rag_knowledge_base_structured(query, target_collection)
+                results = search_rag_knowledge_base_structured(
+                    query, target_collection, **precomputed
+                )
                 
                 # エラーまたはメッセージのみの場合はスキップ
                 if isinstance(results, str):
@@ -459,6 +469,55 @@ class RAGSearchTool(BaseTool):
     def clear_collections_cache(cls) -> None:
         """有効コレクションのキャッシュをクリアする（テスト・再登録後用）。"""
         cls._VALID_COLLECTIONS_CACHE.clear()
+
+    def _embed_query_once(self, query: str, collection_count: int) -> tuple:
+        """クエリの dense / sparse ベクトルを 1 回だけ作って返す。
+
+        ⚠️ **同じクエリを何度も埋め込まない。**
+
+        `search_rag_knowledge_base_structured` は `precomputed_*` を渡さないと
+        呼び出しごとにクエリを埋め込み直す。ここは全コレクションを順に舐める
+        ループなので、**1 質問あたりコレクション数ぶんの Embedding API 呼び出し**が
+        発生していた。実測（2026-08-17 11:41 / 7 コレクション）:
+
+            11:41:47→11:41:51  batchEmbedContents ×7（同一クエリ）  約 4 秒
+
+        クエリベクトルはコレクションに依存しないので、結果は 7 回とも同じ。
+        外部 API（Gemini）なので待ち時間だけでなく課金にも効く。
+
+        失敗しても検索自体は止めない。None を返せば下位が従来どおり
+        コレクションごとに埋め込む（＝この最適化が無い状態へ戻るだけ）。
+
+        Returns:
+            (dense_vector, sparse_vector) — 作れなかった側は None
+        """
+        if collection_count <= 1:
+            # 1 コレクションなら下位に任せた方が経路が単純（挙動は同じ）
+            return None, None
+
+        dense = None
+        sparse = None
+        try:
+            from qdrant_client_wrapper import embed_query
+            dense = embed_query(query)
+        except Exception as e:
+            logger.warning(
+                f"クエリの事前埋め込みに失敗しました（コレクションごとに再計算します）: {e}"
+            )
+            return None, None
+
+        try:
+            from qdrant_client_wrapper import embed_sparse_query_unified
+            sparse = embed_sparse_query_unified(query)
+        except Exception as e:
+            # sparse は任意。使えなければ dense 検索へ倒れる（従来どおり）
+            logger.debug(f"Sparse クエリベクトルの事前計算をスキップ: {e}")
+
+        logger.info(
+            f"クエリベクトルを 1 回だけ計算し {collection_count} コレクションで再利用します "
+            f"(dense={'あり' if dense else 'なし'}, sparse={'あり' if sparse else 'なし'})"
+        )
+        return dense, sparse
 
     def _apply_excluded_collections(
         self, candidates: List[str], protected: Optional[List[str]] = None
