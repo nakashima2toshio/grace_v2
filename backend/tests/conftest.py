@@ -122,7 +122,10 @@ def install_pipeline_stub(monkeypatch, stub: PipelineStub) -> None:
     def judge(_q: str, _a: str) -> Optional[bool]:
         return stub.no_info_verdict
 
-    monkeypatch.setattr(f"{target}.create_no_info_judge", lambda _c: judge)
+    # ⚠️ 本体は on_failure を渡すので、スタブも受け取れるようにしておく
+    # （受け取らないと TypeError で全シナリオが落ちる）。
+    monkeypatch.setattr(f"{target}.create_no_info_judge",
+                        lambda _c, on_failure=None: judge)
 
 
 @pytest.fixture

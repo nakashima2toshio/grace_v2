@@ -35,10 +35,10 @@ from backend.app.core.gates import (
     _web_source_texts,
     create_intent_classifier,
     create_no_info_judge,
+    judge_model,
 )
 from backend.app.core.verticals import (
     DEFAULT_QUERY,
-    INTENT_MODEL,
     PROFILES,
     ActionRequest,
     Decision,
@@ -253,6 +253,12 @@ def run_support_agent_core(
     )
     th = config.confidence.thresholds
 
+    # 判定系（意図分類・情報なし判定）が実際に使うモデル名。
+    # ⚠️ `INTENT_MODEL` をそのままログに出さない。あれは verticals.py の
+    # リテラル定数で、config（yml）経由で解決される実体と食い違いうる。
+    # 表示と実体がずれると原因調査が空振りする。
+    _judge_model = judge_model(config)
+
     # 意図分類器（二段判定の第 2 段）: キーワード候補が一致したときだけ呼ばれる。
     # 同一クエリへの分類は 1 回で済むようメモ化する（エスカレ判定とアクション判定で共有）。
     _raw_classify = create_intent_classifier(config)
@@ -261,18 +267,40 @@ def run_support_agent_core(
     def classify(q: str) -> Optional[Intent]:
         if q not in _intent_cache:
             _intent_cache[q] = _raw_classify(q)
-            log(f"  [intent] 意図分類（{INTENT_MODEL}）: {_intent_cache[q] or '不明'}",
+            log(f"  [intent] 意図分類（{_judge_model}）: {_intent_cache[q] or '不明'}",
                 step="gate", intent=_intent_cache[q])
         return _intent_cache[q]
 
     # 「情報なし回答」判定器（④' ゲートの第 2 段）: 候補句が一致したときだけ呼ばれる
-    _raw_no_info_judge = create_no_info_judge(config)
+    #
+    # ⚠️ **判定失敗の理由を実行記録に残す。** 判定器は理由を stderr へ出すだけ
+    # なので、emit 経由の実行ログ（UI・SSE）には「判定失敗」という結果しか
+    # 残らず、なぜ失敗したのかを後から追えなかった。
+    _judge_failure: Dict[str, Optional[str]] = {"kind": None, "detail": None}
+
+    def _record_judge_failure(kind: str, detail: str) -> None:
+        _judge_failure["kind"] = kind
+        _judge_failure["detail"] = detail
+
+    _raw_no_info_judge = create_no_info_judge(config, on_failure=_record_judge_failure)
+
+    # 第 2 段が実際に呼ばれたか／その判定は何だったか。④' のログを正確にする
+    # ために**判定そのもの**を見る（失敗コールバックの有無から推測しない）。
+    _last_verdict: Dict[str, Any] = {"called": False, "value": None}
 
     def no_info_judge(q: str, a: str) -> Optional[bool]:
+        _judge_failure["kind"] = _judge_failure["detail"] = None
         verdict = _raw_no_info_judge(q, a)
+        _last_verdict["called"] = True
+        _last_verdict["value"] = verdict
         label = {True: "no_info", False: "answered", None: "判定失敗"}[verdict]
-        log(f"  [no-info] 実質回答判定（{INTENT_MODEL}）: {label}",
-            step="no_info", verdict=label)
+        suffix = ""
+        if verdict is None and _judge_failure["detail"]:
+            suffix = f"（{_judge_failure['detail']}）"
+        log(f"  [no-info] 実質回答判定（{_judge_model}）: {label}{suffix}",
+            step="no_info", verdict=label,
+            failure_kind=_judge_failure["kind"],
+            failure_detail=_judge_failure["detail"])
         return verdict
 
     # 業界プロファイル（--vertical）: しきい値・エスカレ語・アクション対応・本人確認を切り替え
@@ -515,16 +543,26 @@ def run_support_agent_core(
         no_info, marker = _detect_no_info_answer(
             query, support.answer, no_info_judge, force_judge=web_only,
         )
+        # ⚠️ **「判定が得られなかった」を「answered と判定された」と書かない。**
+        judged = _last_verdict["called"]
+        verdict_missing = judged and _last_verdict["value"] is None
         if no_info:
             trigger = f"候補句 '{marker}'" if marker is not None else "出典が Web のみ"
             log(f"  [gate] 情報なし回答を検知（{trigger}）→ 有人対応へエスカレーション", step="no_info")
             support.decision = "escalate"
             support.warning = False
             support.no_info_detected = True
-        elif marker is not None or web_only:
+        elif verdict_missing:
+            # ここへ来るのは marker なし（＝ web_only だけがトリガ）のとき。
+            # force_judge は「判定せよ」というトリガであって判定結果ではないので、
+            # 判定が無いまま Web のみを理由にエスカレはしない。
+            log("  [gate] 出典が Web のみだが第 2 段の判定が得られなかった "
+                "→ Web のみを理由にはエスカレせず回答を維持", step="no_info")
+        elif judged:
             trigger = f"情報なし候補句 '{marker}' はあるが" if marker is not None else "出典が Web のみだが"
             log(f"  [gate] {trigger}実質回答（answered）→ 回答を維持", step="no_info")
-        step_finished("no_info", no_info=no_info, marker=marker, web_only=web_only)
+        step_finished("no_info", no_info=no_info, marker=marker, web_only=web_only,
+                      verdict_missing=verdict_missing)
     else:
         step_skipped("no_info")
 

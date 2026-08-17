@@ -19,6 +19,27 @@ from backend.app.core.verticals import (
 )
 
 
+def judge_model(config) -> str:
+    """判定系（意図分類・情報なし判定）が使うモデル名を解決する。
+
+    ⚠️ **`INTENT_MODEL` を直接使ってはいけない。**
+
+    `INTENT_MODEL` は `verticals.py` に**リテラルで書かれたモジュール定数**で、
+    `config/grace_config.yml` を一切見ない。一方 planner / reasoning /
+    groundedness などは `grace/config.py` 経由で yml の
+    `llm.model` / `llm.light_model` を読む。つまり解決経路が 2 本ある。
+
+    現時点では両者がたまたま同じ値（`claude-haiku-4-5-20251001`）なので
+    表には出ていないが、**yml の `light_model` を書き換えても判定系だけが
+    取り残される**。同じ値を 2 箇所で管理している状態そのものが負債である。
+
+    そこで**設定（yml）を正**とし、config から解決できないときだけ
+    `INTENT_MODEL` へフォールバックする（`llm` を持たないテスト用スタブ向け）。
+    """
+    llm = getattr(config, "llm", None)
+    return getattr(llm, "light_model", None) or INTENT_MODEL
+
+
 def create_intent_classifier(config) -> Callable[[str], Optional[Intent]]:
     """問い合わせ意図の LLM 分類器（軽量モデル・二段判定の第 2 段）を返す。
 
@@ -30,6 +51,7 @@ def create_intent_classifier(config) -> Callable[[str], Optional[Intent]]:
     from grace.llm_compat import create_chat_client
 
     client = create_chat_client(config)
+    model_name = judge_model(config)
 
     def classify(query: str) -> Optional[Intent]:
         prompt = (
@@ -42,7 +64,7 @@ def create_intent_classifier(config) -> Callable[[str], Optional[Intent]]:
         )
         try:
             response = client.models.generate_content(
-                model=INTENT_MODEL,
+                model=model_name,
                 contents=prompt,
                 config={"temperature": 0.0, "max_output_tokens": 10},
             )
@@ -82,7 +104,22 @@ NO_INFO_MARKERS = (
 )
 
 
-def create_no_info_judge(config) -> Callable[[str, str], Optional[bool]]:
+def _abbreviate_reason(text: str, limit: int = 120) -> str:
+    """判定失敗の理由をログ 1 行に収まる長さへ縮める。"""
+    flat = " ".join((text or "").split())
+    return flat if len(flat) <= limit else flat[:limit] + "…"
+
+
+# `create_no_info_judge` が判定できなかったときの種別。
+# 呼び出し側はこれを見てログの文言を変える。
+JUDGE_UNEXPECTED_OUTPUT = "unexpected_output"  # 応答したが answered/no_info を含まない
+JUDGE_EXCEPTION = "exception"                  # 例外（タイムアウト・接続断など）
+
+
+def create_no_info_judge(
+    config,
+    on_failure: Optional[Callable[[str, str], None]] = None,
+) -> Callable[[str, str], Optional[bool]]:
     """「情報なし回答」の LLM 判定器（軽量モデル・二段判定の第 2 段）を返す。
 
     返す関数は (query, answer) を受け、回答が質問の中心的な事柄に実質的に
@@ -91,10 +128,32 @@ def create_no_info_judge(config) -> Callable[[str, str], Optional[bool]]:
     出力）は None を返し、呼び出し側が安全側（escalate）に倒す。呼び出しは
     NO_INFO_MARKERS が一致したとき、または出典が Web のみ（社内根拠ゼロ）の
     回答に限られるので、追加コストは軽量モデル 1 呼び出しに留まる。
+
+    Args:
+        on_failure: 判定できなかったときに `(kind, detail)` を受け取るコールバック。
+            `kind` は `JUDGE_UNEXPECTED_OUTPUT` / `JUDGE_EXCEPTION`。
+
+            ⚠️ **理由を実行記録に残すために必要。** 理由を `sys.stderr` へ
+            print するだけだと、`emit` 経由の実行ログ（UI・SSE）には
+            `判定失敗` という結果しか出ず、**なぜ失敗したのかを後から
+            追えない**。
+
+            出典が Web のみの回答は `force_judge=True` で判定が必須になる。
+            判定器が失敗し続けているのか、たまたま 1 回落ちたのかを
+            区別するには失敗理由が要る。
+
+            None なら従来どおり stderr へ出す（CLI の挙動を変えない）。
     """
+    def _fail(kind: str, detail: str) -> None:
+        if on_failure is not None:
+            on_failure(kind, detail)
+        else:
+            print(f"   [no-info] {detail} → 安全側（escalate）", file=sys.stderr)
+
     from grace.llm_compat import create_chat_client
 
     client = create_chat_client(config)
+    model_name = judge_model(config)
 
     def judge(query: str, answer: str) -> Optional[bool]:
         prompt = (
@@ -128,7 +187,7 @@ def create_no_info_judge(config) -> Callable[[str, str], Optional[bool]]:
         )
         try:
             response = client.models.generate_content(
-                model=INTENT_MODEL,
+                model=model_name,
                 contents=prompt,
                 config={"temperature": 0.0, "max_output_tokens": 10},
             )
@@ -137,9 +196,11 @@ def create_no_info_judge(config) -> Callable[[str, str], Optional[bool]]:
                 return True
             if "answered" in text:
                 return False
-            print(f"   [no-info] 想定外の判定出力: {text!r} → 安全側（escalate）", file=sys.stderr)
+            _fail(JUDGE_UNEXPECTED_OUTPUT,
+                  f"想定外の判定出力: {_abbreviate_reason(repr(text))}")
         except Exception as e:
-            print(f"   [no-info] 実質回答判定に失敗（{type(e).__name__}）→ 安全側（escalate）", file=sys.stderr)
+            _fail(JUDGE_EXCEPTION,
+                  f"実質回答判定に失敗（{type(e).__name__}: {_abbreviate_reason(str(e))}）")
         return None
 
     return judge
@@ -163,6 +224,15 @@ def _detect_no_info_answer(
     「確認方法の案内だけ」「非確定の予測情報の紹介だけ」でも候補句を含まない
     ことがあり、answer で通過してしまうため（out-of-scope × 動的 Web 検索）。
 
+    ⚠️ **`force_judge` は「判定せよ」というトリガであって、判定結果ではない。**
+    判定が得られなかった（`None`）とき、候補句も一致していなければ
+    **escalate しない**。ここを escalate に倒すと「出典が Web のみ ⇒ 常に有人
+    対応」という無条件ルールになり、`force_judge` を足したときの設計意図
+    （＝候補句が無い回答も *判定に掛ける*）から外れる。
+
+    候補句が一致している場合は従来どおり判定不能を escalate に倒す（第 1 段の
+    キーワード判定が既に「情報なし回答らしい」と言っているため）。
+
     Returns:
         (no_info, matched_marker)
     """
@@ -174,6 +244,10 @@ def _detect_no_info_answer(
     verdict = judge(query, answer)
     if verdict is False:
         return False, marker
+    if verdict is None and marker is None:
+        # force_judge だけで呼ばれ、判定が得られなかった。
+        # 判定に掛けた結果ではないので、Web のみを理由に escalate しない。
+        return False, None
     return True, marker
 
 
