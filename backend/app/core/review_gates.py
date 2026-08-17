@@ -37,9 +37,8 @@ from typing import Callable, List, Literal, Optional, Tuple
 
 from pydantic import BaseModel, Field
 
-from backend.app.core.gates import _match_keyword
+from backend.app.core.gates import _match_keyword, judge_model
 from backend.app.core.rulesets import FindingStatus, RuleItem, RuleSet, Severity
-from backend.app.core.verticals import INTENT_MODEL
 from config import ModelConfig
 
 # ③ Detect の第2段に使うモデル。指摘文・修正案の生成を伴うため軽量モデルではなく既定モデル。
@@ -197,6 +196,7 @@ def create_mention_classifier(config) -> Callable[[str], Optional[Mention]]:
     from grace.llm_compat import create_chat_client
 
     client = create_chat_client(config)
+    model_name = judge_model(config)
 
     def classify(text: str) -> Optional[Mention]:
         prompt = (
@@ -212,7 +212,7 @@ def create_mention_classifier(config) -> Callable[[str], Optional[Mention]]:
         )
         try:
             response = client.models.generate_content(
-                model=INTENT_MODEL,
+                model=model_name,
                 contents=prompt,
                 config={"temperature": 0.0, "max_output_tokens": 10},
             )
@@ -268,6 +268,7 @@ def create_vacuous_judge(config) -> Callable[[str], Optional[bool]]:
     from grace.llm_compat import create_chat_client
 
     client = create_chat_client(config)
+    model_name = judge_model(config)
 
     def judge(message: str) -> Optional[bool]:
         prompt = (
@@ -281,7 +282,7 @@ def create_vacuous_judge(config) -> Callable[[str], Optional[bool]]:
         )
         try:
             response = client.models.generate_content(
-                model=INTENT_MODEL,
+                model=model_name,
                 contents=prompt,
                 config={"temperature": 0.0, "max_output_tokens": 10},
             )
