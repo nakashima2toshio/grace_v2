@@ -7,6 +7,7 @@ GRACE Tools - ツール定義
 import ast
 import logging
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -1001,6 +1002,46 @@ class AskUserTool(BaseTool):
 # Web検索ツール
 # =============================================================================
 
+_JSON_ESCAPE_RE = re.compile(r"\\u([0-9a-fA-F]{4})")
+
+
+def _unescape_json_escapes(text: str) -> str:
+    r"""文字列に残った `\uXXXX` 形式のエスケープを実文字へ戻す。
+
+    ## なぜ必要か（実測 2026-08-17 16:17）
+
+    検索結果の URL が**エスケープされたまま**引用一覧と reasoning プロンプトに
+    載っていた。
+
+        https://www.toshin.com/weather/detail?id=56682
+        https://tenki.jp/.../yoho_detail.html?code=130010&lang=jp
+
+    `=` は `=`、`&` は `&`。この URL はそのままではリンクとして開けず、
+    LLM へ渡す【参照情報】の出典表示にも壊れた文字列が入る。
+
+    `requests.json()` は正しい JSON エスケープを復号するので、ここまで literal で
+    残るのは**上流（SerpAPI が返す link 値）が二重エスケープされている**ため。
+    上流の癖に依存せず境界で正規化する。
+
+    ⚠️ `codecs.decode(text, "unicode_escape")` は使わない。あれは latin-1 経由の
+    復号なので**日本語（タイトル・スニペット）を壊す**。`\uXXXX` の並びだけを
+    対象にする。
+
+    サロゲート（D800–DFFF）は単独では不正な文字になり後段のエンコードを壊すので
+    literal のまま残す（URL に現れることはない）。
+    """
+    if not text or "\\u" not in text:
+        return text
+
+    def _replace(match: "re.Match[str]") -> str:
+        code = int(match.group(1), 16)
+        if 0xD800 <= code <= 0xDFFF:
+            return match.group(0)
+        return chr(code)
+
+    return _JSON_ESCAPE_RE.sub(_replace, text)
+
+
 def _url_host(url: str) -> str:
     """URL からホスト名（小文字・ポート除去）を取り出す。取れなければ空文字。"""
     if not url:
@@ -1286,10 +1327,10 @@ class WebSearchTool(BaseTool):
                     "score": score,
                     "payload": {
                         "question": "",
-                        "answer": item.get("body", ""),
+                        "answer": _unescape_json_escapes(item.get("body", "")),
                         "content": "",
-                        "source": item.get("href", ""),
-                        "title": item.get("title", ""),
+                        "source": _unescape_json_escapes(item.get("href", "")),
+                        "title": _unescape_json_escapes(item.get("title", "")),
                     },
                     "collection": "web_search",
                 }
@@ -1298,10 +1339,10 @@ class WebSearchTool(BaseTool):
                     "score": score,
                     "payload": {
                         "question": "",
-                        "answer": item.get("snippet", ""),
+                        "answer": _unescape_json_escapes(item.get("snippet", "")),
                         "content": "",
-                        "source": item.get("link", ""),
-                        "title": item.get("title", ""),
+                        "source": _unescape_json_escapes(item.get("link", "")),
+                        "title": _unescape_json_escapes(item.get("title", "")),
                     },
                     "collection": "web_search",
                 }
