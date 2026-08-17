@@ -278,15 +278,12 @@ class Planner:
             return None
         try:
             mc = self.config.memory
+            # ⚠️ 除外対象は **飛ばして次点を採る**（None で諦めない）。
+            #    諦めるとメモリ機構が事実上死ぬ（誤学習が首位に居座ると毎回 None）。
             best = self._memory.best_collection(
-                query=query, min_count=mc.min_count, min_score=mc.min_score
+                query=query, min_count=mc.min_count, min_score=mc.min_score,
+                exclude=self._is_excluded,
             )
-            if best and self._is_excluded(best):
-                logger.info(
-                    f"[memory] prioritized collection {best} は除外対象のため使わない"
-                    "（全コレクション検索へ）"
-                )
-                return None
             if best:
                 logger.info(f"[memory] prioritized collection for query: {best}")
             return best
