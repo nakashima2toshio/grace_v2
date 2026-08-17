@@ -233,3 +233,41 @@ class TestWebFallbackEvents:
         assert web.data["web_reused"] is False
         assert result.used_web is True
         assert any(c.startswith("[Web] 公式ガイド") for c in result.citations)
+
+
+class TestWebSkipReasonReflectsTheRealSource:
+    """⑤ をスキップした理由が出典の実態と食い違わないこと。
+
+    ⚠️ `decision == "answer"` を「内部回答で確定」と言い切ってはいけない。
+    executor が RAG スコア不足で**動的 Web 検索**へ落ちている場合、確定した
+    回答の出典は Web であって内部ナレッジではない（実測「明日の東京の天気は？」:
+    RAG 0 件・出典 9 件すべて Web なのに「内部回答で確定」と表示された）。
+    """
+
+    def _skip_reason(self, events):
+        return [e for e in events if e.type == "step"
+                and e.step == "web" and e.status == "skipped"][0].data["reason"]
+
+    def test_dynamic_web_answer_is_not_called_internal(self, pipeline_stub):
+        pipeline_stub.sources = ["https://weather.yahoo.co.jp/weather/jp/13/"]
+        events: list[SupportEvent] = []
+        run_support_agent_core(
+            "明日の東京の天気は？", emit=collect(events),
+            confirm=lambda _r: AUTO_PROCEED,
+        )
+
+        reason = self._skip_reason(events)
+        assert "Web 検索結果で確定" in reason
+        assert "内部回答で確定" not in reason, (
+            "出典がすべて Web なのに内部ナレッジで確定したと表示している"
+        )
+
+    def test_internal_answer_still_reads_internal(self, pipeline_stub):
+        """社内出典のときは従来どおりであること。"""
+        events: list[SupportEvent] = []
+        run_support_agent_core(
+            "パスワードを忘れました", emit=collect(events),
+            confirm=lambda _r: AUTO_PROCEED,
+        )
+
+        assert self._skip_reason(events) == "内部回答で確定"
