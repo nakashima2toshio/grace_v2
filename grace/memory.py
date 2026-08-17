@@ -20,7 +20,7 @@ import re
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
+from typing import Callable, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -208,13 +208,38 @@ class ExecutionMemory:
         query: Optional[str] = None,
         min_count: int = 3,
         min_score: float = 0.6,
+        exclude: Optional[Callable[[str], bool]] = None,
     ) -> Optional[str]:
         """十分な実績（count>=min_count かつ score>=min_score）がある
         最良コレクションを返す。条件を満たすものが無ければ None（=全コレクション検索）。
+
+        Args:
+            exclude: True を返したコレクションを候補から外す述語。
+
+                ⚠️ **除外対象は「飛ばして次点を採る」。諦めて None を返さない。**
+
+                過去に誤って採用されたコレクションが success として記録されると、
+                それが常に最上位に居座る。除外対象に当たった時点で None を返すと
+                **メモリ機構そのものが事実上死ぬ**（毎回 None ＝ 全コレクション検索）。
+
+                実測（2026-08-17）では、天気の質問で誤採用された
+                wikipedia_ja_5per が全体集計の首位になり、無関係な質問でも
+                返され続けていた。`collection_priors` は score 降順なので、
+                除外分を読み飛ばせば正当な次点（gov_faq 等）を拾える。
+
+                この設計により、**古い誤学習レコードを消さなくても無害になる**
+                （ログファイルの削除は不可逆なので、運用者に強いたくない）。
         """
         for stat in self.collection_priors(query=query):
-            if stat.count >= min_count and stat.score() >= min_score:
-                return stat.collection
+            if stat.count < min_count or stat.score() < min_score:
+                continue
+            if exclude is not None and exclude(stat.collection):
+                logger.debug(
+                    "[memory] %s は除外対象のため次点を探す（score=%.3f）",
+                    stat.collection, stat.score(),
+                )
+                continue
+            return stat.collection
         return None
 
 

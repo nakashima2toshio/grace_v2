@@ -32,24 +32,51 @@
 と書いていたが、**保護していたのは `collection` 引数だけ**だった。gov プロファイルが
 明示的に許可している `wikipedia_ja` は（メモリの保護が無ければ）黙って落ちる。
 
+## ⚠️ 除外対象は「飛ばして次点を採る」— None で諦めない
+
+当初は除外対象に当たったら `None`（=全コレクション検索）を返す実装にしたが、
+それだと**メモリ機構そのものが事実上死ぬ**。誤学習が全体集計の首位に居座る限り
+毎回 `None` になり、正当な次点（gov_faq 等）を拾えないためである。
+`collection_priors` は score 降順なので、除外分を読み飛ばせばよい。
+
+この設計により、**古い誤学習レコードを消さなくても無害になる**
+（`logs/grace_memory.jsonl` の削除は不可逆なので、運用者に強いたくない）。
+
 ここで固定すること:
-  1. メモリの推測が除外対象なら使わない（Planner 側で落とす）
+  1. 除外対象は飛ばして次点を採る（メモリ機構を殺さない）
   2. 許可リストで名指しされた候補は除外されない（docstring どおり）
   3. 明示指定（collection 引数）は従来どおり保護される
 """
 from __future__ import annotations
 
-import logging
 from types import SimpleNamespace
 
+from grace.memory import CollectionStat, ExecutionMemory
 from grace.planner import Planner
 from grace.tools import RAGSearchTool
 
 EXCLUDED = ["cc_news", "fineweb", "wikipedia", "livedoor", "japanese_text"]
 
 
-def _planner(best, excluded=None):
-    """メモリが `best` を返す Planner を組み立てる（Qdrant/LLM に触れない）。"""
+def _stat(collection, count=10, success=10, conf=0.9):
+    return CollectionStat(
+        collection=collection, count=count, success_count=success, mean_confidence=conf,
+    )
+
+
+def _memory(priors):
+    """`collection_priors` を固定した ExecutionMemory（ファイル I/O なし）。"""
+    memory = ExecutionMemory.__new__(ExecutionMemory)
+    memory.collection_priors = lambda **_kw: list(priors)
+    return memory
+
+
+def _planner(priors, excluded=None):
+    """実績分布 `priors` を持つ Planner を組み立てる（Qdrant/LLM に触れない）。
+
+    ⚠️ `best_collection` は**本物**を使う。スタブで差し替えると、今回直した
+    「除外を飛ばして次点を採る」ロジックそのものを通らない。
+    """
     planner = Planner.__new__(Planner)
     planner.config = SimpleNamespace(
         qdrant=SimpleNamespace(
@@ -57,7 +84,7 @@ def _planner(best, excluded=None):
         ),
         memory=SimpleNamespace(min_count=3, min_score=0.6),
     )
-    planner._memory = SimpleNamespace(best_collection=lambda **_kw: best)
+    planner._memory = _memory(priors)
     return planner
 
 
@@ -77,41 +104,60 @@ def _tool(excluded=None):
 
 class TestMemoryRespectsExclusion:
 
-    def test_excluded_collection_is_not_prioritized(self, caplog):
-        """実測の再現: 誤学習された wikipedia が優先指定されない。"""
-        planner = _planner("wikipedia_ja_5per")
+    def test_excluded_top_is_skipped_for_the_next_best(self):
+        """実測の再現: 誤学習された wikipedia を飛ばして正当な次点を採る。
 
-        with caplog.at_level(logging.INFO):
-            result = planner._prioritized_collection("住民票の写しの取り方は？")
+        ⚠️ ここで `None` を返すとメモリ機構が事実上死ぬ（誤学習が首位に居座る
+        限り毎回 None ＝ 全コレクション検索）。
+        """
+        planner = _planner([
+            _stat("wikipedia_ja_5per"),      # 誤学習された首位
+            _stat("gov_faq_anthropic"),      # 正当な次点
+        ])
 
-        assert result is None, (
-            "除外対象がメモリ経由で復活している（毎回無駄に検索される）"
-        )
-        assert "除外対象のため使わない" in caplog.text
+        assert planner._prioritized_collection("住民票の写しの取り方は？") \
+            == "gov_faq_anthropic"
 
-    def test_allowed_collection_is_still_prioritized(self):
-        """除外対象でなければ従来どおり優先する（メモリ機構を殺さない）。"""
-        planner = _planner("gov_faq_anthropic")
+    def test_all_excluded_falls_back_to_full_search(self):
+        """次点まで全部除外対象なら None（=全コレクション検索）。"""
+        planner = _planner([_stat("wikipedia_ja_5per"), _stat("cc_news_2per")])
 
-        assert planner._prioritized_collection("住民票の写しの取り方は？") == "gov_faq_anthropic"
+        assert planner._prioritized_collection("質問") is None
+
+    def test_top_is_used_when_not_excluded(self):
+        """除外対象でなければ従来どおり首位を使う。"""
+        planner = _planner([_stat("gov_faq_anthropic"), _stat("ec_faq_anthropic")])
+
+        assert planner._prioritized_collection("質問") == "gov_faq_anthropic"
+
+    def test_insufficient_record_is_skipped(self):
+        """実績が足りない候補は従来どおり飛ばす（除外とは別の条件）。"""
+        planner = _planner([
+            _stat("gov_faq_anthropic", count=1, success=1),   # min_count 未満
+            _stat("ec_faq_anthropic"),
+        ])
+
+        assert planner._prioritized_collection("質問") == "ec_faq_anthropic"
 
     def test_no_memory_returns_none(self):
-        planner = _planner("gov_faq_anthropic")
+        planner = _planner([_stat("gov_faq_anthropic")])
         planner._memory = None
 
         assert planner._prioritized_collection("質問") is None
 
     def test_no_prior_returns_none(self):
-        """実績が足りないときは従来どおり None（=全コレクション検索）。"""
-        assert _planner(None)._prioritized_collection("質問") is None
+        assert _planner([])._prioritized_collection("質問") is None
 
     def test_empty_exclusion_setting_is_a_no_op(self):
-        assert _planner("wikipedia_ja_5per", excluded=[])._prioritized_collection("q") \
-            == "wikipedia_ja_5per"
+        planner = _planner([_stat("wikipedia_ja_5per")], excluded=[])
+
+        assert planner._prioritized_collection("q") == "wikipedia_ja_5per"
 
     def test_partial_match(self):
         """"cc_news" は cc_news_2per_anthropic 等にも一致する。"""
-        assert _planner("cc_news_2per_anthropic")._prioritized_collection("q") is None
+        planner = _planner([_stat("cc_news_2per_anthropic"), _stat("gov_faq_anthropic")])
+
+        assert planner._prioritized_collection("q") == "gov_faq_anthropic"
 
 
 # =============================================================================
