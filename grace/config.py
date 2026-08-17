@@ -201,6 +201,18 @@ class QdrantConfig(BaseModel):
     # 有効コレクション（次元一致・実体あり）との一致が 1 つも無い場合は制限を適用せず
     # 従来どおり検索する（コレクション未登録の段階でもデモが動くようにするため。警告ログを出す）。
     allowed_collections: list = Field(default_factory=list)
+    # 横断検索から**常に**外すコレクション（部分一致）。
+    #
+    # ⚠️ 汎用コーパス（Wikipedia / ニュース / Web クロール）は業務ナレッジでは
+    #    ないのに、話題の幅が広いぶん**どんな質問にも 0.5〜0.6 台で当たる**。
+    #    実測「明日の東京の天気は？」では wikipedia_ja_5per / cc_news_* /
+    #    fineweb_edu_ja_5per が上位を占め、AI・インドネシア首都移転・著作権と
+    #    いった無関係文書が「社内ナレッジ」として採用されていた。
+    #    allowed_collections（許可リスト）は業界プロファイル指定時にしか効かない
+    #    ため、基本版パイプラインを守るには除外リストが要る。
+    excluded_collections: list = Field(default_factory=lambda: [
+        "cc_news", "fineweb", "wikipedia", "livedoor", "japanese_text",
+    ])
 
 
 class WebSearchConfig(BaseModel):
@@ -311,6 +323,21 @@ class ExecutorConfig(BaseModel):
     # ⚠️ この判定は「RAG 経路を捨てて Web 検索へ落ちるか」を左右する影響の大きい
     #    分岐なので、モデルを変えたら誤判定率を実測で確認すること。
     relevance_check_model: str = ""
+    # RAG 検索結果を **推論に使う／出典として採用する**ための最低スコア。
+    #
+    # ⚠️ **2 つの用途で同じ値を共有する。**
+    #    不変条件: 推論に使えない文書は、出典としても採用しない。
+    #    別々の定数に分けると 2 箇所が食い違い、「回答には 1 文字も寄与しないのに
+    #    出典としてだけ表示される」状態が再発する。
+    #
+    # 0.64 は grace_v2_local での実測値（同一 Qdrant・同一 Embedding
+    # gemini-embedding-001 3072 次元を共有している）:
+    #   in_scope  n=12  最小 0.6650（TP フロア）
+    #   out_scope n= 5  最大 0.6190（FP シーリング）
+    #   → 中間の 0.64
+    #
+    # ⚠️ マージンは 0.046。サンプルが少なく暫定値。運用の質問ログで測り直すこと。
+    reasoning_min_rag_score: float = 0.64
 
 
 class GraceConfig(BaseModel):

@@ -128,18 +128,42 @@ def test_primary_hit_keeps_relaxed_extras_from_same_collection(rag_tool, monkeyp
 
 
 def test_falls_back_to_relaxed_when_no_primary_anywhere(rag_tool, monkeypatch):
-    """どのコレクションも一次に届かない場合は保留した緩和結果を採用する（出典ゼロを救う）。"""
+    """どのコレクションも一次に届かない場合は保留した緩和結果を採用する（出典ゼロを救う）。
+
+    ⚠️ **採用されるのは「最高スコア」かつ「採用下限以上」のものだけ**に変わった。
+    以前はこのテストが「最初の緩和結果を採用」を固定していたが、それは実測で
+    害になった（検索順の先頭＝12 コレクション中の最下位が採用され、無関係文書が
+    社内ナレッジとして提示された）。詳細は backend/tests/test_rag_adoption.py。
+    """
     responses = {
-        "wikipedia_ja_5per": [_hit(0.55, "緩和A")],
-        "gov_faq_anthropic": [_hit(0.52, "緩和B")],
+        "wikipedia_ja_5per": [_hit(0.66, "緩和A")],
+        "gov_faq_anthropic": [_hit(0.68, "緩和B")],
     }
     candidates = ["wikipedia_ja_5per", "gov_faq_anthropic"]
 
     result, called = _run(rag_tool, monkeypatch, responses, candidates)
 
-    # 全コレクションを探索したうえで、最初の緩和結果を採用
+    # 全コレクションを探索したうえで、**最高スコアの**緩和結果を採用
     assert called == candidates
-    assert result.output[0]["payload"]["answer"] == "緩和A"
+    assert result.output[0]["payload"]["answer"] == "緩和B"
+
+
+def test_relaxed_below_the_floor_is_not_adopted(rag_tool, monkeypatch):
+    """採用下限に届かない緩和結果は出典としても採用しない。
+
+    不変条件: 推論に使えない文書は、出典としても採用しない。
+    """
+    responses = {
+        "wikipedia_ja_5per": [_hit(0.55, "緩和A")],
+        "gov_faq_anthropic": [_hit(0.52, "緩和B")],
+    }
+
+    result, called = _run(
+        rag_tool, monkeypatch, responses, ["wikipedia_ja_5per", "gov_faq_anthropic"]
+    )
+
+    assert called == ["wikipedia_ja_5per", "gov_faq_anthropic"], "探索は打ち切らない"
+    assert result.output == []
 
 
 def test_no_results_anywhere_returns_failure(rag_tool, monkeypatch):
