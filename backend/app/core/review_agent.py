@@ -90,11 +90,11 @@ REVIEW_STEP_IDS = (
 # 第1段のキーワードフィルタで実際はこの 1〜2 割だが、上限は必ず置く。
 MAX_SEGMENTS = 200
 MAX_LLM_CALLS = 300
+MAX_SEGMENT_CHARS = 400      # これを超える段落は文末で再分割する
+RETRIEVE_LIMIT = 5           # ② の判定単位あたり取得件数
 
 # 文書全体スコープの指摘に付ける segment_id。実セグメント（s001…）と衝突しない。
 DOCUMENT_SEGMENT_ID = "doc"
-MAX_SEGMENT_CHARS = 400      # これを超える段落は文末で再分割する
-RETRIEVE_LIMIT = 5           # ② のセグメントあたり取得件数
 
 
 # =============================================================================
@@ -331,12 +331,37 @@ def _retrieve_evidence(
     tool_registry,
     query: str,
     ruleset: Optional[RuleSet],
+    on_drop: Optional[Callable[[str], None]] = None,
 ) -> Tuple[List[str], List[str]]:
-    """セグメントに関連する規程を検索する。
+    """判定単位に関連する規程を検索する。
+
+    ⚠️ **関連度の低い規程は根拠として採用しない**（`RuleSet.evidence_min_score`）。
+
+    実測 2026-08-17 20:07 では、条文コレクション `ec_ad_rules_anthropic` が未登録で
+    `ec_policy_anthropic`（返品・返金・交換の FAQ）だけが存在したにもかかわらず、
+    緩和閾値 0.5 で拾った 5 件がそのまま根拠になっていた。
+
+        指摘: 販売価格・送料の明示（特定商取引法 第11条）
+        根拠: [規程] 返品規定を教えてください, [規程] 不良品が届いた場合の対応…,
+              [規程] 返金ポリシーを教えてください, [規程] 返品できない商品は…,
+              [規程] 交換の条件を教えてください        ← 全部無関係
+
+    しかも呼び出し側は `citations or [rule.citation()]` で分岐するため、**1 件でも
+    拾えば正しい条文フォールバックが低スコアの FAQ に上書きされる**。
+    「条文つきの指摘を出す」という機能の価値が崩れていた。
+
+    スコアで絞れなかった規程は 0 件として返し、呼び出し側に
+    `RuleItem.description`（条文フォールバック）を使わせる方が正確である。
+
+    Args:
+        on_drop: 関連度不足で落とした規程を伝える。⚠️ **`emit` 経由の実行ログ
+            （UI・SSE）に出すために必要。** Python の logger だけに出すと、
+            「なぜ根拠が条文フォールバックになったのか」を画面から追えない。
 
     Returns:
         (citations, source_texts) — citations は UI 表示用ラベル、
         source_texts は ④ Ground の検証に渡す本文。
+        閾値に届く規程が 1 件も無ければ両方とも空。
     """
     if ruleset is None or not ruleset.collections:
         return [], []
@@ -352,17 +377,31 @@ def _retrieve_evidence(
     if not res or not getattr(res, "success", False) or not res.output:
         return [], []
 
+    min_score = ruleset.evidence_min_score
     citations: List[str] = []
     source_texts: List[str] = []
+    dropped: List[str] = []
     for entry in res.output:
-        payload = entry.get("payload", {}) if isinstance(entry, dict) else {}
+        if not isinstance(entry, dict):
+            continue
+        payload = entry.get("payload", {})
         title = payload.get("title") or payload.get("question") or "(規程)"
+        # score が無い（＝スコアを持たない経路）ものは従来どおり通す。
+        score = entry.get("score")
+        if score is not None and float(score) < min_score:
+            dropped.append(f"{title}({float(score):.4f})")
+            continue
         body = payload.get("answer") or payload.get("text") or ""
         label = f"[規程] {title}"
         if label not in citations:
             citations.append(label)
         if body:
             source_texts.append(body)
+
+    if dropped and on_drop is not None:
+        tail = "→ 条文フォールバックを使います" if not citations else ""
+        on_drop(f"  [retrieve] 関連度が低い規程を根拠にしません"
+                f"（< {min_score:.2f}）: {', '.join(dropped[:5])} {tail}".rstrip())
     return citations, source_texts
 
 
@@ -573,6 +612,7 @@ def run_review_agent_core(
         #    関連する規程を引けない。探したいのは「このルールの根拠条文」である。
         citations, source_texts = _retrieve_evidence(
             tool_registry, f"{rule.title} {rule.description}", rs,
+            on_drop=lambda msg: log(msg, step="retrieve"),
         )
         if verbose:
             log(f"  {DOCUMENT_SEGMENT_ID}/{rule.rule_id}: 文書全体で判定 / "
@@ -585,7 +625,10 @@ def run_review_agent_core(
         if not candidates:
             continue
 
-        citations, source_texts = _retrieve_evidence(tool_registry, segment.text, rs)
+        citations, source_texts = _retrieve_evidence(
+            tool_registry, segment.text, rs,
+            on_drop=lambda msg: log(msg, step="retrieve"),
+        )
         if verbose:
             log(f"  {segment.segment_id}: 候補 {len(candidates)} ルール / "
                 f"規程 {len(citations)} 件", step="retrieve")
