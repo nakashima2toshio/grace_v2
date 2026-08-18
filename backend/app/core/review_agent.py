@@ -96,6 +96,10 @@ RETRIEVE_LIMIT = 5           # ② の判定単位あたり取得件数
 # 文書全体スコープの指摘に付ける segment_id。実セグメント（s001…）と衝突しない。
 DOCUMENT_SEGMENT_ID = "doc"
 
+# 文書全体スコープの「該当箇所」として採用する excerpt の上限（理由は `_is_too_broad`）。
+DOCUMENT_EXCERPT_MAX_CHARS = 200
+DOCUMENT_EXCERPT_MAX_RATIO = 0.4
+
 
 # =============================================================================
 # データモデル
@@ -783,6 +787,27 @@ def _document_segment(document: str) -> Segment:
     )
 
 
+def _is_too_broad(excerpt: str, document: str) -> bool:
+    """文書全体スコープの `excerpt` が「該当箇所」として広すぎるか。
+
+    表記漏れの指摘は特定の 1 箇所を指すためのものなので、文書の大半を占める
+    excerpt は**位置を示せていない**（＝ポインタとして機能していない）。
+
+    2 つの上限を **or** で判定する。片方だけでは取りこぼす:
+
+    - 割合（`DOCUMENT_EXCERPT_MAX_RATIO`）… 短い文書向け。実測の 8 行の LP では
+      7 行ぶん（約 0.87）が返ってきた。絶対値だけだと 140 文字は許容範囲に見える。
+    - 絶対値（`DOCUMENT_EXCERPT_MAX_CHARS`）… 長い文書向け。5,000 文字の LP に対し
+      1,000 文字の excerpt は割合では 0.2 だが、直す場所としては役に立たない。
+    """
+    if not document:
+        return False
+    return (
+        len(excerpt) > DOCUMENT_EXCERPT_MAX_CHARS
+        or len(excerpt) > len(document) * DOCUMENT_EXCERPT_MAX_RATIO
+    )
+
+
 def _build_finding(
     index: int,
     segment: Segment,
@@ -808,6 +833,19 @@ def _build_finding(
         f"「{rule.title}」に該当する可能性があります（自動判定に失敗したため要確認）"
     )
     suggestion = (verdict.suggestion if verdict else "") or "内容を確認してください"
+
+    # ⚠️ 文書全体スコープでは**長すぎる excerpt を採用しない。**
+    #
+    # 表記漏れは「文書のどこにも書かれていない」ことの指摘なので、指し示せる箇所が
+    # そもそも無い。それでも LLM は「該当箇所」を求められると、表記ブロックを丸ごと
+    # 返してくることがある。それが文書内に見つかると位置解決に成功してしまい、
+    # **文書のほとんどがハイライトされる**（実測 2026-08-17 23:50 / 08-18 21:41:
+    # 8 行の LP に対し 7 行が該当箇所として表示された）。
+    #
+    # 「引渡時期が無い」という指摘に対して 7 行を塗っても、直す場所を示せていない。
+    # 指し示せていないなら、いっそ何も塗らない方が正確である。
+    if is_document and excerpt and _is_too_broad(excerpt, segment.text):
+        excerpt = ""
 
     # excerpt が本文に含まれるなら、その位置を原文オフセットへ変換する。
     offset = segment.text.find(excerpt) if excerpt else -1
