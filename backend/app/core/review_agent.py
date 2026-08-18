@@ -336,6 +336,7 @@ def _retrieve_evidence(
     query: str,
     ruleset: Optional[RuleSet],
     on_drop: Optional[Callable[[str], None]] = None,
+    collections: Optional[List[str]] = None,
 ) -> Tuple[List[str], List[str]]:
     """判定単位に関連する規程を検索する。
 
@@ -369,20 +370,27 @@ def _retrieve_evidence(
         on_drop: 関連度不足で落とした規程を伝える。⚠️ **`emit` 経由の実行ログ
             （UI・SSE）に出すために必要。** Python の logger だけに出すと、
             「なぜ根拠が条文フォールバックになったのか」を画面から追えない。
+        collections: 検索対象コレクションの上書き（`RuleItem.evidence_collections`）。
+            ⚠️ **ルール自身が根拠として引かれてしまうルールのための逃げ道。**
+            `policy-01` が引きたいのは自社の実際の規程であって、条文コレクションに
+            入っている policy-01 自身の行ではない。理由は `RuleItem` の宣言箇所。
 
     Returns:
         (citations, source_texts) — citations は UI 表示用ラベル、
         source_texts は ④ Ground の検証に渡す本文。
         閾値に届く規程が 1 件も無ければ両方とも空。
     """
-    if ruleset is None or not ruleset.collections:
+    if ruleset is None:
+        return [], []
+    scope = list(collections or ruleset.collections)
+    if not scope:
         return [], []
     try:
         res = tool_registry.execute(
             "rag_search",
             query=query,
             limit=RETRIEVE_LIMIT,
-            allowed_collections=list(ruleset.collections),
+            allowed_collections=scope,
         )
     except Exception:
         return [], []
@@ -708,9 +716,12 @@ def run_review_agent_core(
         # ⚠️ 検索クエリは**ルール自身**（文書全体ではない）。
         #    文書をそのままクエリにすると、長文では埋め込みが薄まって
         #    関連する規程を引けない。探したいのは「このルールの根拠条文」である。
+        #    ただし policy-01 のように「引きたいのは条文ではなく自社の規程」という
+        #    ルールは `RuleItem.evidence_query` / `evidence_collections` で上書きする。
         citations, source_texts = _retrieve_evidence(
-            tool_registry, f"{rule.title} {rule.description}", rs,
+            tool_registry, rule.retrieval_query(), rs,
             on_drop=lambda msg: log(msg, step="retrieve"),
+            collections=rule.evidence_collections or None,
         )
         if verbose:
             log(f"  {DOCUMENT_SEGMENT_ID}/{rule.rule_id}: 文書全体で判定 / "

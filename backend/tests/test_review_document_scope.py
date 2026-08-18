@@ -282,6 +282,50 @@ class TestEvidenceQuery:
 
         rs = get_ruleset("ec_ad")
         for rule in rs.always_check_rules:
+            if rule.evidence_query:
+                # ⚠️ `evidence_query` を持つルールは**意図的に**ルール本文で
+                # 検索しない。条文コレクションにはルール自身が 1 行として入って
+                # いるため、ルール本文で引くと自分自身を引き当ててしまう
+                # （policy-01 が引きたいのは自社の実際の規程）。詳細は
+                # `RuleItem.evidence_query` の宣言箇所。
+                continue
             assert any(rule.title in q for q in queries), (
                 f"{rule.rule_id} の根拠をルール本文で検索していない"
+            )
+
+    def test_rules_with_an_override_use_it(self, review_stub):
+        """`evidence_query` を持つルールはその文字列で検索すること。"""
+        run_review_agent_core(GOOD_LP)
+
+        queries = [kwargs.get("query") for name, kwargs in review_stub.tool_calls
+                   if name == "rag_search"]
+        rs = get_ruleset("ec_ad")
+        overridden = [r for r in rs.always_check_rules if r.evidence_query]
+        assert overridden, "上書きを持つルールが 1 件も無い（前提が崩れている）"
+        for rule in overridden:
+            assert rule.evidence_query in queries, (
+                f"{rule.rule_id}: evidence_query が使われていない"
+            )
+            assert not any(rule.title in q for q in queries), (
+                f"{rule.rule_id}: ルール本文でも検索している（自己一致する）"
+            )
+
+    def test_rules_with_a_collection_override_narrow_the_scope(self, review_stub):
+        """`evidence_collections` を持つルールはその範囲だけを検索すること。
+
+        ⚠️ **範囲を絞らないと自己一致が消えない。** クエリだけ変えても
+        条文コレクションが候補に残っていると、そこから何かが引かれる。
+        """
+        run_review_agent_core(GOOD_LP)
+
+        rs = get_ruleset("ec_ad")
+        by_query = {
+            kwargs.get("query"): kwargs.get("allowed_collections")
+            for name, kwargs in review_stub.tool_calls if name == "rag_search"
+        }
+        for rule in rs.always_check_rules:
+            if not rule.evidence_collections:
+                continue
+            assert by_query[rule.evidence_query] == rule.evidence_collections, (
+                f"{rule.rule_id}: 検索範囲が絞られていない"
             )

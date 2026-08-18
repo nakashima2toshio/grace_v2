@@ -133,6 +133,32 @@ question,answer,topic
 > `ec_policy_anthropic` に既に登録されている値を一覧化しただけで、
 > 監修済みの規程ではない。
 
+#### `policy-01` は条文コレクションを検索しない
+
+`policy-01` は `RuleItem.evidence_query` / `evidence_collections` で **② の検索を
+上書き**している（`rulesets.py`）。
+
+| | 既定のルール | `policy-01` |
+|---|---|---|
+| クエリ | `f"{title} {description}"` | 取引条件の語（`返品 交換 解約 送料 期限 …`） |
+| 検索先 | `RuleSet.collections`（2 つ） | `ec_policy_anthropic` **のみ** |
+
+**理由は自己一致。** `ec_ad_rules_anthropic` にはルール自身が 1 行として入って
+いるので、ルール本文で検索すると自分を引き当てる（実測 2026-08-19 06:11 で
+**0.9380**）。本命の「返品規定（14日）」は 0.6647 で、絶対閾値にも
+`evidence_top_ratio`（0.9380 × 0.92 = 0.863）にも阻まれて**構造的に採用されない**。
+
+したがって **`policy-01` を機能させるには `ec_policy_anthropic` 側に取引条件が
+入っている必要がある。** 上の 3-3 の行はそちらへ登録する。
+
+```bash
+python qa_qdrant/register_to_qdrant.py \
+  --input-file qa_output/ec_policy_terms.csv \
+  --collection ec_policy_anthropic
+```
+
+⚠️ **`--recreate` を付けないこと。** 既存の返品・返金 FAQ を消してしまう。
+
 ### 3-4. Qdrant へ登録する
 
 ```bash

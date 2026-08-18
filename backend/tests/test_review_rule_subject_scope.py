@@ -176,11 +176,22 @@ class TestPolicyMismatchRuleAttribution:
         assert self._rule().always_check is True
 
     def test_the_description_states_it_is_not_a_legal_violation(self):
-        """description は ③ Detect のプロンプトへ入るので、ここで明示しておく。"""
+        """description は ③ Detect のプロンプトへ入るので、ここで明示しておく。
+
+        ⚠️ 文言は #95 で書き替えた。旧版は「法令が定める既定値どおりの表示
+        （例: 返品期限 8 日）は、それ自体は適法である」で終わっており、
+        **8 日という表示そのものを免責する**読み方ができた。実測 2026-08-19
+        06:11 では policy-01 が violates=false で沈黙している。
+
+        規程不一致の指摘は「適法かどうか」ではなく「自社の規程と食い違うか」
+        なので、適法であっても食い違えば指摘する、と明示に書き替えた。
+        """
         description = self._rule().description
 
-        assert "法令違反ではなく社内整合性" in description
-        assert "返品期限 8 日" in description
+        assert "法令違反の指摘ではなく、社内整合性の指摘" in description
+        # 「適法だから指摘しない」ではなく「適法でも食い違えば指摘する」
+        assert "適法であっても指摘する" in description
+        assert "14 日" in description and "8 日" in description
 
     def test_law_rules_are_unaffected(self):
         """法令ルールの帰属は変えていない。"""
