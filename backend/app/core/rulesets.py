@@ -110,6 +110,31 @@ class RuleItem:
     always_check: bool = False   # True なら keywords 不問で第2段を必ず実行
     web_check: bool = False      # True なら ⑥ Web 裏取りの対象
 
+    # --- ② Retrieve の上書き（既定は空 = RuleSet 既定に従う） ------------------
+    #
+    # ⚠️ **「ルール自身が根拠として引かれてしまう」ルールのための逃げ道。**
+    #
+    # ② の既定クエリは `f"{rule.title} {rule.description}"`。ところが
+    # `ec_ad_rules_anthropic` には**ルール自身が 1 行として入っている**ので、
+    # このクエリは自分自身を引き当てる（＝クエリの投げ返し）。実測 2026-08-19 06:11:
+    #
+    #   query   = '表示内容と社内規程の不一致 広告に表示した取引条件（返品期限…'
+    #   top hit = 社内規程 —（表示内容と社内規程の不一致）      0.9380  ← 同一テキスト
+    #
+    # 条文ルール（tokusho-*）ならそれで実害は無い（引きたいのは条文そのもの）。
+    # しかし policy-01 が引きたいのは**自社の実際の規程**であって、ルール文では
+    # ない。自己一致が 0.9380 で居座ると、本命の「返品規定（14日）」は
+    # `evidence_top_ratio` の 0.863 に阻まれて**構造的に採用されない**。
+    #
+    # そこでルール単位で「何を、どこから引くか」を上書きできるようにする。
+    evidence_query: str = ""     # ② の検索クエリ。空なら title + description
+    # ② の検索対象コレクション。空なら RuleSet.collections
+    evidence_collections: List[str] = field(default_factory=list)
+
+    def retrieval_query(self) -> str:
+        """② Retrieve の検索クエリ（上書きが無ければ title + description）。"""
+        return self.evidence_query or f"{self.title} {self.description}"
+
     def citation(self) -> str:
         """④ Ground へ渡す根拠フォールバック（規程コレクション未登録時に使う）。"""
         return f"[規程] {self.law} {self.article}（{self.title}）: {self.description}"
@@ -494,13 +519,29 @@ _POLICY_RULES: List[RuleItem] = [
         article="—",
         description=(
             "広告に表示した取引条件（返品期限・送料負担・解約条件・価格など）が、"
-            "社内規程に定めた条件と食い違っていないかを確認する。"
-            "規程より顧客に不利な条件を表示している場合は、顧客対応時に齟齬が生じる。"
-            "⚠️ これは法令違反ではなく社内整合性の指摘である。法令が定める既定値"
-            "どおりの表示（例: 返品期限 8 日）は、それ自体は適法である。"
+            "【規程】に示された自社の条件と食い違っていないかを確認する。"
+            "食い違いがあれば、たとえ広告側の表示が適法であっても指摘する"
+            "（例: 【規程】が返品期限 14 日なのに広告が 8 日 → 規程より顧客に"
+            "不利なので指摘する）。⚠️ これは法令違反の指摘ではなく、社内整合性の"
+            "指摘である。message には『広告の表示』と『規程の条件』を両方書くこと。"
+            "【規程】に対応する条件が書かれていない項目については指摘しない。"
         ),
         severity_default="medium",
         always_check=True,
+        # ⚠️ **ルール文ではなく「自社の取引条件」を引く。**
+        #
+        # 既定クエリ（title + description）は `ec_ad_rules_anthropic` にある
+        # policy-01 自身の行を 0.9380 で引き当てるだけで、自社の規程には届かない。
+        # 実測 2026-08-19 06:11 では本命の「返品規定（14日）」が 0.6647 だった。
+        #
+        # 取引条件を表す語だけのクエリにし、検索先を自社規程のコレクションへ
+        # 限定する。これで自己一致が候補から消え、`evidence_top_ratio` は
+        # 自社規程どうしの比較になる。
+        evidence_query=(
+            "返品 交換 キャンセル 解約 返金 送料 負担 期限 条件 手数料 "
+            "返品期限 返品条件 返送料 解約条件"
+        ),
+        evidence_collections=["ec_policy_anthropic"],
     ),
 ]
 
