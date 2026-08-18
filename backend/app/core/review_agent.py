@@ -357,6 +357,14 @@ def _retrieve_evidence(
     スコアで絞れなかった規程は 0 件として返し、呼び出し側に
     `RuleItem.description`（条文フォールバック）を使わせる方が正確である。
 
+    ⚠️ **絶対スコアに加えて、Top スコアとの相対比でも絞る**
+    （`RuleSet.evidence_top_ratio`）。条文コレクションを登録すると中身は
+    「互いに似た条文が並ぶ集合」になり、**どのルールで検索しても他ルールの条文が
+    絶対閾値 0.70 を超えて付いてくる**（実測 2026-08-18 22:38: tokusho-01 の
+    根拠 5 件中 4 件が別ルールの条文）。これは表示が汚れるだけでなく、
+    ③ Detect の【規程】に他ルールの主題が混ざって**指摘文が越境する**という
+    実害を出していた。詳細と実測値は `rulesets.DEFAULT_EVIDENCE_TOP_RATIO`。
+
     Args:
         on_drop: 関連度不足で落とした規程を伝える。⚠️ **`emit` 経由の実行ログ
             （UI・SSE）に出すために必要。** Python の logger だけに出すと、
@@ -382,9 +390,20 @@ def _retrieve_evidence(
         return [], []
 
     min_score = ruleset.evidence_min_score
+    # Top スコアとの相対比による足切り。絶対値の min_score では、互いに似た条文が
+    # 並ぶコレクション（`ec_ad_rules_anthropic` はまさにそれ）で他ルールの条文が
+    # 全部通ってしまう。理由と実測値は `rulesets.DEFAULT_EVIDENCE_TOP_RATIO`。
+    scores = [
+        float(e["score"])
+        for e in res.output
+        if isinstance(e, dict) and e.get("score") is not None
+    ]
+    cutoff = max(scores) * ruleset.evidence_top_ratio if scores else None
+
     citations: List[str] = []
     source_texts: List[str] = []
     dropped: List[str] = []
+    far: List[str] = []
     for entry in res.output:
         if not isinstance(entry, dict):
             continue
@@ -392,9 +411,14 @@ def _retrieve_evidence(
         title = payload.get("title") or payload.get("question") or "(規程)"
         # score が無い（＝スコアを持たない経路）ものは従来どおり通す。
         score = entry.get("score")
-        if score is not None and float(score) < min_score:
-            dropped.append(f"{title}({float(score):.4f})")
-            continue
+        if score is not None:
+            score = float(score)
+            if score < min_score:
+                dropped.append(f"{title}({score:.4f})")
+                continue
+            if cutoff is not None and score < cutoff:
+                far.append(f"{title}({score:.4f})")
+                continue
         body = payload.get("answer") or payload.get("text") or ""
         label = f"[規程] {title}"
         if label not in citations:
@@ -402,10 +426,14 @@ def _retrieve_evidence(
         if body:
             source_texts.append(body)
 
-    if dropped and on_drop is not None:
-        tail = "→ 条文フォールバックを使います" if not citations else ""
-        on_drop(f"  [retrieve] 関連度が低い規程を根拠にしません"
-                f"（< {min_score:.2f}）: {', '.join(dropped[:5])} {tail}".rstrip())
+    if on_drop is not None:
+        if dropped:
+            tail = "→ 条文フォールバックを使います" if not citations else ""
+            on_drop(f"  [retrieve] 関連度が低い規程を根拠にしません"
+                    f"（< {min_score:.2f}）: {', '.join(dropped[:5])} {tail}".rstrip())
+        if far:
+            on_drop(f"  [retrieve] 最上位より離れた規程を根拠にしません"
+                    f"（< {cutoff:.4f}）: {', '.join(far[:5])}")
     return citations, source_texts
 
 
