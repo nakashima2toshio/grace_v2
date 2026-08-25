@@ -123,6 +123,7 @@ export function SupportPanel({ variant = 'vertical' }: { variant?: SupportVarian
         running={state.phase === 'running'}
         onSubmit={submit}
         showVertical={showVertical}
+        multiline={variant === 'basic'}
       />
 
       {verticalsError && (
