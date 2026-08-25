@@ -1,0 +1,17 @@
+ollama launch claude --model gemma4:26b-a4b-it-qat
+
+%ollama list
+NAME                                                ID              SIZE      MODIFIED
+phi4-reasoning:plus                                 f0ad3edce8e4    11 GB     16 hours ago
+hf.co/LiquidAI/LFM2.5-1.2B-JP-202606-GGUF:latest    cb967c9bd843    730 MB    7 days ago
+gemma4-e4b-ctx8k:latest                             858470a53501    9.6 GB    9 days ago
+gemma4:26b-a4b-it-qat                               2dd70431afed    15 GB     11 days ago
+gemma4:12b                                          4eb23ef187e2    7.6 GB    11 days ago
+qwen3.5:9b                                          6488c96fa5fa    6.6 GB    2 weeks ago
+gemma4:e4b                                          c6eb396dbd59    9.6 GB    2 weeks ago
+llama3.2:3b                                         a80c4f17acd5    2.0 GB    7 weeks ago
+nomic-embed-text:latest                             0a109f422b47    274 MB    7 weeks ago
+gemma4:26b-a4b-it-q4_K_M                            5571076f3d70    17 GB     2 months ago
+llama3.2:latest                                     a80c4f17acd5    2.0 GB    3 months ago
+llama3:latest                                       365c0bd3c000    4.7 GB    2 years ago
+

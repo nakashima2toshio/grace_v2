@@ -37,7 +37,6 @@ logger = logging.getLogger(__name__)  # Configure logger for this module
 # Initialize Client（シングルトン: Phase 2 STEP 4 改善）
 client: QdrantClient = get_qdrant_client()
 
-
 # ============ コサイン類似度閾値（二段構え） ============
 # 一次閾値: 高精度を維持する既定値（Cohere Rerank 廃止 → コサイン類似度で直接フィルタ）。
 COSINE_SIMILARITY_THRESHOLD: float = 0.7
@@ -73,6 +72,7 @@ def select_by_similarity(
     Returns:
         (選抜結果（score 降順・最大 limit 件）, 実際に採用した閾値)
     """
+
     def _pick(th: float) -> List[Dict[str, Any]]:
         picked = [r for r in candidates if r.get("score", 0.0) >= th]
         picked.sort(key=lambda x: x.get("score", 0.0), reverse=True)
@@ -96,7 +96,7 @@ _collections_cache_time: float = 0.0
 _COLLECTIONS_CACHE_TTL: float = 60.0  # 60秒
 
 
-def get_existing_collections_cached() -> List[str]:
+def get_existing_collections_cached() -> List[str] | None:
     """
     コレクション一覧をキャッシュ付きで取得
 
@@ -449,8 +449,8 @@ def search_rag_knowledge_base_structured(
         query: str,
         collection_name: Optional[str] = None,
         use_hybrid_search: bool = True,  # ★追加
-        precomputed_query_vector: Optional[List[float]] = None,      # Phase 3 STEP 7 改善
-        precomputed_sparse_vector: Optional[Any] = None              # Phase 3 STEP 7 改善
+        precomputed_query_vector: Optional[List[float]] = None,  # Phase 3 STEP 7 改善
+        precomputed_sparse_vector: Optional[Any] = None  # Phase 3 STEP 7 改善
 ) -> Union[List[Dict[str, Any]], str]:
     """
     Qdrantデータベースから専門的な知識を検索します（構造化データ版）。
