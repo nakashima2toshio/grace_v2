@@ -8,13 +8,14 @@
 //   -v           → 詳細ログ トグル
 //   --identity   → 本人確認の識別子（order_id / email）
 //
-// ⚠️ 判断の要るロジック（基本版での vertical 固定・識別子を送るかどうか・状態表示）は
-//    `state/queryParams.ts` の純関数へ出してある（vitest で単体テスト済み）。
+// ⚠️ 判断の要るロジック（基本版での vertical 固定・識別子を送るかどうか・状態表示・
+//    複数行入力の送信キー）は `state/queryParams.ts` / `state/submitKey.ts` の
+//    純関数へ出してある（vitest で単体テスト済み）。
 //    ここへ戻すとテストできなくなるので注意。
 //
 // ⚠️ 入力内容は `state/formMemory.ts` へ退避する。タブ切替はアンマウントなので、
 //    退避しないと dry-run などのチェックが既定値へ勝手に戻る（詳細はそちらの冒頭）。
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, KeyboardEvent, useEffect, useState } from 'react';
 import {
   recallQueryForm,
   rememberQueryForm,
@@ -25,6 +26,7 @@ import {
   identityNote,
   isIdentityActive,
 } from '../state/queryParams';
+import { isSubmitKey } from '../state/submitKey';
 import type { QueryParams, VerticalInfo } from '../types';
 
 const BASIC_EXAMPLES: Array<{ label: string; query: string; vertical: string | null }> = [
@@ -45,9 +47,22 @@ interface Props {
   onSubmit: (params: QueryParams) => void;
   /** 業界プロファイル セレクタを出すか。基本版タブでは false（vertical は常に null）。 */
   showVertical?: boolean;
+  /**
+   * 問い合わせ欄を複数行（textarea）にするか。基本版タブでは true。
+   *
+   * ⚠️ `showVertical` から導出しないこと。両者は別の関心事であり、
+   * 「Support も複数行にしたい」となったときに解けなくなる。
+   */
+  multiline?: boolean;
 }
 
-export function QueryForm({ verticals, running, onSubmit, showVertical = true }: Props) {
+export function QueryForm({
+  verticals,
+  running,
+  onSubmit,
+  showVertical = true,
+  multiline = false,
+}: Props) {
   // 基本版と GRACE-Support で記憶を分ける（片方の設定がもう片方へ漏れないように）。
   const memoryKey: QueryFormKey = showVertical ? 'vertical' : 'basic';
 
@@ -90,8 +105,9 @@ export function QueryForm({ verticals, running, onSubmit, showVertical = true }:
 
   const examples = showVertical ? VERTICAL_EXAMPLES : BASIC_EXAMPLES;
 
-  const submit = (e: FormEvent) => {
-    e.preventDefault();
+  // 送信の経路は 3 つ（ボタン / 単一行の Enter による暗黙送信 / 複数行の
+  // Ctrl+Enter）あるが、すべてここを通す。送信可否の条件を 1 箇所に保つため。
+  const submitIfReady = () => {
     if (!query.trim() || running) return;
     onSubmit(buildQueryParams({
       query, vertical, useWeb, doAction, dryRun, verbose,
@@ -100,20 +116,54 @@ export function QueryForm({ verticals, running, onSubmit, showVertical = true }:
     }));
   };
 
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    submitIfReady();
+  };
+
+  // textarea では Enter が改行になり、フォームの暗黙送信が効かない。
+  // Ctrl+Enter / ⌘+Enter を送信に割り当てる（判定は state/submitKey.ts）。
+  const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (!isSubmitKey(e)) return;
+    e.preventDefault();
+    submitIfReady();
+  };
+
   return (
     <form className="query-form" onSubmit={submit}>
-      <div className="query-row">
-        <input
-          type="text"
-          value={query}
-          placeholder="問い合わせ内容を入力（例: パスワードを忘れました）"
-          onChange={(e) => setQuery(e.target.value)}
-          disabled={running}
-        />
+      <div className={`query-row${multiline ? ' multiline' : ''}`}>
+        {multiline ? (
+          <textarea
+            value={query}
+            placeholder={'問い合わせ内容を入力（複数行可）\n例: パスワードを忘れました'}
+            rows={4}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={handleKeyDown}
+            disabled={running}
+          />
+        ) : (
+          <input
+            type="text"
+            value={query}
+            placeholder="問い合わせ内容を入力（例: パスワードを忘れました）"
+            onChange={(e) => setQuery(e.target.value)}
+            disabled={running}
+          />
+        )}
         <button type="submit" disabled={running || !query.trim()}>
           {running ? '実行中…' : '送信'}
         </button>
       </div>
+      {/*
+        送信ショートカットは画面に出ていないと気付けない（placeholder は入力すると
+        消える）。textarea のときだけ添える。
+      */}
+      {multiline && (
+        <p className="query-hint">
+          改行は Enter / 送信は <kbd>Ctrl</kbd>+<kbd>Enter</kbd>（macOS は{' '}
+          <kbd>⌘</kbd>+<kbd>Enter</kbd>）
+        </p>
+      )}
 
       <div className="query-options">
         {showVertical && (
