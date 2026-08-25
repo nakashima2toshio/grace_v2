@@ -57,6 +57,17 @@ class ActionRequestModel(BaseModel):
     requires_confirmation: bool = True
 
 
+class QuestionClusterModel(BaseModel):
+    """1 つの主質問と、それに従属する関連質問のまとまり（複数質問クエリの採用単位）。
+
+    設計: `docs/multi_question_handling.md` §13.3。
+    実体は `backend/app/core/support_agent.py::QuestionCluster`。
+    """
+
+    main: str
+    related: List[str] = Field(default_factory=list)
+
+
 class SupportResultModel(BaseModel):
     """`SupportResult` の JSON 表現（GET /api/support/result/{job_id}）。"""
 
@@ -78,6 +89,14 @@ class SupportResultModel(BaseModel):
     identity_checked: bool = False
     no_info_detected: bool = False
     web_reused: bool = False
+
+    # --- 複数質問クエリ（docs/multi_question_handling.md §13.5）---------------
+    # ⚠️ すべて optional。単一質問では既定値のままで、旧クライアントは壊れない。
+    is_multi_question: bool = False
+    question_clusters: List[QuestionClusterModel] = Field(default_factory=list)
+    adopted_cluster_index: Optional[int] = None
+    reconstructed_query: Optional[str] = None
+    deferred_questions: List[str] = Field(default_factory=list)
 
 
 class JobStatusResponse(BaseModel):

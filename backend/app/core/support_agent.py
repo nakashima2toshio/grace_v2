@@ -108,6 +108,20 @@ ConfirmFn = Callable[[InterventionRequest], InterventionResponse]
 
 
 @dataclass
+class QuestionCluster:
+    """1 つの主質問と、それに従属する関連質問のまとまり。
+
+    複数質問クエリの採用単位。**主質問だけを採用単位にしてはいけない。**
+    関連質問は主質問に従属しており（例:「住民票の取り方は？ **その手数料は？**」の
+    「その手数料」）、切り離すと主質問の回答自体が不完全になる。
+    設計: docs/multi_question_handling.md §13.3
+    """
+
+    main: str                                        # 主質問（独立したトピック）
+    related: List[str] = field(default_factory=list)  # 主質問に従属する関連質問
+
+
+@dataclass
 class SupportResult:
     """サポート回答の結果。"""
 
@@ -129,6 +143,21 @@ class SupportResult:
     identity_checked: bool = False            # 本人確認ステップが起動したか（KPI 計測用）
     no_info_detected: bool = False            # 「情報なし回答」検知で escalate に倒したか
     web_reused: bool = False                  # ⑤ で executor の Web 結果を再利用したか（重複推論の省略）
+
+    # --- 複数質問クエリ（docs/multi_question_handling.md §13.5）---------------
+    # ⚠️ すべて optional。単一質問では既定値のままで、旧フロント・既存 API
+    #    クライアントの挙動は変わらない。
+    is_multi_question: bool = False                   # 複数質問と判定されたか
+    question_clusters: List[QuestionCluster] = field(default_factory=list)
+    adopted_cluster_index: Optional[int] = None       # 採用したクラスタの位置
+    # 再構成後の質問文。**原文とは別に保持する。**
+    # 再構成は LLM が行うため誤りうる。利用者が「何を質問として解釈されたか」を
+    # 検証できるよう、UI へ出す前提で原文を潰さずに持つ（§13.5）。
+    reconstructed_query: Optional[str] = None
+    # 🔴 採用しなかった主質問。**必ず返すこと。**
+    #    これを返さないと「片方が無言で落ち、しかも support_rate が高いため
+    #    高信頼として提示される」という最も危険な事故（§概要）と区別がつかない。
+    deferred_questions: List[str] = field(default_factory=list)
 
 
 def result_to_dict(result: SupportResult) -> Dict[str, Any]:
