@@ -218,8 +218,10 @@ style CITE fill:#1a1a1a,stroke:#fff,color:#fff
 | 関数名 | 概要 |
 |-------|------|
 | `looks_like_multi_question(query)` | 第 1 段の候補検出（接続表現・疑問符 2 個以上）。LLM 呼び出しゼロ |
-| `_parse_cluster_output(text, query)` | 第 2 段の行区切り出力を `[(main, [related...])]` へ解析 |
-| `create_cluster_analyzer(config)` | 構造解析器（第 2 段）を返す |
+| `_parse_cluster_output(text, query)` | 第 2 段の行区切り出力を `[(main, [related...])]` へ解析。**元の `query` に由来しない行が 1 つでもあれば出力ごと捨てる**（散文が主質問になるのを防ぐ） |
+| `_derives_from_query(line, query)` | 行が問い合わせを切り分けたものとみなせるか（文字 2-gram の一致率 ≥ `MIN_QUERY_OVERLAP`） |
+| `_is_explicit_single(text)` | モデルが `SINGLE` と明示したか（形式違反と区別して再要求の要否を決める） |
+| `create_cluster_analyzer(config)` | 構造解析器（第 2 段）を返す。形式違反の応答は**1 回だけ**厳格に再要求する（`SINGLE` なら再要求しない） |
 | `detect_question_clusters(query, analyzer)` | 二段判定。**空リストなら「単一質問として現行どおり処理せよ」** |
 | `fallback_reconstruct(main, related)` | LLM を使わない素朴な連結 |
 | `reconstruct_query(main, related, config)` | 採用クラスタを自然言語 1 文へ再構成 |
