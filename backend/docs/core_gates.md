@@ -209,6 +209,25 @@ style CITE fill:#1a1a1a,stroke:#fff,color:#fff
 | `_pick_groundedness(*results)` | (支持率, 判定数) を選ぶ |
 | `_decide_action(query, decision, profile, classify)` | アクション種別を決定 |
 
+#### 0-(A) 入力・質問分析（複数質問クエリ）
+
+⚠️ **安全側の向きが上の判定群と逆である。** 判定できないときは「単一質問とみなす」
+（＝現行動作の維持）に倒す。誤って質問を分解する方が害が大きいため。
+設計: `docs/multi_question_handling.md` §0。
+
+| 関数名 | 概要 |
+|-------|------|
+| `looks_like_multi_question(query)` | 第 1 段の候補検出（接続表現・疑問符 2 個以上）。LLM 呼び出しゼロ |
+| `_parse_cluster_output(text, query)` | 第 2 段の行区切り出力を `[(main, [related...])]` へ解析 |
+| `create_cluster_analyzer(config)` | 構造解析器（第 2 段）を返す |
+| `detect_question_clusters(query, analyzer)` | 二段判定。**空リストなら「単一質問として現行どおり処理せよ」** |
+| `fallback_reconstruct(main, related)` | LLM を使わない素朴な連結 |
+| `reconstruct_query(main, related, config)` | 採用クラスタを自然言語 1 文へ再構成 |
+| `deferred_main_questions(clusters, adopted_index)` | 🔴 採用しなかった主質問。**必ず利用者へ提示すること** |
+| `create_scope_classifier(config, profile)` | 主質問が担当範囲内かの分類器（**全問を 1 回の LLM 呼び出しで**判定） |
+| `_parse_scope_output(text, count)` | `IN` / `OUT` を解析。解釈が怪しければ `None`（部分解釈しない） |
+| `split_by_scope(clusters, classify)` | 範囲内・範囲外の添字へ分ける。判定不能・全件 OUT なら**全件範囲内**へ倒す |
+
 #### 出典整形
 
 | 関数名 | 概要 |

@@ -69,7 +69,9 @@ def confirm_intervention(job_id: str, request: ConfirmRequest) -> ConfirmRespons
     approve=True で PROCEED（アクション実行）、False で CANCEL。
     タイムアウト済み・対象なしの場合は not_waiting / not_found を返す。
     """
-    status = job_manager.confirm(job_id, request.intervention_id, request.approve)
+    status = job_manager.confirm(
+        job_id, request.intervention_id, request.approve, request.selected_option
+    )
     if status == "not_found":
         raise HTTPException(status_code=404, detail="job not found")
     return ConfirmResponse(status=status)

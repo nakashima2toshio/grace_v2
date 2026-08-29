@@ -16,6 +16,7 @@ import {
   startQuery,
   subscribeStream,
 } from '../api/client';
+import { interventionKind } from '../state/interventionKind';
 import { initialJobState, jobReducer } from '../state/jobReducer';
 import { metaErrorMessage } from '../state/metaFetch';
 import { useJobTiming } from '../state/useJobTiming';
@@ -25,6 +26,7 @@ import { ConfirmModal } from './ConfirmModal';
 import { JobFinishLine, JobStartLine } from './JobClock';
 import { MetaErrorBanner } from './MetaErrorBanner';
 import { QueryForm } from './QueryForm';
+import { QuestionSelectModal } from './QuestionSelectModal';
 import { StepTimeline } from './StepTimeline';
 
 export type SupportVariant = 'basic' | 'vertical';
@@ -96,11 +98,13 @@ export function SupportPanel({ variant = 'vertical' }: { variant?: SupportVarian
   }, [beginTiming]);
 
   const respond = useCallback(
-    async (approve: boolean) => {
+    async (approve: boolean, selectedOption: string | null = null) => {
       if (!state.jobId || !state.intervention) return;
       setConfirming(true);
       try {
-        await confirmIntervention(state.jobId, state.intervention.intervention_id, approve);
+        await confirmIntervention(
+          state.jobId, state.intervention.intervention_id, approve, selectedOption,
+        );
         dispatch({ type: 'confirm_sent' });
       } catch (error) {
         dispatch({
@@ -155,7 +159,16 @@ export function SupportPanel({ variant = 'vertical' }: { variant?: SupportVarian
         <JobFinishLine timing={timing} />
       )}
 
-      {state.intervention && (
+      {/* 承認待ちは 2 種類ある。どちらかは reason/options から純関数で判定する
+          （state/interventionKind.ts）。既定は従来のアクション承認。 */}
+      {state.intervention && interventionKind(state.intervention) === 'question' && (
+        <QuestionSelectModal
+          intervention={state.intervention}
+          submitting={confirming}
+          onRespond={respond}
+        />
+      )}
+      {state.intervention && interventionKind(state.intervention) === 'action' && (
         <ConfirmModal
           intervention={state.intervention}
           actionStep={state.steps.action}

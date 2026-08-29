@@ -45,6 +45,14 @@ class ConfirmRequest(BaseModel):
 
     intervention_id: str
     approve: bool
+    selected_option: Optional[str] = Field(
+        default=None,
+        description=(
+            "選択肢つきの介入（0-(A) 入力・質問分析の主質問選択）で選ばれた値。"
+            "**省略可**。既存のアクション承認モーダルは選択肢を持たないため "
+            "従来どおり intervention_id + approve だけで動く"
+        ),
+    )
 
 
 class ConfirmResponse(BaseModel):
@@ -97,6 +105,9 @@ class SupportResultModel(BaseModel):
     adopted_cluster_index: Optional[int] = None
     reconstructed_query: Optional[str] = None
     deferred_questions: List[str] = Field(default_factory=list)
+    # 担当範囲外と判定した主質問と、それに添える窓口案内（`deferred` とは別物）。
+    out_of_scope_questions: List[str] = Field(default_factory=list)
+    out_of_scope_guidance: str = ""
 
 
 class JobStatusResponse(BaseModel):

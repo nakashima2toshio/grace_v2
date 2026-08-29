@@ -34,9 +34,16 @@ from backend.app.core.gates import (
     _should_rescue_unaffirmed,
     _web_citations,
     _web_source_texts,
+    create_cluster_analyzer,
     create_intent_classifier,
     create_no_info_judge,
+    create_scope_classifier,
+    deferred_main_questions,
+    detect_question_clusters,
     judge_model,
+    looks_like_multi_question,
+    reconstruct_query,
+    split_by_scope,
 )
 from backend.app.core.verticals import (
     DEFAULT_QUERY,
@@ -72,7 +79,8 @@ AUTO_PROCEED = InterventionResponse(action=InterventionAction.PROCEED)
 
 # パイプラインのステップ ID（UI のタイムライン表示と対応）
 STEP_IDS = (
-    "profile",     # S1 業界プロファイル適用（--vertical 指定時のみ）
+    "analyze",     # 0-(A) 入力・質問分析（複数質問の検知 → 選択 → 再構成）
+    "profile",     # 0-(B) 業界プロファイル適用（--vertical 指定時のみ）
     "plan",        # ① Plan
     "execute",     # ② Execute（内部RAG → reasoning）
     "confidence",  # ③ Groundedness
@@ -158,6 +166,11 @@ class SupportResult:
     #    これを返さないと「片方が無言で落ち、しかも support_rate が高いため
     #    高信頼として提示される」という最も危険な事故（§概要）と区別がつかない。
     deferred_questions: List[str] = field(default_factory=list)
+    # 担当範囲外と判定した主質問と、それに添える窓口案内。
+    # ⚠️ `deferred_questions` と混ぜない。保留は「範囲内だが今回は答えていない」、
+    #    こちらは「範囲外なので答えない」で、利用者に伝えるべきことが違う。
+    out_of_scope_questions: List[str] = field(default_factory=list)
+    out_of_scope_guidance: str = ""
 
 
 def result_to_dict(result: SupportResult) -> Dict[str, Any]:
@@ -333,8 +346,147 @@ def run_support_agent_core(
             failure_detail=_judge_failure["detail"])
         return verdict
 
-    # 業界プロファイル（--vertical）: しきい値・エスカレ語・アクション対応・本人確認を切り替え
+    # 業界プロファイルの解決。
+    # ⚠️ **適用（0-(B)）より先に解決する。** 0-(A) のスコープ判定が
+    # `scope_description` / `out_of_scope_guidance` を読むため。
+    # config への注入（検索スコープ・方針）は従来どおり 0-(B) で行う。
     profile = PROFILES.get(vertical) if vertical else None
+
+    # =========================================================================
+    # 0-(A) 入力・質問分析（複数質問の検知 → 主質問の選択 → 再構成）
+    # =========================================================================
+    #
+    # 設計: docs/multi_question_handling.md §13（絞り込み方式）。
+    #
+    # ここは**前処理**であり、パイプライン本体（planner/executor/gates）の判定
+    # ロジックは一切変えない。再構成後の文を `query` として渡すため、planner から
+    # 見ればそれが「利用者の元の質問文」であり、完全一致でコピーする規則
+    # （grace/planner.py:110-111）とも衝突しない。
+    #
+    # ⚠️ **安全側の向きが後段のゲートと逆である。** ④・④' が「判定できないなら
+    # escalate（答えない）」に倒すのに対し、ここは「判定できないなら**単一質問**」
+    # に倒す。誤って分解する方が害が大きく、何もしなければ現行動作そのものだから。
+    # 第 1 段（接続表現・疑問符の数）で弾かれれば LLM は 1 度も呼ばれない。
+    original_query = query
+    question_clusters: List[QuestionCluster] = []
+    adopted_cluster_index: Optional[int] = None
+    reconstructed_query: Optional[str] = None
+    deferred_questions: List[str] = []
+    out_of_scope_questions: List[str] = []
+
+    analyze_settled = False   # analyze ステップの決着イベントを出したか
+    # ⚠️ **第 1 段が一致してから解析器を作る。** `create_cluster_analyzer()` は
+    # 生成時点で LLM クライアントを組み立てるため、引数の位置で無条件に呼ぶと
+    # 単一質問のリクエストでも毎回クライアントを作ることになる（第 1 段で LLM を
+    # 呼ばずに弾く、という二段判定の狙いが半分崩れる）。
+    clusters = (
+        detect_question_clusters(query, create_cluster_analyzer(config))
+        if looks_like_multi_question(query)
+        else []
+    )
+    if clusters:
+        step_started(
+            "analyze", f"0-(A) 入力・質問分析（複数質問を検知: 主質問 {len(clusters)} 件）",
+            clusters=[{"main": m, "related": list(r)} for m, r in clusters],
+        )
+        question_clusters = [QuestionCluster(main=m, related=list(r)) for m, r in clusters]
+        for i, (main, related) in enumerate(clusters):
+            suffix = f"（関連: {' / '.join(related)}）" if related else ""
+            log(f"  [multi-q] 主質問{i + 1}: {main}{suffix}", step="analyze")
+
+        # --- 担当範囲で分ける -------------------------------------------------
+        #
+        # 範囲外の主質問は**選択肢に出さない**。選ばせても答えは変わらず
+        # （生成側の SCOPE_POLICY が断る）、利用者に無駄な 1 往復を強いるだけで、
+        # しかも選ばれなかった側は「保留（未回答）」として落ちる。
+        # 範囲外は保留ではなく「断って窓口案内」で返す（実測 2026-08-29 の
+        # 「住民票 ＋ 明日の天気」で顕在化）。
+        #
+        # 判定できないときは全件を範囲内として扱う（＝従来どおり選択を出す）。
+        # 範囲外と誤判定して答えられる質問を断つほうが害が大きい。
+        in_scope_idx, out_scope_idx = split_by_scope(
+            clusters, create_scope_classifier(config, profile)
+        )
+        out_of_scope_questions = [clusters[i][0] for i in out_scope_idx]
+        if out_of_scope_questions:
+            log(f"  [multi-q] 担当範囲外（{profile.name if profile else '-'}）: "
+                f"{' / '.join(out_of_scope_questions)} → 選択肢に出さず、"
+                "断り＋窓口案内で返します", step="analyze")
+
+        if len(in_scope_idx) == 1:
+            # 範囲内が 1 つだけ（関連質問の有無を問わず）→ 選ぶ余地が無い。
+            adopted_cluster_index = in_scope_idx[0]
+        else:
+            # 範囲内の主質問が複数 → 利用者に選ばせる（自動選定はしない・§13.1）。
+            # CLI（confirm 未指定）は AUTO_PROCEED が selected_option を持たない
+            # ため、後段のフォールバックで先頭クラスタが採用される。
+            options = [clusters[i][0] for i in in_scope_idx]
+            selection = resolve_confirm(InterventionRequest(
+                level=InterventionLevel.CONFIRM,
+                message="複数の質問が含まれています。先に回答する質問を選んでください。",
+                question="どの質問に回答しますか？",
+                reason="multi_question_selection",
+                options=options,
+                timeout_seconds=config.intervention.default_timeout,
+            ))
+            if not selection.should_continue:
+                # 拒否・タイムアウト → **現行どおり単一質問として処理する**（§13.8-7）。
+                # ここで escalate に倒さないのは、分析は前処理でありゲートではないため。
+                # 選択できなかったことを理由に回答自体を諦めるのは過剰。
+                reason = "タイムアウト" if selection.timeout_reached else "選択なし"
+                log(f"  [multi-q] 主質問の選択が得られませんでした（{reason}）→ "
+                    "原文のまま単一質問として処理します", step="analyze")
+                question_clusters = []
+                clusters = []
+                out_of_scope_questions = []
+                step_finished("analyze", is_multi_question=False, reason=reason)
+                analyze_settled = True
+            else:
+                chosen = selection.selected_option
+                # options は範囲内クラスタだけなので、元のクラスタ添字へ戻す。
+                adopted_cluster_index = (
+                    in_scope_idx[options.index(chosen)] if chosen in options
+                    else in_scope_idx[0]
+                )
+                if chosen not in options:
+                    # 選択肢に無い値が返った（CLI の自動承認・想定外の入力）。
+                    # 先頭を採用し、残りは保留として必ず提示する（黙って落とさない）。
+                    log("  [multi-q] 選択が特定できないため先頭の主質問を採用します",
+                        step="analyze")
+
+    if clusters and adopted_cluster_index is not None:
+        main, related = clusters[adopted_cluster_index]
+        reconstructed_query = reconstruct_query(main, related, config)
+        # 🔴 保留 = **範囲内なのに今回は答えなかった**主質問だけ。
+        # 範囲外は「保留（あとで答えます）」ではなく「担当範囲外です」なので混ぜない。
+        deferred_questions = [
+            q for q in deferred_main_questions(clusters, adopted_cluster_index)
+            if q not in out_of_scope_questions
+        ]
+        log(f"  [multi-q] 採用: {main}", step="analyze")
+        if reconstructed_query != original_query:
+            log(f"  [multi-q] 再構成後のクエリ: {reconstructed_query}", step="analyze")
+        if deferred_questions:
+            # 🔴 保留した主質問は必ず出す。出さないと「片方が無言で落ちたのに
+            #    支持率が高いので高信頼として提示される」事故と区別がつかない。
+            log(f"  [multi-q] 保留した主質問: {' / '.join(deferred_questions)}",
+                step="analyze")
+        # 以降のパイプラインは再構成後のクエリで走る。原文は original_query に残す。
+        query = reconstructed_query
+        step_finished(
+            "analyze",
+            is_multi_question=True,
+            adopted_cluster_index=adopted_cluster_index,
+            reconstructed_query=reconstructed_query,
+            deferred_questions=deferred_questions,
+            out_of_scope_questions=out_of_scope_questions,
+        )
+    elif not analyze_settled:
+        # 第 1 段で弾かれた／解析器が単一と判断した＝現行フローそのもの。
+        step_skipped("analyze")
+
+    # 業界プロファイル（--vertical）: しきい値・エスカレ語・アクション対応・本人確認を切り替え
+    # （プロファイルの**解決**は 0-(A) の手前で済ませてある。適用はここから）
     notify_th = profile.notify_th if (profile and profile.notify_th is not None) else th.notify
     confirm_th = profile.confirm_th if (profile and profile.confirm_th is not None) else th.confirm
 
@@ -649,6 +801,25 @@ def run_support_agent_core(
     # KPI 計測用メタデータ（eval/vertical が参照）
     support.forced_escalate = forced_escalate
     support.intent = _intent_cache.get(query)
+
+    # 0-(A) の結果。**両方の SupportResult 生成経路（内部確定・⑤ Web 経由）を
+    # 通ったあとにここで一括で載せる。** 生成側に足すと片方だけ埋まる。
+    # 単一質問では既定値のまま（is_multi_question=False / 空リスト）。
+    support.is_multi_question = bool(question_clusters)
+    support.question_clusters = question_clusters
+    support.adopted_cluster_index = adopted_cluster_index
+    # 🔴 再構成後クエリと保留質問は、複数質問だったときは必ず載せる。
+    #    利用者が「何を質問として解釈され、何が保留されたか」を検証できないと、
+    #    片方の質問が黙って落ちた状態と区別できない（§13.5）。
+    support.reconstructed_query = (
+        reconstructed_query if reconstructed_query != original_query else None
+    )
+    support.deferred_questions = deferred_questions
+    # 範囲外と判定した主質問。断り＋窓口案内を UI が添える。
+    support.out_of_scope_questions = out_of_scope_questions
+    support.out_of_scope_guidance = (
+        profile.out_of_scope_guidance if (profile and out_of_scope_questions) else ""
+    )
 
     _emit(SupportEvent(type="result", data=result_to_dict(support)))
     return support

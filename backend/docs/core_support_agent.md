@@ -500,14 +500,15 @@ print(msg)
 
 ```python
 STEP_IDS = (
-    "profile", "plan", "execute", "confidence",
+    "analyze", "profile", "plan", "execute", "confidence",
     "gate", "web", "no_info", "action",
 )
 ```
 
 | 値 | 説明 |
 |----|------|
-| `profile` | S1 業界プロファイル適用（`--vertical` 指定時のみ） |
+| `analyze` | 0-(A) 入力・質問分析（複数質問の検知 → 選択 → 再構成 → 担当範囲の判定） |
+| `profile` | 0-(B) 業界プロファイル適用（`--vertical` 指定時のみ） |
 | `plan` | ① Plan |
 | `execute` | ② Execute（内部RAG → reasoning） |
 | `confidence` | ③ Groundedness |

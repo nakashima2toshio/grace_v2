@@ -15,6 +15,8 @@ from typing import List, Optional
 
 import pytest
 
+from backend.app.core.gates import fallback_reconstruct
+
 
 def make_config_stub(notify=0.7, confirm=0.4, default_timeout=2):
     """get_config() 互換の最小スタブ（core が触る属性のみ）。"""
@@ -56,6 +58,14 @@ class StepResultStub:
 class PipelineStub:
     """1 シナリオ分のパイプライン外部依存の応答定義。"""
 
+    # 0-(A) 入力・質問分析の構造解析器（第 2 段）の返答。
+    # 既定 None = 「単一質問とみなす」＝**既存テストの挙動は変わらない**。
+    # 実 `create_cluster_analyzer` は生成時に LLM クライアントを作るため、
+    # ここをスタブしないとテストが実クライアント生成に依存する。
+    clusters: Optional[list] = None
+    # 0-(A) スコープ判定（第 2 段）の返答。`[True, False]` で
+    # 「1 問目は範囲内、2 問目は範囲外」。既定 None = 判定不能 = 全件範囲内。
+    scope_verdicts: Optional[list] = None
     answer: str = "パスワード再設定はマイページの「パスワードを忘れた方」から行えます。"
     sources: List[str] = field(default_factory=lambda: ["faq.md"])
     # 出典本文（groundedness 検証に渡る想定のテキスト）。空なら出典ラベルへ
@@ -126,6 +136,30 @@ def install_pipeline_stub(monkeypatch, stub: PipelineStub) -> None:
     # （受け取らないと TypeError で全シナリオが落ちる）。
     monkeypatch.setattr(f"{target}.create_no_info_judge",
                         lambda _c, on_failure=None: judge)
+
+    def cluster_analyzer(_q: str):
+        return stub.clusters
+
+    monkeypatch.setattr(
+        f"{target}.create_cluster_analyzer", lambda _c: cluster_analyzer
+    )
+
+    def make_scope_classifier(_config, profile=None):
+        # 実 `create_scope_classifier` と同じガード: プロファイルが無い（基本版）
+        # なら担当範囲という概念が無いので判定しない。ここを省くとスタブのほうが
+        # 実装より緩くなり、基本版の挙動をテストで守れない。
+        if profile is None:
+            return lambda _questions: None
+        return lambda _questions: stub.scope_verdicts
+
+    monkeypatch.setattr(f"{target}.create_scope_classifier", make_scope_classifier)
+
+    # 再構成も LLM を呼ぶ。スタブ config のままだと実 API へ接続を試み、
+    # テストが環境依存になる。LLM を使わない `fallback_reconstruct` へ差し替える。
+    monkeypatch.setattr(
+        f"{target}.reconstruct_query",
+        lambda main, related, config=None: fallback_reconstruct(main, related),
+    )
 
 
 @pytest.fixture
