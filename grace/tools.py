@@ -1203,19 +1203,40 @@ class WebSearchTool(BaseTool):
             )
 
     def _search_ddg(self, query: str, num_results: int, language: str) -> list:
-        """DuckDuckGo検索バックエンド"""
-        from duckduckgo_search import DDGS
-        # （Todo: 要最新化）-> 「DDGSメタ検索」
-        # from ddgs import DDGS
-        # results = ddgs.text(query, region=region, max_results=num_results, backend="duckduckgo")
+        """DDGS メタ検索バックエンド（主バックエンドが落ちたときの受け皿）。
+
+        ⚠️ **パッケージは `duckduckgo_search` から `ddgs` へ改名されている。**
+        旧名は 8.1.1 が最終リリースで更新が止まっており、実測 2026-08-29 では
+        検索先から HTTP 200 を受け取りながら **0 件**しか解析できていなかった
+        （＝SerpAPI が 500 で落ちたときの受け皿が、実は機能していなかった）。
+
+        新パッケージを優先し、未導入の環境（pyproject を反映していない venv）
+        でだけ旧名へ落ちる。戻り値のキー（title / href / body）は同じなので
+        `_parse_to_rag_format` 側は変更不要。
+        """
+        try:
+            from ddgs import DDGS
+            package = "ddgs"
+        except ImportError:
+            # 旧環境向けの保険（isort は except 節の import を並べ替えられない）
+            from duckduckgo_search import DDGS  # noqa: I001
+
+            package = "duckduckgo_search(旧名・更新停止)"
 
         region = "jp-jp" if language == "ja" else "wt-wt"
-        logger.info(f"DDG search: query='{query}', region={region}, max_results={num_results}")
+        logger.info(f"DDG search: query='{query}', region={region}, "
+                    f"max_results={num_results}, package={package}")
 
         with DDGS(timeout=self.timeout) as ddgs:
             results = list(ddgs.text(query, region=region, max_results=num_results))
 
-        logger.info(f"DDG search returned {len(results)} results")
+        if not results:
+            # ⚠️ 0 件は「見つからなかった」とは限らない。ライブラリが解析に
+            # 失敗しても 0 件になる（実測 2026-08-29 の旧パッケージがそれ）。
+            # 下流では「情報なし」→ 誤エスカレにつながるので、ここで見えるようにする。
+            logger.warning(f"DDG search returned 0 results (package={package})")
+        else:
+            logger.info(f"DDG search returned {len(results)} results")
         return results
 
     def _search_google(self, query: str, num_results: int, language: str) -> list:
