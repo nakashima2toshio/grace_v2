@@ -1005,6 +1005,20 @@ class AskUserTool(BaseTool):
 _JSON_ESCAPE_RE = re.compile(r"\\u([0-9a-fA-F]{4})")
 
 
+def _mask_secret(text: str, secret: str) -> str:
+    """ログ・例外メッセージから API キーを伏せる。
+
+    ⚠️ **requests の例外メッセージにはリクエスト URL がそのまま入る。**
+    SerpAPI はキーをクエリパラメータで受け取るため、`raise_for_status()` が
+    投げた HTTPError をそのままログへ出すと **API キーが平文で残る**
+    （実測 2026-08-29: 実行ログに `api_key=...` がフルで出力されていた）。
+    ログは共有・貼り付けされるものなので、出口で必ず伏せる。
+    """
+    if not secret or not text:
+        return text
+    return text.replace(secret, "***")
+
+
 def _unescape_json_escapes(text: str) -> str:
     r"""文字列に残った `\uXXXX` 形式のエスケープを実文字へ戻す。
 
@@ -1279,6 +1293,15 @@ class WebSearchTool(BaseTool):
                     params=params,
                     timeout=self.timeout,
                 )
+                if resp.status_code >= 400:
+                    # ⚠️ **SerpAPI は失敗時も本文に理由を返す**（`{"error": "..."}`）。
+                    # `raise_for_status()` はステータス行しか持たないので、本文を
+                    # 捨てると「500 Server Error」としか分からないログになる
+                    # （実測 2026-08-29: 3 回連続で 500。理由が一切残らず、
+                    # 一時障害なのかパラメータの問題なのか切り分けできなかった）。
+                    body = _mask_secret(" ".join(resp.text[:300].split()), api_key)
+                    logger.error(f"SerpAPI HTTP {resp.status_code} body: {body}")
+                    print(f"  [web] SerpAPI HTTP {resp.status_code}: {body}")
                 if resp.status_code >= 500:
                     resp.raise_for_status()  # 5xx はリトライ対象（下の except へ）
                 resp.raise_for_status()      # 4xx は即時送出（リトライしない）
@@ -1307,7 +1330,12 @@ class WebSearchTool(BaseTool):
                                    f"retrying in {wait}s...")
                     _time.sleep(wait)
                 else:
-                    raise
+                    # ⚠️ **元の例外をそのまま投げない。** メッセージに URL が入り、
+                    # クエリパラメータの API キーが上位のログ（`exc_info=True`）へ
+                    # 平文で流れる。`from None` で元の連鎖ごと断ち切る。
+                    raise requests.exceptions.HTTPError(
+                        _mask_secret(str(e), api_key), response=e.response
+                    ) from None
 
     def _parse_to_rag_format(self, raw_results: list, num_results: int,
                              backend: Optional[str] = None) -> list:

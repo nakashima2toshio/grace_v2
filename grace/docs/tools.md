@@ -260,7 +260,7 @@ style REG fill:#1a1a1a,stroke:#fff,color:#fff
 | `execute(query, num_results, language, **kwargs)` | Web 検索の実行 |
 | `_search_ddg(query, num_results, language)` | DuckDuckGo バックエンド |
 | `_search_google(query, num_results, language)` | Google CSE バックエンド |
-| `_search_serpapi(query, num_results, language)` | SerpAPI バックエンド（リトライ付き） |
+| `_search_serpapi(query, num_results, language)` | SerpAPI バックエンド（リトライ付き）。失敗時は**応答本文**（SerpAPI の `{"error": ...}`）をログに残す。ログ・例外に **API キーを出さない**（`_mask_secret`。requests の例外メッセージは URL を含み、SerpAPI はキーをクエリパラメータで受け取るため） |
 | `_parse_to_rag_format(raw_results, num_results)` | RAG 互換フォーマットへ変換 |
 | `_prefer_domains(formatted)` | **優先ドメインを加点して上位へ並べ替える**（W-1・除外はしない） |
 | `_calculate_confidence_factors(scores)` | スコア統計を算出 |
