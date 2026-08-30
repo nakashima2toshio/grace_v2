@@ -6,6 +6,7 @@ GRACE Confidence - 信頼度計算システム
 """
 
 import logging
+from collections import OrderedDict
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Dict, List, Literal, Optional
@@ -918,22 +919,58 @@ class GroundednessVerifier:
 {sources}
 """
 
+    # 直近の検証結果を保持する件数。
+    #
+    # 1 リクエストで verify() が呼ばれるのは executor（信頼度ブレンド）・
+    # ③ 根拠評価・⑤ Web 回答検証の 3 箇所。うち前 2 つは **同じ回答・同じ
+    # ソース**を検証しており、⑤ だけ入力が異なる。少数で足りる。
+    _CACHE_SIZE = 4
+
     def __init__(self, config: Optional[GraceConfig] = None,
                  model_name: Optional[str] = None):
         self.config = config or get_config()
         # M-1: claim 分解と支持判定は論理層。heavy_model 未設定なら llm.model と同じ。
         self.model_name = model_name or resolve_heavy_model(self.config)
         self.client = create_chat_client(self.config)
+        # 同一入力の再検証を避けるメモ（verify() の docstring 参照）
+        self._cache: OrderedDict = OrderedDict()
         logger.info(f"GroundednessVerifier initialized with model: {self.model_name}")
 
     def verify(self, query: str, answer: str,
                sources: Optional[List[str]] = None) -> GroundednessResult:
-        """根拠妥当性を検証する。ソースが無い／LLM失敗時は verified=False を返す。"""
+        """根拠妥当性を検証する。ソースが無い／LLM失敗時は verified=False を返す。
+
+        ⚠️ **同一入力は再検証しない（LLM を 2 回呼ばない）。**
+
+        実測 2026-08-30（住民票の写しの取り方）では、**まったく同じ回答・同じ
+        ソース**に対して検証が 2 回走っていた:
+
+            04:07:41→04:07:47  executor._blend_groundedness_confidence  5.6 秒
+            04:07:47→04:07:54  support_agent ③ 根拠評価                 7.0 秒
+
+        claim の分解結果も 8 件すべて一致しており、2 回目に新しい情報は得られて
+        いない。判定は temperature=0 なので当然で、待ち時間とトークンだけが増える
+        （リクエスト全体 36 秒の 19%）。
+
+        入力が 1 文字でも違えば別物として再検証する（⑤ の Web 回答検証や、
+        完了ステップの絞り込み方が呼び出し側で異なる場合が該当する）。
+        キャッシュはインスタンス単位、インスタンスはリクエスト単位に作られる
+        ため、リクエストを跨いで古い判定が残ることはない。
+        """
         if not answer or not answer.strip():
             return GroundednessResult(0.0, 0, 0, 0, False, False, "empty answer")
         if not sources:
             # 引用ソースが無い回答は検証不能（未検証）
             return GroundednessResult(0.0, 0, 0, 0, False, False, "no sources")
+
+        cache_key = (query, answer, tuple(sources))
+        cached = self._cache.get(cache_key)
+        if cached is not None:
+            logger.info(
+                "Groundedness cache hit: 同一の回答・ソースなので再検証しません "
+                f"(supported={cached.supported}/{cached.total})"
+            )
+            return cached
 
         sources_text = "\n\n".join(f"[{i + 1}] {s}" for i, s in enumerate(sources))
         prompt = self.PROMPT.format(query=query, answer=answer, sources=sources_text)
@@ -996,10 +1033,29 @@ class GroundednessVerifier:
                 claims=list(parsed.claims),
             )
             self._log_claims(result)
+            self._remember(cache_key, result)
             return result
         except Exception as e:  # 検証失敗は評価を止めない（未検証扱い）
             logger.warning(f"Groundedness verification failed: {e}")
             return GroundednessResult(0.0, 0, 0, 0, False, False, f"error: {e}")
+
+    def _remember(self, key: tuple, result: GroundednessResult) -> None:
+        """判定できた結果だけを記憶する。
+
+        ⚠️ **失敗はキャッシュしない。** タイムアウトや空応答は入力ではなく
+        実行時の事情で起きるため、次の呼び出しでは成功しうる。失敗を覚えると、
+        1 回の瞬断で後続の全経路が「検証不能」に固定される。
+
+        本リポジトリでは失敗経路（空応答・例外）が `_remember` へ到達する前に
+        return するため、ここへ来るのは判定できた結果だけである。姉妹リポジトリ
+        （grace_v2_local）は `verification_failed` フラグで明示的に区別しており、
+        そちらを移植したときにこの分岐がそのまま効くよう `getattr` で見る。
+        """
+        if getattr(result, "verification_failed", False):
+            return
+        self._cache[key] = result
+        while len(self._cache) > self._CACHE_SIZE:
+            self._cache.popitem(last=False)
 
     @staticmethod
     def _abbreviate(text: str, limit: int = 120) -> str:
