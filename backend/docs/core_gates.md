@@ -234,7 +234,7 @@ style CITE fill:#1a1a1a,stroke:#fff,color:#fff
 | `create_scope_classifier(config, profile)` | 主質問が担当範囲内かの分類器（**全問を 1 回の LLM 呼び出しで**判定） |
 | `_parse_scope_output(text, count)` | `IN` / `OUT` を解析。解釈が怪しければ `None`（部分解釈しない） |
 | `split_by_scope(clusters, classify)` | 範囲内・範囲外の添字へ分ける。判定不能・全件 OUT なら**全件範囲内**へ倒す |
-| `ensure_out_of_scope_notice(answer, questions, guidance, links)` | 回答本文が担当範囲外に触れていなければ断り＋窓口案内を追記する。**モデルが指示に従わない場合の担保**（実測: Anthropic は断ったが、姉妹リポジトリのローカル LLM は落とした）。ゲートの後で適用するので判定は動かさない。`links`（表示名 → URL）があれば案内先も列挙する — 「窓口へどうぞ」で終わらせない |
+| `ensure_out_of_scope_notice(answer, questions, guidance, links)` | 回答本文が担当範囲外に触れていなければ断り＋窓口案内を追記する。**モデルが指示に従わない場合の担保**（実測: Anthropic は断ったが、姉妹リポジトリのローカル LLM は落とした）。ゲートの後で適用するので判定は動かさない。`links`（表示名 → URL）があれば案内先も列挙する — 「窓口へどうぞ」で終わらせない。**モデルが自分で断っている場合も、書かれていない URL だけは補う**（`_append_missing_links`）— 断りの指示を `prompt_closing` へ移して以降、この分岐が主経路になったため |
 
 #### 出典整形
 
