@@ -41,8 +41,39 @@ from backend.app.core.gates import _match_keyword, judge_model
 from backend.app.core.rulesets import FindingStatus, RuleItem, RuleSet, Severity
 from config import ModelConfig
 
-# ③ Detect の第2段に使うモデル。指摘文・修正案の生成を伴うため軽量モデルではなく既定モデル。
-DETECT_MODEL = ModelConfig.DEFAULT_MODEL
+
+def _brief(exc: Exception, limit: int = 200) -> str:
+    """例外メッセージを 1 行へ畳んで切り詰める（ログ用）。"""
+    text = " ".join(str(exc).split())
+    return text[:limit] + ("…" if len(text) > limit else "")
+
+
+def detect_model(config) -> str:
+    """③ Detect の第2段に使うモデル名を解決する。
+
+    指摘文・修正案の生成を伴うため、軽量モデル（`judge_model`）ではなく
+    **本モデル**を使う。
+
+    ⚠️ **`ModelConfig.DEFAULT_MODEL` を直接使ってはいけない。**
+
+    `judge_model()` の docstring が警告している「モデル解決経路が 2 本ある」問題を、
+    ここが踏んでいた。`ModelConfig.DEFAULT_MODEL` は `config.py` のモジュール定数で
+    `config/grace_config.yml` を一切見ない。一方クライアント本体や groundedness は
+    `grace/config.py` 経由で yml の `llm.model` を読む。
+
+    両者が食い違うと、**Detect だけが存在しないモデル名で呼ばれて失敗する**。
+    姉妹リポジトリ（grace_v2_local）の実測 2026-08-31 では、GRACE-Review 3 回の
+    実行で 33 回の Detect がすべて 404（`NotFoundError`）になり、指摘が全件
+    「自動判定に失敗したため要確認」になった（同じ実行の groundedness は
+    同一プロセス・同一 base_url で成功していた。差は「どちらの経路でモデル名を
+    解決したか」だけだった）。
+
+    そこで**設定（yml）を正**とし、config から解決できないときだけ
+    `ModelConfig.DEFAULT_MODEL` へフォールバックする（`llm` を持たないテスト用
+    スタブ向け）。
+    """
+    llm = getattr(config, "llm", None)
+    return getattr(llm, "model", None) or ModelConfig.DEFAULT_MODEL
 
 # 重大リスク語がどう使われているかの分類（強制 high の第2段）。
 #   claim     : その表現で実際に訴求している → 強制 high
@@ -168,6 +199,7 @@ def create_violation_detector(
     from grace.llm_compat import create_chat_client
 
     client = create_chat_client(config)
+    model_name = detect_model(config)
     addendum = getattr(getattr(config, "llm", None), "prompt_addendum", "") or ""
 
     def detect(text: str, rule: RuleItem, evidence: str) -> Optional[DetectVerdict]:
@@ -217,7 +249,7 @@ def create_violation_detector(
         )
         try:
             response = client.models.generate_content(
-                model=DETECT_MODEL,
+                model=model_name,
                 contents=prompt,
                 config={
                     "response_mime_type": "application/json",
@@ -232,8 +264,11 @@ def create_violation_detector(
                 return None
             return DetectVerdict.model_validate_json(response.text)
         except Exception as e:
-            print(f"   [detect] 判定に失敗（{rule.rule_id} / {type(e).__name__}）"
-                  "→ 安全側（要確認）", file=sys.stderr)
+            # ⚠️ **例外の本文まで出す。** 型名だけだと原因が分からない。
+            # 姉妹リポジトリの実測 2026-08-31: 全件 `NotFoundError` とだけ出ており、
+            # 「どのモデル名が無いのか」が読めずに原因特定が遅れた。
+            print(f"   [detect] 判定に失敗（{rule.rule_id} / {type(e).__name__}: "
+                  f"{_brief(e)}）→ 安全側（要確認）", file=sys.stderr)
             return None
 
     return detect
