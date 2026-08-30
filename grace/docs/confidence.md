@@ -69,7 +69,7 @@ LLM 呼び出しは `llm_compat.create_chat_client()` が返す genai 互換ク�
 | `QueryCoverageCalculator` | クエリ網羅度計算クラス |
 | `QueryCoverageCalculator.calculate()` | 質問要素のカバー度を評価 |
 | `GroundednessVerifier` | 根拠妥当性（S1）検証クラス |
-| `GroundednessVerifier.verify()` | 主張ごとの支持率を検証 |
+| `GroundednessVerifier.verify()` | 主張ごとの支持率を検証。**同一入力（query / answer / sources）は再検証せずメモを返す**（executor と ③ 根拠評価が同じ回答を検証するため。実測 2026-08-30 で 7.0 秒＝全体の 19% を無駄にしていた） |
 | `ConfidenceAggregator` | 複数ステップの信頼度集計クラス |
 | `ConfidenceAggregator.aggregate()` | mean/min/weighted で集計 |
 | `ConfidenceAggregator.aggregate_with_critical_check()` | 致命的失敗を考慮した集計 |

@@ -211,7 +211,7 @@ class RAGSearchTool(BaseTool):
         # --- コレクションを順次検索 ---
         for target_collection in search_candidates:
             logger.info(f"RAG search (Native): query='{query[:50]}...', collection={target_collection}")
-            print(f"🔍 Searching collection: {target_collection}") # コンソールにも出力
+            logger.info(f"🔍 Searching collection: {target_collection}")
             
             try:
                 # 検索実行
@@ -367,9 +367,14 @@ class RAGSearchTool(BaseTool):
         # --- [IPO LOG] PROCESS OUTPUT (RAG SEARCH) ---
         import json
         results_display = json.dumps(final_results, indent=2, ensure_ascii=False)
-        log_output = f"\n{'='*20} [RAG SEARCH IPO: OUTPUT] {'='*20}\nCollection: {used_collection}\n{results_display}\n{'='*60}"
-        logger.info(log_output)
-        print(log_output)
+        # ⚠️ **`logger.info` と `print` を両方呼ばない。**
+        # root logger は stdout へ出しているので、両方呼ぶとコンソールに
+        # **完全に同じ JSON が 2 回**並ぶ（実測 2026-08-30 のログはこれで倍に
+        # 膨れており、原因調査のときに読みづらかった）。
+        logger.info(
+            f"\n{'='*20} [RAG SEARCH IPO: OUTPUT] {'='*20}"
+            f"\nCollection: {used_collection}\n{results_display}\n{'='*60}"
+        )
 
         return ToolResult(
             success=True,
@@ -1181,8 +1186,7 @@ class WebSearchTool(BaseTool):
                 f"\n{results_display}"
                 f"\n{'='*60}"
             )
-            logger.info(log_output)
-            print(log_output)
+            logger.info(log_output)   # print と併用しない（root logger が stdout へ出す）
 
             return ToolResult(
                 success=True,
