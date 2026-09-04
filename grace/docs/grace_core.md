@@ -1,6 +1,6 @@
-# grace_a.md - GRACE コアモジュール群（Planner 系）アーキテクチャ ドキュメント
+# grace_core.md - GRACE コアモジュール群（Planner 系）アーキテクチャ ドキュメント
 
-**Version 1.1** | 最終更新: 2026-06-28
+**Version 2.0** | 最終更新: 2026-09-04
 
 ---
 
@@ -530,10 +530,10 @@ logs/grace_memory.jsonl  ← ★ここに格納される
 
 ### 4.3 planner.py：計画前にメモリへ相談
 
-`planner.py:232` の `_prioritized_collection()` が memory に問い合わせる。
+`planner.py` の `_prioritized_collection()` が memory に問い合わせる。
 
 ```python
-# grace/planner.py:232
+# grace/planner.py :: GracePlanner._prioritized_collection
 def _prioritized_collection(self, query: str) -> Optional[str]:
     if self._memory is None:
         return None                      # ← 場合分け①
@@ -560,7 +560,7 @@ def _prioritized_collection(self, query: str) -> Optional[str]:
 計画を実行する途中、`rag_search` が成功するたびに当たったコレクション名を `state.used_collections` に貯める。
 
 ```python
-# grace/executor.py:991
+# grace/executor.py :: GraceExecutor（rag_search 成功時の収集箇所）
 # P4: 使用した RAG コレクションを実行メモリ用に記録
 if step.action == "rag_search" and isinstance(tool_result.confidence_factors, dict):
     uc = tool_result.confidence_factors.get("used_collection")
@@ -577,24 +577,39 @@ state.overall_confidence == 0.85   # ← calibration.py で較正済みの最終
 
 ### 4.5 executor.py：_record_memory による格納
 
-全ステップ終了後（`executor.py:432` / `:698`）に呼ばれる。
+全ステップ終了後（`executor.py` の実行完了処理 2 箇所）に呼ばれる。
 
 ```python
-# grace/executor.py:1891
+# grace/executor.py :: GraceExecutor._record_memory
 def _record_memory(self, state: ExecutionState) -> None:
     if self._memory is None:
         return                                            # ← 場合分け②
-    statuses = [r.status for r in state.step_results.values()]
-    success = bool(statuses) and all(s == "success" for s in statuses)  # ← 場合分け③
-    collections = list(state.used_collections)
-    if not collections:
-        return                                            # ← 場合分け④（web のみ等は記録しない）
-    self._memory.record_many(
-        query=state.plan.original_query,
-        collections=collections,
-        success=success,
-        confidence=state.overall_confidence,
-    )
+    try:
+        # 動的挿入ステップ（web_search / ask_user）は成否判定から除外する
+        dynamic_ids = set(getattr(state, "dynamic_steps", None) or {})
+        dynamic_ids |= {
+            s.step_id for s in state.plan.steps if getattr(s, "dynamic", False)
+        }
+        statuses = [
+            r.status for step_id, r in state.step_results.items()
+            if step_id not in dynamic_ids
+        ]
+        success = (                                       # ← 場合分け③
+            bool(statuses)
+            and all(s == "success" for s in statuses)
+            and bool(self._final_answer_of(state))
+        )
+        collections = list(state.used_collections)
+        if not collections:
+            return                                        # ← 場合分け④（web のみ等は記録しない）
+        self._memory.record_many(
+            query=state.plan.original_query,
+            collections=collections,
+            success=success,
+            confidence=state.overall_confidence,
+        )
+    except Exception as e:                                # 記録失敗は実行を止めない
+        logger.warning(f"_record_memory failed: {e}")
 ```
 
 🔀 **executor 側の場合分け（格納するか・どう格納するか）**
@@ -602,17 +617,27 @@ def _record_memory(self, state: ExecutionState) -> None:
 | # | 条件 | 挙動 |
 |---|---|---|
 | ② | メモリ無効（`self._memory is None`） | **記録しない**（何もせず return） |
-| ③ | 全ステップ success か？ | `success=True/False` を決める。**失敗でも記録する** |
+| ③ | **計画どおりのステップ**が全部 success で、かつ**最終回答がある**か？ | `success=True/False` を決める。**失敗でも記録する** |
 | ④ | `used_collections` が空（Web 検索のみ・ask_user のみ等） | **記録しない**（RAG 未使用は学習対象外） |
 
 > ③が重要：**失敗した実行も `success=false` として記録される。**「このコレクションはこの質問では外しやすい」という情報も貯めて、スコアを下げるのに使う。
 
+> ⚠️ **③ が「全ステップ success」ではない理由（回帰修正）。**
+> RAG スコアが一次閾値に届かないと `web_search` / `ask_user` が**動的挿入**される。
+> 以前は `state.step_results` を丸ごと集計していたため、**Web が落ちているだけで
+> `success=False`** になり、実際には正しく答えられた RAG コレクションに「失敗」が
+> 刻まれて planner の優先順位を毒していた（実測 2026-08-29: 支持率 1.00・
+> `decision=answer` なのに対象コレクションが `success=False`）。
+> 除外対象は `state.dynamic_steps`（実際に動的挿入して実行した id）と
+> `PlanStep.dynamic`（step オブジェクト側の印）の**両方**を足して求める
+> ——片方だけでは漏れる。
+
 ### 4.6 memory.py：JSONL への格納とキーワード抽出
 
-`record_many()` は、使ったコレクションごとに `record()` を呼んで JSONL に追記する（`memory.py:119`）。
+`record_many()` は、使ったコレクションごとに `record()` を呼んで JSONL に追記する（`ExecutionMemory.record_many`）。
 
 ```python
-# grace/memory.py:119
+# grace/memory.py :: ExecutionMemory.record_many
 def record_many(self, query, collections, success, confidence, keywords=None):
     kw = keywords if keywords is not None else extract_keywords(query or "")
     seen = set()
@@ -623,7 +648,7 @@ def record_many(self, query, collections, success, confidence, keywords=None):
         self.record(query, c, success, confidence, keywords=kw)
 ```
 
-**キーワード抽出（`extract_keywords`, `memory.py:33`）** は正規表現 `[A-Za-z0-9]{2,}` または `[漢字/かな/カナ]{2,}` の連続を拾う。**形態素解析はしない**ため、日本語は「区切り文字（スペース・記号・英数）が来るまでの連続」が丸ごと 1 キーワードになる。
+**キーワード抽出（`memory.py` の `extract_keywords()`）** は正規表現 `[A-Za-z0-9]{2,}` または `[漢字/かな/カナ]{2,}` の連続を拾う。**形態素解析はしない**ため、日本語は「区切り文字（スペース・記号・英数）が来るまでの連続」が丸ごと 1 キーワードになる。
 
 ```python
 extract_keywords("Python の歴史を教えて")
@@ -639,7 +664,7 @@ extract_keywords("Python の歴史を教えて")
 {"query": "Python の歴史を教えて", "keywords": ["python", "の歴史を教えて"], "collection": "wikipedia_ja", "success": true, "confidence": 0.85, "timestamp": 1750000000.0}
 ```
 
-> 書き込みは **best-effort**（`memory.py:112`）。失敗しても `logger.warning` を出すだけで**実行は止めない**。
+> 書き込みは **best-effort**（`ExecutionMemory.record()` の `try/except`）。失敗しても `logger.warning` を出すだけで**実行は止めない**。
 
 ### 4.7 蓄積で planner が賢くなる例
 
@@ -652,7 +677,7 @@ extract_keywords("Python の歴史を教えて")
 | 3回目 | Python の例外処理とは | collection=`wikipedia_ja`, success=true, conf=0.80 |
 | 4回目 | Python の内包表記とは | ← この計画づくりで初めて「絞り込み」が効く |
 
-4回目の計画づくりで `best_collection("Python の内包表記とは")` が呼ばれると、memory はこう計算する（`memory.py:147` `collection_priors` → `score`）。
+4回目の計画づくりで `best_collection("Python の内包表記とは")` が呼ばれると、memory はこう計算する（`ExecutionMemory.collection_priors()` → `CollectionStat.score()`）。
 
 - キーワード `"python"` を含む過去レコードだけを対象 → 3件（すべて `wikipedia_ja`）
 - `count=3`, `success_count=3`, `mean_confidence=(0.85+0.88+0.80)/3 ≈ 0.843`
@@ -664,7 +689,7 @@ score = (success_count + 1) / (count + 2) × mean_confidence
       = 0.8 × 0.843 ≈ 0.674
 ```
 
-判定（`best_collection`, `memory.py:192`）:
+判定（`ExecutionMemory.best_collection()`）:
 
 ```
 count(3) >= min_count(3)  ✓   かつ   score(0.674) >= min_score(0.6)  ✓
@@ -675,12 +700,12 @@ count(3) >= min_count(3)  ✓   かつ   score(0.674) >= min_score(0.6)  ✓
 
 ### 4.8 読み戻しの場合分け
 
-planner が読むとき、memory 側（`collection_priors`, `memory.py:147`）でもう一段の場合分けがある。
+planner が読むとき、memory 側（`ExecutionMemory.collection_priors()`）でもう一段の場合分けがある。
 
 | 状況 | 挙動 |
 |---|---|
 | **クエリのキーワードに一致する過去レコードがある** | そのレコードだけで集計（＝「この種の質問の」分布） |
-| **一致レコードが 0 件**（`memory.py:168`） | 全レコードで集計に**フォールバック**（全体傾向で代用） |
+| **一致レコードが 0 件**（`collection_priors()` の overlap フィルタ） | 全レコードで集計に**フォールバック**（全体傾向で代用） |
 | **`collection` が空のレコード** | 集計対象から除外 |
 
 > 例：初めて「半導体の動向」を聞いた場合、「python」を含む過去レコードとはキーワードが一致しないので、全体集計にフォールバックする。
@@ -856,6 +881,7 @@ __all__ = [
 |-----------|---------|
 | 1.0 | 初版作成（A グループ 8 モジュールの横断まとめ。先頭にモジュール・ブロック図、3 層構成図、モジュール構成図、処理シーケンス、横断設定表を整備） |
 | 1.1 | 目次・本文の採番を整理（モジュール別サマリーのサブ番号 3.1–3.8 を本文番号と一致させ、目次を明示番号付き箇条書きに変更）。新章「4. 実行メモリが貯まるまで（planner → executor → memory）」を例データ・場合分け・黒背景シーケンス図つきで追加し、以降の章を 5〜9 に繰り下げ |
+| 2.0 | 実装との突き合わせによる訂正。(1) **行番号参照 13 件を全廃**（`planner.py:232`→実際は 254、`executor.py:991`→1026、`executor.py:432`/`:698`→463/729、`executor.py:1891`→2164、`memory.py:147`→161、`memory.py:192`→206 と、ほぼすべてズレていた）。シンボル名参照へ置換した。(2) **§4.5 の `_record_memory` が修正前のコードのままだった**ため、現行実装（`dynamic_steps` ＋ `PlanStep.dynamic` を成否判定から除外し、`_final_answer_of()` の有無も条件に入れる）へ差し替え、回帰の経緯を注記。旧記述のままでは「全ステップ success」が条件に読めるが、それは Web 障害だけで RAG コレクションに失敗が刻まれる不具合そのものだった。(3) 文書冒頭のタイトルが旧名 `grace_a.md` のままだったのを `grace_core.md` へ是正 |
 
 ---
 

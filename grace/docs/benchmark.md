@@ -1,12 +1,21 @@
 # benchmark.py - GRACE ベンチマーク計測 ドキュメント
 
-**Version 1.5** | 最終更新: 2026-06-27
+**Version 2.0** | 最終更新: 2026-09-04
+
+> ## ⚠️ 本書の前提（2026-09-04 訂正）
+>
+> - **モジュールの所在は `grace/step_trace/benchmark.py`**（旧版は `grace/benchmark.py` として書かれていた）。
+>   import は `from grace.step_trace.benchmark import ...`。
+> - **CLI は存在しない。** 旧版が実行方法として挙げていた `run_benchmark.py` /
+>   `run_benchmark.sh` は**リポジトリに無く、git 全履歴にも無い**。
+>   モジュールに `if __name__ == "__main__"` ブロックも無いため、**ライブラリとして呼ぶ**（§6）。
+> - 本書に載る実行ログ・数値は**過去の 1 回の実測**であり、再実行すれば変動する。
 
 ---
 
 ## ベンチマーク実行の様子（FAST モード / 5クエリ）
 
-`uv run python run_benchmark.py --fast --collection cc_news_2per_anthropic` の実行ログから、
+高速モード（`BenchmarkRunner(qdrant_collection="cc_news_2per_anthropic").run_query_set(fast=True)`）の実行ログから、
 実際に画面に出た**表示行（検索イベント + `[BENCHMARK]` 集計）**を時系列で抜き出すと、次の流れになっています。
 
 ### ⏱ 実行タイムライン（表示行の抜粋）
@@ -81,7 +90,7 @@
 
 ## 実行結果サンプル（FAST モード）
 
-> 下表は `python run_benchmark.py --fast` を実行したときの代表結果（`logs/benchmark_results.csv` から抜粋）です。
+> 下表は高速モード（`run_query_set(fast=True)`）を実行したときの代表結果（`logs/benchmark_results.csv` から抜粋）です。
 > 検索ハンドリングの 5 ケース（A: 高スコア命中 / B: 中スコア境界 / C: 低スコア不一致 / D: 要リプラン / E: 曖昧）を 1 本ずつ通過させ、
 > **期待した分岐（経路）どおりに動いたか（`route_correct`）** を自動採点します。
 
@@ -129,14 +138,18 @@
 > 数値は1回分の実測値で、ネットワークや LLM 応答揺らぎにより run ごとに変動します
 > （特に閾値近傍では介入レベルが `NOTIFY`↔`CONFIRM` 等で揺れ、前 run の B=SILENT / C=NOTIFY から本 run では CONFIRM へ動いています）。
 
-**再現方法**
+**再現方法**（CLI は無いので Python から呼ぶ。§6.0 参照）
 
-```bash
+```python
+from grace.step_trace.benchmark import BENCHMARK_QUERIES, BenchmarkRunner
+
 # 代表5クエリ（A〜E 各1本）を高速実行 → logs/benchmark_results.csv に追記
-python run_benchmark.py --fast --collection cc_news_2per_anthropic
+runner = BenchmarkRunner(qdrant_collection="cc_news_2per_anthropic")
+sessions = runner.run_query_set(fast=True)
 
-# クエリ一覧（★=fast対象）を確認
-python run_benchmark.py --list
+# クエリ一覧を確認
+for q in BENCHMARK_QUERIES:
+    print(q["id"], q["case"], q["level"], q["category"])
 ```
 
 ---
@@ -160,7 +173,7 @@ python run_benchmark.py --list
 
 ## 概要
 
-`benchmark.py` は、GRACE エージェントの各フェーズ（Plan / Execute / Confidence /
+`grace/step_trace/benchmark.py` は、GRACE エージェントの各フェーズ（Plan / Execute / Confidence /
 Intervention / Replan）の性能指標を計測・記録・CSV出力するモジュールです。
 評価軸は「ドメイン網羅」ではなく **検索結果スコアに応じた分岐ハンドリングの正しさ**
 に置かれ、2つの主機能（GRACE Plan+Executor / ReAct+Reflection）を別々に計測・比較できます。
@@ -177,11 +190,11 @@ Intervention / Replan）の性能指標を計測・記録・CSV出力するモ�
 
 | # | 責務 | 対応モジュール | 説明 |
 |---|------|--------------|------|
-| 1 | 標準クエリセットの定義・絞り込み | `benchmark.py` | `BENCHMARK_QUERIES` / `select_queries()` |
-| 2 | フルパイプライン実行・計測 | `benchmark.py` | `BenchmarkRunner` が `planner.py`/`executor.py` を駆動 |
-| 3 | 検索ハンドリング指標の自動採点 | `benchmark.py` | `BenchmarkLogger._compute_route_metrics()` |
-| 4 | ログ出力・CSV追記 | `benchmark.py` | `BenchmarkLogger.finalize_and_log()` / `save_to_csv()` |
-| 5 | 2エージェント方式の切替 | `benchmark.py` | `BenchmarkRunner.run_query_set(mode=...)` / `_run_react()` |
+| 1 | 標準クエリセットの定義・絞り込み | `grace/step_trace/benchmark.py` | `BENCHMARK_QUERIES` / `select_queries()` |
+| 2 | フルパイプライン実行・計測 | `grace/step_trace/benchmark.py` | `BenchmarkRunner` が `planner.py`/`executor.py` を駆動 |
+| 3 | 検索ハンドリング指標の自動採点 | `grace/step_trace/benchmark.py` | `BenchmarkLogger._compute_route_metrics()` |
+| 4 | ログ出力・CSV追記 | `grace/step_trace/benchmark.py` | `BenchmarkLogger.finalize_and_log()` / `save_to_csv()` |
+| 5 | 2エージェント方式の切替 | `grace/step_trace/benchmark.py` | `BenchmarkRunner.run_query_set(mode=...)` / `_run_react()` |
 
 ### 主要機能一覧
 
@@ -210,11 +223,10 @@ Intervention / Replan）の性能指標を計測・記録・CSV出力するモ�
 ```mermaid
 flowchart TB
     subgraph CLIENT["クライアント層"]
-        CLI["run_benchmark.py (CLI)"]
         NB["ノートブック / スクリプト"]
     end
 
-    subgraph MODULE["benchmark.py"]
+    subgraph MODULE["grace/step_trace/benchmark.py"]
         RUNNER["BenchmarkRunner"]
         LOGGER["BenchmarkLogger"]
         SESSION["BenchmarkSession"]
@@ -233,7 +245,6 @@ flowchart TB
         CSV["logs/benchmark_results.csv"]
     end
 
-    CLI --> RUNNER
     NB --> RUNNER
     QUERIES --> RUNNER
     RUNNER --> PLANNER
@@ -248,7 +259,7 @@ flowchart TB
     LOGGER --> CSV
 classDef default fill:#000,stroke:#fff,color:#fff
 classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
-class CLI,NB,RUNNER,LOGGER,SESSION,QUERIES,PLANNER,EXECUTOR,REACT,QDRANT,LLM,CSV default
+class NB,RUNNER,LOGGER,SESSION,QUERIES,PLANNER,EXECUTOR,REACT,QDRANT,LLM,CSV default
 style CLIENT fill:#1a1a1a,stroke:#fff,color:#fff
 style MODULE fill:#1a1a1a,stroke:#fff,color:#fff
 style AGENT fill:#1a1a1a,stroke:#fff,color:#fff
@@ -257,7 +268,7 @@ style EXTERNAL fill:#1a1a1a,stroke:#fff,color:#fff
 
 ### 1.2 データフロー
 
-1. CLI／スクリプトが `BenchmarkRunner` を生成し、`run_query_set()` を呼ぶ
+1. ノートブック／スクリプトが `BenchmarkRunner` を生成し、`run_query_set()` を呼ぶ
 2. `select_queries()` で実行対象クエリ（A〜E ケース）を絞り込む
 3. 各クエリを `mode`（grace_dynamic / react）ごとに `run()` で実行
 4. grace_dynamic は `Planner` → `Executor`（Qdrant検索・Claude推論）を駆動
@@ -728,52 +739,31 @@ Case D は 2 本構成です。
 
 ## 6. 使用例
 
-### 6.0 CLI からの実行（`run_benchmark.py` / `run_benchmark.sh`）
+### 6.0 実行方法（CLI は無い）
 
-**(a) シェルラッパー `run_benchmark.sh`（Anthropic 専用・推奨）**
+> ⚠️ 旧版はここで `run_benchmark.sh` / `run_benchmark.py` を実行方法として案内していたが、
+> **どちらもリポジトリに存在しない**（`git log --all --full-history` でも 0 件）。
+> `grace/step_trace/benchmark.py` に `if __name__ == "__main__"` ブロックも無いため、
+> **Python から呼ぶのが唯一の実行方法**である。
 
-Anthropic 設定（モデル・プロバイダー・コレクション）を固定済みのワンショット実行スクリプト。
-`uv run` で全クエリ × 3回を実行し、経路一致率を表示します。
+```python
+from grace.step_trace.benchmark import BenchmarkRunner
 
-```bash
-chmod +x run_benchmark.sh
-./run_benchmark.sh
+# プロバイダ・モデル・コレクションを明示指定すると config.llm の既定に依存しない
+runner = BenchmarkRunner(
+    model_name="claude-sonnet-4-6",
+    provider="anthropic",
+    qdrant_collection="cc_news_2per_anthropic",
+)
+
+sessions = runner.run_query_set(fast=True)          # 代表5クエリ × 1回
+# sessions = runner.run_query_set(runs_per_query=3) # 全クエリ × 3回
+# sessions = runner.run_query_set(fast=True, mode="both")  # GRACE と ReAct を横並び
 ```
 
-スクリプト内の既定値（Anthropic 専用）:
-
-| 変数 | 値 |
-|---|---|
-| `PROVIDER` | `anthropic` |
-| `MODEL` | `claude-sonnet-4-6` |
-| `COLLECTION` | `cc_news_2per_anthropic` |
-
-`BenchmarkRunner(model_name=MODEL, provider=PROVIDER, qdrant_collection=COLLECTION)` を
-明示指定して実行するため、`config.llm` の既定に依存せず確実に Anthropic で計測されます。
-
-**(b) Python CLI `run_benchmark.py`（細かい制御向け）**
-
-```bash
-# フルベンチマーク（全クエリ × 3回）
-python run_benchmark.py
-
-# 高速完了モード（代表5クエリ A〜E × 1回）
-python run_benchmark.py --fast
-
-# コレクション・試行回数を指定
-python run_benchmark.py --collection cc_news_2per_anthropic --runs 2
-
-# 特定クエリだけ / 先頭N件 / 一覧表示
-python run_benchmark.py --query-id Q01 --query-id Q11
-python run_benchmark.py --limit 3
-python run_benchmark.py --list
-
-# GRACE と ReAct+Reflection を横並び比較
-python run_benchmark.py --fast --mode both
-```
-
-実行後、いずれも経路一致率（route_correct）を集計して標準出力へ表示し、
-全セッションを `logs/benchmark_results.csv` に追記します（[実行結果サンプル](#実行結果サンプルfast-モード)参照）。
+引数の詳細は §5（`run_query_set()` の IPO）を参照。
+全セッションは `logs/benchmark_results.csv` に追記される
+（[実行結果サンプル](#実行結果サンプルfast-モード)参照）。
 
 > **前提条件**
 > - Qdrant 起動済み（`localhost:6333`）／対象コレクション（`cc_news_2per_anthropic`）が embedding 済み
@@ -835,6 +825,7 @@ __all__ = [
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 2.0 | 実装との突き合わせによる訂正。(1) **モジュールの所在**を `grace/benchmark.py` から実際の `grace/step_trace/benchmark.py` へ是正（責務表・Mermaid のサブグラフ名を含む）。(2) **CLI `run_benchmark.py` / `run_benchmark.sh` はリポジトリに存在しない**（git 全履歴 0 件・モジュールに `__main__` ブロックも無い）ため、§6.0 を「Python から `BenchmarkRunner` を呼ぶ」実行方法へ全面差し替えし、冒頭の再現方法と実行結果サンプルの見出しも同様に修正。(3) 公開シンボル 26 件のうち文書が触れていないのは `BENCHMARK_LOG_DIR` と `BenchmarkLogger._ensure_csv_headers` の 2 件のみであることを AST で確認（記述内容自体は現行実装と一致） |
 | 1.5 | 冒頭に「ベンチマーク実行の様子（FAST モード / 5クエリ）」セクションを追加。実行ログの表示行（`🔍 Searching` / `[WEB SEARCH IPO]` / `[BENCHMARK]`）を時系列タイムラインとして抜粋し、ケース別解説（A〜E）・読み取り（しきい値介入・経路出し分け・強制リプラン・route_correct 独立採点）を記述。生ログ全文は `temp.txt` に保存。目次を更新 |
 | 1.4 | 「実行結果サンプル」①②表を `--fast --collection cc_news_2per_anthropic` の最新実行（2026-06-27）の実測値へ差し替え。介入は A=NOTIFY / B=CONFIRM(0.616) / C=CONFIRM(0.617) / D=NOTIFY(0.898・replan1で収束) / E=ESCALATE(0.300)。介入レベルが信頼度しきい値（silent 0.9 / notify 0.7 / confirm 0.4）に従う点と、route_correct が介入レベルと独立に経路で採点される点を注記。経路一致率は 5/5=100% を維持 |
 | 1.3 | 「実行結果サンプル」の①②表を最新 FAST 実行（2026-06-26）の実測値へ差し替え（B=SILENT/conf0.915、C/D=NOTIFY、D=replan1で収束、E=ESCALATE）。計測日を更新 |

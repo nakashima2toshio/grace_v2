@@ -1,10 +1,10 @@
 # grace_core_flow.md - GRACE コアの 5 段階設計と最小実行サンプル
 
-**Version 1.1** | 最終更新: 2026-06-28
+**Version 2.0** | 最終更新: 2026-09-04
 
 > **参考ドキュメント**
-> - [`grace/doc/grace_core.md`](./grace_core.md) — コアモジュール群（8 モジュール）の横断アーキテクチャ（構成図・データフロー・IPO リンク集）
-> - [`grace/doc/grace.md`](./grace.md) — GRACE 自律型エージェントのアーキテクチャ概説（思想・ReAct との関係）
+> - [`grace/docs/grace_core.md`](./grace_core.md) — コアモジュール群（8 モジュール）の横断アーキテクチャ（構成図・データフロー・IPO リンク集）
+> - [`grace/docs/grace.md`](./grace.md) — GRACE 自律型エージェントのアーキテクチャ概説（思想・ReAct との関係）
 
 ---
 
@@ -16,10 +16,10 @@
   - [B.1 モジュール構成図](#b1-モジュール構成図)
   - [B.2 モジュール間依存関係テーブル](#b2-モジュール間依存関係テーブル)
 - [C. 役割サマリー](#c-役割サマリー)
-- [D. 最小実行サンプル agent_example.py](#d-最小実行サンプル-agent_examplepy)
-  - [D.1 プログラム全文](#d1-プログラム全文)
+- [D. 最小実行サンプル（本書内のコード例）](#d-最小実行サンプル本書内のコード例)
+  - [D.1 コード全文](#d1-コード全文)
   - [D.2 実行フロー（5 段階との対応）](#d2-実行フロー5-段階との対応)
-  - [D.3 行ごとの解説](#d3-行ごとの解説)
+  - [D.3 箇所ごとの解説](#d3-箇所ごとの解説)
   - [D.4 実行方法・前提](#d4-実行方法前提)
 - [E. プロンプトと API 発行部](#e-プロンプトと-api-発行部)
   - [E.1 発行される API の一覧](#e1-発行される-api-の一覧)
@@ -41,7 +41,7 @@ grace/planner.py      grace/executor.py    grace/confidence.py   grace/calibrati
 grace/memory.py       grace/intervention.py grace/replan.py      grace/tools.py
 ```
 
-本書は、これらコアの **設計思想（5 段階設計）→ 実装構成（モジュール連携）→ 役割サマリー** を俯瞰したうえで、最小実行サンプル `agent_example.py` を題材に「実際にどう動くか」を解説する。各モジュールの IPO 詳細は `grace_core.md` と各個別ドキュメント（`planner.md` 等）に委ねる。
+本書は、これらコアの **設計思想（5 段階設計）→ 実装構成（モジュール連携）→ 役割サマリー** を俯瞰したうえで、**本書内に置いた最小実行サンプル**を題材に「実際にどう動くか」を解説する。各モジュールの IPO 詳細は `grace_core.md` と各個別ドキュメント（`planner.md` 等）に委ねる。
 
 > 📝 **技術スタック**: LLM 用途はすべて **Anthropic Claude**（既定 `claude-sonnet-4-6`、軽量 `claude-haiku-4-5-20251001`、鍵 `ANTHROPIC_API_KEY`）。検索の Embedding のみ **Gemini** `gemini-embedding-001`（3072 次元、鍵 `GOOGLE_API_KEY`）を継続利用する。
 
@@ -209,14 +209,19 @@ style MEMORY fill:#1a1a1a,stroke:#fff,color:#fff
 
 ---
 
-## D. 最小実行サンプル agent_example.py
+## D. 最小実行サンプル（本書内のコード例）
 
-上記アーキテクチャを、もっとも簡略化した形で体験できるのがリポジトリ直下の `agent_example.py` である。`planner.create_plan()`（① Plan）と `executor.execute()`（②〜⑤を内部統括）を呼ぶだけで、コア一式が動く。
+上記アーキテクチャを、もっとも簡略化した形で示したのが以下のコードである。`planner.create_plan()`（① Plan）と `executor.execute()`（②〜⑤を内部統括）を呼ぶだけで、コア一式が動く。
 
-### D.1 プログラム全文
+> ⚠️ **これは本書内の解説用コード片であり、リポジトリに置かれたファイルではない。**
+> 実物のエントリポイントは `agent_support_example.py`（CLI・Web と同じコアを通る）と
+> `grace/step_trace/s0_arg.py` … `s9_render.py`（段ごとの IN/Process/OUT 表示）である。
+> 実行方法は §D.4 を参照。
+
+### D.1 コード全文
 
 ```python
-# agent_example.py
+# 本書内の解説用コード片（リポジトリには存在しない）
 """GRACE エージェントの最小実行サンプル。
 
 planner（計画生成）→ executor（confidence/calibration/intervention/replan/memory を
@@ -226,10 +231,10 @@ planner（計画生成）→ executor（confidence/calibration/intervention/repl
 - `.env` に ANTHROPIC_API_KEY（LLM 用）と GOOGLE_API_KEY（Embedding 用）を設定
 - Qdrant が起動済み（既定 http://localhost:6333）で RAG コレクションが登録済み
 
-使い方::
+使い方（このコード片を任意のファイルに保存した場合）::
 
-    python agent_example.py
-    python agent_example.py "東京タワーの高さは？"
+    python <保存先>.py
+    python <保存先>.py "東京タワーの高さは？"
 """
 from __future__ import annotations
 
@@ -336,7 +341,7 @@ class A0,A1,A2,A3,A4 default
 
 > 💡 `create_executor()` は引数に `tool_registry` を渡すだけだが、内部で `confidence` / `calibration` / `intervention` / `replan` / `memory` を初期化する（`executor.py` 内）。だからサンプルは 2 API だけでコア全体を動かせる。
 
-### D.3 行ごとの解説
+### D.3 箇所ごとの解説
 
 | 箇所 | 内容 | 補足 |
 |---|---|---|
@@ -363,12 +368,14 @@ docker-compose -f docker-compose/docker-compose.yml up -d
 #   ANTHROPIC_API_KEY=...   ← LLM（計画・推論・信頼度評価）
 #   GOOGLE_API_KEY=...      ← Embedding（RAG 検索のベクトル化）
 
-# 3) 実行（既定の質問 / 任意の質問）
-python agent_example.py
-python agent_example.py "東京タワーの高さは？"
+# 3) 実行 — 実物のエントリポイントを使う
+uv run python agent_support_example.py --vertical gov -v "住民票の写しの取り方は？"
+
+# 段ごとに確かめたいとき（IN → Process → OUT を表示）
+uv run python grace/step_trace/s2_plan.py --vertical gov "住民票の写しの取り方は？"
 ```
 
-**出力例（イメージ）**:
+**出力例（イメージ・§D.1 のコード片を動かした場合）**:
 
 ```
 ❓ 質問: 日本の再生可能エネルギー政策の最新動向を教えて
@@ -385,7 +392,7 @@ python agent_example.py "東京タワーの高さは？"
 
 ## E. プロンプトと API 発行部
 
-`agent_example.py` を実行したときに、内部で**実際にどの API が発行され、どんなプロンプトが送られるか**を実コードとともに示す。GRACE 本体は google-genai 形式の `client.models.generate_content(...)` のまま書かれており、`grace/llm_compat.py` がそれを Anthropic の `messages.create(...)` に変換している点が要となる。
+§D のコード片（あるいは実物のエントリポイント `agent_support_example.py`）を実行したときに、内部で**実際にどの API が発行され、どんなプロンプトが送られるか**を実コードとともに示す。GRACE 本体は google-genai 形式の `client.models.generate_content(...)` のまま書かれており、`grace/llm_compat.py` がそれを Anthropic の `messages.create(...)` に変換している点が要となる。
 
 ### E.1 発行される API の一覧
 
@@ -467,7 +474,7 @@ def embed_text(self, text, task_type=None):
 
 ### E.4 利用プロンプト全文
 
-`agent_example.py` の流れで使われるプロンプトの**全文**を以下に示す（プレースホルダ `{...}` は実行時に埋め込まれる）。
+§D の流れで使われるプロンプトの**全文**を以下に示す（プレースホルダ `{...}` は実行時に埋め込まれる）。
 
 #### E.4.1 計画生成プロンプト（① Plan・LLM 計画経路）
 
@@ -762,11 +769,11 @@ class Q,PLAN,EMB,QD,REA,CONF,OUT default
 - **① Plan の三層振り分け**（`planner.py`）: ①曖昧クエリは確認（`ask_user`）計画、②複雑度 `< 0.7` はルールベース 2 ステップ計画（`rag_search → reasoning`）、③複雑度 `≥ 0.7` または Web 検索マーカーで LLM 計画。
 - **② Execute と動的フォールバック**（`executor.py` + `tools.py`）: ステップを順に実行し、RAG 検索のスコア・適合性に応じて `web_search` → `ask_user` を**動的に挿入／スキップ**する。各ツールは `ToolRegistry.execute(name)` で呼ばれ、結果は `ToolResult` に統一される。
 - **③ Confidence（多軸＋較正）**（`confidence.py` + `calibration.py`）: 検索品質・LLM 自己評価・ソース一致・根拠妥当性（groundedness）を統合してスコア化し、`Calibrator` の温度スケーリングで「甘辛」を実正解率へ較正する。閾値は `silent=0.9 / notify=0.7 / confirm=0.4`。サンプルの `overall_confidence` はこの**較正済み**値。
-- **④ Intervention（HITL）**（`intervention.py`）: 信頼度に応じて SILENT（自動進行）／NOTIFY（通知）／CONFIRM（確認）／ESCALATE（要ユーザー入力）にゲートする。`agent_example.py` は非対話のブロッキング実行のため、CONFIRM 相当でも自動進行する（UI 連携時は `execute_plan_generator()` を使い逐次イベントを描画する）。
+- **④ Intervention（HITL）**（`intervention.py`）: 信頼度に応じて SILENT（自動進行）／NOTIFY（通知）／CONFIRM（確認）／ESCALATE（要ユーザー入力）にゲートする。§D のコード片は非対話のブロッキング実行のため、CONFIRM 相当でも自動進行する（UI 連携時は `execute_plan_generator()` を使い逐次イベントを描画する）。
 - **⑤ Replan**（`replan.py`）: ステップ失敗・低信頼度・ユーザーフィードバックを契機に、戦略（FULL/PARTIAL/FALLBACK/SKIP/ABORT）を選び `planner.create_plan()` へ委譲して計画を立て直す（既定 `max_replans=3`）。
 - **memory（横串の学習）**（`memory.py`）: `executor` が「どのコレクションで・成功したか・どれだけ自信があったか」を JSONL に記録し、`planner` が次回 `best_collection()` で優先コレクションを絞り込む（件数 ≥ 3 かつ score ≥ 0.6 で発火）。詳細は `grace_core.md` の「実行メモリが貯まるまで」章を参照。
 - **基盤（config / llm_compat / schemas）**: `get_config()` は `config.py` が YAML＋環境変数から `GraceConfig` を構築。LLM 呼び出しは `llm_compat.create_chat_client()` が **google-genai 互換 IF のまま Anthropic** を呼ぶ。型契約は `schemas.py`。
-- **ブロッキング実行とジェネレータ実行**: `executor.execute(plan)` は完了まで待つブロッキング版。Streamlit UI（`agent_rag.py`）では `execute_plan_generator(plan)` を使い、`log` / `tool_call` / `tool_result` / `final_answer` などの中間イベントを逐次表示する。
+- **ブロッキング実行とジェネレータ実行**: `executor.execute(plan)` は完了まで待つブロッキング版で、内部では `execute_plan_generator(plan)` をドレインしているだけ。逐次表示が要るとき（FastAPI の SSE で進捗を流す Web UI など）は `execute_plan_generator(plan)` を直接使い、`log` / `tool_call` / `tool_result` / `final_answer` などの中間イベントを受け取る。
 
 ---
 
@@ -776,3 +783,4 @@ class Q,PLAN,EMB,QD,REA,CONF,OUT default
 |-----------|---------|
 | 1.0 | 初版作成。参考ドキュメント（`grace_core.md` / `grace.md`）の明示、A: 5 段階設計、B: 8 コアモジュール構成（構成図＋依存テーブル）、C: 役割サマリー、D: `agent_example.py` の全文・実行フロー・行解説・実行方法、E: 補足説明を整備 |
 | 1.1 | D の直後に「E. プロンプトと API 発行部」を追加（API 発行部の実コード、利用プロンプト全文＝計画生成／複雑度推定／推論／信頼度評価群、既定クエリの API 発行順フロー図）。旧 E「理解のための補足説明」を F に繰り下げ |
+| 2.0 | 実装との突き合わせによる訂正。(1) **§D が題材にしていた `agent_example.py` はリポジトリに存在しない**（git 全履歴 0 件）ため、「本書内の解説用コード片」と明示し、実物のエントリポイント（`agent_support_example.py` / `grace/step_trace/s0_arg.py`〜`s9_render.py`）を §D.4 で案内する形へ改めた。(2) §F の `agent_rag.py` / Streamlit（本リポジトリに存在しない）参照を、`execute_plan_generator()` と FastAPI SSE の説明へ差し替え。(3) `grace/doc/`（単数形）リンクを `grace/docs/` へ是正（CLAUDE.md §9.1） |

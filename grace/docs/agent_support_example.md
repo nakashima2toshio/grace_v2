@@ -3,12 +3,12 @@
 **Version 1.2（v1〜v3 ＋ 業界特化 実装済み・IPO 詳細追加）** | 最終更新: 2026-07-08
 
 > **参考ドキュメント**
-> - [`grace/doc/agent_support_example_flow.md`](./agent_support_example_flow.md) — **1 コマンドの実行トレース**（`--vertical gov` の IN/OUT データフロー。本書 §1 のフロー図に対応）
-> - [`docs/migration_and_update.md`](../../docs/migration_and_update.md) — 需要分析と GRACE-Support 採用方針（本設計の上位資料）
-> - [`grace/doc/agent_support_verticals.md`](./agent_support_verticals.md) — 業界特化（自治体/SaaS/EC）設計
-> - [`grace/doc/grace_core_flow.md`](./grace_core_flow.md) — 5 段階設計・8 コアモジュール・プロンプト/API 発行部
-> - [`grace/doc/agent_example_core8.md`](./agent_example_core8.md) — コア 8 モジュール明示利用サンプルの設計書
-> - [`grace/doc/grace_core.md`](./grace_core.md) — コアモジュール群の横断アーキテクチャ
+> - [`grace/docs/agent_support_example_flow.md`](./agent_support_example_flow.md) — **1 コマンドの実行トレース**（`--vertical gov` の IN/OUT データフロー。本書 §1 のフロー図に対応）
+> - `docs/migration_and_update.md`（**本リポジトリには無い**） — 需要分析と GRACE-Support 採用方針（本設計の上位資料）
+> - [`grace/docs/agent_support_verticals.md`](./agent_support_verticals.md) — 業界特化（自治体/SaaS/EC）設計
+> - [`grace/docs/grace_core_flow.md`](./grace_core_flow.md) — 5 段階設計・8 コアモジュール・プロンプト/API 発行部
+> - [`grace/docs/agent_example_core8.md`](./agent_example_core8.md) — コア 8 モジュール明示利用サンプルの設計書
+> - [`grace/docs/grace_core.md`](./grace_core.md) — コアモジュール群の横断アーキテクチャ
 
 > ✅ **実装状況**: `agent_support_example.py` は **v1〜v3 ＋ 業界特化（`--vertical {gov|saas|ec}`）を実装済み**（内部RAG＋出典／Webフォールバック＋相互検証／アクション＋HITL・既定ドライラン／二段判定・④' 情報なし回答検知）。本書は実装に合わせて更新済み。
 >
@@ -165,7 +165,7 @@ class SupportResult:
 
 > 📝 `decision` は `answer` / `escalate` の 2 値（設計当初の `ask`/`action` は `warning` フラグ・`action` フィールドに整理）。
 > `groundedness_decided` / `intent` / `forced_escalate` / `identity_checked` / `no_info_detected` / `web_reused` /
-> `vertical` は **業界特化・二段判定・④' ゲート・KPI 計測**のために追加したフィールド（`eval/vertical/` が参照）。
+> `vertical` は **業界特化・二段判定・④' ゲート**のために追加したフィールド。
 > `Citation` の構造化（kind/collection/score）はコア schemas 化時に導入予定。
 
 ---
@@ -245,7 +245,7 @@ sequenceDiagram
 
 ## 7. プログラム構成（実装済み関数 ＋ IPO 詳細）
 
-`agent_example.py` / `agent_example_core8.py` と同じ CLI 作法（`.env`＋鍵ガード＋`argparse main()`＋`try/except`＋`if __name__`）。
+CLI 作法は `.env` 読み込み＋鍵ガード＋`argparse main()`＋`try/except`＋`if __name__` の順（`grace/step_trace/s0_arg.py`〜`s9_render.py` も同じ作法に揃えてある）。
 7.1〜7.5 は**一覧表（クイックリファレンス）**、[7.6](#76-クラス関数-ipo-詳細) は
 `a_class_method_md_format.md`（IPO 形式）に沿った**各要素の詳細仕様**（概要 / シグネチャ / パラメータ表 / IPO テーブル / 戻り値例 / 使用例）。
 
