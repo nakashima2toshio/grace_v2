@@ -1,6 +1,6 @@
 # schemas.py - GRACE Pydanticスキーマ定義 ドキュメント
 
-**Version 1.2** | 最終更新: 2026-08-01
+**Version 2.0** | 最終更新: 2026-09-04
 
 ---
 
@@ -266,12 +266,40 @@ style UTILS fill:#1a1a1a,stroke:#fff,color:#fff
 | `payload` | `SearchResultPayload` | 検索結果の詳細情報 |
 | `collection` | `str` | 検索元コレクション名 |
 
+#### ScratchpadEntry（S3・ReAct）
+
+| フィールド | 型 | 説明 |
+|-----------|-----|------|
+| `action` | `str` | 実行したアクション |
+| `query` | `Optional[str]` | アクションのクエリ |
+| `observation` | `str` | 観測（ツール出力の要約） |
+| `confidence` | `float` | このターンの信頼度（0.0–1.0） |
+
+#### Scratchpad（S3・ReAct）
+
+| メソッド | 概要 |
+|---------|------|
+| `add(action, observation, confidence, query)` | 1 ターン分を追加。**observation は 600 文字で切り詰める**（プロンプト長を抑えるため） |
+| `as_prompt()` | 観測履歴を LLM プロンプト用に整形。空なら `"(まだ何も実行していません)"` |
+| `last_confidence()` | 最後のエントリの信頼度。空なら `0.0` |
+
+#### AgentThought（S3・ReAct）
+
+| フィールド | 型 | 説明 |
+|-----------|-----|------|
+| `reasoning` | `str` | 現在の状況と次手の根拠 |
+| `next_action` | `Literal["rag_search","web_search","reasoning","ask_user","finish"]` | 次のアクション。**`Literal` なのは表記ゆれで分岐が外れないようにするため** |
+| `query` | `Optional[str]` | 検索／推論クエリ |
+| `collection` | `Optional[str]` | RAG 検索対象コレクション |
+| `is_final` | `bool` | 回答が確定しループを終了してよいか |
+
 ### 3.3 ユーティリティ関数一覧
 
 | 関数名 | 概要 |
 |-------|------|
 | `create_plan_id()` | 一意の計画IDを生成 |
-| `validate_plan_dependencies(plan)` | 計画の依存関係を検証 |
+| `validate_plan_dependencies(plan)` | 計画の依存関係を**検証する**（非破壊・報告のみ） |
+| `repair_plan_dependencies(plan)` | 実行不能な依存を**取り除く**（破壊的）。**警告だけでは、存在しない依存先を持つステップが永久に実行されない** |
 
 ---
 
@@ -771,7 +799,113 @@ print(item.model_dump())
 
 ---
 
-### 4.9 ユーティリティ関数
+### 4.9 ScratchpadEntry クラス（S3・ReAct）
+
+**概要**: ReAct ループ 1 ターン分の観測履歴。
+
+```python
+class ScratchpadEntry(BaseModel):
+    action: str                      # 実行したアクション
+    query: Optional[str] = None      # アクションのクエリ
+    observation: str = ""            # 観測（ツール出力の要約）
+    confidence: float = 0.0          # このターンの信頼度（0.0–1.0）
+```
+
+| フィールド | 型 | 既定 | 制約 | 説明 |
+|---|---|---|---|---|
+| `action` | `str` | **必須** | — | 実行したアクション名 |
+| `query` | `Optional[str]` | `None` | — | アクションのクエリ |
+| `observation` | `str` | `""` | — | ツール出力の要約 |
+| `confidence` | `float` | `0.0` | `ge=0.0, le=1.0` | このターンの信頼度 |
+
+---
+
+### 4.10 Scratchpad クラス（S3・ReAct）
+
+**概要**: ReAct の観測履歴。Reason ステップへ渡す「思考の足場」。
+
+```python
+class Scratchpad(BaseModel):
+    entries: List[ScratchpadEntry] = []
+```
+
+#### メソッド: `add`
+
+```python
+def add(self, action: str, observation: str, confidence: float,
+        query: Optional[str] = None) -> None
+```
+
+| 項目 | 内容 |
+|------|------|
+| **Input** | `action`、`observation`、`confidence`、`query` |
+| **Process** | `observation` が **600 文字を超えたら切り詰めて `"…(省略)"` を付ける**。`ScratchpadEntry` を作って `entries` に追加 |
+| **Output** | `None` |
+
+> 📝 **600 文字で切るのはプロンプト長を抑えるため。** 観測履歴はターンごとに積み上がり、
+> 毎回まるごと Reason のプロンプトへ入る。切らないとターン数に比例して入力トークンが膨らむ。
+
+#### メソッド: `as_prompt`
+
+```python
+def as_prompt(self) -> str
+```
+
+| 項目 | 内容 |
+|------|------|
+| **Input** | なし |
+| **Process** | `entries` が空なら `"(まだ何も実行していません)"`。そうでなければ 1 件ずつ `[番号] action=… query='…' confidence=0.NN` ＋ インデントした `observation:` の 2 行に整形して連結 |
+| **Output** | `str`: LLM プロンプト用の観測履歴 |
+
+**戻り値例**:
+```
+[1] action=rag_search query='住民票 取得方法' confidence=0.82
+    observation: 住民票の写しは市区町村の窓口・コンビニ交付…
+[2] action=reasoning confidence=0.75
+    observation: 取得方法は 3 通りに整理できる…
+```
+
+#### メソッド: `last_confidence`
+
+```python
+def last_confidence(self) -> float
+```
+
+| 項目 | 内容 |
+|------|------|
+| **Input** | なし |
+| **Process** | 最後のエントリの `confidence` を返す。**エントリが無ければ `0.0`** |
+| **Output** | `float` |
+
+---
+
+### 4.11 AgentThought クラス（S3・ReAct）
+
+**概要**: ReAct の Reason 出力 — 次の 1 手と停止判定。
+
+```python
+class AgentThought(BaseModel):
+    reasoning: str = ""
+    next_action: Literal["rag_search", "web_search", "reasoning", "ask_user", "finish"] = "reasoning"
+    query: Optional[str] = None
+    collection: Optional[str] = None
+    is_final: bool = False
+```
+
+| フィールド | 型 | 既定 | 説明 |
+|---|---|---|---|
+| `reasoning` | `str` | `""` | 現在の状況と次手の根拠（簡潔に） |
+| `next_action` | `Literal[...]` | `"reasoning"` | 次に実行するアクション。十分なら `"finish"` |
+| `query` | `Optional[str]` | `None` | 検索／推論のためのクエリ |
+| `collection` | `Optional[str]` | `None` | RAG 検索対象コレクション |
+| `is_final` | `bool` | `False` | このアクションで回答が確定し、ループを終了してよいか |
+
+> 📝 **`next_action` が `Literal` なのは構造化出力のため。** LLM に自由文字列で
+> アクション名を書かせると表記ゆれで分岐が外れる。スキーマで候補を閉じてある。
+
+---
+
+### 4.12 ユーティリティ関数
 
 #### `create_plan_id`
 
@@ -856,6 +990,54 @@ if errors:
 else:
     print("依存関係は正常です")
 ```
+
+---
+
+#### `repair_plan_dependencies`
+
+**概要**: 計画から**実行不能な依存を取り除く**（破壊的）。
+
+```python
+def repair_plan_dependencies(plan: ExecutionPlan) -> List[str]
+```
+
+| パラメータ | 型 | デフォルト | 説明 |
+|------------|------|-----------|------|
+| `plan` | `ExecutionPlan` | - | 修復対象の計画（**その場で書き換わる**） |
+
+| 項目 | 内容 |
+|------|------|
+| **Input** | `plan: ExecutionPlan` |
+| **Process** | 全ステップ ID の集合を作り、各ステップの `depends_on` を走査。① 存在しない依存先 ② 後方／循環依存（`dep_id >= step_id`）を落とし、残りで `step.depends_on` を置き換える |
+| **Output** | `List[str]`: 取り除いた依存の説明リスト（空なら修復不要だった） |
+
+> ⚠️ **なぜ「警告」では足りないのか。**
+> `Executor._check_dependencies` は、依存先が `state.step_results` に無い限りそのステップを
+> 実行しない。つまり**存在しないステップ ID への依存を持つステップは永久に実行されない**。
+> それが reasoning ステップだと、**回答が一切生成されないまま計画が「完走」する。**
+>
+> LLM が計画 JSON を組み立てる際に依存 ID を取り違えることがあり、実測でも
+> `Step 4: 存在しない依存先 3` が出たまま `validate_plan_dependencies` の警告だけで採用され、
+> そのステップが黙って飛ばされていた。
+
+> 📝 **落とすのは依存だけで、ステップ自体は残す。** 依存が無ければそのステップは実行される
+> （前段の結果は `_prepare_tool_kwargs` が `state.step_results` 全体から拾うため、
+> 実行順さえ保てば動く）。
+
+**戻り値例**:
+```python
+# 修復不要
+[]
+
+# 修復した場合
+[
+    "Step 4: 存在しない依存先 3 を除去",
+    "Step 3: 後方/循環依存 4 を除去"
+]
+```
+
+> 📌 **`validate_plan_dependencies` との違い**: あちらは**報告するだけ**（非破壊）、
+> こちらは**直す**（破壊的）。計画採用前のゲートには `repair_` を使う。
 
 ---
 
@@ -1017,6 +1199,11 @@ __all__ = [
     "StepResult",
     "ExecutionResult",
 
+    # S3: ReAct schemas
+    "ScratchpadEntry",
+    "Scratchpad",
+    "AgentThought",
+
     # Search result schemas (RAG/Web common)
     "SearchResultPayload",
     "SearchResultItem",
@@ -1024,6 +1211,7 @@ __all__ = [
     # Utilities
     "create_plan_id",
     "validate_plan_dependencies",
+    "repair_plan_dependencies",
 ]
 ```
 
@@ -1035,6 +1223,7 @@ __all__ = [
 |-----------|------|---------|
 | 1.0 | 2025-01-29 | 初版作成 |
 | 1.1 | 2026-06-16 | 検索結果スキーマ（`SearchResultPayload`/`SearchResultItem`）を追加、全Mermaid図に黒背景・白文字スタイルを適用 |
+| 2.0 | 2026-09-04 | **未記載シンボル 7 件を追加**（AST 照合）。(1) **ReAct（S3）の 3 クラス `ScratchpadEntry` / `Scratchpad` / `AgentThought` がまるごと欠落**していたため §4.9〜§4.11 を新設し、§4.9 だったユーティリティ関数を §4.12 へ繰り下げ。`Scratchpad.add` / `as_prompt` / `last_confidence` も IPO で記述（`add` が observation を 600 文字で切るのは、履歴が毎ターン Reason のプロンプトへ丸ごと入るため）。(2) **`repair_plan_dependencies` が未記載**だった。`validate_plan_dependencies` は報告するだけの非破壊で、警告のまま採用すると**存在しない依存先を持つステップが永久に実行されない**（reasoning ステップだと回答が一切生成されないまま計画が「完走」する）。両者の役割の違いを明記。(3) §3.2 / §3.3 の一覧表と §7 の `__all__` を実装と一致させた |
 | 1.2 | 2026-08-01 | 実装（07-26）へ追随。`StepResult.source_texts`（P-01b・**根拠検証用の出典本文**）をフィールド表と定義ブロックへ追加。表示用の `sources`（識別子）との用途の違いと、識別子を検証器へ渡すと全 neutral 化して支持率の分母が 0 になることを明記 |
 
 ---

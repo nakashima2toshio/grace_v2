@@ -1,6 +1,6 @@
 # tools.py - ツール定義モジュール ドキュメント
 
-**Version 3.0** | 最終更新: 2026-09-04
+**Version 3.1** | 最終更新: 2026-09-04
 
 ---
 
@@ -28,8 +28,9 @@
    - [ReasoningTool クラス](#44-reasoningtool-クラス)
    - [AskUserTool クラス](#45-askusertool-クラス)
    - [WebSearchTool クラス](#46-websearchtool-クラス)
-   - [ToolRegistry クラス](#47-toolregistry-クラス)
-   - [ファクトリ関数](#48-ファクトリ関数)
+   - [CodeExecuteTool クラス（opt-in）](#47-codeexecutetool-クラスopt-in)
+   - [ToolRegistry クラス](#48-toolregistry-クラス)
+   - [ファクトリ関数](#49-ファクトリ関数)
 6. [設定・定数](#5-設定定数)
 7. [使用例](#6-使用例)
 8. [エクスポート](#7-エクスポート)
@@ -62,7 +63,8 @@ LLM 推論は Anthropic Claude（既定 `claude-sonnet-4-6`）を使用します
 | 3 | 外部 Web 検索 | `grace/tools.py` | `WebSearchTool` が SerpAPI/DDG/Google CSE を切替 |
 | 4 | LLM 推論による回答生成 | `grace/tools.py` | `ReasoningTool` が `grace/llm_compat.create_chat_client`（Anthropic 互換）を使用 |
 | 5 | ユーザーへの追加情報要求 | `grace/tools.py` | `AskUserTool`（HITL、Function Calling 定義付き） |
-| 6 | レジストリ管理・実行ディスパッチ | `grace/tools.py` | `ToolRegistry` と `create_tool_registry()` |
+| 6 | サンドボックス Python 実行 | `grace/tools.py` | `CodeExecuteTool`（**opt-in**。別プロセス＋`resource` 制限＋AST 静的検査） |
+| 7 | レジストリ管理・実行ディスパッチ | `grace/tools.py` | `ToolRegistry` と `create_tool_registry()` |
 
 ### 主要機能一覧
 
@@ -81,6 +83,8 @@ LLM 推論は Anthropic Claude（既定 `claude-sonnet-4-6`）を使用します
 | `AskUserTool.execute()` | 質問情報を `ToolResult` として返す |
 | `WebSearchTool` | Web 検索ツール（複数バックエンド対応） |
 | `WebSearchTool.execute()` | Web 検索の実行と RAG 互換変換 |
+| `CodeExecuteTool` | サンドボックス Python 実行ツール（**opt-in**・既定の `tools.enabled` に無い） |
+| `CodeExecuteTool._static_check()` | AST で禁止 import・危険属性・`eval` 等を拒否 |
 | `ToolRegistry` | ツールレジストリ |
 | `ToolRegistry.execute()` | 名前指定でツールを実行 |
 | `create_tool_registry()` | `ToolRegistry` を生成するファクトリ関数 |
@@ -103,6 +107,7 @@ flowchart TB
         WEB["WebSearchTool"]
         REASON["ReasoningTool"]
         ASK["AskUserTool"]
+        CODE["CodeExecuteTool (opt-in)"]
     end
 
     subgraph EXTERNAL["外部サービス層"]
@@ -110,6 +115,7 @@ flowchart TB
         CLAUDE["Anthropic Claude (llm_compat)"]
         SEARCHAPI["SerpAPI / DuckDuckGo / Google CSE"]
         USER["ユーザー (HITL)"]
+        SUBPROC["別プロセス (python -I -S)"]
     end
 
     EXECUTOR --> REGISTRY
@@ -117,13 +123,15 @@ flowchart TB
     REGISTRY --> WEB
     REGISTRY --> REASON
     REGISTRY --> ASK
+    REGISTRY -.opt-in.-> CODE
+    CODE --> SUBPROC
     RAG --> QDRANT
     WEB --> SEARCHAPI
     REASON --> CLAUDE
     ASK --> USER
 classDef default fill:#000,stroke:#fff,color:#fff
 classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
-class EXECUTOR,REGISTRY,RAG,WEB,REASON,ASK,QDRANT,CLAUDE,SEARCHAPI,USER default
+class EXECUTOR,REGISTRY,RAG,WEB,REASON,ASK,CODE,QDRANT,CLAUDE,SEARCHAPI,USER,SUBPROC default
 style CLIENT fill:#1a1a1a,stroke:#fff,color:#fff
 style MODULE fill:#1a1a1a,stroke:#fff,color:#fff
 style EXTERNAL fill:#1a1a1a,stroke:#fff,color:#fff
@@ -155,6 +163,7 @@ flowchart TB
         WEBT["WebSearchTool"]
         REASONT["ReasoningTool"]
         ASKT["AskUserTool"]
+        CODET["CodeExecuteTool (opt-in)"]
     end
 
     subgraph REG["レジストリ・ファクトリ"]
@@ -166,7 +175,9 @@ flowchart TB
     BT --> WEBT
     BT --> REASONT
     BT --> ASKT
+    BT --> CODET
     RAGT --> TR
+    CODET --> TR
     WEBT --> TR
     REASONT --> TR
     ASKT --> TR
@@ -175,9 +186,10 @@ flowchart TB
     REGC --> WEBT
     REGC --> REASONT
     REGC --> ASKT
+    REGC -.opt-in.-> CODET
 classDef default fill:#000,stroke:#fff,color:#fff
 classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
-class TR,BT,RAGT,WEBT,REASONT,ASKT,REGC,FACT default
+class TR,BT,RAGT,WEBT,REASONT,ASKT,CODET,REGC,FACT default
 style DATA fill:#1a1a1a,stroke:#fff,color:#fff
 style TOOLS fill:#1a1a1a,stroke:#fff,color:#fff
 style REG fill:#1a1a1a,stroke:#fff,color:#fff
@@ -235,8 +247,13 @@ style REG fill:#1a1a1a,stroke:#fff,color:#fff
 | `__init__(config, qdrant_url)` | コンストラクタ。KeywordExtractor を初期化 |
 | `client` (property) | Qdrant クライアントの遅延初期化 |
 | `execute(query, collection, limit, score_threshold, **kwargs)` | RAG 検索の実行 |
-| `_get_all_collections_dynamic()` | 全コレクションを動的取得し優先順位付け |
-| `_calculate_confidence_factors(scores, backend)` | スコア統計を算出。**正準キー `max_score` / `score_variance` を必ず含める**（欠けると Executor が黙って既定値に落ちる） |
+| `_collection_dense_dim(name)` | 指定コレクションの密ベクトル次元を返す（無名 `VectorParams` と名前付き `dict` の両方に対応）。取得不可なら `None` |
+| `_get_all_collections_dynamic()` | 全コレクションを動的取得し優先順位付け（次元一致＋実体ありのみ採用・プロセス内キャッシュ） |
+| `clear_collections_cache()` (classmethod) | 有効コレクションのキャッシュを捨てる。**キャッシュはクラス単位**（本ツールはクエリ毎・リプラン毎に再生成されるため） |
+| `_embed_query_once(query, collection_count)` | クエリの dense/sparse を**1 回だけ**作って全コレクションで再利用。以前は 1 質問でコレクション数ぶんの Embedding API を叩いていた（実測 7 回・約 4 秒） |
+| `_apply_excluded_collections(candidates, protected)` | 汎用コーパスを横断検索から外す（部分一致）。**明示指定（`protected`）は落とさない**。全件除外になる場合は適用しない |
+| `_apply_allowed_collections(candidates, allowed)` (staticmethod) | 許可リストで検索候補を絞る。**順序は `allowed` の並びを優先**（P-03。`search_priority` 順のままだと業界プロファイルの優先順位が無視される） |
+| `_calculate_confidence_factors(scores)` | スコア統計を算出（`result_count` / `avg_score` / `score_variance` / `max_score` / `min_score`）。**正準キーのみを返す** |
 
 #### ReasoningTool
 
@@ -244,6 +261,8 @@ style REG fill:#1a1a1a,stroke:#fff,color:#fff
 |---------|------|
 | `__init__(config, model_name)` | コンストラクタ。Anthropic 互換クライアントを生成 |
 | `execute(query, context, sources, **kwargs)` | LLM 推論で回答生成 |
+| `_now_text(now)` (classmethod) | プロンプトへ埋める現在日時。**今日と明日を両方**渡す（月末・年末をまたぐと LLM が明日を誤るため） |
+| `_source_origin(source)` (classmethod) | 情報源が「社内」か「Web」かを判定。**Web の内容を「社内ナレッジによると」と提示する**壊れ方を防ぐ（groundedness でも回答ゲートでも検出できない） |
 | `_build_prompt(query, context, sources)` | 推論用プロンプトを構築 |
 
 #### AskUserTool
@@ -264,13 +283,28 @@ style REG fill:#1a1a1a,stroke:#fff,color:#fff
 | `_search_serpapi(query, num_results, language)` | SerpAPI バックエンド（リトライ付き）。失敗時は**応答本文**（SerpAPI の `{"error": ...}`）をログに残す。ログ・例外に **API キーを出さない**（`_mask_secret`。requests の例外メッセージは URL を含み、SerpAPI はキーをクエリパラメータで受け取るため） |
 | `_parse_to_rag_format(raw_results, num_results, backend)` | RAG 互換フォーマットへ変換（順位ベースの正規化スコアを付与し、最後に `_prefer_domains()` を通す） |
 | `_prefer_domains(formatted)` | **優先ドメインを加点して上位へ並べ替える**（W-1・除外はしない） |
-| `_calculate_confidence_factors(scores)` | スコア統計を算出 |
+| `_calculate_confidence_factors(scores, backend)` | スコア統計を算出。**正準キー `max_score` / `score_variance` を必ず含める**（欠けると Executor が黙って既定値に落ちる）。`top_score` / `score_spread` は旧ログ互換で併存 |
+
+#### CodeExecuteTool（opt-in）
+
+| メソッド | 概要 |
+|---------|------|
+| `__init__(config)` | コンストラクタ。`config.code_execute` を保持 |
+| `_static_check(code)` | AST で構文検証＋禁止 import / 危険属性 / `eval` 等の呼び出しを拒否 |
+| `_apply_limits(cpu_seconds, mem_bytes)` (staticmethod) | 子プロセスで `resource` 制限を適用（POSIX のみ）。**`preexec_fn` 内で例外を投げるとサブプロセス生成自体が失敗する**ため各制限を個別に try/except。macOS では `RLIMIT_AS` を適用しない |
+| `execute(code, query, **kwargs)` | 静的検査 → 別プロセス（`python -I -S`）で実行 → stdout を返す |
 
 #### モジュール関数
 
 | 関数名 | 概要 |
 |-------|------|
 | `_url_host(url)` | URL からホスト名（小文字・ポート除去）を取り出す。取れなければ空文字 |
+| `_unescape_json_escapes(text)` | 文字列に残った `\uXXXX` 形式のエスケープを実文字へ戻す（`_JSON_ESCAPE_RE` を使用） |
+| `_mask_secret(text, secret)` | ログ・例外メッセージから API キーを伏せる |
+
+| モジュール定数 | 値 |
+|---|---|
+| `_JSON_ESCAPE_RE` | `re.compile(r"\\u([0-9a-fA-F]{4})")` — `_unescape_json_escapes()` が使う |
 
 #### ToolRegistry
 
@@ -548,6 +582,145 @@ print(stats["avg_score"])
 
 ---
 
+#### メソッド: `_collection_dense_dim`
+
+**概要**: 指定コレクションの密ベクトル次元を返す（取得不可なら `None`）。
+
+```python
+def _collection_dense_dim(self, name: str) -> Optional[int]
+```
+
+| 項目 | 内容 |
+|------|------|
+| **Input** | `name`: コレクション名 |
+| **Process** | `client.get_collection(name)` → `config.params.vectors`。`None` なら `None`。`size` 属性があればそれ、無く `dict`（名前付きベクトル）なら最初に `size` を持つ値を採る |
+| **Output** | `Optional[int]`: 次元数。例外時は `logger.warning` を出して `None` |
+
+> 📝 **無名ベクトル（`VectorParams`）と名前付きベクトル（`dict`）の両方に対応する。**
+> `_get_all_collections_dynamic()` が「embedding 次元と一致するコレクションだけを採る」
+> 判定に使う。ここが `None` を返すコレクションは候補から外れる。
+
+#### クラスメソッド: `clear_collections_cache`
+
+**概要**: 有効コレクションのキャッシュをクリアする（テスト・再登録後用）。
+
+```python
+@classmethod
+def clear_collections_cache(cls) -> None
+```
+
+| 項目 | 内容 |
+|------|------|
+| **Input** | なし |
+| **Process** | クラス変数 `_VALID_COLLECTIONS_CACHE` を空にする |
+| **Output** | `None` |
+
+> 📝 **キャッシュがクラス単位である理由。** `RAGSearchTool` は**クエリ毎・リプラン毎に
+> 再生成される**ため、インスタンス変数ではステップごとに Qdrant を re-scan してしまう。
+> キーは `"<qdrant_url>@<embedding_dim>"`。コレクションを登録し直したときや
+> テストの前後では、このメソッドで明示的に捨てる。
+
+#### メソッド: `_embed_query_once`
+
+**概要**: クエリの dense / sparse ベクトルを **1 回だけ**作って返す。
+
+```python
+def _embed_query_once(self, query: str, collection_count: int) -> tuple
+```
+
+| 項目 | 内容 |
+|------|------|
+| **Input** | `query`、`collection_count`（横断するコレクション数） |
+| **Process** | `collection_count <= 1` なら `(None, None)` を返して下位に任せる。そうでなければ `qdrant_client_wrapper.embed_query()` で dense を作る（失敗したら `(None, None)`）。続けて `embed_sparse_query_unified()` で sparse を作る（失敗しても dense だけで続行） |
+| **Output** | `tuple`: `(dense_vector, sparse_vector)`。作れなかった側は `None` |
+
+> ⚠️ **同じクエリを何度も埋め込まない。**
+> `search_rag_knowledge_base_structured` は `precomputed_*` を渡さないと
+> **呼び出しごとにクエリを埋め込み直す**。全コレクションを順に舐めるループなので、
+> 1 質問あたりコレクション数ぶんの Embedding API 呼び出しが発生していた。
+> 実測（2026-08-17・7 コレクション）: `batchEmbedContents` ×7（同一クエリ）で**約 4 秒**。
+> クエリベクトルはコレクションに依存しないので、結果は 7 回とも同じ。
+> 外部 API（Gemini）なので待ち時間だけでなく**課金にも効く**。
+
+> 📝 **失敗しても検索は止めない。** `None` を返せば下位が従来どおりコレクションごとに
+> 埋め込む（＝この最適化が無い状態へ戻るだけ）。
+
+#### メソッド: `_apply_excluded_collections`
+
+**概要**: 汎用コーパスを横断検索から外す（**部分一致**）。
+
+```python
+def _apply_excluded_collections(
+    self, candidates: List[str], protected: Optional[List[str]] = None
+) -> List[str]
+```
+
+| パラメータ | 型 | デフォルト | 説明 |
+|------------|------|-----------|------|
+| `candidates` | List[str] | - | 動的取得された横断候補 |
+| `protected` | Optional[List[str]] | None | 除外リストに当たっても落とさないコレクション |
+
+| 項目 | 内容 |
+|------|------|
+| **Input** | `candidates`、`protected`、`config.qdrant.excluded_collections` |
+| **Process** | 除外リストが空なら素通し。各候補について、`protected` に含まれるか、除外キーワードのいずれも**含まない**なら残す。**全件除外になる場合はフィルタを適用しない**（警告ログ） |
+| **Output** | `List[str]`: 絞り込み後の候補 |
+
+> ⚠️ **なぜ許可リストでは足りないのか。**
+> `allowed_collections` は業界プロファイル（gov/saas/ec）を指定したときにしか注入されない。
+> 業界指定なしの「基本版」パイプラインでは空のままなので、Qdrant にあるコレクションが
+> **全部**横断検索の対象になる。
+>
+> 汎用コーパス（Wikipedia / ニュース / Web クロール）は業務ナレッジではないのに、
+> 話題の幅が広いぶん**どんな質問にも 0.5〜0.6 台で当たる**。
+> 実測「明日の東京の天気は？」では `cc_news_2per_anthropic` 0.6658 /
+> `fineweb_edu_ja_5per` 0.6058 / `wikipedia_ja_5per` 0.5375 が上位を占め、
+> AI・インドネシア首都移転・著作権といった無関係文書が「社内ナレッジ」として
+> reasoning プロンプトと出典一覧に載っていた。
+
+> ⚠️ **明示指定は尊重する。** `collection` 引数や業界プロファイルの
+> `allowed_collections` で名指しされたものは、除外リストに当たっても落とさない
+> （呼び出し側が `protected` で渡す）。ここで落とすのは
+> **動的取得された横断候補だけ**である。
+
+> ⚠️ **メモリの推測は「明示指定」ではない。** `PlanStep.collection` には実行メモリが
+> 学習した優先コレクションも入るため、ここでは区別が付かない。除外対象がメモリ経由で
+> 復活しないよう、**Planner 側**（`_is_excluded` → `best_collection(exclude=...)`）で
+> 先に落としている。
+
+#### 静的メソッド: `_apply_allowed_collections`
+
+**概要**: 許可リストで検索候補を絞る（業界プロファイル等の検索スコープ制限）。
+
+```python
+@staticmethod
+def _apply_allowed_collections(candidates: List[str], allowed: List[str]) -> List[str]
+```
+
+| 項目 | 内容 |
+|------|------|
+| **Input** | `candidates`、`allowed`（許可キーワード列） |
+| **Process** | `allowed` が空なら制限なし。**`allowed` の並び順**で外側ループを回し、`a == c or a in c`（部分一致）で候補を拾って `scoped` へ積む。1 つも一致しなければ**制限を適用せず**候補をそのまま返す（警告ログ） |
+| **Output** | `List[str]`: 許可リスト順に並んだ候補 |
+
+> 📝 **一致は `search_priority` と同じ部分一致（含有）。** 許可キーワード `"wikipedia_ja"` は
+> 実コレクション `"wikipedia_ja_5per"` にも一致する。実環境のコレクション名はサフィックス付きが
+> 多く、完全一致だとスコープ制限が意図せず素通りするため。
+
+> ⚠️ **順序は `allowed` の並び順を優先する（P-03）。** `candidates` は汎用の
+> `config.qdrant.search_priority`（既定で `wikipedia_ja` が先頭）順に並んでおり、
+> そのまま絞り込むと業界プロファイルが指定した優先順位が無視される。
+> 実測では gov で `[wikipedia_ja_5per, gov_laws, gov_faq]` の順になり、
+> **正解のある `gov_faq` が最後に評価されていた**（プロファイル定義は
+> `[gov_faq, gov_laws, wikipedia_ja]` と正しい順序を持っている）。
+> 許可リストは「この業界で信頼できる順」に書かれた意図的な並びなので、そちらを尊重する。
+> 同一の許可キーワードに複数候補が一致する場合は `candidates` 側の並び（＝`search_priority` 順）を保つ。
+
+> 📝 **一致 0 件で制限を掛けない**のは、コレクション未登録の段階でもデモ・評価が動くようにするため。
+> 厳格に閉じたい場合は `restrict_to_collection` を併用する。
+
+---
+
 ### 4.4 ReasoningTool クラス
 
 収集した情報を統合して回答を生成する LLM 推論ツール。`grace/llm_compat.create_chat_client` 経由で Anthropic Claude（既定 `claude-sonnet-4-6`）を genai 互換インターフェースで呼び出します。
@@ -635,6 +808,64 @@ tool = ReasoningTool()
 result = tool.execute(query="退職手続きは？", sources=rag_results)
 print(result.output)
 ```
+
+#### クラスメソッド: `_now_text`
+
+**概要**: プロンプトへ埋める現在日時の文字列を作る。
+
+```python
+@classmethod
+def _now_text(cls, now: Optional[datetime] = None) -> str
+```
+
+| 項目 | 内容 |
+|------|------|
+| **Input** | `now`（省略時は `datetime.now()`。テストから固定時刻を渡せる） |
+| **Process** | `now` と `now + timedelta(days=1)` を、`_WEEKDAYS_JA`（`("月","火","水","木","金","土","日")`）で曜日つきに整形し、相対表現の読み替え指示を添える |
+| **Output** | `str`: 「今日は…／「明日」は…／相対的な日付表現は上記を基準に読み替えてください」の 3 行 |
+
+> ⚠️ **今日と明日を両方渡す。** 「明日」を LLM に計算させると誤る
+> （**月末・年末をまたぐケースで特に**）ため、こちらで計算して渡す。
+> 曜日を日本語で出すのは「今週の金曜」等を解決させるため。
+
+**戻り値例**:
+```
+今日は 2026年09月04日（金曜日）22:38 です。
+「明日」は 2026年09月05日（土曜日）を指します。
+質問に「明日」「今週」「先月」などの相対的な日付表現が含まれる場合は、上記を基準に具体的な日付へ読み替えて参照情報を解釈してください。
+```
+
+#### クラスメソッド: `_source_origin`
+
+**概要**: 情報源が**社内ナレッジか Web か**を判定する。
+
+```python
+@classmethod
+def _source_origin(cls, source: Dict) -> str
+```
+
+| 項目 | 内容 |
+|------|------|
+| **Input** | `source`: 検索結果 1 件（`collection` と `payload` を持つ dict） |
+| **Process** | **2 段構え**。① `collection == "web_search"` なら Web ② `payload.source` が `http://` / `https://` で始まるなら Web ③ どちらでもなければ社内 |
+| **Output** | `str`: `_ORIGIN_INTERNAL`（`"社内"`）または `_ORIGIN_WEB`（`"Web"`）。回答規則 3 がこの語をそのまま使う |
+
+> ⚠️ **なぜ要るのか（実測の不具合）。**
+> 回答規則が種別を問わず「社内ナレッジ（出典ファイル名）によると…」を指示していたため、
+> LLM は指示どおり **Web の内容にもこの形式を当てはめた**。実測（「明日の東京の天気は？」）:
+>
+> ```
+> Yahoo!天気によると、…確認できる情報源があります（社内ナレッジ（web_search））。
+> ```
+>
+> Yahoo!天気は社内ナレッジではない。**外部 Web の内容を社内の裏付けとして提示する**のは、
+> 根拠の信頼性を売りにするこのシステムで最も避けたい壊れ方であり、
+> **groundedness でも回答ゲートでも検出できない**（述べている内容自体は情報源に忠実なので
+> 支持率は下がらない）。
+
+> 📝 **判定が 2 段なのは経路によって `collection` が落ちるから。** 本来の印は
+> `collection == "web_search"` だが、それが無い経路のために URL 形式でも判定する
+> （`gates._collect_citations` と同じ規則）。
 
 #### メソッド: `_build_prompt`
 
@@ -992,7 +1223,134 @@ def _calculate_confidence_factors(self, scores: list,
 
 ---
 
-### 4.7 ToolRegistry クラス
+### 4.7 CodeExecuteTool クラス（opt-in）
+
+Python コードを**サンドボックスで実行**し標準出力を返すツール（P2）。
+
+> ⚠️ **既定では有効になっていない。** `tools.enabled` に `"code_execute"` を
+> 明示的に足したときだけ `ToolRegistry._register_default_tools()` が登録する。
+
+**サンドボックスの構成（best-effort）**
+
+| 層 | 内容 |
+|---|---|
+| プロセス分離 | 別プロセスで実行（`python -I -S`＝isolated mode ＋ `site` 無効） |
+| resource 制限 | CPU 時間 / アドレス空間 / 生成ファイルサイズ（**POSIX のみ**） |
+| 環境の最小化 | 環境変数は `PATH` / `PYTHONIOENCODING` / `LC_ALL` / `HOME` のみ。`stdin` は `DEVNULL`。一時ディレクトリで実行 |
+| 実時間タイムアウト | `timeout=cpu + 1` 秒で強制終了 |
+| 静的検査 | AST レベルで危険な import / 属性 / 関数呼び出しを拒否（多層防御） |
+
+> ⚠️ **これは利便性のための隔離であり、決定的な攻撃者に対するセキュリティ境界ではない。**
+> 信頼できないコードにはコンテナ / gVisor 等の**外部境界を併用**すること。
+
+#### コンストラクタ: `__init__`
+
+```python
+def __init__(self, config: Optional[GraceConfig] = None)
+```
+
+| 項目 | 内容 |
+|------|------|
+| **Input** | `config`（None なら `get_config()`） |
+| **Process** | `self.cfg = config.code_execute` を保持するだけ |
+| **Output** | `CodeExecuteTool` インスタンス |
+
+#### メソッド: `_static_check`
+
+**概要**: AST で構文検証し、禁止 import / 危険な属性・関数呼び出しを拒否する。
+
+```python
+def _static_check(self, code: str) -> tuple[bool, Optional[str]]
+```
+
+| 項目 | 内容 |
+|------|------|
+| **Input** | `code`: 実行しようとしている Python ソース |
+| **Process** | `ast.parse()`（失敗なら `SyntaxError` を理由に拒否）。`ast.walk` で全ノードを見て ① `Import` / `ImportFrom` のトップレベル名が `cfg.denied_imports` にあれば拒否 ② `Attribute` の属性名が危険集合（`system` / `popen` / `exec` / `execv` / `execve` / `spawn` / `spawnv` / `fork` / `remove` / `rmdir` / `unlink`）なら拒否 ③ `Call` の関数名が `eval` / `exec` / `compile` / `__import__` なら拒否 |
+| **Output** | `tuple[bool, Optional[str]]`: `(True, None)` または `(False, 理由)` |
+
+**戻り値例**:
+```python
+(False, "禁止された import: socket")
+(False, "禁止された属性アクセス: .system")
+(False, "禁止された関数呼び出し: eval()")
+```
+
+> 📝 **属性名だけを見るので `os.system` も `foo.system` も等しく拒否される。**
+> 変数の型を追わない代わりに取りこぼしが無い側に倒してある（多層防御の 1 枚目であり、
+> これ単体で守り切る設計ではない）。
+
+#### 静的メソッド: `_apply_limits`
+
+**概要**: 子プロセスで `resource` 制限を適用する（**POSIX のみ・best-effort**）。
+
+```python
+@staticmethod
+def _apply_limits(cpu_seconds: int, mem_bytes: int)
+```
+
+| 項目 | 内容 |
+|------|------|
+| **Input** | `cpu_seconds`、`mem_bytes` |
+| **Process** | 内部の `_safe_setrlimit()` で各制限を**個別に** try/except しながら設定する。① `RLIMIT_CPU`（秒）② `RLIMIT_AS`（**`sys.platform != "darwin"` のときだけ**）③ `RLIMIT_FSIZE`（1MB 固定） |
+| **Output** | `None`（`subprocess.run(preexec_fn=...)` から呼ばれる） |
+
+> ⚠️ **`preexec_fn` 内で例外を投げてはいけない。** 投げるとサブプロセス生成そのものが
+> `"Exception occurred in preexec_fn."` で失敗する。だから各制限を個別に
+> `try/except (ValueError, OSError, AttributeError)` で保護し、そのプラットフォームで
+> 未対応でも**他の制限は適用を続ける**。
+
+> ⚠️ **macOS では `RLIMIT_AS` を設定しない。** Darwin では設定すると Python 子プロセスの
+> 起動（mmap 予約）が阻害される／そもそも設定できないことがある。
+> メモリ制限は best-effort で諦め、**CPU 時間**を主要ガードとする
+> （無限ループを確実に止められるのはこちら）。
+
+#### メソッド: `execute`
+
+**概要**: 静的検査 → サンドボックス実行 → 標準出力を返す。
+
+```python
+def execute(self, code: Optional[str] = None, query: Optional[str] = None,
+            **kwargs) -> ToolResult
+```
+
+| パラメータ | 型 | デフォルト | 説明 |
+|------------|------|-----------|------|
+| `code` | Optional[str] | None | 実行する Python コード |
+| `query` | Optional[str] | None | `code` 未指定時のフォールバック（`code or query`） |
+
+| 項目 | 内容 |
+|------|------|
+| **Input** | `code` または `query` |
+| **Process** | 1. 空・非文字列なら即エラー<br>2. `_static_check()` で拒否されたら `confidence_factors={"rejected": True}` で返す<br>3. `cpu = max(1, cfg.timeout_seconds)` / `mem_bytes = max(64, cfg.max_memory_mb) * 1024 * 1024`<br>4. 一時ディレクトリに `snippet.py` を書き、`[sys.executable, "-I", "-S", script]` を `cwd=td` / 最小 env / `stdin=DEVNULL` / `timeout=cpu + 1` / POSIX なら `preexec_fn=_apply_limits` で実行<br>5. stdout・stderr を `cfg.max_output_chars` で切り詰め、`returncode == 0` を成否とする |
+| **Output** | `ToolResult`: 成功時は stdout（空なら `"(出力なし)"`）、失敗時は stdout ＋ `[stderr]` ブロック |
+
+**戻り値例**:
+```python
+# 成功
+ToolResult(success=True, output="42\n", execution_time_ms=120,
+           confidence_factors={"returncode": 0, "stdout_len": 3, "timed_out": False})
+
+# タイムアウト
+ToolResult(success=False, output=None, error="実行がタイムアウトしました（5s）",
+           confidence_factors={"timed_out": True})
+
+# 静的検査で拒否
+ToolResult(success=False, output=None, error="禁止された import: socket",
+           confidence_factors={"rejected": True})
+```
+
+```python
+# 使用例（tools.enabled に "code_execute" を足したうえで）
+registry = create_tool_registry(config)
+result = registry.execute("code_execute", code="print(sum(range(10)))")
+print(result.output)
+# 45
+```
+
+---
+
+### 4.8 ToolRegistry クラス
 
 ツールを名前で登録・取得・実行するレジストリ。設定の `tools.enabled` に基づきデフォルトツールを自動登録します。
 
@@ -1059,7 +1417,7 @@ print(result.success)
 
 ---
 
-### 4.8 ファクトリ関数
+### 4.9 ファクトリ関数
 
 #### `create_tool_registry`
 
@@ -1100,7 +1458,7 @@ result = registry.execute("reasoning", query="...", sources=[...])
 
 | 設定キー | デフォルト値 | 説明 |
 |---------|-------------|------|
-| `tools.enabled` | `["rag_search", "web_search", "reasoning", "ask_user"]` | レジストリが自動登録するツール |
+| `tools.enabled` | `["rag_search", "web_search", "reasoning", "ask_user"]` | レジストリが自動登録するツール。**`code_execute` は既定に含まれない**（opt-in） |
 | `tools.disabled` | `[]` | 恒久的に禁止するツール |
 | `llm.provider` | `"anthropic"` | LLM プロバイダー |
 | `llm.model` | `"claude-sonnet-4-6"` | ReasoningTool が使用するモデル |
@@ -1147,6 +1505,21 @@ result = registry.execute("reasoning", query="...", sources=[...])
 | `serpapi`（既定） | `SERPAPI_KEY` または `serpapi_api_key` | ✅ あり | Timeout/ConnectionError/5xx が対象。4xx は即時送出 |
 | `duckduckgo` | **不要** | ❌ なし | `ddgs` パッケージ（旧 `duckduckgo_search`）。既定のフォールバック先 |
 | `google_cse` | `GOOGLE_CSE_API_KEY` ＋ `GOOGLE_CSE_ENGINE_ID` | ❌ なし | **新規受付停止** |
+
+#### `CodeExecuteConfig`（`grace/config.py`）
+
+`code_execute` を `tools.enabled` に足したときだけ使われる。
+
+| フィールド | 型 | 既定 | 説明 |
+|---|---|---|---|
+| `timeout_seconds` | `int` | `5` | CPU 時間の上限（秒）。実時間タイムアウトは `+1` 秒 |
+| `max_memory_mb` | `int` | `256` | アドレス空間の上限（`RLIMIT_AS`）。**macOS では適用されない** |
+| `max_output_chars` | `int` | `10000` | stdout / stderr の最大文字数（超過分は切り詰め） |
+| `denied_imports` | `list` | `["subprocess", "socket", "ctypes", "multiprocessing", "urllib", "requests", "http", "ftplib", "shutil", "asyncio"]` | AST で import を禁止するモジュール（多層防御） |
+
+> ⚠️ **既定で opt-in にしてあるのはセキュリティ上の判断。**
+> 実体はサブプロセス分離＋`resource` 制限＋isolated mode による **best-effort** サンドボックスで、
+> 決定的な攻撃者に対する境界ではない。真の隔離が必要ならコンテナ / gVisor 等を併用する。
 
 ### 5.2 クラス定数
 
@@ -1231,6 +1604,7 @@ __all__ = [
     "WebSearchTool",
     "ReasoningTool",
     "AskUserTool",
+    "CodeExecuteTool",
 
     # Registry
     "ToolRegistry",
@@ -1238,7 +1612,14 @@ __all__ = [
 ]
 ```
 
-`grace/__init__.py` からも上記すべて（`ToolResult`, `BaseTool`, `RAGSearchTool`, `WebSearchTool`, `ReasoningTool`, `AskUserTool`, `ToolRegistry`, `create_tool_registry`）が再エクスポートされます。
+`grace/__init__.py` が再エクスポートするのは **`CodeExecuteTool` を除く 8 つ**
+（`ToolResult`, `BaseTool`, `RAGSearchTool`, `WebSearchTool`, `ReasoningTool`,
+`AskUserTool`, `ToolRegistry`, `create_tool_registry`）です。
+
+> 📝 **`CodeExecuteTool` だけ `grace/__init__.py` の `__all__` に入っていない**
+> （`grace.tools.__all__` には入っている）。opt-in ツールなので `from grace import CodeExecuteTool`
+> は通らず、`from grace.tools import CodeExecuteTool` か、`tools.enabled` に足したうえで
+> `ToolRegistry` 経由で使う。
 
 ---
 
@@ -1249,6 +1630,7 @@ __all__ = [
 | 1.0 | 初版作成 |
 | 2.0 | WebSearchTool 追加、動的コレクションフォールバック・動的閾値の反映 |
 | 2.1 | 実ソース（v2）に整合（2026-06-16）。LLM を Anthropic Claude（`llm_compat` 経由）として正確化、`ReasoningTool`/`RAGSearchTool` の挙動・パラメータ・`confidence_factors` を実装に一致、Mermaid 図を黒背景・白文字スタイルに統一、設定・定数を `GraceConfig` 実値で更新 |
+| 3.1 | **未記載シンボル 10 件を追加**（2026-09-04）。AST 照合で `grace/tools.py` の公開シンボル 37 件中 10 件が本書に無いことが判明していた。(1) **`CodeExecuteTool` はクラスごと欠落**していたため §4.7 を新設（サンドボックス構成 5 層・`_static_check` / `_apply_limits` / `execute` の IPO・`CodeExecuteConfig` 4 フィールド）し、以降を §4.8 / §4.9 へ繰り下げ。(2) `RAGSearchTool` の 5 メソッド（`_collection_dense_dim` / `clear_collections_cache` / `_embed_query_once` / `_apply_excluded_collections` / `_apply_allowed_collections`）を追加。(3) `ReasoningTool` の 2 メソッド（`_now_text` / `_source_origin`）を追加。あわせて **§3.2 の `RAGSearchTool._calculate_confidence_factors` 行に付いていた注記が WebSearchTool 用のものだった**のを是正（RAG 側は正準キーのみを返し `backend` 引数も無い） |
 | 3.0 | **`web_search.md`（1123 行）を統合し、同ファイルを削除**（2026-09-04）。`WebSearchTool` は `grace/tools.py` 内のクラスであり、モジュール単位の文書は本書が正であるため。§4.6 に未記載だった 6 メソッド（`_search_with_backend` / `_search_ddg` / `_search_google` / `_search_serpapi` / `_parse_to_rag_format` / `_calculate_confidence_factors`）を IPO 形式で追加し、`WebSearchConfig` の全 12 フィールドとバックエンド別の必要設定表を §5.1 へ追加。`execute` の Process を実装どおり（主 → `fallback_backend` の試行連鎖）に書き直し、戻り値例の `confidence_factors` に**正準キー `max_score` / `score_variance`** を追記した（旧例は旧ログ互換の `top_score` / `score_spread` しか載せておらず、Executor が実際に読むキーが見えなかった）。⚠️ 統合は `web_search.md` からの転記ではなく**実装から書き起こした**（`grace_v2_local` で同じ統合をした際、`web_search.md` が `_calculate_confidence_factors` を修正前の姿で保存しており、転記すれば直ったバグを文書化するところだった） |
 | 2.2 | 実装（07-27）へ追随（2026-08-01）。`WebSearchTool._prefer_domains`（W-1・優先ドメインの**加点並べ替え**）とモジュール関数 `_url_host` を追加。絞り込みにすると 0 件化 → 情報なし回答 → 誤エスカレへ連鎖するため順位付けだけを変えること、スコアが 1.0 で頭打ちになるため `preferred_domain` フラグを第 1 ソートキーにしていることを明記 |
 
