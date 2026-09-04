@@ -1,6 +1,6 @@
 # config.py - GRACE 設定管理 ドキュメント
 
-**Version 1.1** | 最終更新: 2026-08-01
+**Version 1.2** | 最終更新: 2026-09-04
 
 ---
 
@@ -197,6 +197,18 @@ style LOGGING fill:#1a1a1a,stroke:#fff,color:#fff
 |---------|------|
 | `version`, `llm`, `embedding`, ... | 各ドメイン設定をネストしたトップレベルモデル |
 
+#### ネストされたドメイン設定モデル
+
+| モデル | 概要 |
+|---|---|
+| `LLMConfig` / `EmbeddingConfig` | LLM（Anthropic）と Embedding（Gemini）の接続・モデル設定 |
+| `ConfidenceConfig` / `InterventionConfig` / `ReplanConfig` | 信頼度・介入・リプランのしきい値 |
+| `CostConfig` / `ErrorConfig` / `LoggingConfig` | コスト管理・エラーハンドリング・ログ |
+| `QdrantConfig` / `WebSearchConfig` / `ToolsConfig` | 検索まわり |
+| **`CodeExecuteConfig`** | `code_execute` のサンドボックス設定（`timeout_seconds` / `max_memory_mb` / `max_output_chars` / `denied_imports`）。**`tools.enabled` に入れたときだけ使われる** |
+| **`MemoryConfig`** | 実行メモリ層（P4）の `enabled` / `path` / `min_count` / `min_score` |
+| `PlannerConfig` / `ExecutorConfig` | 計画・実行のパラメータ |
+
 #### ConfigLoader
 
 | メソッド | 概要 |
@@ -254,6 +266,8 @@ GRACE Agent の全設定を統合するトップレベルの Pydantic モデル�
 | `qdrant` | QdrantConfig | `QdrantConfig()` | Qdrant設定 |
 | `web_search` | WebSearchConfig | `WebSearchConfig()` | Web検索設定 |
 | `tools` | ToolsConfig | `ToolsConfig()` | ツール設定 |
+| `code_execute` | CodeExecuteConfig | `CodeExecuteConfig()` | `code_execute` ツール設定（**opt-in**） |
+| `memory` | MemoryConfig | `MemoryConfig()` | 実行メモリ層（P4）設定 |
 | `planner` | PlannerConfig | `PlannerConfig()` | Planner設定 |
 | `executor` | ExecutorConfig | `ExecutorConfig()` | Executor設定 |
 
@@ -281,6 +295,36 @@ config = GraceConfig()
 print(config.llm.model)
 # claude-sonnet-4-6
 ```
+
+#### `CodeExecuteConfig`
+
+**概要**: `code_execute`（サンドボックス Python 実行）の設定。
+
+| フィールド | 型 | デフォルト | 説明 |
+|------------|------|-----------|------|
+| `timeout_seconds` | int | `5` | CPU 時間の上限（秒）。実時間タイムアウトは `+1` 秒 |
+| `max_memory_mb` | int | `256` | アドレス空間の上限（`RLIMIT_AS`）。**macOS では適用されない**（Python 子プロセスの起動を妨げるため） |
+| `max_output_chars` | int | `10000` | stdout / stderr の最大文字数（超過分は切り詰め） |
+| `denied_imports` | list | `["subprocess", "socket", "ctypes", "multiprocessing", "urllib", "requests", "http", "ftplib", "shutil", "asyncio"]` | AST で import を禁止するモジュール |
+
+> ⚠️ **セキュリティ上、既定では `tools.enabled` に含めず opt-in。**
+> 実体はサブプロセス分離＋`resource` 制限＋isolated mode による **best-effort** サンドボックスで、
+> 決定的な攻撃者に対する境界ではない。真の隔離が必要ならコンテナ / gVisor 等を併用する。
+> 詳細は [`tools.md` §4.7](./tools.md)。
+
+#### `MemoryConfig`
+
+**概要**: 実行メモリ層（P4）の設定。実行ログから (質問キーワード, コレクション, 成否, confidence) を蓄積し、Planner のコレクション優先順位に反映する。
+
+| フィールド | 型 | デフォルト | 説明 |
+|------------|------|-----------|------|
+| `enabled` | bool | `True` | `False` なら Planner / Executor がメモリを持たない（＝機構ごと無効） |
+| `path` | str | `"logs/grace_memory.jsonl"` | JSONL の保存先 |
+| `min_count` | int | `3` | `best_collection()` の採用に必要な実績件数 |
+| `min_score` | float | `0.6` | `best_collection()` の採用に必要なスコア（平滑化成功率 × 平均確信度） |
+
+> 📝 **`min_count=3` は「最初の数回は手探り、貯まってきたら絞る」ための下限。**
+> 実績が薄いコレクションへ早まって固定しないためにある。詳細は [`memory.md`](./memory.md)。
 
 ### 4.2 ConfigLoader クラス
 
@@ -878,6 +922,7 @@ __all__ = [
 | バージョン | 日付 | 変更内容 |
 |-----------|------|---------|
 | 1.0 | 2026-06-16 | 初版作成（`config.py` の実装に基づく全設定モデル・ローダー・シングルトン関数を文書化） |
+| 1.2 | 2026-09-04 | **`CodeExecuteConfig` と `MemoryConfig` が未記載**だった（AST 照合）ので追加。`GraceConfig` のフィールド表にも 2 行が欠けており、実装は 15 フィールドなのに文書は 13 しか載せていなかった。§3.1 に「ネストされたドメイン設定モデル」の一覧を新設し、§4.1 の直後に両モデルのフィールド表を追加した |
 | 1.1 | 2026-08-01 | 実装（07-26〜27）へ追随。`LLMConfig` に `heavy_model` / `heavy_thinking_budget_tokens`（M-1 論理層）、`ConfidenceConfig` に `groundedness_coverage_strength` / `groundedness_coverage_target`（支持率の網羅度減衰）、`WebSearchConfig` に `preferred_domains` / `preferred_domain_boost`（W-1・**加点であって絞り込みではない**）、`ExecutorConfig` に `relevance_check_model`（M-3 軽量モデル）を追加。§3.2 と §4.5 に `resolve_heavy_model` / `heavy_thinking_budget` を追記し、`heavy_model` 未設定時に思考予算が 0 になる意図的な仕様を明記 |
 
 ---

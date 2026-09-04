@@ -299,6 +299,12 @@ style REG fill:#1a1a1a,stroke:#fff,color:#fff
 | 関数名 | 概要 |
 |-------|------|
 | `_url_host(url)` | URL からホスト名（小文字・ポート除去）を取り出す。取れなければ空文字 |
+| `_unescape_json_escapes(text)` | 文字列に残った `\uXXXX` 形式のエスケープを実文字へ戻す（`_JSON_ESCAPE_RE` を使用） |
+| `_mask_secret(text, secret)` | ログ・例外メッセージから API キーを伏せる |
+
+| モジュール定数 | 値 |
+|---|---|
+| `_JSON_ESCAPE_RE` | `re.compile(r"\\u([0-9a-fA-F]{4})")` — `_unescape_json_escapes()` が使う |
 
 #### ToolRegistry
 

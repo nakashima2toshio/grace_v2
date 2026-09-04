@@ -1,6 +1,6 @@
 # executor.py - GRACE計画実行エージェント ドキュメント
 
-**Version 4.1** | 最終更新: 2026-08-01
+**Version 4.2** | 最終更新: 2026-09-04
 
 ---
 
@@ -280,6 +280,9 @@ style FACTORY_GRP fill:#1a1a1a,stroke:#fff,color:#fff
 | メソッド | 概要 |
 |---------|------|
 | `__init__(config, tool_registry, ...)` | コンストラクタ（各種コンポーネントの初期化） |
+| `_dispatch_generator(plan)` | **S3: 複雑度で ReAct ループ / 静的 Plan-Execute を振り分ける** |
+| `execute_react_generator(plan, state)` | **S3: Reason→Act→Observe→Confidence→Controller の ReAct ループ** |
+| `_decide_next_action(plan, scratchpad, fallback_queue)` | S3 Reason：次の 1 手を LLM が決定。**LLM 不在/失敗時は初期計画を順に辿るフォールバックへ degrade** |
 | `execute_plan_generator(plan, state)` | 計画をジェネレータで実行（UI連携用） |
 | `execute_plan(plan)` | 計画を同期実行（ジェネレータをドレイン） |
 | `execute(plan)` | `execute_plan()` の統一エントリーポイント |
@@ -299,15 +302,19 @@ style FACTORY_GRP fill:#1a1a1a,stroke:#fff,color:#fff
 | `_llm_calculate_step_confidence(tool_result, step, state)` | ステップ信頼度の計算（LLM版） |
 | `_calculate_step_confidence(tool_result, step, state)` | ステップ信頼度の計算（Heuristic版） |
 | `_extract_sources(tool_result)` | ツール結果からソースを抽出 |
+| `_warn_on_missing_score_keys(factors, step)` | 検索ステップの統計に**正準キーが無ければ警告**する番人（黙って既定値へ落ちるのを防ぐ） |
 | `_format_output(output)` | 出力を文字列にフォーマット |
 | `_calculate_overall_confidence(state)` | 全体信頼度の計算 |
 | `_blend_groundedness_confidence(query, final_answer, self_eval, coverage, aggregated, sources)` | groundedness を主成分に最終 confidence を合成 |
+| `_final_answer_of(state)` (staticmethod) | 最後に成功した reasoning / legacy_agent の出力。「答えに辿り着けたか」の**唯一の定義** |
+| `_record_memory(state)` | P4: 実行結果を実行メモリへ記録（best-effort） |
 | `_create_execution_result(state)` | ExecutionResultを生成 |
 | `cancel(state)` | 実行をキャンセル |
 | `resume(state)` | 実行を再開 |
 | `_handle_intervention_notify(message)` | NOTIFYレベルの介入処理 |
 | `_handle_intervention_confirm(request)` | CONFIRMレベルの介入処理 |
 | `_handle_intervention_escalate(request)` | ESCALATEレベルの介入処理 |
+| `_should_pause_for_intervention(level)` | 介入で一時停止すべきか。**ESCALATE は常に停止／CONFIRM は対話モードかつ非ブロッキング時のみ** |
 | `_handle_intervention_if_needed(action_decision, step, state)` | 介入が必要か判定して処理 |
 
 ### 3.2 関数一覧（カテゴリ別）
@@ -579,6 +586,73 @@ executor = Executor(config=config, enable_replan=False)  # リプラン無効
 ```
 
 ---
+
+#### メソッド: `_dispatch_generator`（S3）
+
+**概要**: 複雑度に応じて **ReAct ループ / 静的 Plan-Execute** を振り分ける。
+
+```python
+def _dispatch_generator(self, plan: ExecutionPlan) -> Generator[Any, None, ExecutionResult]
+```
+
+| 項目 | 内容 |
+|------|------|
+| **Input** | `plan`、`config.executor.react_enabled` / `react_complexity_threshold`（既定 `0.7`） |
+| **Process** | `react_enabled` が真 **かつ** `plan.complexity >= react_complexity_threshold` なら `execute_react_generator(plan)` へ、そうでなければ `execute_plan_generator(plan)` へ `yield from` で委譲する。どちらを選んだかを `logger.info` に残す |
+| **Output** | `ExecutionResult`（ジェネレータの戻り値） |
+
+> 📝 **単純な質問は静的パスのまま残してある（移行リスクの低減）。**
+> ReAct は観測ごとに LLM へ「次の 1 手」を尋ねるぶん呼び出し回数が増えるので、
+> 複雑度がしきい値を超えたときだけ使う。
+
+#### メソッド: `execute_react_generator`（S3）
+
+**概要**: Reason → Act → Observe → Confidence → Controller の ReAct ループ。
+
+```python
+def execute_react_generator(self, plan: ExecutionPlan,
+                            state: Optional[ExecutionState] = None
+                            ) -> Generator[Any, None, ExecutionResult]
+```
+
+| 項目 | 内容 |
+|------|------|
+| **Input** | `plan`（**初期計画は「仮説」**として扱う）、`state`（省略時は新規） |
+| **Process** | `Scratchpad` を作り、`react_max_iterations`（既定 8）まで次を回す: ① **Reason** `_decide_next_action()` で次の 1 手を決める ② **Act** `_execute_step()` でツールを実行（タイムアウト・フォールバックは既存資産をそのまま使う） ③ **Observe** ツール出力を `Scratchpad` へ追記 ④ **Confidence** `_llm_calculate_step_confidence()` ＋ S1 groundedness / 較正 ⑤ **Controller** 較正済み confidence と `decide_action()` で継続 / 介入 / 終了を判定。実行した暫定ステップは `state.plan.steps` へ追記する |
+| **Output** | `ExecutionResult` |
+
+> 📝 **既存資産を最大限再利用する設計。** Act は `_execute_step`、Confidence は
+> `_llm_calculate_step_confidence`、集計は `_calculate_overall_confidence` /
+> `_create_execution_result` をそのまま使う。ReAct 固有なのは
+> Reason（`_decide_next_action`）と Scratchpad だけ。
+
+> 📝 **LLM 不在時は初期 Plan のステップ列をそのまま辿る**（＝静的パス相当へ degrade）。
+> `fallback_queue` に初期計画を保持しておくのはこのため。
+
+#### メソッド: `_decide_next_action`（S3 Reason）
+
+**概要**: Scratchpad ＋ 初期計画から、次の 1 手を LLM が決める。
+
+```python
+def _decide_next_action(self, plan: ExecutionPlan, scratchpad: Scratchpad,
+                        fallback_queue: List[PlanStep]) -> AgentThought
+```
+
+| 項目 | 内容 |
+|------|------|
+| **Input** | `plan`、`scratchpad`、`fallback_queue` |
+| **Process** | `REACT_PROMPT` に質問・**初期計画の先頭 6 ステップ**（仮説）・`scratchpad.as_prompt()` を埋め、`resolve_heavy_model(config)` で構造化出力（`response_schema=AgentThought` / `temperature=0.0` / `max_output_tokens=512` / `thinking_budget_tokens=heavy_thinking_budget(config)`）を要求する。空応答なら例外 |
+| **Output** | `AgentThought` |
+
+> ⚠️ **LLM 不在／失敗時のフォールバックがループを止めない。**
+> 例外を捕まえて `fallback_queue.pop(0)` で初期計画のステップを 1 つ取り出し、
+> `AgentThought(reasoning="[fallback] …", next_action=..., is_final=(action が reasoning/run_legacy_agent))`
+> を組み立てて返す。キューが空なら `next_action="finish"`。
+> **API キーの無い環境でもクラッシュしない**（静的パス相当へ degrade するだけ）。
+
+> 📝 `next_action` は `{"rag_search", "web_search", "reasoning", "ask_user"}` に含まれない
+> アクション（`run_legacy_agent` 等）を `"reasoning"` へ丸める。`AgentThought.next_action` が
+> `Literal` で閉じているため。
 
 #### メソッド: `execute_plan_generator`
 
@@ -1165,6 +1239,32 @@ fallback_result = self._execute_fallback(step, state)
 
 ---
 
+#### メソッド: `_warn_on_missing_score_keys`
+
+**概要**: 検索ステップの統計に**正準キーが無ければ警告**する。
+
+```python
+def _warn_on_missing_score_keys(self, factors: dict, step: PlanStep) -> None
+```
+
+| 項目 | 内容 |
+|------|------|
+| **Input** | `factors`（ツールの `confidence_factors`）、`step` |
+| **Process** | `step.action` が `rag_search` / `web_search` 以外なら何もしない。`factors` が空か `result_count` が偽なら何もしない。`_REQUIRED_SCORE_KEYS` のうち欠けているものがあれば、**受領キー一覧つきで** `logger.warning` を出す |
+| **Output** | `None`（警告のみ。実行は止めない） |
+
+> ⚠️ **黙って壊れるのを防ぐための番人。**
+>
+> `search_max_score` は `factors.get("max_score", factors.get("avg_score", 0.0))`、
+> `search_score_variance` は `factors.get("score_variance", 1.0)` で読む。
+> キー名が違うツールがあると**例外にならず**、最高スコアが平均に潰れ、
+> ばらつきは常に最悪値（1.0）として扱われる。
+>
+> 実測では `WebSearchTool` が `top_score` / `score_spread` を返していたため、
+> **Web ステップだけが** `search_max_score=0.6`（実際は 1.0）・
+> `search_score_variance=1.0`（実際は 0.02）で評価されていた。
+> ログには両方の値が出ていたのに、**食い違いを指摘するものが無かった。**
+
 #### メソッド: `_build_confidence_factors`
 
 **概要**: ツール結果とステップ情報から`ConfidenceFactors`を構築する共通ヘルパー。source_count／source_agreementの算出、非検索ステップでの依存元スコア継承を含みます。
@@ -1484,6 +1584,68 @@ final_conf = self._blend_groundedness_confidence(
 ```
 
 ---
+
+#### 静的メソッド: `_final_answer_of`
+
+**概要**: 最後に成功した reasoning / legacy_agent ステップの出力を返す。
+
+```python
+@staticmethod
+def _final_answer_of(state: ExecutionState) -> Optional[str]
+```
+
+| 項目 | 内容 |
+|------|------|
+| **Input** | `state` |
+| **Process** | `state.plan.steps` を**逆順に**走査し、`action` が `"reasoning"` / `"run_legacy_agent"` で `step_results` にあり `status == "success"` の最初のものの `output` を返す |
+| **Output** | `Optional[str]`（該当なしは `None`） |
+
+> 📝 **「答えに辿り着けたか」の定義を 1 箇所に置くためのメソッド。**
+> 信頼度計算と実行メモリの成否判定が**同じ定義**を使う必要があるため、
+> それぞれで書かずにここへ集約している。
+
+#### メソッド: `_record_memory`
+
+**概要**: P4 — 実行結果を実行メモリへ記録する（best-effort）。
+
+```python
+def _record_memory(self, state: ExecutionState) -> None
+```
+
+| 項目 | 内容 |
+|------|------|
+| **Input** | `state` |
+| **Process** | `_memory` が `None` なら何もしない。① `state.dynamic_steps` と `PlanStep.dynamic` の**両方**から動的挿入ステップの id を集める ② それ**以外**のステップの `status` を集め、全部 `success` かつ `_final_answer_of(state)` があるかで `success` を決める ③ `state.used_collections` が空なら記録しない ④ `memory.record_many(query, collections, success, confidence)` |
+| **Output** | `None`（例外は握って `logger.warning`。実行は止めない） |
+
+> ⚠️ **「全ステップ success」で判定してはいけない（回帰修正）。**
+> RAG スコアが一次閾値に届かないと `web_search` / `ask_user` が**動的挿入**される。
+> 以前は `state.step_results` を丸ごと集計していたため、**Web が落ちているだけで
+> `success=False`** になり、実際には正しく答えられた RAG コレクションに「失敗」が刻まれて
+> planner の優先順位を毒していた（実測 2026-08-29: 支持率 1.00・`decision=answer` なのに
+> 対象コレクションが `success=False`）。
+
+> ⚠️ **除外対象は 2 つの情報源を足して求める。** `state.dynamic_steps` は
+> 「実際に動的挿入して実行した id」の記録、`PlanStep.dynamic` は step オブジェクト側の印。
+> **片方だけでは漏れる。**
+
+#### メソッド: `_should_pause_for_intervention`
+
+**概要**: 介入で一時停止すべきかを判定する。
+
+```python
+def _should_pause_for_intervention(self, level: InterventionLevel) -> bool
+```
+
+| 項目 | 内容 |
+|------|------|
+| **Input** | `level` |
+| **Process** | `ESCALATE` → 常に `True`。`CONFIRM` → `config.intervention.interactive`（既定 `True`）**かつ** `not self._noninteractive` のときだけ `True`。それ以外 → `False` |
+| **Output** | `bool` |
+
+> 📝 **ブロッキングの `execute_plan`（非対話）では CONFIRM でも止まらない。**
+> 止めてしまうと後続の reasoning に到達せず `final_answer` が生成されないため、
+> 自動進行して完走させる。ESCALATE だけは**ユーザー入力が必須**なので常に停止する。
 
 #### メソッド: `_create_execution_result`
 
@@ -1898,6 +2060,7 @@ __all__ = [
 | 2.0 | フォーマット v1.4準拠: ASCII図をMermaid v9に全面変更、「各責務対応のモジュール」テーブル追加、補助メソッドのIPO詳細を追加 |
 | 3.0 | web_search対応: アーキテクチャ図にWebSearch Tool追加、`_prepare_tool_kwargs`にweb_search引数追加、内部依存にcreate_source_agreement_calculator追加 |
 | 4.0 | フォーマット v1.5準拠（黒背景Mermaid必須化）。技術スタック表記を Anthropic Claude（`claude-sonnet-4-6`、`llm_compat`経由）/ Gemini Embedding に統一。新規メソッドを実ソースから追記（`execute`／`_handle_ask_user_response`／`_run_tool_with_timeout`／`_prefetch_parallel_searches`／`_should_trigger_replan`／`_evaluate_rag_relevance`／`_execute_dynamic_web_search`／`_execute_dynamic_ask_user`／`_build_confidence_factors`／`_blend_groundedness_confidence`）。`_calculate_overall_confidence`を groundedness ブレンド＋温度較正に更新。`_SEARCH_ACTIONS`定数とexecutor/groundedness/replan関連の設定を5章に追加。各IPO項目に戻り値例・使用例を補完。 |
+| 4.2 | 2026-09-04: **未記載メソッド 7 件を追加**（AST 照合）。(1) **S3 ハイブリッド ReAct の 3 つ**（`_dispatch_generator` / `execute_react_generator` / `_decide_next_action`）— 複雑度で ReAct と静的パスを振り分ける経路そのものが文書に無かった。LLM 不在時に初期計画を辿るフォールバックへ degrade する仕組みも記載。(2) `_warn_on_missing_score_keys` — 正準キーが欠けると例外にならず既定値へ落ちるのを検知する番人（実測で Web ステップだけが `search_max_score=0.6`／`score_variance=1.0` で評価されていた）。(3) `_final_answer_of`（「答えに辿り着けたか」の唯一の定義）/ `_record_memory`（動的挿入ステップを成否判定から除外する回帰修正）/ `_should_pause_for_intervention`（ESCALATE は常に停止・CONFIRM は対話かつ非ブロッキング時のみ）。§3.1 の一覧表にも 7 行を追記 |
 | 4.1 | 実装（07-26〜27）へ追随（2026-08-01）。P-01b の `get_completed_source_texts()` / `_extract_source_texts()`（識別子ではなく**出典本文**を groundedness へ渡す。識別子だと全 neutral 化して支持率の分母が 0 になる）、M-3 の `_relevance_check_model()`（軽量モデル解決）、M-5 の `_format_rag_snippet()` / `RELEVANCE_SNIPPET_LIMIT`、M-6 の `_damp_support_rate()`（判定できた claim の割合で支持率を減衰）を追加。あわせて `_evaluate_rag_relevance` の記述を実装へ修正 — **「検索結果は先頭500文字」は誤りで、修正前は要素数でスライスしていた**（`ToolResult.output` がリストのため）。担当範囲（`llm.prompt_addendum`）を判定に反映する M-5 の 2 点も追記 |
 
 ---

@@ -37,7 +37,7 @@
 | 7 | `memory.py` の文書が無い | ✅ 解消（`memory.md` v1.0 を新規作成） |
 | 8 | `web_search.md`（1123 行）が `tools.py` 内のクラス 1 個だけの単独文書になっている | ✅ 解消（`tools.md` v3.0 へ統合し削除） |
 | 9 | `agent_example_core8.md`（385 行）— `agent_example_core8.py` は git 全履歴に存在しない | ✅ 解消（ユーザー承認のうえ削除。参照元 `agent_support_example.md` も是正） |
-| 10 | 主要モジュール文書 10 件が、対応するコードの最終更新より古い | ⏳ 未対応（§3・§5 の #3） |
+| 10 | モジュール文書に未記載の公開シンボルが 31 件あった | ✅ 解消（**全 11 モジュールで AST 網羅 100%**。§3） |
 
 ---
 
@@ -78,25 +78,48 @@
 
 ## 3. 実装追随状況
 
-対応するコードの最終コミット日と、文書の「最終更新」の比較（2026-09-04 時点）。
+### 3.1 公開シンボルの網羅（AST 照合・2026-09-04）
 
-| 文書 | コード | 文書 | 差 |
-|---|---|---|---|
-| `calibration.md` | 2026-08-11 | 2026-06-16 | **約 2 か月** |
-| `intervention.md` | 2026-08-11 | 2026-06-16 | **約 2 か月** |
-| `replan.md` | 2026-08-17 | 2026-06-16 | **約 2 か月** |
-| `confidence.md` | 2026-08-30 | 2026-08-01 | 約 1 か月 |
-| `config.md` | 2026-08-30 | 2026-08-01 | 約 1 か月 |
-| `tools.md` | 2026-08-30 | 2026-08-01 | 約 1 か月 |
-| `executor.md` | 2026-08-29 | 2026-08-01 | 約 1 か月 |
-| `schemas.md` | 2026-08-29 | 2026-08-01 | 約 1 か月 |
-| `planner.md` | 2026-08-17 | 2026-08-01 | 約半月 |
-| `llm_compat.md` | 2026-08-11 | 2026-08-01 | 約 10 日 |
-| `memory.md` | 2026-08-17 | 2026-09-04 | ✅ 追随済み |
-| `grace_core.md` / `grace_core_flow.md` / `agent_support_verticals.md` / `benchmark.md` | — | 2026-09-04 | ✅ 追随済み |
+**全 11 モジュールで 100%。**
 
-> ⚠️ **日付の差は「ズレている」ことの証明ではない**（コード側の変更が文書に無関係な場合もある）。
-> 差が大きいものから §4 のシンボル網羅チェックを当てて、実際にズレているかを確かめる。
+| 文書 | 公開シンボル | 未記載 |
+|---|---:|---:|
+| `calibration.md` | 15 | 0 |
+| `confidence.md` | 45 | 0 |
+| `config.md` | 29 | 0 |
+| `executor.md` | 48 | 0 |
+| `intervention.md` | 36 | 0 |
+| `llm_compat.md` | 15 | 0 |
+| `memory.md` | 16 | 0 |
+| `planner.md` | 24 | 0 |
+| `replan.md` | 29 | 0 |
+| `schemas.md` | 17 | 0 |
+| `tools.md` | 37 | 0 |
+
+2026-09-04 の点検で **31 件の未記載**が見つかり、すべて実装から書き起こして追加した。
+内訳は `executor.md` 7（S3 ReAct 経路まるごと）/ `confidence.md` 6 / `intervention.md` 5 /
+`schemas.md` 7（ReAct スキーマ 3 クラス＋`repair_plan_dependencies`）/ `config.md` 2 /
+`replan.md` 2 / `planner.md` 1 / `tools.md` 1（別途 `CodeExecuteTool` ほか 10 件）。
+
+### 3.2 ⚠️ 「コードの日付 > 文書の日付」は追随遅れの証拠にならない
+
+本リポジトリの履歴は途中でまとめてインポートされている。
+`grace/calibration.py` / `intervention.py` / `replan.py` は **1 コミット（`2f93674`）で
+新規追加**されており、その日付（2026-08-11）は「そのとき書き換わった」ことを意味しない。
+
+実際、この 3 件のうち `calibration.md` は日付が 2 か月古いのに **AST 網羅は 15/15 で問題なし**、
+逆に日付差が小さい `planner.md` / `config.md` には未記載があった。
+
+**日付の比較は当たりを付けるためだけに使い、判断は §4.1 のシンボル網羅と実コードの読解で行う。**
+
+そのうえで、日付ではなく**内容**でズレていたものは次のとおり:
+
+| 文書 | ズレていた内容 |
+|---|---|
+| `replan.md` | `_enhance_query_with_context` / `_create_remaining_query` を一覧に載せていたが、**この名前のメソッドは既に無い**（`1fbbc6d` で `_build_context_hints` / `_create_remaining_hints` へ改名・役割変更） |
+| `planner.md` | `_prioritized_collection` の Process が `best_collection(query, min_count, min_score)` のままで、**実装が渡している `exclude=self._is_excluded` が抜けていた** |
+| `tools.md` | §3.2 の `RAGSearchTool._calculate_confidence_factors` 行に **WebSearchTool 用の注記**が付いていた（前 PR の置換ミス）。§7 の再エクスポート記述も実態と違った |
+| `config.md` | `GraceConfig` のフィールド表が 13 行しかなく、**実装の 15 フィールドに 2 つ足りなかった** |
 
 ---
 
@@ -185,8 +208,8 @@ grep -rhoE '`[a-z0-9_]+(/[a-z0-9_]+)+\.(py|sh)`' grace/docs/*.md backend/docs/*.
 
 | # | タスク | 内容 | 状態 |
 |---|---|---|---|
-| 1 | 追随が遅れている 10 件の突き合わせ | §3 の差が大きいもの（`calibration.md` / `intervention.md` / `replan.md`）から §4.1 を当てる | ⏳ |
-| 2 | `tools.md` の未記載シンボル 10 件 | `WebSearchTool`（9/9）と `WebSearchConfig`（12/12）は統合時に網羅したが、AST で当てると **`CodeExecuteTool` クラスごと未記載**であることが分かった。ほかに `RAGSearchTool` の内部 8 件（`_apply_allowed_collections` / `_apply_excluded_collections` / `_apply_limits` / `_collection_dense_dim` / `_embed_query_once` / `_static_check` / `_source_origin` / `clear_collections_cache` / `_now_text`）。※`CodeExecuteTool` は opt-in | ⏳ |
+| 1 | ~~追随が遅れている 10 件の突き合わせ~~ | **完了**（2026-09-04）。全 11 モジュールで AST 網羅 100%。§3 参照 | ✅ |
+| 2 | ~~`tools.md` の未記載シンボル 10 件~~ | **完了**（2026-09-04）。`CodeExecuteTool` を §4.7 として新設し、37/37 を確認 | ✅ |
 | 3 | `grace.md` / `agent_support_example.md` のバージョン欄 | この 2 件だけ `**Version X.X**` ヘッダーが無い。他と揃える | ⏳ |
 | 4 | GRACE-Support 3 点の所在 | `agent_support_example.md` / `_flow.md` / `_verticals.md` は実装（`backend/app/core/support_agent.py`）から遠い。`grace_v2_local` は `backend/docs/` へ移設済み。**移設すると相対リンクが全滅する**ので張り替えとセットで行う | ⏳ |
 
@@ -210,6 +233,7 @@ grep -rhoE '`[a-z0-9_]+(/[a-z0-9_]+)+\.(py|sh)`' grace/docs/*.md backend/docs/*.
 | **Mermaid grep のスペース** | `classDef default fill: #000`（コロンの後にスペース）は **Mermaid としては正しい**が §7.6 の grep に引っかからない。検証スクリプトは `fill: ?#000` で書く（§4.2 はそうしてある） |
 | **`grace/doc/` の誤検出** | 「`grace/doc/` → `grace/docs/` に訂正」という**変更履歴の記述**が 2 件ある。これは違反ではない |
 | **行番号参照は必ず腐る** | `grace_core.md` の 13 件はほぼ全部ズレていた。シンボル名で参照する |
+| **本 README 自体が Mermaid チェックで NG になる** | §4.2 の検証スクリプトが**自分のコードブロックの中の文字列**を拾うため、`fc=0 / cd=1` と出る。図は 1 枚も無いので問題ない |
 | **grep で見つかる誤りは軽い方** | 深刻なのは**実装を読まないと気づかない**もの: 修正前のコードのままの記述、存在しない実行基盤の「実測値」、丸ごと抜けたパイプライン段。日付やリンクが揃っていても中身が嘘なことがある |
 | **姉妹リポジトリからのコピー** | CLAUDE.md §5。`memory.py` は `best_collection(exclude=...)` が grace_v2 にだけある。文書も丸ごとコピーできない |
 
@@ -219,5 +243,6 @@ grep -rhoE '`[a-z0-9_]+(/[a-z0-9_]+)+\.(py|sh)`' grace/docs/*.md backend/docs/*.
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 1.2 | **モジュール文書 8 件の未記載シンボル 31 件を解消**（2026-09-04）。全 11 モジュールで AST 網羅 **100%** に到達。§3 を「日付比較」から「AST 網羅＋内容でズレていた 4 件」の記録へ書き換えた。⚠️ 本リポジトリの履歴は途中でまとめてインポートされており（`2f93674` が calibration / intervention / replan を新規追加）、**「コードの日付 > 文書の日付」は追随遅れの証拠にならない**ことが分かったので、その注意も §3.2 に明記 |
 | 1.1 | `web_search.md` の `tools.md` への統合と `agent_example_core8.md` の削除を反映（問題 #8 / #9 を解消）。文書は 22 → 20 件。統合の副産物として、`tools.md` に **`CodeExecuteTool` クラスごと未記載**であること（AST 照合で 37 件中 10 件が未記載）が判明したため残タスクへ追加 |
 | 1.0 | 初版作成。文書 22 件（モジュール 12・横断 9・本書）の一覧、コード最終コミット日との追随比較、検証手順 4 種（AST シンボル網羅・Mermaid 規約・リンク存在・実在しないファイル参照）、残タスク 4 件、grep の落とし穴 7 件を整備 |

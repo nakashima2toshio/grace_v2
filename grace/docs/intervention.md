@@ -1,6 +1,6 @@
 # intervention.py - HITL介入システム ドキュメント
 
-**Version 1.2** | 最終更新: 2026-06-16
+**Version 1.3** | 最終更新: 2026-09-04
 
 ---
 
@@ -267,6 +267,11 @@ style FACTORY fill:#1a1a1a,stroke:#fff,color:#fff
 | `request_confirmation(plan, confidence, message)` | 計画の確認をリクエスト |
 | `request_clarification(question, reason, options, is_blocking)` | ユーザーに追加情報を求める |
 | `notify_status(message)` | ステータス通知 |
+| `_create_notify_message(decision, step)` | NOTIFY 用メッセージを組み立てる |
+| `_create_confirm_message(decision, step)` | CONFIRM 用メッセージを組み立てる（信頼度・理由・「続行しますか？」） |
+| `_create_escalate_message(decision, step)` | ESCALATE 用メッセージを組み立てる |
+| `_format_plan(plan)` | 計画を人が読める形へ整形（`request_confirmation` が使う） |
+| `_record_history(level, action, message, response)` | 介入 1 件を `history` へ追記 |
 | `get_history()` | 介入履歴を取得 |
 | `clear_history()` | 介入履歴をクリア |
 
@@ -779,6 +784,99 @@ None  # 戻り値なし（副作用として通知・履歴記録）
 handler.notify_status("ステップ1が完了しました")
 handler.notify_status("データを処理中...")
 ```
+
+#### メソッド: `_create_notify_message` / `_create_confirm_message` / `_create_escalate_message`
+
+**概要**: 介入レベルごとのメッセージ本文を組み立てる。`handle()` が内部で呼ぶ。
+
+```python
+def _create_notify_message(self, decision: ActionDecision, step: Optional[PlanStep]) -> str
+def _create_confirm_message(self, decision: ActionDecision, step: Optional[PlanStep]) -> str
+def _create_escalate_message(self, decision: ActionDecision, step: Optional[PlanStep]) -> str
+```
+
+| 項目 | 内容 |
+|------|------|
+| **Input** | `decision`（`confidence_score` / `reason` を持つ）、`step`（`None` 可） |
+| **Process** | いずれも **`step` の有無で 2 分岐**する。`step` があればステップ説明を 1 行足し、無ければ省く。信頼度は `:.1%` でパーセント表示 |
+| **Output** | `str` |
+
+**戻り値例**:
+
+```python
+# NOTIFY（step あり / なし）
+"実行中: 関連情報を検索 (信頼度: 82.0%)"
+"処理中... (信頼度: 82.0%)"
+
+# CONFIRM（step あり）
+"""信頼度が低いため確認が必要です。
+ステップ: 関連情報を検索
+信頼度: 55.0%
+理由: RAG スコアが閾値未満
+続行しますか？"""
+
+# ESCALATE（step あり）
+"""追加情報が必要です。
+ステップ: 関連情報を検索
+信頼度: 30.0%
+理由: 検索結果が 0 件"""
+```
+
+> 📝 **CONFIRM だけが「続行しますか？」で終わる。** CONFIRM は応答を待つ介入、
+> ESCALATE は追加情報そのものを求める介入なので、締めの一文が違う。
+
+#### メソッド: `_format_plan`
+
+**概要**: 計画を人が読める形へ整形する。`request_confirmation()` が確認メッセージに埋める。
+
+```python
+def _format_plan(self, plan: ExecutionPlan) -> str
+```
+
+| 項目 | 内容 |
+|------|------|
+| **Input** | `plan: ExecutionPlan` |
+| **Process** | 1 行目に `質問: {original_query}`、2 行目に `ステップ:`、以降 各ステップを `  {step_id}. [{action}] {description}` で列挙 |
+| **Output** | `str` |
+
+**戻り値例**:
+```
+質問: 住民票の写しの取り方は？
+ステップ:
+  1. [rag_search] 関連情報を検索
+  2. [reasoning] 収集した情報から回答を生成
+```
+
+#### メソッド: `_record_history`
+
+**概要**: 介入 1 件を `self.history` へ追記する。
+
+```python
+def _record_history(self, level: InterventionLevel, action: str,
+                    message: Optional[str] = None,
+                    response: Optional[InterventionResponse] = None)
+```
+
+| 項目 | 内容 |
+|------|------|
+| **Input** | `level`、`action`、`message`、`response` |
+| **Process** | `timestamp`（`datetime.now().isoformat()`）/ `level.value` / `action` / `message` / `response_action`（`response` が無ければ `None`）/ `timeout_reached`（無ければ `False`）の dict を `history` へ append |
+| **Output** | `None` |
+
+**戻り値例**（`get_history()` で取り出せる 1 件）:
+```python
+{
+    "timestamp": "2026-09-04T22:38:11.123456",
+    "level": "confirm",
+    "action": "request_confirmation",
+    "message": "信頼度が低いため確認が必要です。…",
+    "response_action": "approve",
+    "timeout_reached": False,
+}
+```
+
+> 📝 **`response` が `None` でも記録する。** 応答を待たない介入（NOTIFY）も履歴に残るので、
+> `response_action` が `None` の行は「通知しただけ」を意味する。
 
 #### メソッド: `get_history`
 
@@ -1464,6 +1562,7 @@ __all__ = [
 |-----------|---------|
 | 1.0 | 初版作成 |
 | 1.1 | フォーマット仕様v1.4準拠: 「各責務対応のモジュール」テーブル追加、ASCII図をMermaid v9フローチャートに変更（アーキテクチャ構成図・モジュール構成図・付録依存関係図） |
+| 1.3 | 2026-09-04: **`InterventionHandler` の非公開メソッド 5 件が未記載**だった（AST 照合）ので追加 — `_create_notify_message` / `_create_confirm_message` / `_create_escalate_message`（いずれも `step` の有無で 2 分岐。CONFIRM だけが「続行しますか？」で終わるのは応答を待つ介入だから）、`_format_plan`（`request_confirmation` が確認メッセージに埋める整形）、`_record_history`（`response` が `None` でも記録するので、`response_action` が `None` の行は「通知しただけ」を意味する）。§3.1 の一覧表にも追記 |
 | 1.2 | フォーマット仕様v1.5準拠: 全Mermaidダイアグラムに黒背景・白文字スタイル（`classDef default`/`subgraphStyle`・各サブグラフ`style`）を適用。実コードと照合し主要機能一覧・IPO詳細・戻り値例・使用例を補完、設定/定数セクションに閾値調整トリガー条件とtimeout挙動の注記を追加。本モジュールはLLM/Embeddingを直接呼ばない旨を概要に明記（2026-06-16） |
 
 ---

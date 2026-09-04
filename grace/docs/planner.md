@@ -1,6 +1,6 @@
 # planner.py - GRACE 計画生成エージェント ドキュメント
 
-**Version 3.4** | 最終更新: 2026-08-01
+**Version 3.5** | 最終更新: 2026-09-04
 
 ---
 
@@ -238,7 +238,8 @@ style FACTORY fill:#1a1a1a,stroke:#fff,color:#fff
 | `estimate_complexity_with_llm(query)` | LLMで複雑度を推定（温度・トークン数は config 由来） |
 | `refine_plan(plan, feedback)` | フィードバックに基づき計画を修正（リトライ・空/JSONガード付き） |
 | `_should_use_llm_plan(query, heuristic_complexity)` | LLM計画生成の要否を判定 |
-| `_prioritized_collection(query)` | 実行メモリの事前分布から優先コレクションを取得 |
+| `_is_excluded(collection)` | `qdrant.excluded_collections` に部分一致するか。`best_collection(exclude=...)` へ渡す述語 |
+| `_prioritized_collection(query)` | 実行メモリの事前分布から優先コレクションを取得（**除外対象は返さない**） |
 | `_build_rag_reasoning_plan(query, *, complexity, collection, rag_description)` | rag_search → reasoning の標準2ステップ計画を組み立てる共通ビルダー |
 | `_create_rule_based_plan(query, complexity)` | ルールベース2ステップ計画を生成（`_build_rag_reasoning_plan` に委譲） |
 | `_build_plan_prompt(query)` | 利用可能コレクションを埋め込んだLLM計画生成プロンプトを構築 |
@@ -489,6 +490,24 @@ print(use_llm)
 # 出力: True
 ```
 
+#### メソッド: `_is_excluded`
+
+**概要**: コレクション名が `qdrant.excluded_collections` に**部分一致**するかを返す。
+
+```python
+def _is_excluded(self, collection: str) -> bool
+```
+
+| 項目 | 内容 |
+|------|------|
+| **Input** | `collection`: コレクション名 |
+| **Process** | `config.qdrant.excluded_collections`（未設定なら `[]`）の各キーワードが `collection` に含まれるかを調べる |
+| **Output** | `bool` |
+
+> 📝 `_prioritized_collection()` が `ExecutionMemory.best_collection(exclude=...)` へ
+> **そのまま述語として渡す**ためのメソッド。判定が部分一致なのは、実コレクション名に
+> サフィックスが付く（`wikipedia_ja` → `wikipedia_ja_5per`）ため。
+
 #### メソッド: `_prioritized_collection`
 
 **概要**: P4 実行メモリの事前分布から、この質問で当たりやすいコレクションを返す。十分な実績が無ければ `None`（=全コレクション検索）。
@@ -504,8 +523,31 @@ def _prioritized_collection(self, query: str) -> Optional[str]
 | 項目 | 内容 |
 |------|------|
 | **Input** | `query: str` |
-| **Process** | 1. `_memory` が `None`（メモリ無効）なら `None` を返却<br>2. `memory.best_collection(query, min_count, min_score)` を呼び出し<br>3. 採用条件を満たすコレクション名、または `None` を返却<br>4. 例外時は警告ログを出して `None` |
+| **Process** | 1. `_memory` が `None`（メモリ無効）なら `None` を返却<br>2. `memory.best_collection(query, min_count=config.memory.min_count, min_score=config.memory.min_score, **exclude=self._is_excluded**)` を呼び出し<br>3. 採用条件を満たすコレクション名、または `None` を返却<br>4. 例外時は警告ログを出して `None` |
 | **Output** | `Optional[str]`: 優先コレクション名（無ければ `None`） |
+
+> ⚠️ **除外対象コレクションは返さない（`exclude` を渡す理由）。**
+>
+> メモリが返すのは「過去の実績からの**推測**」であって、運用者の明示指定ではない。
+> ところがこの戻り値は `PlanStep.collection` に入り、`RAGSearchTool` 側では
+> **「明示指定」と区別が付かない**ため、`qdrant.excluded_collections` を素通りする。
+>
+> 実測（2026-08-17）ではこうなっていた:
+>
+> ```
+> 11:10 天気の実行で誤採用された wikipedia_ja_5per が success として記録
+>   ↓
+> [memory] prioritized collection for query: wikipedia_ja_5per
+>   ↑ 「住民票の写しの取り方は？」でも「明日の東京の天気は？」でも同じ
+>     （collection_priors はキーワード重複が無いと全体集計へフォールバックする）
+>   ↓
+> 除外リストに載っているのに検索候補に残り、毎回無駄に検索される
+> ```
+>
+> 除外は**運用者が設定した恒久的な意思**なので、学習結果より優先する。
+
+> 📝 **除外対象は「飛ばして次点を採る」。** `best_collection()` 側の仕様で、
+> 除外に当たっても `None` で諦めずに次点を探す（諦めるとメモリ機構が事実上死ぬ）。
 
 **戻り値例**:
 ```python
@@ -1089,6 +1131,7 @@ __all__ = [
 | 3.1 | 2026-06-16: 実装に合わせて改訂。LLMを Anthropic Claude（`llm_compat.create_chat_client` 経由）に統一、`_should_use_llm_plan` / `_create_rule_based_plan` / `_create_llm_plan` / `_get_available_collections` を反映、Mermaid を黒背景・白文字スタイルに統一 |
 | 3.2 | 2026-06-27: 曖昧クエリ検知（`is_ambiguous_query` / `_create_clarification_plan`）と P4 実行メモリ層（`_prioritized_collection` / `grace.memory` 連携・`MemoryConfig`）を追加反映。`create_plan` / `__init__` / `_create_rule_based_plan` / `_create_fallback_plan` のフローを更新、図・一覧表・定数を最新化 |
 | 3.3 | 2026-06-27: PR-1/PR-2 のリファクタを反映。KeywordExtractor 撤去、_build_rag_reasoning_plan による計画構築の共通化、_create_llm_plan の _build_plan_prompt/_generate_plan_with_retry/_finalize_plan への分割、refine_plan のリトライ共通化、PlannerConfig へのマジックナンバー外出し（step_timeout_seconds 等）、_COMPLEXITY_FACTORS 定数化を文書化 |
+| 3.5 | 2026-09-04: **`_is_excluded` が未記載**だった（AST 照合）ので追加。あわせて `_prioritized_collection` の Process が `best_collection(query, min_count, min_score)` のままだったのを、実装どおり **`exclude=self._is_excluded` を渡す**形へ是正。メモリの戻り値は「推測」だが `PlanStep.collection` に入ると `RAGSearchTool` 側で明示指定と区別が付かず `qdrant.excluded_collections` を素通りする、という理由も明記した（実測 2026-08-17: 天気の実行で誤採用された `wikipedia_ja_5per` が全体集計の首位に居座り、無関係な質問でも返り続けていた） |
 | 3.4 | 2026-08-01: 実装（07-27）へ追随。`model_name` の解決を **`resolve_heavy_model(config)`**（M-1 論理層モデル。`llm.heavy_model` → 未設定なら `llm.model`）へ更新。内部依存に `resolve_heavy_model` / `heavy_thinking_budget` を追記 |
 
 ---

@@ -1,6 +1,6 @@
 # replan.py - GRACE 動的リプランニングシステム ドキュメント
 
-**Version 1.5** | 最終更新: 2026-06-16
+**Version 2.0** | 最終更新: 2026-09-04
 
 ---
 
@@ -252,8 +252,8 @@ style FACTORY fill:#1a1a1a,stroke:#fff,color:#fff
 | `_create_partial_replan(context, current_plan)` | 部分再計画 |
 | `_apply_fallback(context, current_plan)` | フォールバック適用 |
 | `_skip_failed_step(context, current_plan)` | 失敗ステップスキップ |
-| `_enhance_query_with_context(...)` | エラーコンテキストを含むクエリ生成 |
-| `_create_remaining_query(...)` | 残りステップ再計画クエリ生成 |
+| `_build_context_hints(context)` | リプランの補足（前回のエラー・進捗・フィードバック）を組み立てる。**戻り値は `create_plan(..., context_hints=...)` にだけ渡す**（クエリへ連結しない） |
+| `_create_remaining_hints(context, completed_steps)` | 部分再計画の補足を組み立てる。同上 |
 | `_adjust_step_ids(...)` | ステップID・依存関係の調整 |
 | `_find_step(plan, step_id)` | 計画からステップを検索 |
 
@@ -690,6 +690,72 @@ print(history)
 # 出力: []
 ```
 
+
+#### メソッド: `_build_context_hints`
+
+**概要**: リプランの補足（前回のエラー・進捗・フィードバック）を組み立てる。
+
+```python
+def _build_context_hints(self, context: ReplanContext) -> str
+```
+
+| 項目 | 内容 |
+|------|------|
+| **Input** | `context`: `error_message` / `completed_results` / `user_feedback` / `new_information` |
+| **Process** | 存在する項目だけを順に 1 行ずつ積む（「注意: 前回の試行で「…」というエラーが発生」／「進捗: ステップN は完了済み, …」／「ユーザーフィードバック: …」／「追加情報: …」） |
+| **Output** | `str`: 改行で連結した補足文（該当なしなら空文字） |
+
+> ⚠️ **戻り値は `Planner.create_plan(..., context_hints=...)` にだけ渡す。元のクエリへ連結してはいけない。**
+>
+> 連結すると 2 つ壊れる:
+>
+> 1. `PlanStep.query` がこの文章まるごとになり、**rag_search の embedding が壊れて再検索も外す**
+> 2. `estimate_complexity` が長さで加点するため複雑度が閾値を越え、
+>    ルールベース計画（LLM 呼び出し 0 回）から**高コストな LLM 計画生成へ落ちる**
+>
+> 実測では次の文字列がそのまま検索クエリになり、**リプランするほど状況が悪化していた**:
+>
+> ```
+> 明日の東京の天気は？
+>
+> 【追加情報】
+> 注意: 前回の試行で「ステップ 2 (reasoning) が 30 秒でタイムアウトしました」というエラーが発生
+> ```
+
+**戻り値例**:
+```
+注意: 前回の試行で「ステップ2 (reasoning) が 30 秒でタイムアウトしました」というエラーが発生
+進捗: ステップ1は完了済み
+```
+
+#### メソッド: `_create_remaining_hints`
+
+**概要**: 部分再計画の補足を組み立てる。
+
+```python
+def _create_remaining_hints(self, context: ReplanContext,
+                            completed_steps: List[PlanStep]) -> str
+```
+
+| 項目 | 内容 |
+|------|------|
+| **Input** | `context`、`completed_steps` |
+| **Process** | 完了済みステップ数と失敗理由を 1 行にまとめ、「失敗したステップ以降の代替アプローチを提案してください。」を添える |
+| **Output** | `str`: 2 行の補足文 |
+
+> ⚠️ **以前はこの文章がまるごと `create_plan()` の `query` になっていた。**
+> つまり「以下の計画の続きを作成してください。元の質問: …」という**指示文が
+> rag_search の検索クエリになっていた**。`context_hints` として渡すこと。
+
+> 📝 JSON スキーマの指示は `_build_plan_prompt` 側が既に持っているため、ここでは重複させない。
+
+**戻り値例**:
+```
+これは再計画です。完了済みステップ: 1個 / 失敗理由: ステップ2がタイムアウト
+失敗したステップ以降の代替アプローチを提案してください。
+```
+
+---
 ### 4.5 ReplanOrchestrator クラス
 
 Executor と ReplanManager を統合し、自動リプランフローを管理する。
@@ -1020,6 +1086,7 @@ __all__ = [
 | 1.2 | ReplanOrchestrator を追加、自動リプランフローを整理 |
 | 1.3 | フォールバックチェーン（`_SEARCH_FALLBACK_CHAIN`）を追加 |
 | 1.4 | IPO形式に再構成 |
+| 2.0 | 2026-09-04: **`_enhance_query_with_context` / `_create_remaining_query` は既に存在しない**（`1fbbc6d` で `_build_context_hints` / `_create_remaining_hints` へ改名・役割変更済み）ため §3.1 の一覧を是正し、§4.4 に両メソッドの IPO を追加した。旧実装は補足文を**元のクエリへ連結**して `create_plan()` へ渡しており、その文章がまるごと `PlanStep.query` ＝ rag_search の検索クエリになっていた（embedding が壊れて再検索も外れ、`estimate_complexity` が長さで加点して LLM 計画生成へ落ちる。＝リプランするほど悪化する構造）。現行は `context_hints` として分離して渡す |
 | 1.5 | 2026-06-16: 実装に合わせて改訂。LLM経由（Planner→Anthropic Claude/`llm_compat`）の委譲関係を明記、全メソッドのIPO・シグネチャ・デフォルト値を反映、Mermaid を黒背景・白文字スタイルに統一 |
 
 ---

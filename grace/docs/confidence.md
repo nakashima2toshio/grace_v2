@@ -1,6 +1,6 @@
 # confidence.py - 信頼度計算システム ドキュメント
 
-**Version 2.2** | 最終更新: 2026-08-01
+**Version 2.3** | 最終更新: 2026-09-04
 
 ---
 
@@ -311,6 +311,17 @@ style FACT fill:#1a1a1a,stroke:#fff,color:#fff
 |---------|------|
 | `__init__(config=None, model_name=None)` | コンストラクタ（クライアント生成） |
 | `verify(query, answer, sources=None)` | 主張ごとの支持率を検証 |
+| `_embed_all(answers)` | 全ソースの Embedding を **`BATCH_SIZE` ごとにまとめて**取得。件数が食い違ったら 1 件ずつへ落とす |
+| `_remember(key, result)` | 判定できた結果**だけ**をキャッシュへ入れる（失敗は覚えない） |
+| `_abbreviate(text, limit=120)` (staticmethod) | ログ 1 行に収まる長さへ縮める |
+| `_log_claims(result)` | 判定の内訳をログへ出す。**contradicted は必ず本文つき** |
+
+#### モジュール関数・定数（方針文の除外）
+
+| 名前 | 概要 |
+|---|---|
+| `POLICY_CLAIM_MARKERS` | 方針文（担当範囲外の断り・窓口案内）に現れる語のタプル |
+| `is_unsupportable_policy_claim(claim)` | 「正しく断っただけ」の主張か。**`verdict == "neutral"` のものだけ**が対象 |
 
 #### ConfidenceAggregator
 
@@ -1079,7 +1090,143 @@ print(result.support_rate, result.verified)
 # 1.0 True
 ```
 
-### 4.10 ConfidenceAggregator クラス
+#### メソッド: `_embed_all`
+
+**概要**: 全ソースの Embedding を**まとめて**取得する。
+
+```python
+def _embed_all(self, answers: List[str]) -> List[List[float]]
+```
+
+| 項目 | 内容 |
+|------|------|
+| **Input** | `answers`: ソース本文のリスト |
+| **Process** | `BATCH_SIZE` ごとに区切り、`client.models.embed_content(contents=chunk)` を 1 回呼ぶ。返却件数が入力件数と食い違ったら警告を出して**1 件ずつ取得し直す** |
+| **Output** | `List[List[float]]`: 入力と同順の埋め込み |
+
+> ⚠️ **1 件ずつ呼んでいた頃のコスト（実測 2026-08-17）。**
+> `for answer in answers` で `embed_content` を回していたため、Web フォールバックで
+> 出典が 9 件あると **1 質問あたり 9 リクエスト**（約 4 秒）。Embedding は外部 API（Gemini）
+> なので待ち時間だけでなく**課金にも効く**。`contents` はリストを受けられるので、
+> 内容も件数も変えずに 1 往復へ畳める。
+
+> ⚠️ **件数が食い違ったら黙って続けない。** 順番が入力と対応している前提で cosine 類似度を
+> 取るため、ズレたまま計算すると「**別のソース同士を比較した一致度**」という
+> 気付けない誤りになる。1 件ずつの取得へ落として整合を保つ。
+
+#### メソッド: `_remember`
+
+**概要**: 判定できた結果**だけ**をキャッシュへ入れる。
+
+```python
+def _remember(self, key: tuple, result: GroundednessResult) -> None
+```
+
+| 項目 | 内容 |
+|------|------|
+| **Input** | `key`（キャッシュキー）、`result` |
+| **Process** | `result.verification_failed` が真なら何もしない。そうでなければ `_cache[key] = result` とし、`_CACHE_SIZE` を超えた分を古い順に捨てる（`popitem(last=False)`） |
+| **Output** | `None` |
+
+> ⚠️ **失敗はキャッシュしない。** タイムアウトや空応答は入力ではなく**実行時の事情**で
+> 起きるため、次の呼び出しでは成功しうる。失敗を覚えると、**1 回の瞬断で後続の全経路が
+> 「検証不能」に固定される。**
+
+> 📝 本リポジトリでは失敗経路（空応答・例外）が `_remember` へ到達する前に return するため、
+> ここへ来るのは判定できた結果だけである。姉妹リポジトリ `grace_v2_local` は
+> `verification_failed` フラグで明示的に区別しており、そちらを移植したときにこの分岐が
+> そのまま効くよう `getattr` で見ている。
+
+#### 静的メソッド: `_abbreviate`
+
+```python
+@staticmethod
+def _abbreviate(text: str, limit: int = 120) -> str
+```
+
+| 項目 | 内容 |
+|------|------|
+| **Input** | `text`、`limit` |
+| **Process** | 空白を 1 つに畳んでから、`limit` を超えたら切り詰めて `"…"` を付ける |
+| **Output** | `str`: ログ 1 行に収まる長さ |
+
+#### メソッド: `_log_claims`
+
+**概要**: 判定の内訳をログへ出す。
+
+```python
+def _log_claims(self, result: GroundednessResult) -> None
+```
+
+| 項目 | 内容 |
+|------|------|
+| **Input** | `result` |
+| **Process** | ① `verdict == "contradicted"` の主張を **`logger.warning` で 1 件ずつ本文つき**（`_abbreviate` 120 字）に出す ② 主張があれば全件を `verdict: 本文`（60 字）で連結し `logger.info` に出す |
+| **Output** | `None` |
+
+> ⚠️ **contradicted は必ず本文つきで出す。** 矛盾が 1 件でもあると呼び出し側（executor）は
+> `answer_conf` を **0.30 に cap** する。誤検知だと正しい回答の信頼度が不当に下がるため、
+> 後から誤検知かどうかを判断できるだけの情報をログに残す必要がある。**件数だけでは切り分けられない。**
+
+---
+
+### 4.10 方針文の除外（`POLICY_CLAIM_MARKERS` / `is_unsupportable_policy_claim`）
+
+#### 定数: `POLICY_CLAIM_MARKERS`
+
+方針文（担当範囲外の断り・窓口案内）に現れる語のタプル。
+
+```python
+POLICY_CLAIM_MARKERS = (
+    "担当範囲外", "対応範囲外", "範囲外です",
+    "お答えできません", "回答できません", "お答えいたしかね",
+    "お問い合わせください", "ご利用ください",
+)
+```
+
+> ⚠️ **これらを含むだけでは除外しない。`neutral` と判定されたものだけを除外する。**
+> 「住民票は市役所の窓口で取得できます」のように情報源に裏付けのある記述は
+> `supported` になるので母数から落ちない。落とすのは
+> **原理的にどの情報源でも支持されない方針文**だけである。
+
+#### 関数: `is_unsupportable_policy_claim`
+
+```python
+def is_unsupportable_policy_claim(claim) -> bool
+```
+
+| 項目 | 内容 |
+|------|------|
+| **Input** | `claim`（`verdict` と `claim` を持つオブジェクト） |
+| **Process** | `verdict != "neutral"` なら即 `False`。`neutral` のときだけ、本文に `POLICY_CLAIM_MARKERS` のいずれかが含まれるかを見る |
+| **Output** | `bool` |
+
+> ⚠️ **なぜ外すのか — 正しく断るほど信頼度が下がっていた。**
+>
+> 業界プロファイルの `SCOPE_POLICY` は、担当範囲外の話題について
+> 「範囲外である旨を明示し、窓口を案内する」ことを求めている。方針どおりに断ると、
+> その断り文は claim として抽出され、**社内ナレッジには載っていないので必ず neutral** になる。
+>
+> neutral は `support_rate` の分子にも分母にも入らないが、
+> **M-6 の判定率減衰（`decided / total`）の `total` には入る**。
+>
+> 実測 2026-08-29（クラウド版・住民票＋天気）:
+>
+> ```
+> supported 7 / neutral 2（「天気は担当範囲外」「気象庁のURL」）
+> → decided 7/9 → damped 0.992 → final 0.906
+> ```
+>
+> 住民票への回答は 7/7 すべて supported なのに、**正しい断りが 2 件あるという理由だけで
+> 0.99 → 0.91 へ落ちていた。**
+
+> 📝 **限界（正直に書いておく）。** 語による照合なので、断りに付随する案内
+> （「気象庁公式サイトの URL は…」のように事実文の形をとるもの）までは捕まえられない。
+> 方針文の本体（「担当範囲外です」「お問い合わせください」）を落とすところまでが範囲。
+
+---
+
+### 4.11 ConfidenceAggregator クラス
 
 複数ステップの信頼度を集計するクラス。
 
@@ -1185,7 +1332,7 @@ print(score, has_failure)
 # 0.49 True
 ```
 
-### 4.11 ファクトリ関数
+### 4.12 ファクトリ関数
 
 #### `create_confidence_calculator`
 
@@ -1539,6 +1686,7 @@ __all__ = [
 | 1.0 | 初版作成 |
 | 2.0 | groundedness（S1）検証・統合評価（evaluate_final）の追加に対応 |
 | 2.1 | 実ソースに整合（2026-06-16）。LLM 呼び出しを `llm_compat`（Anthropic 互換）経由として明記、Embedding を Gemini に統一、全 Mermaid 図を黒背景・白文字スタイルに更新、IPO 詳細・設定値・`__all__` を最新化 |
+| 2.3 | 2026-09-04: **未記載シンボル 6 件を追加**（AST 照合）。`GroundednessVerifier` の 4 メソッド（`_embed_all` / `_remember` / `_abbreviate` / `_log_claims`）と、方針文除外の `POLICY_CLAIM_MARKERS` / `is_unsupportable_policy_claim` を §4.9・§4.10 として記述。§4.10 だった `ConfidenceAggregator` は §4.11、ファクトリ関数は §4.12 へ繰り下げ。いずれも「なぜそうなっているか」を実コードのコメントから起こした — `_embed_all` は 1 件ずつ呼ぶと出典 9 件で 9 リクエスト（約 4 秒・課金）になること、件数がズレたら別ソース同士を比較する誤りになること／`_remember` が失敗をキャッシュしないのは 1 回の瞬断で後続が「検証不能」に固定されるため／`_log_claims` が contradicted を本文つきで出すのは、1 件あると呼び出し側が `answer_conf` を 0.30 に cap するため／方針文除外は「正しく断るほど信頼度が下がる」（実測 0.99 → 0.91）を防ぐため |
 | 2.2 | 実装（07-27）へ追随（2026-08-01）。`GroundednessVerifier.__init__` のモデル解決を **`resolve_heavy_model(config)`**（M-1 論理層）へ更新し、`heavy_thinking_budget(config)` を `thinking_budget_tokens` として渡すこと、**`heavy_model` 未設定なら拡張思考は無効（0）**であることを明記。内部依存に `grace.config` の新関数 2 つを追記 |
 
 ---
