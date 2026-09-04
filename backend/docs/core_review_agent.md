@@ -1,6 +1,6 @@
 # core/review_agent.py - GRACE-Review コアパイプライン ドキュメント
 
-**Version 1.0** | 最終更新: 2026-07-29
+**Version 1.1** | 最終更新: 2026-09-04
 
 ---
 
@@ -355,6 +355,8 @@ style REG fill:#1a1a1a,stroke:#fff,color:#fff
 | `_retrieve_evidence(tool_registry, query, ruleset)` | ② 規程を検索する |
 | `_build_finding(index, segment, rule, verdict, citations)` | 指摘を組み立てる（オフセット解決） |
 | `_segment_text(segments, segment_id)` | セグメント ID から本文を引く |
+| `_document_segment(document)` | **文書全体**を 1 つの判定単位として表す擬似セグメント（表記漏れ判定用） |
+| `_is_too_broad(excerpt, document)` | 文書全体スコープの `excerpt` が「該当箇所」として広すぎるか |
 | `_web_crosscheck(tool_registry, findings, ruleset, log)` | ⑥ 法改正を確認する |
 | `_summarize(findings, suppressed)` | 件数サマリを作る |
 | `_decide_review_action(result)` | ⑦ 実行アクションを決める |
@@ -551,6 +553,43 @@ def _build_finding(
 > 実測 2026-08-31 では支持率 1.00 で **「自動判定に失敗したため要確認」と書かれた指摘が
 > 「確定」バッジ**で表示された（適正な LP でも 9 件中 8 件）。`verdict is None` の
 > ときは status の上限を `review_required` に留める。
+
+#### `_document_segment`
+
+```python
+def _document_segment(document: str) -> Segment
+```
+
+| 項目 | 内容 |
+|------|------|
+| **Input** | `document`: 文書全体 |
+| **Process** | `Segment(segment_id=DOCUMENT_SEGMENT_ID, text=document, start=0, end=len(document), kind="document")` を作る |
+| **Output** | `Segment` |
+
+> 📝 **`result.segments` には入れない。** UI のセグメント一覧は**実際の分割結果だけ**を見せる。
+> これは表記漏れ（`always_check`）の判定にだけ使う擬似セグメントである。
+
+#### `_is_too_broad`
+
+```python
+def _is_too_broad(excerpt: str, document: str) -> bool
+```
+
+| 項目 | 内容 |
+|------|------|
+| **Input** | `excerpt`（LLM が返した該当箇所）、`document`（文書全体） |
+| **Process** | `document` が空なら `False`。**割合**（`DOCUMENT_EXCERPT_MAX_RATIO`）と**絶対値**（`DOCUMENT_EXCERPT_MAX_CHARS`）の 2 つの上限を **or** で判定する |
+| **Output** | `bool`: 広すぎるなら `True` |
+
+> ⚠️ **表記漏れの指摘は特定の 1 箇所を指すためのもの。**
+> 文書の大半を占める excerpt は**位置を示せていない**（＝ポインタとして機能していない）。
+
+> ⚠️ **2 つの上限を or で見る理由 — 片方だけでは取りこぼす。**
+>
+> | 上限 | 効く場面 | 実測 |
+> |---|---|---|
+> | 割合 | 短い文書 | 8 行の LP で **7 行ぶん（約 0.87）**が返ってきた。絶対値だけだと 140 文字は許容範囲に見える |
+> | 絶対値 | 長い文書 | 5,000 文字の LP に対し 1,000 文字の excerpt は割合では 0.2 だが、**直す場所としては役に立たない** |
 
 #### `_decide_review_action`
 

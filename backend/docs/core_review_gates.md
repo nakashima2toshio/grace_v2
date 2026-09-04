@@ -1,6 +1,6 @@
 # core/review_gates.py - 文書レビューの判定・抑止ロジック ドキュメント
 
-**Version 1.0** | 最終更新: 2026-07-29
+**Version 1.1** | 最終更新: 2026-09-04
 
 ---
 
@@ -247,6 +247,7 @@ style PUREFN fill:#1a1a1a,stroke:#fff,color:#fff
 | 関数名 | 概要 |
 |-------|------|
 | `select_candidate_rules(segment_text, ruleset)` | 第1段の候補選択（LLM 不要） |
+| `select_document_rules(ruleset)` | **文書全体**に対して第2段へ回すルール候補（`always_check=True`）を返す |
 | `should_force_high(text, ruleset, classify)` | 重大リスク語の二段判定 |
 | `detect_vacuous_finding(message, judge)` | 実質性の二段判定 |
 
@@ -258,6 +259,12 @@ style PUREFN fill:#1a1a1a,stroke:#fff,color:#fff
 | `should_rescue_finding(status, has_contradiction, citation_count, message, judge)` | 救済可否を決める |
 | `adjust_severity(base, support_rate, notify_th, confirm_th)` | 重大度を調整する |
 | `apply_forced_high(severity, status, forced)` | 強制 high を適用する |
+
+#### ログ用ヘルパ
+
+| 関数名 | 概要 |
+|-------|------|
+| `_brief(exc, limit=200)` | 例外メッセージを 1 行へ畳んで切り詰める |
 
 ---
 
@@ -311,6 +318,51 @@ print([c.rule_id for c in candidates])
 > **`always_check` が常に候補になる理由**: 特商法の表記漏れ（販売業者名が「無い」こと）は
 > キーワード一致では原理的に検出できない。「無いこと」を確かめるには本文全体を見る必要が
 > あるため、キーワード不問で第2段へ送る。
+
+---
+
+#### `select_document_rules`
+
+```python
+def select_document_rules(ruleset: Optional[RuleSet]) -> List[RuleCandidate]
+```
+
+| 項目 | 内容 |
+|------|------|
+| **Input** | `ruleset`（`None` 可） |
+| **Process** | `always_check=True` のルールだけを候補として返す |
+| **Output** | `List[RuleCandidate]` |
+
+> ⚠️ **表記漏れの判定単位はセグメントではなく文書全体。**
+>
+> 以前は `select_candidate_rules` が `always_check` のルールを**毎セグメントの候補に加えていた**。
+> その結果、判定 LLM には**セグメント 1 行だけ**が「対象テキスト」として渡り、
+> 次のような誤検知が構造的に発生していた（実測 2026-08-17）:
+>
+> ```
+> 該当箇所「当社の美容液は、うるおいを与えて肌をなめらかに整えます。」
+>   → 「事業者の氏名・住所・電話番号が一切含まれていません」
+>      （実際は同じ文書の 3〜6 行目にすべて記載されている）
+> ```
+>
+> 「見出しの行に会社名が書いていない」は当たり前で、LLM は与えられた 1 行について
+> **正直に答えているだけ**。判定の入力スコープが誤っていた。
+>
+> `select_candidate_rules` の docstring が言うとおり「表記が『無い』ことの検出は
+> キーワード一致では原理的に不可能」だが、**同じ理屈はセグメント単位の判定にも当てはまる**。
+> **1 行を見て「文書に無い」とは言えない。**
+
+> 📝 文書全体を渡すための擬似セグメントは `review_agent._document_segment()` が作る。
+> 返ってきた `excerpt` が広すぎないかは `review_agent._is_too_broad()` が見る。
+
+#### `_brief`
+
+```python
+def _brief(exc: Exception, limit: int = 200) -> str
+```
+
+例外メッセージの空白を 1 つに畳み、`limit` を超えた分を切り詰めて `"…"` を付ける。
+ログ 1 行に収めるための小道具。
 
 ---
 

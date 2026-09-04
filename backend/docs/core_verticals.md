@@ -1,6 +1,6 @@
 # core/verticals.py - 業界プロファイル定義 ドキュメント
 
-**Version 1.1** | 最終更新: 2026-08-01
+**Version 1.2** | 最終更新: 2026-09-04
 
 ---
 
@@ -183,6 +183,8 @@ style PROFILES fill:#1a1a1a,stroke:#fff,color:#fff
 |---------|------|
 | （dataclass） | name / collections / escalate_keywords / action_map / require_identity / notify_th / confirm_th / prompt_addendum / preferred_domains |
 | `build_prompt_addendum(out_of_scope_questions=None)` | 業界固有方針に共通 `SCOPE_POLICY` を足して reasoning 注入用の文字列を返す。範囲外の主質問を渡すと `_out_of_scope_instruction()` を追加する |
+| `build_closing_instruction(out_of_scope_questions=None)` | 【回答の構成ルール】の**後ろ**に置く最後の指示。範囲外の質問が無ければ空文字 |
+| `_links_instruction()` | 案内先 URL を「**この行をそのまま書き写せ**」という形で渡す |
 | `_out_of_scope_instruction(questions)` | 範囲外の質問を**同じ回答の中で**断り、窓口案内を添えさせる指示文。検索は絞ったまま応答の完全さを保つための経路 |
 
 ### 3.2 関数一覧
@@ -324,6 +326,42 @@ addendum = profile.build_prompt_addendum()   # 業界方針 + SCOPE_POLICY
 ```
 
 ---
+
+#### `build_closing_instruction`
+
+```python
+def build_closing_instruction(self, out_of_scope_questions: Optional[List[str]] = None) -> str
+```
+
+| 項目 | 内容 |
+|------|------|
+| **Input** | `out_of_scope_questions`（`None` / 空なら**空文字を返す**） |
+| **Process** | `_out_of_scope_instruction(questions)` に委譲する |
+| **Output** | `str`: 【回答の構成ルール】の**後ろ**に置く最後の指示 |
+
+> ⚠️ **位置が結果を変える。**
+> 以前はこの内容を `build_prompt_addendum()` が返す業務方針（参照情報の手前）に混ぜていたが、
+> 後段の【回答の構成ルール（最重要）】に負けて、**モデルが断りを落とす事象が実測 2 回連続で起きた**
+> （2026-08-30 03:00 / 04:07。どちらも同じ注入で、回答は担当範囲内の説明だけで終わっていた）。
+>
+> **「必ず書く」類の指示は最後に読ませる。**
+
+#### `_links_instruction`
+
+```python
+def _links_instruction(self) -> str
+```
+
+| 項目 | 内容 |
+|------|------|
+| **Input** | `self.out_of_scope_links`（`{表示名: URL}`。空なら**空文字を返す**） |
+| **Process** | `- 表示名: URL` の行を並べ、「**この行をそのまま書き写すこと**」を添える |
+| **Output** | `str` |
+
+> ⚠️ **URL を記憶から書かせない。**
+> 回答の構成ルール 4 は「出典行に無い URL・ドメイン名を書くことは**捏造にあたる**」としている。
+> 案内先を出したいなら、**こちらが literal で渡すのが唯一の正しい方法**である
+> （実測 2026-08-29 のクラウド版は、渡していない URL を記憶から補っていた）。
 
 ## 5. 設定・定数
 

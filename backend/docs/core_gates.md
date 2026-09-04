@@ -1,6 +1,6 @@
 # core/gates.py - 回答ゲート・判定ロジック ドキュメント
 
-**Version 1.1** | 最終更新: 2026-08-01
+**Version 1.2** | 最終更新: 2026-09-04
 
 ---
 
@@ -190,6 +190,12 @@ style CITE fill:#1a1a1a,stroke:#fff,color:#fff
 
 ### 3.2 関数一覧（カテゴリ別）
 
+#### モデル解決
+
+| 関数名 | 概要 |
+|-------|------|
+| `judge_model(config)` | 判定系（意図分類・情報なし判定）が使うモデル名を解決する。**`INTENT_MODEL` を直接使ってはいけない** |
+
 #### ファクトリ（LLM 判定器）
 
 | 関数名 | 概要 |
@@ -207,6 +213,8 @@ style CITE fill:#1a1a1a,stroke:#fff,color:#fff
 | `_detect_no_info_answer(query, answer, judge, force_judge)` | 情報なし回答の二段判定 |
 | `_should_rescue_unaffirmed(decision, forced_escalate, has_contradiction, citation_count, answer, query, no_info_judge)` | 救済可否 |
 | `_pick_groundedness(*results)` | (支持率, 判定数) を選ぶ |
+| `_contradicted_claims(gres, limit, max_chars)` | groundedness 結果から「矛盾」と判定された主張の**本文**を取り出す |
+| `_abbreviate_reason(text, limit)` | 判定失敗の理由をログ 1 行に収まる長さへ縮める |
 | `_decide_action(query, decision, profile, classify)` | アクション種別を決定 |
 
 #### 0-(A) 入力・質問分析（複数質問クエリ）
@@ -217,6 +225,8 @@ style CITE fill:#1a1a1a,stroke:#fff,color:#fff
 
 | 関数名 | 概要 |
 |-------|------|
+| `_count_question_marks(query)` | 全角「？」と半角「?」を数える（`looks_like_multi_question` の判定材料） |
+| `_char_bigrams(text)` | 空白を除いた文字 2-gram の集合。**語彙・形態素解析に依存しない**（`_derives_from_query` の一致率計算に使う） |
 | `looks_like_multi_question(query)` | 第 1 段の候補検出（接続表現・疑問符 2 個以上）。LLM 呼び出しゼロ |
 | `_parse_cluster_output(text, query)` | 第 2 段の行区切り出力を `[(main, [related...])]` へ解析。**元の `query` に由来しない行が 1 つでもあれば出力ごと捨てる**（散文が主質問になるのを防ぐ） |
 | `_derives_from_query(line, query)` | 行が問い合わせを切り分けたものとみなせるか（文字 2-gram の一致率 ≥ `MIN_QUERY_OVERLAP`） |
@@ -570,6 +580,83 @@ None    # 一致なし
 # 使用例
 matched = _match_keyword(query, profile.escalate_keywords)
 ```
+
+#### `judge_model`
+
+```python
+def judge_model(config) -> str
+```
+
+| 項目 | 内容 |
+|------|------|
+| **Input** | `config` |
+| **Process** | `config.llm.light_model` を優先して返す（未設定なら順に落とす） |
+| **Output** | `str`: 判定系が使うモデル名 |
+
+> ⚠️ **`INTENT_MODEL` を直接使ってはいけない。**
+>
+> `INTENT_MODEL` は `verticals.py` に**リテラルで書かれたモジュール定数**で、
+> `config/grace_config.yml` を一切見ない。一方 planner / reasoning / groundedness などは
+> `grace/config.py` 経由で yml の `llm.model` / `llm.light_model` を読む。
+> つまり**解決経路が 2 本ある**。
+>
+> 現時点では両者がたまたま同じ値なので表には出ていないが、
+> **yml の `light_model` を書き換えても判定系だけが取り残される。**
+> 同じ値を 2 箇所で管理している状態そのものが負債である。
+
+#### `_contradicted_claims`
+
+```python
+def _contradicted_claims(gres, limit: int = 5, max_chars: int = 160) -> List[str]
+```
+
+| 項目 | 内容 |
+|------|------|
+| **Input** | `gres`（groundedness 結果）、`limit`（最大件数・既定 5）、`max_chars`（1 件の最大文字数・既定 160） |
+| **Process** | `gres.claims` のうち `verdict == "contradicted"` のものの本文を取り出し、切り詰めて返す。**`claims` を持たない結果（旧シリアライズ・テスト用スタブ）でも落ちない**ようにしてある |
+| **Output** | `List[str]` |
+
+> ⚠️ **件数だけでは誤検知を切り分けられない。**
+> 矛盾が 1 件でもあると executor は `answer_conf` を **0.30 に cap** する。
+> 誤検知ならば正しい回答の信頼度を不当に下げることになるので、
+> **どの主張が矛盾と判定されたのか**をログ・イベントに残して後から検証できるようにする。
+
+#### `_abbreviate_reason`
+
+```python
+def _abbreviate_reason(text: str, limit: int = 120) -> str
+```
+
+空白を 1 つに畳んでから `limit` を超えた分を切り詰め `"…"` を付ける。
+判定失敗の理由をログ 1 行に収めるための小道具。
+
+#### `_count_question_marks`
+
+```python
+def _count_question_marks(query: str) -> int
+```
+
+`"？"`（全角）と `"?"`（半角）の出現数の合計。`looks_like_multi_question()` が
+「疑問符が 2 個以上あるか」を見るために使う。**`None` でも落ちない**（`(query or "")`）。
+
+#### `_char_bigrams`
+
+```python
+def _char_bigrams(text: str) -> set
+```
+
+| 項目 | 内容 |
+|------|------|
+| **Input** | `text` |
+| **Process** | 空白をすべて除いてから、隣接 2 文字の集合を作る |
+| **Output** | `set`: 文字 2-gram の集合 |
+
+> 📝 **語彙・形態素解析に依存しない**のがねらい。`_derives_from_query()` が
+> 「LLM の出力行が元の問い合わせに由来しているか」を一致率
+> （`MIN_QUERY_OVERLAP` 以上）で判定するのに使う。
+> 形態素解析を挟むと辞書の有無で挙動が変わるため、文字 n-gram で済ませている。
+
+---
 
 ### 4.3 出典整形
 

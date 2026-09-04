@@ -1,6 +1,6 @@
 # core/support_agent.py - GRACE-Support コアサービス ドキュメント
 
-**Version 1.1** | 最終更新: 2026-08-01
+**Version 1.2** | 最終更新: 2026-09-04
 
 ---
 
@@ -59,6 +59,7 @@ Gemini（検索）。同等性は `backend/tests/test_support_agent_core.py` で
 | 機能 | 説明 |
 |------|------|
 | `SupportEvent` | パイプライン進捗イベント（dataclass） |
+| `QuestionCluster` | 1 つの主質問と、それに従属する関連質問のまとまり（0-(A) の採用単位） |
 | `SupportResult` | サポート回答の結果（dataclass） |
 | `result_to_dict()` | `SupportResult` を JSON 化可能な dict へ変換 |
 | `run_support_agent_core()` | コアパイプライン本体（イベント発行型） |
@@ -190,6 +191,21 @@ style PIPELINE fill:#1a1a1a,stroke:#fff,color:#fff
 | メソッド | 概要 |
 |---------|------|
 | （dataclass） | `type` / `step` / `status` / `title` / `message` / `data` を保持する進捗イベント |
+
+#### QuestionCluster
+
+```python
+@dataclass
+class QuestionCluster:
+    main: str                        # 主質問（独立したトピック）
+    related: List[str] = []          # 主質問に従属する関連質問
+```
+
+複数質問クエリの**採用単位**。
+
+> ⚠️ **主質問だけを採用単位にしてはいけない。**
+> 関連質問は主質問に従属しており（例:「住民票の取り方は？ **その手数料は？**」の「その手数料」）、
+> 切り離すと**主質問の回答自体が不完全になる**。
 
 #### SupportResult
 
