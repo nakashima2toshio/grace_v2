@@ -1,6 +1,6 @@
 # schemas.py - API スキーマ（Pydantic）ドキュメント
 
-**Version 1.2** | 最終更新: 2026-08-01
+**Version 1.3** | 最終更新: 2026-09-04
 
 ---
 
@@ -183,6 +183,7 @@ style DATA fill:#1a1a1a,stroke:#fff,color:#fff
 | `JobStatusResponse` | ジョブ状態＋結果 |
 | `SupportEventModel` | SSE 進捗イベント |
 | `VerticalInfo` | 業界プロファイル情報 |
+| `QuestionClusterModel` | 0-(A) 質問分析のクラスタ（`main` ＋ `related`） |
 
 #### GRACE-Review 用（v1.1 で追加）
 
@@ -200,6 +201,31 @@ style DATA fill:#1a1a1a,stroke:#fff,color:#fff
 > `ConfirmResponse`（HITL 応答）・`ActionRequestModel`（アクション情報）は
 > Review でもそのまま使う。SSE イベントも形式が同一のため `SupportEventModel` を共用する。
 > 新設したのは**結果まわりの型だけ**である。
+
+#### データ準備用（チャンク化 / Qdrant 登録・参照 / 削除）
+
+リクエスト系（[`api_data.md`](./api_data.md) が使う）:
+
+| モデル | 概要 |
+|-------|------|
+| `ChunkingRequest` | チャンク化の起動パラメータ（CLI 引数と 1:1） |
+| `RegisterRequest` | Q/A CSV → Qdrant 登録のパラメータ |
+| `DeleteCollectionsRequest` | コレクション削除のパラメータ |
+| `DataJobStatusResponse` | データ準備ジョブの状態＋結果 |
+
+参照系（[`api_qdrant.md`](./api_qdrant.md) が使う・読み取り専用）:
+
+| モデル | 概要 |
+|-------|------|
+| `QdrantHealth` | Qdrant の稼働確認結果 |
+| `CollectionInfo` | コレクション一覧の 1 件 |
+| `CollectionDetail` | コレクション詳細（ベクトル設定＋データ元集計） |
+| `CollectionPoints` | ポイントのプレビュー |
+| `InputFileInfo` / `InputFileListResponse` | 入力ファイル候補 |
+
+> 📝 **`QueryAccepted` / `ConfirmRequest` / `ConfirmResponse` はここでも共用する。**
+> データ準備ジョブも Support / Review と同じジョブ基盤・SSE・HITL を通るため、
+> 新設したのは**入力パラメータと参照系の型だけ**である。
 
 ### 3.2 関数一覧
 
@@ -740,6 +766,161 @@ class RuleSetInfo(BaseModel):
 
 > **`RuleItem.description`（判定基準の本文）は返さない。** LLM プロンプト用であり
 > UI では使わないため、件数・対象法令・しきい値だけを出して選択判断に足りる情報にとどめている。
+
+---
+
+### 4.13 データ準備・リクエスト系
+
+#### `ChunkingRequest`
+
+```python
+class ChunkingRequest(BaseModel):
+    input_file: str          = Field(min_length=1)              # 'ディレクトリ名/ファイル名'
+    output_dir: str          = Field(default="output_chunked")
+    model: str               = Field(default="claude-haiku-4-5")
+    workers: int             = Field(default=8, ge=1, le=32)
+    block_size: int          = Field(default=1000, ge=100, le=8000)
+    text_column: Optional[str] = None
+    max_rows: Optional[int]  = Field(default=None, ge=1)
+    combine_rows: bool       = False
+    resume: Optional[str]    = None      # 再開するジョブ ID
+    verbose: bool            = False
+```
+
+> 📝 **CLI の引数と 1:1 で対応する。** `output_dir` は `--output`、`resume` は `--resume` 相当。
+> 上限（`workers` ≤ 32・`block_size` ≤ 8000）は Pydantic の制約で弾く。
+
+#### `RegisterRequest`
+
+```python
+class RegisterRequest(BaseModel):
+    input_file: str        = Field(min_length=1)   # Q/A CSV
+    collection: str        = Field(min_length=1)
+    recreate: bool         = False                 # ⚠️ True は既存を削除して作り直す（要承認）
+    batch_size: int        = Field(default=100, ge=1, le=1000)
+    embed_workers: int     = Field(default=2, ge=1, le=16)
+    text_col: Optional[str]   = None
+    domain: Optional[str]     = None
+    max_docs: Optional[int]   = Field(default=None, ge=1)
+    provider: str          = "gemini"
+    normalize_filename: bool  = True
+    create_ui_csv: bool       = True
+    ui_output_dir: str        = "qa_output"
+    verbose: bool             = False
+```
+
+> ⚠️ **`recreate=True` のときだけ HITL CONFIRM が入る。** 既存コレクションが失われるため。
+
+> 📝 **`provider="gemini"` は正しい。** Embedding は Gemini（`gemini-embedding-001`・3072 次元）で、
+> LLM 用途（Anthropic）とは別系統（CLAUDE.md §3）。
+
+> 📝 **入力は「既に作られた Q/A CSV」。** Q/A 生成そのものは UI に無く CLI のみ。
+
+#### `DeleteCollectionsRequest`
+
+```python
+class DeleteCollectionsRequest(BaseModel):
+    collections: List[str] = Field(min_length=1)
+    verbose: bool = False
+```
+
+> ⚠️ **必ず HITL CONFIRM を通る。** `min_length=1` で空配列は 422 で弾く。
+
+#### `DataJobStatusResponse`
+
+```python
+class DataJobStatusResponse(BaseModel):
+    job_id: str
+    kind: str                                              # "chunking" / "register" / "delete"
+    status: Literal["running", "completed", "failed"]
+    result: Optional[Dict[str, Any]] = None
+```
+
+> 📝 **`result` を素の `dict` にしてある**のは、結果の形がジョブ種別で違うため。
+> 受け手は `kind` で判別する。
+
+---
+
+### 4.14 データ準備・参照系（読み取り専用）
+
+#### `QdrantHealth`
+
+```python
+class QdrantHealth(BaseModel):
+    available: bool
+    message: str
+    url: Optional[str] = None
+    collections_count: Optional[int] = None
+```
+
+> ⚠️ **Qdrant が落ちていても HTTP 200 で返す型。** 稼働の有無は `available` で判定する
+> （503 にすると画面でエラーバナーと起動案内を出し分けられない。[`api_qdrant.md`](./api_qdrant.md) §4）。
+
+#### `CollectionInfo` / `CollectionDetail` / `CollectionPoints`
+
+```python
+class CollectionInfo(BaseModel):
+    name: str
+    points_count: int = 0
+    status: str = "unknown"
+
+class CollectionDetail(BaseModel):
+    name: str
+    points_count: int = 0
+    vectors_count: Optional[int] = None
+    indexed_vectors: Optional[int] = None
+    status: str = "unknown"
+    vector_size: Any = None
+    distance: Any = None
+    sources: Dict[str, Any] = {}       # データ元の集計
+    sample_size: int = 0
+    error: Optional[str] = None        # fetch_* が返した {"error": ...} をそのまま載せる
+
+class CollectionPoints(BaseModel):
+    name: str
+    columns: List[str] = []            # payload のキーはコレクションごとに違う
+    rows: List[Dict[str, Any]] = []
+    limit: int = 50
+```
+
+> 📝 **`CollectionDetail.error` があるのは、`QdrantDataFetcher.fetch_*` が例外を投げず
+> `{"error": ...}` を返す実装だから。** API 層はそれをそのまま載せる。
+
+> 📝 **`CollectionPoints.columns` を別に持つ理由。** payload のキーはコレクションごとに違うため、
+> 画面が列を並べる順を型として渡す必要がある。
+
+#### `InputFileInfo` / `InputFileListResponse`
+
+```python
+class InputFileInfo(BaseModel):
+    name: str
+    path: str          # 'ディレクトリ名/ファイル名'（絶対パスは返さない）
+    size: int
+    modified: float
+    suffix: str
+
+class InputFileListResponse(BaseModel):
+    dir: str
+    allowed_dirs: List[str]
+    files: List[InputFileInfo] = []
+```
+
+> ⚠️ **`path` に絶対パスは入らない。** 許可ディレクトリ名を接頭辞にした形に限定してあり、
+> そのまま `ChunkingRequest.input_file` / `RegisterRequest.input_file` に渡せる。
+
+---
+
+### 4.15 `QuestionClusterModel`（0-(A) 質問分析）
+
+```python
+class QuestionClusterModel(BaseModel):
+    main: str
+    related: List[str] = []
+```
+
+複数質問を検知したときのクラスタ。`main` が主質問、`related` が同じ意図にまとめられた
+関連質問。`0-(A) 入力・質問分析` の出力で、`reconstruct_query()` がこの 2 つから
+再構成クエリを作る。
 
 ---
 

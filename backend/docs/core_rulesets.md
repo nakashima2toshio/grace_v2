@@ -1,6 +1,6 @@
 # core/rulesets.py - 文書レビューのルールセット定義 ドキュメント
 
-**Version 1.0** | 最終更新: 2026-07-29
+**Version 1.1** | 最終更新: 2026-09-04
 
 ---
 
@@ -63,6 +63,7 @@
 | `Severity` | 指摘の重大度（`high` / `medium` / `low`） |
 | `FindingStatus` | 指摘の確定状態（`confirmed` / `review_required` / `suppressed`） |
 | `RuleItem` | 検査ルール 1 件（条文・判定基準・キーワード） |
+| `RuleItem.retrieval_query()` | ② Retrieve の検索クエリ。`evidence_query` の上書きが無ければ `title + description` |
 | `RuleItem.citation()` | 根拠フォールバック用の引用ラベルを組み立てる |
 | `RuleSet` | ルールセット（ルール群＋スコープ＋しきい値） |
 | `RuleSet.rule_by_id()` | ルール ID から `RuleItem` を引く |
