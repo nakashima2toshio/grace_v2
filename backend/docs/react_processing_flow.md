@@ -517,7 +517,7 @@ style CORE fill:#1a1a1a,stroke:#fff,color:#fff
 | 安全性・管理 | Guardrails | `core/gates.py` / `grace/schemas.py` / `grace/confidence.py`（groundedness ゲート） | しきい値ゲート・型検証・根拠ゲート・情報なし検知 |
 | 安全性・管理 | Registry | `grace/tools.py`（`ToolRegistry`） / `core/verticals.py`（`PROFILES`） | ツール・業界プロファイルの登録簿 |
 | 安全性・管理 | Adapter | `grace/llm_compat.py` | google-genai 形式の呼び出しを Anthropic API へ橋渡しする互換アダプタ |
-| 安全性・管理 | Evaluator | `grace/confidence.py` / `grace/calibration.py` / `grace/benchmark.py` | 信頼度評価・較正（温度スケーリング）・KPI 計測 |
+| 安全性・管理 | Evaluator | `grace/confidence.py` / `grace/calibration.py` / `grace/step_trace/benchmark.py` | 信頼度評価・較正（温度スケーリング）・KPI 計測 |
 
 > 📝 **注記**: 「Voting / Role / Debate」は本システムではソース一致度・信号集約による合議的判定に留まり、独立エージェント同士の討論（Debate）や役割分担投票（Role/Voting）は本格実装していない。
 
