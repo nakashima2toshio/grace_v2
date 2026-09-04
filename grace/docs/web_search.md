@@ -1118,6 +1118,6 @@ style API fill:#1a1a1a,stroke:#fff,color:#fff
 
 | ドキュメント | 説明 |
 |-------------|------|
-| `grace/doc/tools.md` | tools.py 全体のドキュメント（全ツール網羅） |
-| `grace/doc/executor.md` | Executor ドキュメント（Web検索ステップの実行フローを含む） |
-| `grace/doc/schemas.md` | スキーマ定義ドキュメント |
+| `grace/docs/tools.md` | tools.py 全体のドキュメント（全ツール網羅） |
+| `grace/docs/executor.md` | Executor ドキュメント（Web検索ステップの実行フローを含む） |
+| `grace/docs/schemas.md` | スキーマ定義ドキュメント |

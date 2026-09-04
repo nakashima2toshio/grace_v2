@@ -7,7 +7,7 @@
 > **1 本のコマンドが実際にどのモジュール・コードを通り、どんなデータ（IN/OUT）が
 > 受け渡されるか**を追跡する。設計の全体像は [`agent_support_example.md`](./agent_support_example.md)、
 > 業界特化の全体設計は [`agent_support_verticals.md`](./agent_support_verticals.md)、
-> 自治体プロファイルの詳細は [`../../docs/vertical_gov.md`](../../docs/vertical_gov.md) を参照。
+> 自治体プロファイルの詳細は `docs/vertical_gov.md`（**本リポジトリには無い**） を参照。
 
 ---
 

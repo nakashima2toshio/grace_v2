@@ -6,7 +6,7 @@ Intervention / Replan）の性能指標を計測・記録・CSV出力するモ�
 
 使用例::
 
-    from grace.benchmark import BenchmarkRunner, BENCHMARK_QUERIES
+    from grace.step_trace.benchmark import BenchmarkRunner, BENCHMARK_QUERIES
 
     runner = BenchmarkRunner()          # config.llm.model / provider を自動取得
     session = runner.run(

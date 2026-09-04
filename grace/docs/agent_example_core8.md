@@ -3,8 +3,8 @@
 **Version 1.0** | 最終更新: 2026-06-28
 
 > **参考ドキュメント**
-> - [`grace/doc/grace_core_flow.md`](./grace_core_flow.md) — 5 段階設計・8 コアモジュール・プロンプト/API 発行部・`agent_example.py` 解説
-> - [`grace/doc/grace_core.md`](./grace_core.md) — コアモジュール群の横断アーキテクチャ（IPO リンク集）
+> - [`grace/docs/grace_core_flow.md`](./grace_core_flow.md) — 5 段階設計・8 コアモジュール・プロンプト/API 発行部・`agent_example.py` 解説
+> - [`grace/docs/grace_core.md`](./grace_core.md) — コアモジュール群の横断アーキテクチャ（IPO リンク集）
 > - `agent_example.py` — 最小実行サンプル（planner + executor の 2 API のみ。本サンプルの簡易版）
 
 ---
