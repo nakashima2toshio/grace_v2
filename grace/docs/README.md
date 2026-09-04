@@ -1,6 +1,6 @@
 # grace/docs 棚卸し
 
-**Version 1.0** | 最終更新: 2026-09-04
+**Version 1.1** | 最終更新: 2026-09-04
 
 `grace/` パッケージのドキュメント一覧と、実装への追随状況・残タスク・検証手順をまとめる。
 新しく文書を書く／直す前に、まずここを見る。
@@ -35,8 +35,8 @@
 | 5 | `grace_core.md` §4.5 の `_record_memory` が**修正前のコードのまま** | ✅ 解消（v2.0 で現行実装へ） |
 | 6 | 単数形パス `grace/doc/`（CLAUDE.md §9.1 違反） | ✅ 解消（15 件を是正） |
 | 7 | `memory.py` の文書が無い | ✅ 解消（`memory.md` v1.0 を新規作成） |
-| 8 | `web_search.md`（1123 行）が `tools.py` 内のクラス 1 個だけの単独文書になっている | ⏳ 未対応（§5 の #1） |
-| 9 | `agent_example_core8.md`（385 行）— `agent_example_core8.py` は git 全履歴に存在しない | ⏳ 未対応（§5 の #2・削除は要確認） |
+| 8 | `web_search.md`（1123 行）が `tools.py` 内のクラス 1 個だけの単独文書になっている | ✅ 解消（`tools.md` v3.0 へ統合し削除） |
+| 9 | `agent_example_core8.md`（385 行）— `agent_example_core8.py` は git 全履歴に存在しない | ✅ 解消（ユーザー承認のうえ削除。参照元 `agent_support_example.md` も是正） |
 | 10 | 主要モジュール文書 10 件が、対応するコードの最終更新より古い | ⏳ 未対応（§3・§5 の #3） |
 
 ---
@@ -50,7 +50,7 @@
 | `planner.md` | `grace/planner.py` | 1139 | 3.4 | ★★★ |
 | `executor.md` | `grace/executor.py` | 2015 | 4.1 | ★★★ |
 | `confidence.md` | `grace/confidence.py` | 1587 | 2.2 | ★★★ |
-| `tools.md` | `grace/tools.py` | 1123 | 2.2 | ★★★ |
+| `tools.md` | `grace/tools.py`（`WebSearchTool` を含む全ツール） | 1296 | 3.0 | ★★★ |
 | `schemas.md` | `grace/schemas.py` | 1125 | 1.2 | ★★★ |
 | `config.md` | `grace/config.py` | 920 | 1.1 | ★★★ |
 | `llm_compat.md` | `grace/llm_compat.py` | 806 | 1.1 | ★★★ |
@@ -73,8 +73,6 @@
 | `agent_support_example_flow.md` | 1 コマンドの実行トレース（IN/OUT データフロー） | 455 | 1.2 | ★★ |
 | `agent_support_verticals.md` | 業界特化（gov / saas / ec）の `VerticalProfile` 設計 | 388 | 2.0 | ★★ |
 | `confidence_calibration.md` | 信頼度と較正の関係 | 355 | 1.1 | ★★ |
-| `web_search.md` | `WebSearchTool` 単体（→ `tools.md` へ統合予定） | 1123 | 1.1 | ⏳ |
-| `agent_example_core8.md` | 実体の無いスクリプトの設計書 | 385 | 1.0 | ❌ |
 
 ---
 
@@ -187,15 +185,17 @@ grep -rhoE '`[a-z0-9_]+(/[a-z0-9_]+)+\.(py|sh)`' grace/docs/*.md backend/docs/*.
 
 | # | タスク | 内容 | 状態 |
 |---|---|---|---|
-| 1 | `web_search.md` を `tools.md` へ統合 | `WebSearchTool` は `grace/tools.py` 内のクラスであり、モジュール単位の文書は `tools.md` が正。`grace_v2_local` では統合済み（tools.md v4.0）。⚠️ **統合時は実装から書く**こと（後述） | ⏳ |
-| 2 | `agent_example_core8.md` の扱い | `agent_example_core8.py` は git 全履歴に存在しない（`find` でも `.md` 1 件のみ）。実体が無いので保守できない。**削除は不可逆なので要ユーザー確認** | ⏳ |
-| 3 | 追随が遅れている 10 件の突き合わせ | §3 の差が大きいもの（`calibration.md` / `intervention.md` / `replan.md`）から §4.1 を当てる | ⏳ |
-| 4 | `grace.md` / `agent_support_example.md` のバージョン欄 | この 2 件だけ `**Version X.X**` ヘッダーが無い。他と揃える | ⏳ |
+| 1 | 追随が遅れている 10 件の突き合わせ | §3 の差が大きいもの（`calibration.md` / `intervention.md` / `replan.md`）から §4.1 を当てる | ⏳ |
+| 2 | `tools.md` の未記載シンボル 10 件 | `WebSearchTool`（9/9）と `WebSearchConfig`（12/12）は統合時に網羅したが、AST で当てると **`CodeExecuteTool` クラスごと未記載**であることが分かった。ほかに `RAGSearchTool` の内部 8 件（`_apply_allowed_collections` / `_apply_excluded_collections` / `_apply_limits` / `_collection_dense_dim` / `_embed_query_once` / `_static_check` / `_source_origin` / `clear_collections_cache` / `_now_text`）。※`CodeExecuteTool` は opt-in | ⏳ |
+| 3 | `grace.md` / `agent_support_example.md` のバージョン欄 | この 2 件だけ `**Version X.X**` ヘッダーが無い。他と揃える | ⏳ |
+| 4 | GRACE-Support 3 点の所在 | `agent_support_example.md` / `_flow.md` / `_verticals.md` は実装（`backend/app/core/support_agent.py`）から遠い。`grace_v2_local` は `backend/docs/` へ移設済み。**移設すると相対リンクが全滅する**ので張り替えとセットで行う | ⏳ |
 
-> ⚠️ **#1 の落とし穴（実例）。** `grace_v2_local` で同じ統合をしたとき、`web_search.md` が
-> `_calculate_confidence_factors` を**修正前の姿**（`top_score` / `score_spread`。現行は
-> `max_score` / `score_variance`）で保存していた。そのまま写していれば**直ったバグを
-> 文書化するところだった**。文書から文書へ写さず、必ず実装から書き起こす。
+> ⚠️ **統合時の落とし穴（実例・2026-09-04）。** `web_search.md` は
+> `_calculate_confidence_factors` を**修正前の姿**（`top_score` / `score_spread` のみ。現行は
+> **正準キー `max_score` / `score_variance` を併記**する）で保存していた。そのまま写していれば
+> **直ったバグを文書化するところだった**。実際、`tools.md` 側の `execute` 戻り値例も
+> 旧キーしか載せておらず、Executor が実際に読むキーが見えない状態だった。
+> **文書から文書へ写さず、必ず実装から書き起こす。**
 
 ---
 
@@ -219,4 +219,5 @@ grep -rhoE '`[a-z0-9_]+(/[a-z0-9_]+)+\.(py|sh)`' grace/docs/*.md backend/docs/*.
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 1.1 | `web_search.md` の `tools.md` への統合と `agent_example_core8.md` の削除を反映（問題 #8 / #9 を解消）。文書は 22 → 20 件。統合の副産物として、`tools.md` に **`CodeExecuteTool` クラスごと未記載**であること（AST 照合で 37 件中 10 件が未記載）が判明したため残タスクへ追加 |
 | 1.0 | 初版作成。文書 22 件（モジュール 12・横断 9・本書）の一覧、コード最終コミット日との追随比較、検証手順 4 種（AST シンボル網羅・Mermaid 規約・リンク存在・実在しないファイル参照）、残タスク 4 件、grep の落とし穴 7 件を整備 |
