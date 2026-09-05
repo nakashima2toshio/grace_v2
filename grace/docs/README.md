@@ -1,6 +1,6 @@
 # grace/docs 棚卸し
 
-**Version 1.1** | 最終更新: 2026-09-04
+**Version 1.3** | 最終更新: 2026-09-04
 
 `grace/` パッケージのドキュメント一覧と、実装への追随状況・残タスク・検証手順をまとめる。
 新しく文書を書く／直す前に、まずここを見る。
@@ -29,7 +29,7 @@
 | # | 問題 | 状態 |
 |---|---|---|
 | 1 | `agent_example.py` を題材にした §D（`grace_core_flow.md`）— この `.py` は git 全履歴に存在しない | ✅ 解消（v2.0 で「本書内の解説用コード片」と明示） |
-| 2 | `eval/vertical/` 参照 17 件と、そこでの「実測 KPI」（`agent_support_verticals.md`） | ✅ 解消（v2.0 で章ごと削除） |
+| 2 | `eval/vertical/` 参照 17 件と、そこでの「実測 KPI」（`agent_support_verticals.md`。現在は `backend/docs/`） | ✅ 解消（v2.0 で章ごと削除） |
 | 3 | `benchmark.md` の所在が `grace/benchmark.py`（実際は `grace/step_trace/benchmark.py`）／CLI `run_benchmark.py` が存在しない | ✅ 解消（v2.0） |
 | 4 | `grace_core.md` の行番号参照 13 件（ほぼ全部ズレていた） | ✅ 解消（v2.0 でシンボル名参照へ） |
 | 5 | `grace_core.md` §4.5 の `_record_memory` が**修正前のコードのまま** | ✅ 解消（v2.0 で現行実装へ） |
@@ -69,9 +69,6 @@
 | `grace.md` | GRACE 自律型エージェントの思想・ReAct との関係 | 340 | — | ★★★ |
 | `grace_core.md` | コア 8 モジュールの横断アーキテクチャ（§4 に実行メモリの実例） | 948 | 2.0 | ★★★ |
 | `grace_core_flow.md` | 5 段階設計・モジュール連携・プロンプト/API 発行部 | 786 | 2.0 | ★★★ |
-| `agent_support_example.md` | GRACE-Support 本体の設計書 | 995 | — | ★★★ |
-| `agent_support_example_flow.md` | 1 コマンドの実行トレース（IN/OUT データフロー） | 455 | 1.2 | ★★ |
-| `agent_support_verticals.md` | 業界特化（gov / saas / ec）の `VerticalProfile` 設計 | 388 | 2.0 | ★★ |
 | `confidence_calibration.md` | 信頼度と較正の関係 | 355 | 1.1 | ★★ |
 
 ---
@@ -210,8 +207,8 @@ grep -rhoE '`[a-z0-9_]+(/[a-z0-9_]+)+\.(py|sh)`' grace/docs/*.md backend/docs/*.
 |---|---|---|---|
 | 1 | ~~追随が遅れている 10 件の突き合わせ~~ | **完了**（2026-09-04）。全 11 モジュールで AST 網羅 100%。§3 参照 | ✅ |
 | 2 | ~~`tools.md` の未記載シンボル 10 件~~ | **完了**（2026-09-04）。`CodeExecuteTool` を §4.7 として新設し、37/37 を確認 | ✅ |
-| 3 | `grace.md` / `agent_support_example.md` のバージョン欄 | この 2 件だけ `**Version X.X**` ヘッダーが無い。他と揃える | ⏳ |
-| 4 | GRACE-Support 3 点の所在 | `agent_support_example.md` / `_flow.md` / `_verticals.md` は実装（`backend/app/core/support_agent.py`）から遠い。`grace_v2_local` は `backend/docs/` へ移設済み。**移設すると相対リンクが全滅する**ので張り替えとセットで行う | ⏳ |
+| 3 | `grace.md` のバージョン欄 | この 1 件だけ `**Version X.X**` ヘッダーが無い。他と揃える | ⏳ |
+| 4 | ~~GRACE-Support 3 点の所在~~ | **完了**（2026-09-04）。`backend/docs/` へ `git mv` し相対リンクを張り替えた。以後 `grace/docs/` は `grace/` パッケージの文書だけを持つ | ✅ |
 
 > ⚠️ **統合時の落とし穴（実例・2026-09-04）。** `web_search.md` は
 > `_calculate_confidence_factors` を**修正前の姿**（`top_score` / `score_spread` のみ。現行は
@@ -243,6 +240,7 @@ grep -rhoE '`[a-z0-9_]+(/[a-z0-9_]+)+\.(py|sh)`' grace/docs/*.md backend/docs/*.
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 1.3 | **GRACE-Support 3 点を `backend/docs/` へ移設**（2026-09-04）。実装が `backend/app/core/support_agent.py` にあるため。`grace/docs/` は `grace/` パッケージの文書だけを持つ状態になった。あわせて、前版でヘッダーの版数だけ 1.1 のまま置き忘れていたのを是正 |
 | 1.2 | **モジュール文書 8 件の未記載シンボル 31 件を解消**（2026-09-04）。全 11 モジュールで AST 網羅 **100%** に到達。§3 を「日付比較」から「AST 網羅＋内容でズレていた 4 件」の記録へ書き換えた。⚠️ 本リポジトリの履歴は途中でまとめてインポートされており（`2f93674` が calibration / intervention / replan を新規追加）、**「コードの日付 > 文書の日付」は追随遅れの証拠にならない**ことが分かったので、その注意も §3.2 に明記 |
 | 1.1 | `web_search.md` の `tools.md` への統合と `agent_example_core8.md` の削除を反映（問題 #8 / #9 を解消）。文書は 22 → 20 件。統合の副産物として、`tools.md` に **`CodeExecuteTool` クラスごと未記載**であること（AST 照合で 37 件中 10 件が未記載）が判明したため残タスクへ追加 |
 | 1.0 | 初版作成。文書 22 件（モジュール 12・横断 9・本書）の一覧、コード最終コミット日との追随比較、検証手順 4 種（AST シンボル網羅・Mermaid 規約・リンク存在・実在しないファイル参照）、残タスク 4 件、grep の落とし穴 7 件を整備 |
