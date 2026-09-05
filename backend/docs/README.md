@@ -1,6 +1,6 @@
 # backend/docs 棚卸し
 
-**Version 1.2** | 最終更新: 2026-09-04
+**Version 1.3** | 最終更新: 2026-09-04
 
 `backend/`（FastAPI + パイプライン中核）のドキュメント一覧と、実装への追随状況・
 欠落・残タスク・検証手順をまとめる。
@@ -32,7 +32,7 @@
 | # | 問題 | 状態 |
 |---|---|---|
 | 1 | `backend/app/api/data.py` / `api/qdrant.py` / `core/data_jobs.py` / `core/job_logs.py` に対応する文書が無い | ✅ 解消（4 件を新規作成。§3） |
-| 2 | GRACE-Support の設計 3 点（`agent_support_example.md` / `_flow.md` / `_verticals.md`）が `grace/docs/` に置かれたまま。実装は `backend/app/core/support_agent.py` にある | ⏳ 未対応（§6 の #2） |
+| 2 | GRACE-Support の設計 3 点（`agent_support_example.md` / `_flow.md` / `_verticals.md`）が `grace/docs/` に置かれたまま。実装は `backend/app/core/support_agent.py` にある | ✅ 解消（`backend/docs/` へ移設。§2.3） |
 | 3 | `review_rules_collection.md` にバージョンヘッダーが無い | ⏳ 未対応（§6 の #4） |
 | 4 | 文書に未記載の公開シンボルが 24 件あった | ✅ 解消（**17 モジュールすべてで AST 網羅 100%**。§4） |
 | 5 | `confidence_flow_grace_vs_backend.md` の単数形パス `grace/doc/` | ✅ 解消済み（残る 1 件は「訂正した」旨の**変更履歴の記述**であり違反ではない） |
@@ -80,6 +80,21 @@
 | `confidence_flow_grace_vs_backend.md` | `grace/` 側と backend 側の信頼度フロー比較 | 239 | 1.1 | ★★ |
 | `data_pipeline.md` | チャンク化・Q/A 生成・Qdrant 登録 | 523 | 1.1 | ★★ |
 | `install_and_setup.md` | 環境構築 | 285 | 1.1 | ★★ |
+
+### 2.3 GRACE-Support の設計書（2026-09-04 に `grace/docs/` から移設）
+
+実装が `backend/app/core/support_agent.py` にあるため、`grace/docs/` から移してきた。
+
+| 文書 | 内容 | 行数 | Ver | 重要度 |
+|---|---|---:|---|---|
+| `agent_support_example.md` | GRACE-Support 本体の設計書（v1〜v3 ＋ 業界特化） | 993 | 1.2 | ★★★ |
+| `agent_support_example_flow.md` | 1 コマンドの実行トレース（`--vertical gov` の IN/OUT データフロー） | 455 | 1.2 | ★★ |
+| `agent_support_verticals.md` | 業界特化（gov / saas / ec）の `VerticalProfile` 設計 | 392 | 2.0 | ★★ |
+
+> 📝 **移設にあたって相対リンクを張り替えた。**
+> 3 件どうしのリンクは `./` のまま有効。`grace/docs/` 側（`grace_core.md` / `grace_core_flow.md`）
+> へは `../../grace/docs/` へ、`grace/step_trace/` からこの 3 件へのリンクは
+> `../../backend/docs/` / `../../../backend/docs/` へ直した。**リンク切れ 0 を確認済み。**
 
 ---
 
@@ -200,7 +215,7 @@ grep -A 12 'STEP_IDS = (' backend/app/core/support_agent.py \
 | # | タスク | 内容 | 状態 |
 |---|---|---|---|
 | 1 | ~~欠落 4 件の文書化~~ | **完了**（2026-09-04）。`api_data.md` / `api_qdrant.md` / `core_data_jobs.md` / `core_job_logs.md` を新規作成。AST 網羅はいずれも 100%（§3） | ✅ |
-| 2 | GRACE-Support 3 点の移設判断 | `agent_support_example.md` / `_flow.md` / `_verticals.md` は `grace/docs/` にあるが、実装は `backend/app/core/support_agent.py`。`grace_v2_local` は `backend/docs/` へ移設済み。**移設すると相対リンクが全滅する**ので、リンク張り替えとセットで行う | ⏳ |
+| 2 | ~~GRACE-Support 3 点の移設~~ | **完了**（2026-09-04）。`git mv` で移設し相対リンクを張り替えた（§2.3）。`grace_v2_local` と同じ構成になった | ✅ |
 | 3 | ~~追随が遅れている 14 件の突き合わせ~~ | **完了**（2026-09-04）。AST 照合で 24 件の未記載を発見し、すべて解消。17 モジュールで 100%（§4） | ✅ |
 | 4 | `review_rules_collection.md` のヘッダー | この 1 件だけ `**Version X.X**` ヘッダーが無い | ⏳ |
 
@@ -224,6 +239,7 @@ grep -A 12 'STEP_IDS = (' backend/app/core/support_agent.py \
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 1.3 | **GRACE-Support 3 点を `grace/docs/` から移設**（2026-09-04）。実装が `backend/app/core/support_agent.py` にあるため。§2.3 を新設し、相対リンクの張り替え方針も記録。これで `grace_v2_local` と同じ構成になった |
 | 1.2 | **未記載シンボル 24 件を解消**（2026-09-04）。17 モジュールすべてで AST 網羅 **100%** に到達。最大は `schemas.md` の 11 件で、**データ準備のスキーマがまるごと未記載**だった（API は既にあるのに型の説明が無い状態）。§4 を「日付比較」から「AST 網羅」の記録へ書き換え、日付比較が追随遅れの証拠にならない理由も明記 |
 | 1.1 | **欠落していた 4 件を新規作成**（2026-09-04）: `api_data.md` / `api_qdrant.md` / `core_data_jobs.md` / `core_job_logs.md`。これで `backend/app/**.py` の 17 モジュールすべてが文書を持つ。§3 を「欠落一覧」から「カバレッジ表」へ書き換えた |
 | 1.0 | 初版作成。文書 21 件＋本書の一覧、`backend/app/**.py` との機械的照合（**4 件の欠落**を検出）、コード最終コミット日との追随比較（14 件が遅れ）、検証手順 4 種（AST シンボル網羅・CI 4 ゲート・Mermaid/リンク・パイプライン段の網羅）、残タスク 4 件、grep の落とし穴 6 件を整備 |

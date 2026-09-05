@@ -18,9 +18,9 @@
 > ✅ **実装状況**: `VerticalProfile` と `--vertical {gov|saas|ec}` は **`agent_support_example.py` に実装済み**（PR #106）。しきい値上書き・エスカレ語（二段判定）・アクション対応（二段判定）・本人確認に加え、`collections`（`allowed_collections` による検索範囲の実限定）と `prompt_addendum`（reasoning プロンプトへの注入）も**フル配線済み**。
 
 > **参考ドキュメント**
-> - [`grace/docs/agent_support_example.md`](./agent_support_example.md) — GRACE-Support 本体の設計書（v1〜v3）
+> - [`backend/docs/agent_support_example.md`](./agent_support_example.md) — GRACE-Support 本体の設計書（v1〜v3）
 > - `docs/migration_and_update.md`（**本リポジトリには無い**） — 需要分析・全体ロードマップ
-> - [`grace/docs/grace_core_flow.md`](./grace_core_flow.md) — 5 段階設計・8 コアモジュール
+> - [`grace/docs/grace_core_flow.md`](../../grace/docs/grace_core_flow.md) — 5 段階設計・8 コアモジュール
 
 ---
 
