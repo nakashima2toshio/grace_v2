@@ -233,6 +233,7 @@ def _chunking_runner(
     """
     import os
 
+    from chunking.async_api_client import ChunkingAbortedError
     from services.data_pipeline_service import (
         load_input_text,
         resolve_input_file,
@@ -294,6 +295,12 @@ def _chunking_runner(
                 source_file=input_path.name,
                 job_id=params.resume,
             )
+    except ChunkingAbortedError as e:
+        # LLM が連続で失敗して中断した。原因と対処はメッセージ側が持っている
+        # （型名を前置きすると読みにくくなるだけなので、そのまま出す）。
+        logger.error("チャンク化を中断: %s", e)
+        error(f"❌ {e}")
+        return None
     except Exception as e:
         logger.exception("チャンク化に失敗")
         error(f"❌ チャンク化に失敗しました: {type(e).__name__}: {e}")

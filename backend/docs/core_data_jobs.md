@@ -1,6 +1,6 @@
 # core/data_jobs.py - データ準備ジョブ runner ドキュメント
 
-**Version 1.1** | 最終更新: 2026-09-12
+**Version 1.2** | 最終更新: 2026-09-12
 
 > **参考ドキュメント**
 > - [`backend/docs/api_data.md`](./api_data.md) — 本モジュールを起動する API 層
@@ -350,6 +350,11 @@ def _ask_confirmation(confirm: ConfirmFn, message: str, reason: str) -> tuple[bo
 > 📝 **`confirm` は使わない。** チャンク化は既存データを壊さないため承認不要。
 > 出力ファイルが既にあっても、**CLI と同じく上書きする**。
 
+> ⚠️ **`ChunkingAbortedError` は他の例外と分けて捕まえる。** LLM 呼び出しが
+> 連続で失敗して中断した場合で、原因と対処はメッセージ側が持っている。
+> `type(e).__name__` を前置きすると読みにくくなるだけなので、そのまま出す。
+> 詳細は [`chunking/docs/async_api_client.md`](../../chunking/docs/async_api_client.md) §4.4。
+
 ### 5.4 `_qa_runner`
 
 | 項目 | 内容 |
@@ -436,3 +441,4 @@ register_runner(DeleteParams,   _delete_runner,   "delete")
 |-----------|---------|
 | 1.0 | 初版作成。`backend/app/core/data_jobs.py`（547 行）の全公開要素を IPO 形式で記述。3 種のステップ定義、`jobs.py` に手を入れず `register_runner` で追加する方式、既存 3 パッケージを無改修のまま `capture_logs()` で進捗を出す方式、CONFIRM の要否（削除は常に／登録は `recreate=True` のときだけ）とその理由、`provider="gemini"` が Embedding 用途として正しいことを実コードのコメントから起こして記載 |
 | 1.1 | **Q/A 生成を追加**（`QaGenerationParams` / `_qa_runner` / `QA_STEP_IDS`）。runner は 4 種になった。出力先の既定を `qa_output` 直下にした理由（`list_input_files()` が非再帰）、入力検証を ① で完結させる理由、0 件生成を error にする理由を追記。§2・§4・§5 の節番号を繰り下げ |
+| 1.2 | `_chunking_runner` が `ChunkingAbortedError` を専用に捕捉するようになったことを追記。LLM が連続で失敗したとき、機械的分割へフォールバックして「成功」で終わらせないための中断（回帰は `test_chunking_abort.py`） |

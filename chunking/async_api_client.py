@@ -13,6 +13,7 @@
 
 import asyncio
 import logging
+import os
 from typing import Optional, Type
 
 from pydantic import BaseModel
@@ -20,6 +21,28 @@ from pydantic import BaseModel
 from helper.helper_llm import create_llm_client
 
 logger = logging.getLogger(__name__)
+
+# LLM 呼び出しが何回連続で失敗したらチャンク化を中断するか。0 で無効。
+#
+# ⚠️ **フォールバック（機械的分割）で先へ進ませない。** API キー切れ・
+# モデル名の誤り・ネットワーク断のように**全ブロックで等しく失敗する**原因では、
+# 1 ブロックあたり max_retries 回ぶんの待ちを払ってから None を返し、
+# LLM を一度も使えていないのに「成功」した CSV を書き出してしまう。
+# ブロック数が多いほど被害が大きく、姉妹リポジトリでは 1229 ブロックを
+# 185 時間かけて処理したうえで中身のない CSV を出した（実測 2026-09-06）。
+DEFAULT_ABORT_AFTER_CONSECUTIVE_FAILURES = int(
+    os.getenv("CHUNKING_ABORT_AFTER_FAILURES", "3")
+)
+
+
+class ChunkingAbortedError(RuntimeError):
+    """LLM 呼び出しが連続で失敗したためチャンク化を中断した。
+
+    呼び出し側（`backend/app/core/data_jobs.py::_chunking_runner`）はこれを
+    捕捉して error イベントへ変換する。**握りつぶしてフォールバックで
+    続行してはいけない。** 続行しても、LLM を使わない機械的な分割結果しか
+    得られない。
+    """
 
 
 class AsyncAPIClient:
@@ -37,6 +60,7 @@ class AsyncAPIClient:
         max_retries: int = 3,
         max_output_tokens: int = 8192,
         default_model: str = "claude-sonnet-4-6",
+        abort_after_consecutive_failures: Optional[int] = None,
     ):
         """
         Args:
@@ -45,6 +69,9 @@ class AsyncAPIClient:
             max_retries: リトライ回数（デフォルト: 3）
             max_output_tokens: 出力トークン制限
             default_model: 既定 Claude モデル
+            abort_after_consecutive_failures: 連続失敗の許容回数。超えたら
+                `ChunkingAbortedError` を送出してジョブを止める。None なら
+                `CHUNKING_ABORT_AFTER_FAILURES`（既定 3）。0 で無効
         """
         # [MIGRATION] genai.Client → 統一 Anthropic クライアント
         self.llm = create_llm_client("anthropic", default_model=default_model)
@@ -53,6 +80,12 @@ class AsyncAPIClient:
         self.semaphore = asyncio.Semaphore(max_workers)
         self.max_retries = max_retries
         self.max_output_tokens = max_output_tokens
+        self.abort_after_consecutive_failures = (
+            DEFAULT_ABORT_AFTER_CONSECUTIVE_FAILURES
+            if abort_after_consecutive_failures is None
+            else int(abort_after_consecutive_failures)
+        )
+        self._consecutive_failures = 0
         self._total_requests = 0
         self._failed_requests = 0
         self._truncated_responses = 0
@@ -96,6 +129,7 @@ class AsyncAPIClient:
     ) -> Optional[str]:
         """リトライロジック（レート制限・一時エラー対応）"""
         effective_model = self._resolve_model(model, self.default_model)
+        last_error: Optional[Exception] = None
 
         for attempt in range(self.max_retries):
             try:
@@ -110,9 +144,11 @@ class AsyncAPIClient:
                     effective_model,
                     max_output_tokens=self.max_output_tokens,
                 )
+                self._consecutive_failures = 0
                 return obj.model_dump_json()
 
             except Exception as e:
+                last_error = e
                 error_str = str(e).lower()
 
                 # レート制限エラーの判定
@@ -134,6 +170,23 @@ class AsyncAPIClient:
 
         # 全リトライ失敗
         self._failed_requests += 1
+        self._consecutive_failures += 1
+
+        limit = self.abort_after_consecutive_failures
+        if limit and self._consecutive_failures >= limit:
+            # ⚠️ **ここで止める。** フォールバックで先へ進むと、LLM を一度も
+            #    使えていないのに「成功」で終わる。残りブロック分の時間を
+            #    捨てる前に、原因ごと返す。
+            raise ChunkingAbortedError(
+                f"LLM 呼び出しが {self._consecutive_failures} 回連続で失敗したため"
+                f"チャンク化を中断しました。最後のエラー: {last_error}\n"
+                "   確認してください:\n"
+                "   - ANTHROPIC_API_KEY が有効か（期限切れ・権限）\n"
+                f"   - モデル名が正しいか（今回使用: {effective_model}）\n"
+                "   - ネットワーク・レート制限（429 が続く場合は並列数を下げる）\n"
+                "   この中断を無効にするには CHUNKING_ABORT_AFTER_FAILURES=0"
+            )
+
         logger.error(f"[{task_id}] Failed after {self.max_retries} retries. Using fallback.")
         return None
 
