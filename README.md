@@ -1049,17 +1049,19 @@ sequenceDiagram
 ### 4.5 データ管理画面
 
 **概要**: エージェント 3 タブが「エージェントを**使う**」側なのに対し、ここは
-「データを**準備する**」側である。パイプラインの流れ順に 3 つのサブタブを持つ
+「データを**準備する**」側である。パイプラインの流れ順に 4 つのサブタブを持つ
 （`DataPanel.tsx`）。
 
-    ① チャンキング → ② Qdrant 登録 → ③ コレクション管理
+    ① チャンキング → ② Q/A 作成 → ③ Qdrant 登録 → ④ コレクション管理
 
-> ⚠️ **Q/A 生成は画面に無い**（CLI のみ）。② の入力は「**既に作られた Q/A CSV**」である。
+> 📝 **② Q/A 作成は 2026-09-12 に追加した。** それまでは Q/A 生成だけが CLI 専用で、
+> ③ の入力になる Q/A CSV を画面から作れなかった。`qa_qdrant/make_qa_register_qdrant.py`
+> の Phase 1 と同じ `QAPipeline` を通すので、CLI と結果は変わらない。
 
 #### 4.5.1 サブタブ共通
 
 > 📷 **[D-01] データ管理タブ 初期表示** — タブを「データ管理」に切り替えた直後。
-> ヘッダに**タブ 4 つ**、その下に**サブタブ 3 つ**（① チャンキングが選択状態）が
+> ヘッダに**タブ 4 つ**、その下に**サブタブ 4 つ**（① チャンキングが選択状態）が
 > 入るように撮影。エージェント 3 タブとの階層の違いが分かる構図にする。
 > <!-- ![D-01 データ管理タブ 初期表示](docs/images/d-01-data-initial.png) -->
 
@@ -1067,7 +1069,7 @@ sequenceDiagram
 |---|---|---|
 | サブタブ | `nav.sub-tabs`（`DataPanel.tsx`） | `role="tablist"` / 矢印キー移動（`state/tabKeys.ts`） |
 | 切替方式 | **アンマウント**（`key={sub}`） | 離れたサブタブの reducer 状態と SSE 購読を残さない |
-| 進捗表示 | `Timeline`（Support / Review と共通） | イベント形式が 3 種で同一のため流用 |
+| 進捗表示 | `Timeline`（Support / Review と共通） | イベント形式が 4 種で同一のため流用 |
 | 承認 | `ConfirmModal`（同上） | 破壊的操作のみ |
 
 #### 4.5.2 ① チャンキング
@@ -1086,7 +1088,20 @@ sequenceDiagram
 > 1 つ展開した状態で撮る。
 > <!-- ![D-03 チャンキング 実行中](docs/images/d-03-chunking-running.png) -->
 
-#### 4.5.3 ② Qdrant 登録
+#### 4.5.3 ② Q/A 作成
+
+**入力 → 出力**: チャンク済み CSV（① の出力）→ Q/A ペア CSV・JSON。
+**非破壊なので承認は無い。** 生成された Q/A CSV は、そのまま ③ の入力になる。
+
+`qa_generation/pipeline.py::QAPipeline` を通す。カバレージ分析は既定 ON で、
+`③ カバレージ分析` ステップに率が出る。Celery での並列生成も選べるが、
+**ワーカーが起動していない場合はジョブが失敗する**
+（`celery -A celery_tasks worker --concurrency=8 --queues=qa_generation`）。
+
+> ⚠️ 出力先の既定は `qa_output` **直下**。`GET /api/files` はサブディレクトリを
+> 見ないため、入れ子にすると ③ のファイル選択に出てこない。
+
+#### 4.5.4 ③ Qdrant 登録
 
 **入力 → 出力**: Q/A CSV → Qdrant コレクション（Embedding 生成つき）。
 `recreate=ON`（既存を作り直す）の**ときだけ**承認を求める。
@@ -1101,7 +1116,7 @@ sequenceDiagram
 > `recreate=OFF` では出ないことが対比できると良い。
 > <!-- ![D-05 登録の CONFIRM](docs/images/d-05-register-confirm.png) -->
 
-#### 4.5.4 ③ コレクション管理
+#### 4.5.5 ④ コレクション管理
 
 **一覧・詳細・ポイントプレビュー・削除。削除は必ず承認を通る。**
 
@@ -1314,14 +1329,14 @@ docker-compose -f docker-compose/docker-compose.yml up -d
 | **R-05** | ⬜ | `r-05-review-panes.png` | 左右ペイン全体（1 件選択状態） | §4.3.4 |
 | **R-06** | ⬜ | `r-06-finding-card.png` | 指摘カード拡大（根拠を開く） | §4.3.5 |
 | **C-01** | ⬜ | `c-01-confirm-modal.png` | HITL CONFIRM モーダル | §4.4 |
-| **D-01** | ⬜ | `d-01-data-initial.png` | **データ管理**タブ初期表示（タブ 4 つ＋サブタブ 3 つ） | §4.5.1 |
+| **D-01** | ⬜ | `d-01-data-initial.png` | **データ管理**タブ初期表示（タブ 4 つ＋サブタブ 4 つ） | §4.5.1 |
 | **D-02** | ⬜ | `d-02-chunking-form.png` | チャンキング フォーム（モデル既定値が見えること） | §4.5.2 |
 | **D-03** | ⬜ | `d-03-chunking-running.png` | チャンキング 実行中のタイムライン（ログを 1 つ開く） | §4.5.2 |
-| **D-04** | ⬜ | `d-04-register-form.png` | Qdrant 登録 フォーム（コレクション名の自動補完） | §4.5.3 |
-| **D-05** | ⬜ | `d-05-register-confirm.png` | 登録の CONFIRM（`recreate=ON` のときだけ出る） | §4.5.3 |
-| **D-06** | ⬜ | `d-06-collection-list.png` | コレクション一覧（件数・ステータス） | §4.5.4 |
-| **D-07** | ⬜ | `d-07-collection-detail.png` | コレクション詳細＋ポイントプレビュー | §4.5.4 |
-| **D-08** | ⬜ | `d-08-delete-confirm.png` | 削除の CONFIRM（**常に**出る・不可逆の警告） | §4.5.4 |
+| **D-04** | ⬜ | `d-04-register-form.png` | Qdrant 登録 フォーム（コレクション名の自動補完） | §4.5.4 |
+| **D-05** | ⬜ | `d-05-register-confirm.png` | 登録の CONFIRM（`recreate=ON` のときだけ出る） | §4.5.4 |
+| **D-06** | ⬜ | `d-06-collection-list.png` | コレクション一覧（件数・ステータス） | §4.5.5 |
+| **D-07** | ⬜ | `d-07-collection-detail.png` | コレクション詳細＋ポイントプレビュー | §4.5.5 |
+| **D-08** | ⬜ | `d-08-delete-confirm.png` | 削除の CONFIRM（**常に**出る・不可逆の警告） | §4.5.5 |
 | **T-01** | ⬜ | `t-01-job-timing.png` | 実行時間の表示（開始＝フォーム直下 / 完了＋所要＝回答カード末尾） | §4.6 |
 | **E-01** | ⬜ | `e-01-error-banner.png` | **実行エラー**のバナー（APIキー未設定など・実行後に出る） | §6.5 |
 | **E-02** | ⬜ | `e-02-meta-error-banner.png` | **メタ取得エラー**のバナー（backend 停止・実行前に出る・再取得ボタン） | §6.5 |

@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 
 import {
   buildChunkingParams,
+  buildQaParams,
   buildRegisterParams,
   canSubmitChunking,
+  canSubmitQa,
   canSubmitRegister,
   fileOptionLabel,
   formatFileSize,
@@ -12,6 +14,7 @@ import {
   toOptionalNumber,
   toOptionalString,
   type ChunkingFormState,
+  type QaFormState,
   type RegisterFormState,
 } from './dataParams';
 
@@ -201,5 +204,67 @@ describe('fileOptionLabel', () => {
       suffix: '.csv',
     });
     expect(label).toBe('a.csv（2.0 KB）');
+  });
+});
+
+const qaBase: QaFormState = {
+  inputFile: 'output_chunked/cc_news_chunks.csv',
+  outputDir: 'qa_output',
+  model: 'claude-sonnet-4-6',
+  maxDocs: '',
+  useCelery: false,
+  concurrency: 8,
+  batchChunks: 3,
+  analyzeCoverage: true,
+  verbose: false,
+};
+
+describe('buildQaParams', () => {
+  it('フォームの値をそのまま渡す', () => {
+    const params = buildQaParams(qaBase);
+    expect(params.input_file).toBe('output_chunked/cc_news_chunks.csv');
+    expect(params.model).toBe('claude-sonnet-4-6');
+    expect(params.batch_chunks).toBe(3);
+    expect(params.analyze_coverage).toBe(true);
+  });
+
+  it('出力ディレクトリが空欄なら qa_output（③ の選択肢に出る階層）へ倒す', () => {
+    // `list_input_files()` は iterdir() で入れ子を見ないため、
+    // qa_output 直下でないと「③ Qdrant 登録」から選べなくなる
+    expect(buildQaParams({ ...qaBase, outputDir: '   ' }).output_dir).toBe('qa_output');
+  });
+
+  it('最大チャンク数は空欄なら null', () => {
+    expect(buildQaParams(qaBase).max_docs).toBeNull();
+    expect(buildQaParams({ ...qaBase, maxDocs: '50' }).max_docs).toBe(50);
+  });
+
+  it('Celery とカバレージのトグルを載せる', () => {
+    const params = buildQaParams({ ...qaBase, useCelery: true, analyzeCoverage: false });
+    expect(params.use_celery).toBe(true);
+    expect(params.concurrency).toBe(8);
+    expect(params.analyze_coverage).toBe(false);
+  });
+
+  it('入力ファイルの前後空白を落とす', () => {
+    expect(buildQaParams({ ...qaBase, inputFile: '  a/b.csv  ' }).input_file).toBe('a/b.csv');
+  });
+});
+
+describe('canSubmitQa', () => {
+  it('入力ファイルが選ばれていれば送信できる', () => {
+    expect(canSubmitQa(qaBase, false)).toBe(true);
+    expect(canSubmitQa({ ...qaBase, inputFile: '' }, false)).toBe(false);
+    expect(canSubmitQa({ ...qaBase, inputFile: '   ' }, false)).toBe(false);
+  });
+
+  it('モデル欄が空なら送信できない', () => {
+    // 空文字を送るとサーバー側の既定値が働かず、空のモデル名で LLM を呼びに行く
+    expect(canSubmitQa({ ...qaBase, model: '' }, false)).toBe(false);
+    expect(canSubmitQa({ ...qaBase, model: '   ' }, false)).toBe(false);
+  });
+
+  it('実行中は送信できない', () => {
+    expect(canSubmitQa(qaBase, true)).toBe(false);
   });
 });

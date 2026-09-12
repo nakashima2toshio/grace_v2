@@ -1,6 +1,6 @@
 # schemas.py - API スキーマ（Pydantic）ドキュメント
 
-**Version 1.3** | 最終更新: 2026-09-04
+**Version 1.4** | 最終更新: 2026-09-12
 
 ---
 
@@ -202,13 +202,14 @@ style DATA fill:#1a1a1a,stroke:#fff,color:#fff
 > Review でもそのまま使う。SSE イベントも形式が同一のため `SupportEventModel` を共用する。
 > 新設したのは**結果まわりの型だけ**である。
 
-#### データ準備用（チャンク化 / Qdrant 登録・参照 / 削除）
+#### データ準備用（チャンク化 / Q/A 生成 / Qdrant 登録・参照 / 削除）
 
 リクエスト系（[`api_data.md`](./api_data.md) が使う）:
 
 | モデル | 概要 |
 |-------|------|
 | `ChunkingRequest` | チャンク化の起動パラメータ（CLI 引数と 1:1） |
+| `QaGenerationRequest` | チャンク済み CSV → Q/A 生成のパラメータ |
 | `RegisterRequest` | Q/A CSV → Qdrant 登録のパラメータ |
 | `DeleteCollectionsRequest` | コレクション削除のパラメータ |
 | `DataJobStatusResponse` | データ準備ジョブの状態＋結果 |
@@ -790,6 +791,32 @@ class ChunkingRequest(BaseModel):
 > 📝 **CLI の引数と 1:1 で対応する。** `output_dir` は `--output`、`resume` は `--resume` 相当。
 > 上限（`workers` ≤ 32・`block_size` ≤ 8000）は Pydantic の制約で弾く。
 
+#### `QaGenerationRequest`
+
+```python
+class QaGenerationRequest(BaseModel):
+    input_file: str            = Field(min_length=1)          # チャンク済み CSV
+    output_dir: str            = Field(default="qa_output")
+    model: str                 = Field(default="claude-sonnet-4-6")
+    max_docs: Optional[int]    = Field(default=None, ge=1)
+    use_celery: bool           = False   # ⚠️ True なら Celery ワーカーが要る
+    concurrency: int           = Field(default=8, ge=1, le=32)
+    batch_chunks: int          = Field(default=3, ge=1, le=20)
+    analyze_coverage: bool     = True
+    verbose: bool              = False
+```
+
+> 📝 入力は**チャンク済み CSV**（`/api/chunking/run` の出力）。`text` /
+> `Combined_Text` / `content` / `chunk_text` のいずれかのカラムが要る。
+> 承認（HITL CONFIRM）は発生しない（出力は新規ファイルなので非破壊）。
+
+> ⚠️ **`output_dir` の既定を入れ子にしない。** `list_input_files()` は
+> `iterdir()` でサブディレクトリを見ないため、`qa_output/pipeline` にすると
+> 生成した Q/A CSV が `RegisterRequest.input_file` の選択肢に出てこない。
+
+> 📝 **`model` の既定はチャンク化と違う。** Q/A 生成は文章生成の比重が大きいので、
+> CLI と `QAPipeline` の既定に合わせて `claude-sonnet-4-6` にしてある。
+
 #### `RegisterRequest`
 
 ```python
@@ -906,7 +933,8 @@ class InputFileListResponse(BaseModel):
 ```
 
 > ⚠️ **`path` に絶対パスは入らない。** 許可ディレクトリ名を接頭辞にした形に限定してあり、
-> そのまま `ChunkingRequest.input_file` / `RegisterRequest.input_file` に渡せる。
+> そのまま `ChunkingRequest.input_file` / `QaGenerationRequest.input_file` /
+> `RegisterRequest.input_file` に渡せる。
 
 ---
 
@@ -968,6 +996,7 @@ ReviewResultModel, ReviewJobStatusResponse, RuleSetInfo
 | 1.0 | 2026-07-15 | 初版作成（9 スキーマモデルの IPO ドキュメント） |
 | 1.1 | 2026-07-29 | GRACE-Review のスキーマ 7 モデル＋`MAX_DOCUMENT_CHARS` を追加（PR #41）。Support 側のモデルは無変更 |
 | 1.2 | 2026-08-01 | `QueryRequest` に `identity`（本人確認の識別子・CLI の `--identity` 相当）を追加。実際に照合される条件（`ec` ＋ `dry_run=False` ＋ `SUPPORT_IDENTITY_FILE`）を注記 |
+| 1.4 | 2026-09-12 | `QaGenerationRequest` を追加（`POST /api/qa/generate`）。`DataJobStatusResponse` の `kind` が 4 種になったことを反映 |
 
 ---
 

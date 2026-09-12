@@ -1,7 +1,7 @@
-// チャンキング / Qdrant 登録の実行パネル。
+// チャンキング / Q/A 生成 / Qdrant 登録の実行パネル。
 //
 // `SupportPanel` と同じ構造（フォーム → ジョブ起動 → SSE 購読 → Timeline → 結果）。
-// 2 つのジョブで共通なのはこの器で、フォームの中身だけ `variant` で切り替える。
+// 3 つのジョブで共通なのはこの器で、フォームの中身だけ `variant` で切り替える。
 //
 // ⚠️ 登録で `recreate: true` を選ぶと intervention が飛んでくる。
 // 承認 UI は Support / Review と同じ `ConfirmModal` を使う。
@@ -17,14 +17,17 @@ import {
   fetchDataJobStatus,
   fetchInputFiles,
   startChunking,
+  startQaGeneration,
   startRegister,
   subscribeStream,
 } from '../api/client';
 import { forgetJob, recallJob, rememberJob } from '../state/activeJobs';
 import {
   buildChunkingParams,
+  buildQaParams,
   buildRegisterParams,
   canSubmitChunking,
+  canSubmitQa,
   canSubmitRegister,
   fileOptionLabel,
   formatModified,
@@ -32,6 +35,7 @@ import {
   INPUT_DIRS,
   suggestCollectionName,
   type ChunkingFormState,
+  type QaFormState,
   type RegisterFormState,
 } from '../state/dataParams';
 import { useJobTiming } from '../state/useJobTiming';
@@ -41,11 +45,12 @@ import { ConfirmModal } from './ConfirmModal';
 import { JobFinishLine, JobStartLine } from './JobClock';
 import { Timeline } from './Timeline';
 
-export type DataJobVariant = 'chunking' | 'register';
+export type DataJobVariant = 'chunking' | 'qa' | 'register';
 
 /** バリアントごとの既定入力ディレクトリ（パイプラインの流れに沿う）。 */
 const DEFAULT_DIR: Record<DataJobVariant, string> = {
   chunking: 'OUTPUT',
+  qa: 'output_chunked',
   register: 'qa_output',
 };
 
@@ -65,6 +70,16 @@ export function DataJobPanel({ variant }: { variant: DataJobVariant }) {
   const [textColumn, setTextColumn] = useState('');
   const [maxRows, setMaxRows] = useState('');
   const [combineRows, setCombineRows] = useState(false);
+
+  // --- Q/A 生成用 -----------------------------------------------------------
+  // ⚠️ モデルの既定はチャンキングの軽量モデルではなく、CLI
+  //    （make_qa_register_qdrant.py --model）と QAPipeline の既定に合わせる。
+  const [qaOutputDir, setQaOutputDir] = useState('qa_output');
+  const [qaModel, setQaModel] = useState('claude-sonnet-4-6');
+  const [useCelery, setUseCelery] = useState(false);
+  const [concurrency, setConcurrency] = useState(8);
+  const [batchChunks, setBatchChunks] = useState(3);
+  const [analyzeCoverage, setAnalyzeCoverage] = useState(true);
 
   // --- 登録用 ---------------------------------------------------------------
   const [collection, setCollection] = useState('');
@@ -150,6 +165,18 @@ export function DataJobPanel({ variant }: { variant: DataJobVariant }) {
     verbose,
   };
 
+  const qaState: QaFormState = {
+    inputFile,
+    outputDir: qaOutputDir,
+    model: qaModel,
+    maxDocs,
+    useCelery,
+    concurrency,
+    batchChunks,
+    analyzeCoverage,
+    verbose,
+  };
+
   const registerState: RegisterFormState = {
     inputFile,
     collection,
@@ -166,7 +193,9 @@ export function DataJobPanel({ variant }: { variant: DataJobVariant }) {
   const canSubmit =
     variant === 'chunking'
       ? canSubmitChunking(chunkingState, running)
-      : canSubmitRegister(registerState, running);
+      : variant === 'qa'
+        ? canSubmitQa(qaState, running)
+        : canSubmitRegister(registerState, running);
 
   const submit = useCallback(
     async (event: React.FormEvent) => {
@@ -179,7 +208,9 @@ export function DataJobPanel({ variant }: { variant: DataJobVariant }) {
         const { job_id } =
           variant === 'chunking'
             ? await startChunking(buildChunkingParams(chunkingState))
-            : await startRegister(buildRegisterParams(registerState));
+            : variant === 'qa'
+              ? await startQaGeneration(buildQaParams(qaState))
+              : await startRegister(buildRegisterParams(registerState));
         rememberJob(kind, job_id);
         dispatch({ type: 'started', jobId: job_id, kind });
         subscribe(job_id);
@@ -191,7 +222,7 @@ export function DataJobPanel({ variant }: { variant: DataJobVariant }) {
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [canSubmit, variant, kind, chunkingState, registerState, subscribe, beginTiming],
+    [canSubmit, variant, kind, chunkingState, qaState, registerState, subscribe, beginTiming],
   );
 
   const respond = useCallback(
@@ -352,6 +383,107 @@ export function DataJobPanel({ variant }: { variant: DataJobVariant }) {
               </label>
             </div>
           </>
+        ) : variant === 'qa' ? (
+          <>
+            <div className="query-row">
+              <label>
+                出力ディレクトリ
+                <input
+                  value={qaOutputDir}
+                  onChange={(e) => setQaOutputDir(e.target.value)}
+                  disabled={running}
+                />
+              </label>
+              <label>
+                モデル
+                <input
+                  value={qaModel}
+                  onChange={(e) => setQaModel(e.target.value)}
+                  disabled={running}
+                />
+              </label>
+              <label>
+                1 回の生成で渡すチャンク数
+                <input
+                  type="number"
+                  min={1}
+                  max={20}
+                  value={batchChunks}
+                  onChange={(e) => setBatchChunks(Number(e.target.value))}
+                  disabled={running}
+                />
+              </label>
+              <label>
+                最大チャンク数
+                <input
+                  type="number"
+                  min={1}
+                  value={maxDocs}
+                  onChange={(e) => setMaxDocs(e.target.value)}
+                  placeholder="全件"
+                  disabled={running}
+                />
+              </label>
+            </div>
+            <div className="query-toggles">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={analyzeCoverage}
+                  onChange={(e) => setAnalyzeCoverage(e.target.checked)}
+                  disabled={running}
+                />
+                カバレージ分析を実行する
+              </label>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={useCelery}
+                  onChange={(e) => setUseCelery(e.target.checked)}
+                  disabled={running}
+                />
+                Celery で並列生成する
+              </label>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={verbose}
+                  onChange={(e) => setVerbose(e.target.checked)}
+                  disabled={running}
+                />
+                詳細ログ
+              </label>
+            </div>
+            {useCelery && (
+              <>
+                <div className="query-row">
+                  <label>
+                    並列タスク数
+                    <input
+                      type="number"
+                      min={1}
+                      max={32}
+                      value={concurrency}
+                      onChange={(e) => setConcurrency(Number(e.target.value))}
+                      disabled={running}
+                    />
+                  </label>
+                </div>
+                <p className="notice">
+                  ⚠️ Celery ワーカーが起動している必要があります（
+                  <code>
+                    celery -A celery_tasks worker --concurrency={concurrency} --queues=qa_generation
+                  </code>
+                  ）。起動していない場合はジョブが失敗します。
+                </p>
+              </>
+            )}
+            <p className="notice">
+              入力は<strong>チャンク済み CSV</strong>（「① チャンキング」の出力）です。
+              生成された Q/A CSV は、そのまま「③ Qdrant 登録」の入力になります。
+              LLM は Anthropic Claude（<code>ANTHROPIC_API_KEY</code> が必要）です。
+            </p>
+          </>
         ) : (
           <>
             <div className="query-row">
@@ -431,7 +563,13 @@ export function DataJobPanel({ variant }: { variant: DataJobVariant }) {
         )}
 
         <button type="submit" disabled={!canSubmit}>
-          {running ? '実行中…' : variant === 'chunking' ? 'チャンク化を実行' : 'Qdrant へ登録'}
+          {running
+            ? '実行中…'
+            : variant === 'chunking'
+              ? 'チャンク化を実行'
+              : variant === 'qa'
+                ? 'Q/A を生成'
+                : 'Qdrant へ登録'}
         </button>
       </form>
 
@@ -467,6 +605,30 @@ export function DataJobPanel({ variant }: { variant: DataJobVariant }) {
             if (step.id === 'chunk' && step.status === 'done' && typeof data.chunks === 'number') {
               badges.push(`${data.chunks} チャンク`);
             }
+            if (
+              step.id === 'load' &&
+              step.status === 'done' &&
+              typeof data.text_column === 'string'
+            ) {
+              badges.push(`テキストカラム: ${data.text_column}`);
+            }
+            if (
+              step.id === 'generate' &&
+              step.status === 'done' &&
+              typeof data.qa_count === 'number'
+            ) {
+              badges.push(`${data.qa_count.toLocaleString()} ペア`);
+            }
+            if (step.id === 'generate' && typeof data.model === 'string') {
+              badges.push(data.model);
+            }
+            if (
+              step.id === 'coverage' &&
+              step.status === 'done' &&
+              typeof data.coverage_rate === 'number'
+            ) {
+              badges.push(`カバレージ ${(data.coverage_rate * 100).toFixed(1)}%`);
+            }
             if (step.id === 'prepare' && step.status === 'done') {
               badges.push(data.exists === true ? '既存コレクション' : '新規作成');
               if (typeof data.existing_points === 'number' && data.existing_points > 0) {
@@ -493,6 +655,31 @@ export function DataJobPanel({ variant }: { variant: DataJobVariant }) {
           </div>
           {state.result.cancelled ? (
             <p className="notice">実行されませんでした（{state.result.reason}）。</p>
+          ) : variant === 'qa' ? (
+            <dl className="metrics">
+              <div>
+                <dt>生成 Q/A ペア数</dt>
+                <dd>{state.result.qa_count?.toLocaleString() ?? '-'}</dd>
+              </div>
+              <div>
+                <dt>カバレージ率</dt>
+                <dd>
+                  {typeof state.result.coverage_rate === 'number'
+                    ? `${(state.result.coverage_rate * 100).toFixed(1)}%`
+                    : '-'}
+                </dd>
+              </div>
+              <div>
+                <dt>入力チャンク数</dt>
+                <dd>{state.result.total_chunks?.toLocaleString() ?? '-'}</dd>
+              </div>
+              <div>
+                <dt>Q/A CSV</dt>
+                <dd>
+                  <code>{state.result.qa_csv ?? '-'}</code>
+                </dd>
+              </div>
+            </dl>
           ) : variant === 'chunking' ? (
             <dl className="metrics">
               <div>
