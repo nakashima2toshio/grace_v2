@@ -1,6 +1,6 @@
 # log_service.py - ログ管理サービス ドキュメント
 
-**Version 1.0** | 最終更新: 2026-06-17
+**Version 1.1** | 最終更新: 2026-09-12
 
 ---
 
@@ -62,7 +62,7 @@
 flowchart TB
     subgraph CLIENT["クライアント層"]
         AGENT["GRACE Executor Agent"]
-        UI["Streamlit UI"]
+        UI["services/agent_service.py<br>log_unanswered_question()"]
     end
 
     subgraph MODULE["log_service.py"]
@@ -382,21 +382,22 @@ print(df.head())
 clear_unanswered_logs()
 ```
 
-### 6.2 応用的なワークフロー（Streamlit UI連携）
+### 6.2 応用的なワークフロー（未回答ログの確認）
 
 ```python
-import streamlit as st
 from services.log_service import load_unanswered_logs, clear_unanswered_logs
 
-# 未回答質問ログを表形式で表示
+# 未回答質問ログを確認する（CLI / スクリプトから）
 df = load_unanswered_logs()
-st.dataframe(df, use_container_width=True)
+print(df.to_string())
 
-# クリアボタン
-if st.button("ログをクリア"):
-    clear_unanswered_logs()
-    st.success("未回答ログをクリアしました")
+# 確認が済んだらクリアする
+clear_unanswered_logs()
 ```
+
+> 📝 **書き込み側の呼び出し元は `services/agent_service.py`** の
+> `log_unanswered_question()`。読み出し側（`load_unanswered_logs` /
+> `clear_unanswered_logs`）を画面から叩く経路は**現在の React UI には無い**。
 
 ---
 
@@ -424,6 +425,7 @@ UNANSWERED_LOG_FILE
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 1.1 | **Streamlit 残骸の除去。** 呼び出し元を `services/agent_service.py` と明記。§6.2 の Streamlit 例を CLI の例へ差し替えた（2026-09-12） |
 | 1.0 | 初版作成（2026-06-17） |
 
 ---

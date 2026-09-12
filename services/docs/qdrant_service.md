@@ -1,6 +1,6 @@
 # qdrant_service.py - Qdrant操作サービス ドキュメント
 
-**Version 2.0** | 最終更新: 2026-06-17
+**Version 2.1** | 最終更新: 2026-09-12
 
 ---
 
@@ -85,7 +85,7 @@ Embeddingには Gemini `gemini-embedding-001`（3072次元、鍵 `GOOGLE_API_KEY
 ```mermaid
 flowchart TB
     subgraph CLIENT["クライアント層"]
-        ST["Streamlit Dashboard"]
+        ST["React UI「データ管理」タブ<br>backend/app/api/qdrant.py 経由"]
         API["FastAPI Endpoints"]
         AGENT["GRACE Agent / Executor"]
     end
@@ -1493,6 +1493,7 @@ batched
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 2.1 | **Streamlit 残骸の除去。** Mermaid のクライアント層ノードを `React UI「データ管理」タブ` へ是正（2026-09-12） |
 | 1.0 | 初版作成 |
 | 1.1 | 命名規則依存廃止、動的マッピング導入 |
 | 1.2 | Hybrid Search（Sparse Vector）対応 |
