@@ -418,19 +418,42 @@ Q/A 生成は CLAUDE.md §3 で **Anthropic 必須**の用途。T6-2 と同じ�
 
 ### 残タスク（判断・環境が要る）
 
-| # | 内容 | 必要なもの |
+| # | 内容 | 状態 |
 |---|---|---|
-| 1 | スクリーンショット 14 枚（`S-03`〜`S-05` / `R-03`〜`R-06` / `C-01` / `D-03` / `D-05`〜`D-08` / `T-01`） | `ANTHROPIC_API_KEY` ＋ Qdrant |
-| 2 | `streamlit` 依存の削除（`pyproject.toml` / `requirements.txt`。import は 0 件だが版も不一致） | **ユーザー判断**（依存削除はコード変更） |
-| 3 | `services/dataset_service.py` / `file_service.py` の扱い（呼び出し元なし） | **ユーザー判断**（削除は不可逆） |
-| 4 | `chunking/docs/check_async.md` の扱い（対応する `.py` が全履歴に無い） | **ユーザー判断**（削除は不可逆） |
-| 5 | `ReviewForm` のアクセシビリティ（タイトル・textarea に `<label>` が無い／文字数超過が `aria-live` で伝わらない） | 実装変更 |
-| 6 | `ReviewPanel` の打ち切り警告 `.warn-banner` に `role` が無い | 実装変更 |
+| 1 | スクリーンショット 14 枚（`S-03`〜`S-05` / `R-03`〜`R-06` / `C-01` / `D-03` / `D-05`〜`D-08` / `T-01`） | ⏳ `ANTHROPIC_API_KEY` ＋ Qdrant のある環境で撮影 |
+| 2 | `streamlit` 依存の削除 | ✅ **完了**（§10.1） |
+| 3 | `services/dataset_service.py` / `file_service.py` | ✅ **完了**（§10.1） |
+| 4 | `chunking/docs/check_async.md` | ✅ **完了**（§10.1） |
+| 5 | `ReviewForm` のアクセシビリティ（タイトル・textarea に `<label>` が無い／文字数超過が `aria-live` で伝わらない） | ⏳ 実装変更 |
+| 6 | `ReviewPanel` の打ち切り警告 `.warn-banner` に `role` が無い | ⏳ 実装変更 |
+
+### 10.1 死にコード・不要依存の削除（2026-09-12・ユーザー承認のうえ実施）
+
+| 削除したもの | 行数 | 削除前に確認したこと |
+|---|---:|---|
+| `services/dataset_service.py` | 345 | `grep -rn "from services"` 全件＋関数名 11 個の個別 grep で**外部呼び出し 0 件**。`qa_generation/data_io.py` の同名 `load_uploaded_file` は**別物**（そちらは現役） |
+| `services/file_service.py` | 317 | 同上 |
+| `services/docs/dataset_service.md` / `file_service.md` | 1,109 | 対象の実装を削除したため |
+| `chunking/docs/check_async.md` | 1,008 | `check_async.py` は `find` でも `git log --all --diff-filter=A` でも**存在しない**（全履歴 0 件） |
+| `streamlit` / `altair` / `pydeck` 依存 | — | コード中の import **0 件**。`uv lock` を再生成し `uv sync` が通ることを確認 |
+
+**追随させたもの**:
+
+- `services/__init__.py` — 再エクスポート（import 2 ブロック・`__all__` 11 件）を削除。
+  `uv run python -c "import services"` が通り、`__all__` 50 件すべてに実体があることを確認
+- `services/docs/__init__.md` v1.3 — 一覧・Mermaid・エクスポート表から除き、
+  実在する `data_pipeline_service` / `agent_service` / `log_service` を追加。
+  **文書の `__all__` と実装の `services.__all__` が完全一致**することを検証した
+
+> 📌 **`blinker` / `watchdog` は残した。** Streamlit の推移依存だが汎用パッケージで、
+> 他のツールが使う可能性を否定できなかったため。`altair` / `pydeck` は
+> Streamlit 専用かつ import 0 件と確認できたので外した。
 
 ## 11. 変更履歴
 
 | Version | 内容 |
 |---|---|
+| 2.1 | **死にコードと不要依存を削除**（2026-09-12・ユーザー承認）。`dataset_service.py` / `file_service.py` / `check_async.md` と `streamlit` / `altair` / `pydeck` 依存。合計 2,779 行＋依存 3 件。§10.1 に確認手順を記録 |
 | 2.0 | **⑤〜⑧ を実施して完了**（2026-09-12）。frontend/docs の欠落 4 件を作成し 6 件を突き合わせ、Streamlit 残骸 13 ファイルを除去、`config.py` の不足行を回帰テスト付きで追加、README_DATA を索引化。§0.2 に「文書に書いていなかった事実」6 件を記録 |
 | 1.1 | ①〜④ の実施結果を反映（2026-09-12）。**T2-1「リンク切れ 25 件」を誤りとして撤回**（HTML コメントを除外せず判定していた）。スクリーンショット 11 枚を撮影し `D-09` を新設。T1-1〜T1-3 / T4-1 / T4-4 を完了。§6 に実機で見つかったモデル名の不一致（T6-5）を追記 |
 | 1.0 | 初版。実測ベースで P0〜P3 を整理（2026-09-12） |
