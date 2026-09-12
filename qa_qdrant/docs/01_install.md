@@ -431,32 +431,47 @@ chmod +x start_celery.sh
 
 ```bash
 # Celeryワーカーを直接起動
-celery -A celery_tasks worker \
+celery -A celery_config worker \
     --loglevel=info \
     --concurrency=24 \
     --pool=prefork \
-    --queues=qa_generation
+    -Q celery,high_priority,normal_priority,low_priority
 ```
+
+> ⚠️ **`-A` は `celery_config`、キューは上記 4 つ。**
+> `celery_config.py` が定義しているのは `celery`（既定）/ `high_priority` /
+> `normal_priority` / `low_priority` で、**`qa_generation` というキューは無い**
+> （`qa_generation` は `Celery('qa_generation')` の**アプリ名**であってキュー名ではない）。
+> `-Q qa_generation` で起動したワーカーは何も消費しないので、タスクは
+> 既定キュー `celery` に溜まったまま進まない。`task_routes` は未設定なので、
+> Q/A 生成のタスクはすべて既定キューへ入る。
 
 ### 5.4 start_celery.sh の使い方
 
 ```bash
-Usage: ./start_celery.sh [start|stop|status|restart] [options]
+使用方法: ./start_celery.sh {start|stop|restart|status} [-c concurrency] [--flower] [--flower-port PORT]
 
-Commands:
-  start    Celeryワーカーを起動
-  stop     Celeryワーカーを停止
-  status   ワーカーのステータスを確認
-  restart  ワーカーを再起動
+コマンド:
+  start   - ワーカーを起動
+  stop    - ワーカーを停止
+  restart - ワーカーを再起動
+  status  - ワーカーの状態を表示
 
-Options:
-  -w, --workers NUM    ワーカー数(デフォルト: 8)
-  -l, --loglevel LEVEL ログレベル(debug|info|warning|error)
+オプション:
+  -c, --concurrency  並列タスク数 (デフォルト: 8)
+  -w, --workers      -c の別名（後方互換性）
+  --flower           Flowerも起動
+  --flower-port      Flowerポート (デフォルト: 5555)
 
-Example:
-  ./start_celery.sh start -w 24     # 24ワーカーで起動
-  ./start_celery.sh status          # ステータス確認
+例:
+  ./start_celery.sh start -c 8 --flower      # concurrency=8 + Flower
+  ./start_celery.sh restart -c 4             # concurrency=4で再起動
+  ./start_celery.sh status                   # 状態確認
 ```
+
+> 📝 **ワーカーは 1 台固定で、`-c` は「1 ワーカーあたりの並列タスク数」。**
+> 旧版の説明にあった `-w NUM`（ワーカー数）は `-c` の別名として残してあるが、
+> 意味は並列タスク数である。`-l/--loglevel` は無い。
 
 ### 5.5 Redisキャッシュのクリア
 

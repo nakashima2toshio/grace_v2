@@ -37,7 +37,7 @@ SSE による進捗配信・HITL CONFIRM・ジョブ管理を新規に実装し�
 | API（ジョブ） | `backend/app/api/data.py` | チャンク化・Q/A 生成・登録・削除の起動、SSE、HITL 応答 |
 | runner | `backend/app/core/data_jobs.py` | 4 種のジョブ本体（`register_runner` で登録） |
 | 進捗転送 | `backend/app/core/job_logs.py` | 既存パッケージの `logging` 出力を SSE イベントへ |
-| ラッパ | `services/data_pipeline_service.py` | CLI に埋まっていた処理の関数化・JSON 化・パス検証 |
+| ラッパ | `services/data_pipeline_service.py` | CLI に埋まっていた処理の関数化・JSON 化・パス検証（IPO は [`services/docs/data_pipeline_service.md`](../../services/docs/data_pipeline_service.md)） |
 
 ### 設計の前提：既存パッケージは 1 行も変更していない
 

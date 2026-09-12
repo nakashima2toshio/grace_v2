@@ -35,7 +35,9 @@ pip install celery redis
 - ✅ `celery_tasks.py` - Celeryタスク定義（スマート生成対応）
 - ✅ `celery_config.py` - Celery設定
 - ✅ `start_celery.sh` - ワーカー起動スクリプト
-- ✅ `test_celery_integration.py` - 統合テスト
+
+> 📝 **いずれもリポジトリ直下にある。** 別プロジェクトへ持ち出すとき以外、
+> コピーは要らない。
 
 ---
 
@@ -57,30 +59,35 @@ redis-cli ping
 
 ### ステップ2: ファイルの配置
 
-```bash
-# プロジェクトルートに配置
-cp celery_tasks.py /path/to/project/
-cp celery_config.py /path/to/project/
-cp start_celery.sh /path/to/project/
-cp test_celery_integration.py /path/to/project/
+本リポジトリで使う分には**配置作業は不要**（3 ファイルとも直下にある）。
+別プロジェクトへ持ち出す場合のみ:
 
-# 実行権限の付与
-chmod +x start_celery.sh
-chmod +x test_celery_integration.py
+```bash
+cp celery_tasks.py celery_config.py start_celery.sh /path/to/project/
+chmod +x /path/to/project/start_celery.sh
 ```
 
 ### ステップ3: Celeryワーカーの起動
 
 ```bash
 # スクリプトを使用（推奨）
-./start_celery.sh start -w 8
+./start_celery.sh start -c 8
 
 # または、直接起動
-celery -A celery_config worker --loglevel=info --concurrency=8
+celery -A celery_config worker --loglevel=info --concurrency=8 \
+    -Q celery,high_priority,normal_priority,low_priority
 
 # 起動確認
 ./start_celery.sh status
 ```
+
+> ⚠️ **`-A` は `celery_config`。キューは `celery`（既定）/ `high_priority` /
+> `normal_priority` / `low_priority` の 4 つで、`qa_generation` という**キューは無い**
+> （それは `Celery('qa_generation')` の**アプリ名**）。存在しないキューを `-Q` に
+> 渡したワーカーは何も消費しないため、タスクは既定キューに溜まったまま進まない。
+
+> 📝 `-c` は「1 ワーカーあたりの並列タスク数」。`-w` は `-c` の別名として
+> 残してあるが、ワーカー台数ではない（本スクリプトはワーカー 1 台固定）。
 
 **期待される出力**:
 ```
@@ -154,45 +161,20 @@ python make_qa_register_qdrant.py \
 
 ## 🧪 テスト方法
 
-### テスト1: 統合テストの実行
+### テスト1: ワーカーとタスク定義の確認
 
 ```bash
-python test_celery_integration.py
+# ワーカーの状態（Redis 接続・起動中のワーカー・合計 concurrency）
+./start_celery.sh status
+
+# タスクモジュールの自己診断
+#   ブローカー URL / SmartQAGenerator の import / ワーカー状態を出す
+python celery_tasks.py
 ```
 
-**期待される出力**:
-```
-==============================================================
-Celeryスマート生成統合テスト
-==============================================================
-
-テスト1: Celeryワーカー状態確認
-✅ 合格: ワーカーが起動しています
-
-テスト2: スマート生成（単一チャンク）
-✅ 合格: 5個のQ/Aペア生成（8.2秒）
-
-テスト3: 従来方式（単一チャンク）
-✅ 合格: 3個のQ/Aペア生成（4.1秒）
-
-テスト4: 複数チャンク並列処理（スマート生成）
-✅ 合格: 9個のQ/Aペア生成（12.5秒）
-
-テスト5: エラーハンドリング
-✅ 合格: エラーハンドリングが正常に動作
-
-==============================================================
-テスト結果サマリー
-==============================================================
-✅ 合格: ワーカー状態確認
-✅ 合格: スマート生成（単一）
-✅ 合格: 従来方式（単一）
-✅ 合格: 並列処理（複数）
-✅ 合格: エラーハンドリング
-
-合計: 5/5 テスト合格
-🎉 全てのテストに合格しました！
-```
+> ⚠️ 旧版はここで `test_celery_integration.py` の実行を案内していたが、
+> **そのファイルは本リポジトリに存在しない**（実行すると
+> `No such file or directory` になる）。上の 2 つで代替する。
 
 ### テスト2: 手動テスト
 

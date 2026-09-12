@@ -389,8 +389,19 @@ python -m chunking.csv_text_to_chunks_text_csv \
 
 ### 9.4 参照してはいけない廃止ファイル
 grace_v2 に**存在しない**: `setup.py` / `server.py` / a-prefixed scripts
-（`a30_qdrant_registration.py` 等）/ `agent_rag.py` / `ui/` / `start_celery.sh` /
-リポジトリ直下の `tests/`。
+（`a30_qdrant_registration.py` 等）/ `agent_rag.py` / `ui/` /
+リポジトリ直下の `tests/` / `test_celery_integration.py`。
+
+> ⚠️ **`start_celery.sh` は存在する**（2026-09-12 訂正）。以前この一覧に
+> 入っていたが、Q/A 生成の Celery 並列（CLI の `--use-celery` / データ管理タブの
+> 「② Q/A 作成」）を使うときのワーカー起動口として追加した。手順は
+> `qa_qdrant/docs/celery_quick_start.md`。
+>
+> ⚠️ **Celery のキュー名に `qa_generation` は無い。** `celery_config.py` が定義
+> するのは `celery`（既定）/ `high_priority` / `normal_priority` / `low_priority`
+> の 4 つで、`qa_generation` は `Celery('qa_generation')` の**アプリ名**である。
+> `-Q qa_generation` で起動したワーカーは何も消費しない。`-A` に渡すのは
+> `celery_config`。
 
 ---
 
