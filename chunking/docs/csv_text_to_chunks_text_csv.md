@@ -89,7 +89,7 @@ flowchart TB
     end
 
     subgraph EXTERNAL["外部サービス層"]
-        LLM["Gemini API (gemini-2.5-flash)"]
+        LLM["Anthropic API (claude-haiku-4-5)"]
         TIKTOKEN["tiktoken cl100k_base"]
         FS["ローカルファイル output_chunked/*.csv"]
         CKPT["CheckpointManager (JSON)"]
@@ -118,7 +118,7 @@ style EXTERNAL fill:#1a1a1a,stroke:#fff,color:#fff
 1. CLI またはユーザースクリプトから入力ファイル（`.txt` / `.csv`）を受け取る
 2. `load_text_from_csv()` がテキストカラムを自動検出し、結合テキストを生成
 3. `chunks_all_async()` が Step1 → Step2 → Step3 を順次・並列に実行
-4. 各 Step は `AsyncAPIClient` 経由で Gemini API を並列呼び出し、`CheckpointManager` に保存
+4. 各 Step は `AsyncAPIClient` 経由で Anthropic API を並列呼び出し、`CheckpointManager` に保存
 5. `_enforce_max_chunk_tokens()` で最終チャンク全件に 512 トークン上限を強制
 6. `save_chunks_as_csv()` がメタデータ付き CSV + シンプル CSV の 2 ファイルを出力
 
@@ -201,7 +201,7 @@ style CLIB fill:#1a1a1a,stroke:#fff,color:#fff
 
 | モジュール | 用途 |
 |-----------|------|
-| `chunking.async_api_client.AsyncAPIClient` | Gemini API の非同期並列呼び出し |
+| `chunking.async_api_client.AsyncAPIClient` | Anthropic API の非同期並列呼び出し |
 | `chunking.checkpoint_manager.CheckpointManager` | Step1/2/3 のチェックポイント保存・再開 |
 | `chunking.models.StructuralResult` | Step1/Step2 応答スキーマ |
 | `chunking.models.ContinuityResult` | Step3 応答スキーマ |
@@ -677,7 +677,7 @@ generate_output_filename("data/input.txt", "chunks_output")
 ```python
 async def chunks_all_async(
     text: str,
-    model: str = "gemini-2.5-flash",
+    model: str = "claude-haiku-4-5",
     max_workers: int = 8,
     block_size: int = 1000,
     checkpoint_manager: Optional[CheckpointManager] = None,
@@ -690,7 +690,7 @@ async def chunks_all_async(
 | パラメータ | 型 | デフォルト | 説明 |
 |------------|------|-----------|------|
 | `text` | str | - | 入力テキスト |
-| `model` | str | "gemini-2.5-flash" | LLM モデル名 |
+| `model` | str | "claude-haiku-4-5" | LLM モデル名 |
 | `max_workers` | int | 8 | 並列ワーカー数 |
 | `block_size` | int | 1000 | Step1 のブロックサイズ（文字数） |
 | `checkpoint_manager` | Optional[CheckpointManager] | None | チェックポイント管理（未指定時は新規） |
@@ -700,7 +700,7 @@ async def chunks_all_async(
 
 | 項目 | 内容 |
 |------|------|
-| **Input** | `text: str`, `model: str = "gemini-2.5-flash"`, `max_workers: int = 8`, `block_size: int = 1000`, `checkpoint_manager: Optional[CheckpointManager] = None`, `output_file: Optional[str] = None`, `dataset_type: str = "custom"`, `source_file: Optional[str] = None` |
+| **Input** | `text: str`, `model: str = "claude-haiku-4-5"`, `max_workers: int = 8`, `block_size: int = 1000`, `checkpoint_manager: Optional[CheckpointManager] = None`, `output_file: Optional[str] = None`, `dataset_type: str = "custom"`, `source_file: Optional[str] = None` |
 | **Process** | 1. `GOOGLE_API_KEY` を環境変数から取得（無ければ `ValueError`）<br>2. `AsyncAPIClient`（`max_retries=3`, `max_output_tokens=16384`）を構築<br>3. Step1 → Step2 → Step3 を順次実行<br>4. `_enforce_max_chunk_tokens(..., MAX_CHUNK_TOKENS)` で上限強制<br>5. `output_file` 指定時、拡張子 `.csv` なら `save_chunks_as_csv`、それ以外は `save_chunks_as_text` |
 | **Output** | `List[str]`: 最終チャンクリスト |
 
@@ -719,7 +719,7 @@ from chunking.csv_text_to_chunks_text_csv import chunks_all_async
 
 chunks = asyncio.run(chunks_all_async(
     text=open("data/document.txt").read(),
-    model="gemini-2.5-flash",
+    model="claude-haiku-4-5",
     max_workers=8,
     output_file="output_chunked/document_chunks.csv",
     dataset_type="document",
@@ -765,7 +765,7 @@ async def _step1_hierarchical_split(
 
 ```python
 # 使用例（通常は chunks_all_async 経由で呼ばれる）
-paragraphs = await _step1_hierarchical_split(text, client, "gemini-2.5-flash", 1000, ckpt)
+paragraphs = await _step1_hierarchical_split(text, client, "claude-haiku-4-5", 1000, ckpt)
 ```
 
 ---
@@ -803,7 +803,7 @@ async def _step2_semantic_chunking(
 
 ```python
 # 使用例
-chunks = await _step2_semantic_chunking(paragraphs, client, "gemini-2.5-flash", ckpt)
+chunks = await _step2_semantic_chunking(paragraphs, client, "claude-haiku-4-5", ckpt)
 ```
 
 ---
@@ -841,7 +841,7 @@ async def _step3_continuity_check(
 
 ```python
 # 使用例
-final = await _step3_continuity_check(step2_chunks, client, "gemini-2.5-flash", ckpt)
+final = await _step3_continuity_check(step2_chunks, client, "claude-haiku-4-5", ckpt)
 ```
 
 ---
@@ -862,7 +862,7 @@ CLI 引数:
 |------|----|-----------|------|
 | `--input-file` | str | （必須） | 入力 `.txt` / `.csv` |
 | `--output` | str | `chunks_output` | 出力ディレクトリ |
-| `--model` | str | `gemini-2.5-flash` | LLM モデル名 |
+| `--model` | str | `claude-haiku-4-5` | LLM モデル名 |
 | `--workers` | int | 8 | 並列ワーカー数 |
 | `--block-size` | int | 1000 | Step1 ブロックサイズ |
 | `--verbose` | flag | False | 詳細ログ |
@@ -887,7 +887,7 @@ None
 uv run python -m chunking.csv_text_to_chunks_text_csv \
   --input-file OUTPUT/cc_news_2per.csv \
   --output output_chunked \
-  --model gemini-2.5-flash \
+  --model claude-haiku-4-5 \
   --workers 2
 ```
 
@@ -908,9 +908,26 @@ uv run python -m chunking.csv_text_to_chunks_text_csv \
 
 | 変数名 | 必須 | 説明 |
 |-------|:----:|------|
-| `GOOGLE_API_KEY` | ✅ | Gemini API 呼び出し用キー（`chunks_all_async` 内で読み取り） |
+| `ANTHROPIC_API_KEY` | ✅ | **LLM 呼び出し用キー**（`chunks_all_async` 内で読み取り。未設定なら `ValueError`） |
 
-> 📝 **注意**: 本リポジトリのプロジェクト全体としては LLM は Anthropic Claude（`claude-sonnet-4-6`、鍵 `ANTHROPIC_API_KEY`）、Embedding は Gemini（`gemini-embedding-001`、3072 次元、鍵 `GOOGLE_API_KEY`）を採用していますが、本モジュールの実装はチャンキング工程に Gemini LLM（`gemini-2.5-flash`）を使用しており、必要な API キーは `GOOGLE_API_KEY` のみです。
+> ⚠️ **2026-09-12 訂正: 本モジュールは Gemini ではなく Anthropic を使う。**
+> v1 は「チャンキング工程は Gemini LLM を使い、必要な API キーは `GOOGLE_API_KEY` のみ」と
+> 書いていたが**誤り**だった。実装を追うと次のとおりである。
+>
+> | 確認箇所 | 実際の値 |
+> |---|---|
+> | `csv_text_to_chunks_text_csv.py:571-573` | `os.getenv("ANTHROPIC_API_KEY")`。未設定なら `ValueError` |
+> | `async_api_client.py:77` | `create_llm_client("anthropic", ...)` |
+> | `chunks_all_async()` の既定 `model` | `claude-haiku-4-5` |
+> | CLI `--model` の既定 | `claude-haiku-4-5` |
+>
+> したがって本モジュールに必要なキーは **`ANTHROPIC_API_KEY`** である
+> （`GOOGLE_API_KEY` は Embedding 用で、チャンキングでは使わない）。
+> これは CLAUDE.md §3 のプロバイダ方針とも一致する。
+>
+> 📌 **既定モデル名は `claude-haiku-4-5`（日付サフィックス無し）。**
+> `config.py` の価格表・上限表には `claude-haiku-4-5-20251001` しか無く、
+> コスト計算が既定値へフォールバックする問題がある（`docs/doc_modernization_todo.md` T6-5）。
 
 ---
 
@@ -923,7 +940,7 @@ uv run python -m chunking.csv_text_to_chunks_text_csv \
 uv run python -m chunking.csv_text_to_chunks_text_csv \
   --input-file OUTPUT/cc_news_2per.csv \
   --output output_chunked \
-  --model gemini-2.5-flash \
+  --model claude-haiku-4-5 \
   --workers 2
 
 # 出力:
@@ -957,7 +974,7 @@ text = load_text_from_csv("data/sample.csv", max_rows=50)
 
 chunks = asyncio.run(chunks_all_async(
     text=text,
-    model="gemini-2.5-flash",
+    model="claude-haiku-4-5",
     max_workers=8,
     block_size=1000,
     checkpoint_manager=CheckpointManager(),
@@ -1036,7 +1053,7 @@ flowchart LR
     end
 
     subgraph SVC["外部サービス"]
-        GEMINI["Gemini API (gemini-2.5-flash)"]
+        ANTHROPIC["Anthropic API (claude-haiku-4-5)"]
     end
 
     MODULE --> PD
@@ -1050,10 +1067,10 @@ flowchart LR
     MODULE --> PRM
     MODULE --> RGX
     MODULE --> UTL
-    AAC --> GEMINI
+    AAC --> ANTHROPIC
 classDef default fill:#000,stroke:#fff,color:#fff
 classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
-class MODULE,PD,TK,TQ,AS,AP,AAC,CKM,MDLS,PRM,RGX,UTL,GEMINI default
+class MODULE,PD,TK,TQ,AS,AP,AAC,CKM,MDLS,PRM,RGX,UTL,ANTHROPIC default
 style EXT fill:#1a1a1a,stroke:#fff,color:#fff
 style INT fill:#1a1a1a,stroke:#fff,color:#fff
 style SVC fill:#1a1a1a,stroke:#fff,color:#fff

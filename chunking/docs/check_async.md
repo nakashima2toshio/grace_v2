@@ -1,6 +1,26 @@
 # check_async.py - 非同期・並列処理学習プログラム ドキュメント
 
-**Version 1.0** | 最終更新: 2025-01-29
+**Version 1.1** | 最終更新: 2026-09-12
+
+---
+
+> ## ⚠️ 対応する `check_async.py` はこのリポジトリに存在しない
+>
+> `find` と `git log --all --diff-filter=A` で確認した結果、**`check_async.py` は
+> 現在も過去（git 全履歴）も存在しない**（2026-09-12 実測）。本書は
+> 非同期・並列処理を説明するための**学習用文書**であり、収録されたコードは
+> 「本書内の解説用コード片」である。**そのまま実行できるファイルではない。**
+>
+> 実物の非同期実装は [`chunking/async_api_client.py`](../async_api_client.py)
+> （文書: [`async_api_client.md`](./async_api_client.md)）と
+> [`chunking/csv_text_to_chunks_text_csv.py`](../csv_text_to_chunks_text_csv.py) にある。
+>
+> 📌 本書を残すか削除するかは
+> [`docs/doc_modernization_todo.md`](../../docs/doc_modernization_todo.md) の残タスク。
+> **ファイル削除は不可逆のため、ユーザーの確認を得てから行う**（CLAUDE.md ファイル書き込みポリシー）。
+>
+> なお v1 のコード片は LLM に `gemini-2.5-flash` を使っていたが、本プロジェクトの
+> LLM は **Anthropic Claude**（CLAUDE.md §3）なので `claude-haiku-4-5` へ表記を揃えた。
 
 ---
 
@@ -256,7 +276,7 @@ flowchart TB
 | 属性 | 概要 |
 |------|------|
 | `mode` | 処理モード（sequential/parallel） |
-| `model` | 使用するGeminiモデル名 |
+| `model` | 使用するLLM モデル名 |
 | `block_size` | Step1のブロックサイズ |
 | `max_workers` | 最大並列数 |
 | `max_retries` | 最大リトライ回数 |
@@ -317,7 +337,7 @@ flowchart TB
 @dataclass
 class ChunkingConfig:
     mode: str = "sequential"        # 処理モード
-    model: str = "gemini-2.5-flash" # Geminiモデル
+    model: str = "claude-haiku-4-5" # LLM モデル
     block_size: int = 2000          # ブロックサイズ（文字数）
     max_workers: int = 8            # 最大並列数
     max_retries: int = 3            # 最大リトライ回数
@@ -328,7 +348,7 @@ class ChunkingConfig:
 | 属性 | 型 | デフォルト | 説明 |
 |------|------|-----------|------|
 | `mode` | str | "sequential" | 処理モード（sequential/parallel） |
-| `model` | str | "gemini-2.5-flash" | 使用するGeminiモデル名 |
+| `model` | str | "claude-haiku-4-5" | 使用するLLM モデル名 |
 | `block_size` | int | 2000 | Step1でテキストを分割するブロックサイズ（文字数） |
 | `max_workers` | int | 8 | 並列処理の最大ワーカー数 |
 | `max_retries` | int | 3 | APIエラー時の最大リトライ回数 |
@@ -692,7 +712,7 @@ def parse_args() -> argparse.Namespace
 | `--mode` | `-m` | sequential | 処理モード（sequential/parallel） |
 | `--workers` | `-w` | 8 | 並列処理の最大ワーカー数 |
 | `--text` | `-t` | test1 | テストテキスト（test1/test2） |
-| `--model` | - | gemini-2.5-flash | Geminiモデル名 |
+| `--model` | - | claude-haiku-4-5 | LLM モデル名 |
 | `--block-size` | - | 2000 | ブロックサイズ（文字数） |
 
 ---
@@ -726,7 +746,7 @@ config = ChunkingConfig()
 | キー | デフォルト値 | 説明 |
 |-----|-------------|------|
 | `mode` | "sequential" | 処理モード |
-| `model` | "gemini-2.5-flash" | Geminiモデル |
+| `model` | "claude-haiku-4-5" | LLM モデル |
 | `block_size` | 2000 | ブロックサイズ |
 | `max_workers` | 8 | 最大並列数 |
 | `max_retries` | 3 | 最大リトライ回数 |

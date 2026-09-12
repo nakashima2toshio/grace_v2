@@ -1,6 +1,13 @@
 # config.py - GRACE 設定管理 ドキュメント
 
-**Version 1.2** | 最終更新: 2026-09-04
+**Version 1.3** | 最終更新: 2026-09-12
+
+> 📌 **`config.GeminiConfig` の LLM モデル一覧は後方互換である。**
+> `config.py:411` のコメントにあるとおり、`GeminiConfig` は
+> **Embedding 用途（`EMBEDDING_MODEL` / `EMBEDDING_DIMS`）に限って参照してよい**。
+> 同クラスが持つ `DEFAULT_MODEL = "gemini-2.5-flash"` などの **LLM** 既定は
+> 後方互換のために残っているだけで、**現行の LLM 既定は
+> `config.ModelConfig.DEFAULT_MODEL`（`claude-sonnet-4-6`）**である（CLAUDE.md §3）。
 
 ---
 
