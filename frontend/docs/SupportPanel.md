@@ -1,6 +1,6 @@
 # SupportPanel.tsx - 問い合わせ → 回答 パネル ドキュメント
 
-**Version 1.3** | 最終更新: 2026-09-12
+**Version 1.4** | 最終更新: 2026-09-12
 
 ---
 
@@ -452,7 +452,7 @@ class S,V,R,Go,Err,Fail,Stream,I,M,D default
 | 観点 | 状態 | 補足 |
 |---|:--:|---|
 | エラーが支援技術へ通知されるか | ✅ | `.error-banner` に `role="alert"` |
-| 実行中であることが伝わるか | ❌ | `.running-banner` は視覚のみ。`aria-busy` 等は未設定 |
+| 実行中であることが伝わるか | ✅ | `.running-banner` 自体は視覚のみだが、**`Timeline` が `sr-only` の `aria-live="polite"` で「実行中: <ステップ名>」を読み上げている**（`state/timelineAnnounce.ts`）。バナーにもライブ領域を足すと**二重読み上げ**になるため、付けない |
 | 二重送信が防げるか | ✅ | `running` で送信ボタンを `disabled` |
 | 承認の二重送信が防げるか | ✅ | `confirming` でモーダルのボタンを `disabled` |
 | キーボードのみで送信・承認できるか | ✅ | すべて `<button>` / `<input>` 要素 |
@@ -499,6 +499,7 @@ class S,V,R,Go,Err,Fail,Stream,I,M,D default
 
 | 版 | 日付 | 変更内容 |
 |---|---|---|
+| 1.4 | 2026-09-12 | **アクセシビリティ記述の訂正。** 「実行中であることが伝わるか」を ❌ としていたが誤りだった。`Timeline` が `sr-only` の `aria-live="polite"` で「実行中: <ステップ名>」を読み上げており（`state/timelineAnnounce.ts`）、実行中であることは支援技術へ伝わっている。`.running-banner` にライブ領域を足すと二重読み上げになるため、あえて付けない |
 | 1.3 | 2026-09-12 | **本文を実装へ追随させた（それまで §4.1 は修正前のコード `.catch(() => setVerticals([]))` を載せたままだった）。** v1.1〜1.2 で実装済みの `MetaErrorBanner` / `QuestionSelectModal` / `interventionKind` を本文（概要・ツリー図・props・状態管理・副作用・表示の出し分け）へ反映。`useJobTiming` による開始・完了行（`JobClock`）と基本版の複数行入力（`multiline`）を追記。テスト件数を `npm test` の実測値へ差し替え。版番号の重複（1.1 が 2 行）を解消 |
 | 1.2 | 2026-08-30 | **業界プロファイル取得の失敗を握りつぶしていた不具合を修正。** `.catch(() => setVerticals([]))` だとバックエンド停止時に「（なし）しか選べない」としか見えなかったため、`MetaErrorBanner` で理由と復旧手順を表示し再取得できるようにした |
 | 1.1b | 2026-08-29 | 承認待ちモーダルを 2 種類に分岐（`state/interventionKind.ts` の純関数で判定）。0-(A) の主質問選択は `QuestionSelectModal`、従来のアクション承認は `ConfirmModal`。`respond` が `selectedOption` を受け取る（既定 `null` で従来呼び出しと互換） |
