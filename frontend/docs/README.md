@@ -1,6 +1,6 @@
 # frontend/docs 棚卸し
 
-**Version 1.1** | 最終更新: 2026-09-12
+**Version 1.2** | 最終更新: 2026-09-12
 
 `frontend/`（Vite + React 18 + TypeScript）のドキュメント一覧と、実装への追随状況・
 欠落・残タスクをまとめる。
@@ -52,7 +52,7 @@
 | `DataPanel.md` | `components/DataPanel.tsx` — データ管理タブの枠 | 94 | 1.2 | ★★ |
 | `CollectionPanel.md` | `components/CollectionPanel.tsx` — コレクション管理 | 406 | 1.2 | ★★ |
 | `App.md` | `App.tsx` — タブ切替とパネルの振り分け | 86 | 1.2 | ★★ |
-| `ReviewPanel.md` | `components/ReviewPanel.tsx` — GRACE-Review 本体 | 200 | 1.0 | ★★★ |
+| `ReviewPanel.md` | `components/ReviewPanel.tsx` — GRACE-Review 本体 | 202 | 1.1 | ★★★ |
 
 ### 2.2 入力・モーダル
 
@@ -61,7 +61,7 @@
 | `QueryForm.md` | `components/QueryForm.tsx` | 266 | 1.2 | ★★★ |
 | `ConfirmModal.md` | `components/ConfirmModal.tsx` — HITL アクション承認 | 95 | 1.1 | ★★ |
 | `QuestionSelectModal.md` | `components/QuestionSelectModal.tsx` — 0-(A) 主質問の選択 | 76 | 1.0 | ★★ |
-| `ReviewForm.md` | `components/ReviewForm.tsx` | 210 | 1.0 | ★★ |
+| `ReviewForm.md` | `components/ReviewForm.tsx` | 231 | 1.1 | ★★ |
 
 ### 2.3 表示コンポーネント
 
@@ -138,6 +138,7 @@ CLAUDE.md §6 のとおり、**判断ロジックはコンポーネントに残�
 | `citations.ts` | 76 | 出典の派生値 |
 | `useJobTiming.ts` | 56 | **例外的にフック**。判断は持たず `elapsed.ts` に委ねる |
 | `metaFetch.ts` | 53 | メタ取得失敗 → 対処可能な文言 |
+| `documentLimit.ts` | 52 | 文字数上限の判定・表示文言・アナウンス文言 |
 | `tabKeys.ts` | 49 | タブの矢印キー移動 |
 | `submitKey.ts` | 49 | 送信キー（IME 変換中は送信しない） |
 | `activeJobs.ts` | 45 | 実行中ジョブの派生値 |
@@ -153,13 +154,14 @@ CLAUDE.md §6 のとおり、**判断ロジックはコンポーネントに残�
 **2026-09-12 に `cd frontend && npm test` を実行した実測値。記憶で書かないこと。**
 
 ```
-Test Files  18 passed (18)
-     Tests  266 passed (266)
+Test Files  19 passed (19)
+     Tests  276 passed (276)
 ```
 
 | テストファイル | 件数 |
 |---|---:|
 | `state/dataParams.test.ts` | 34 |
+| `state/documentLimit.test.ts` | 10 |
 | `state/queryParams.test.ts` | 25 |
 | `state/dataReducer.test.ts` | 24 |
 | `state/elapsed.test.ts` | 22 |
@@ -206,8 +208,9 @@ npm run build    # 本番ビルド
 | 2 | ~~`review_ui.md` の位置づけ直し~~ | ✅ 完了（v1.3） |
 | 3 | ~~欠落 4 件の文書作成~~ | ✅ 完了（§3） |
 | 4 | ルート `README.md` のスクリーンショット残り 14 枚（`ANTHROPIC_API_KEY` と Qdrant のある環境が必要） | 中 |
-| 5 | `ReviewForm` のアクセシビリティ（タイトル・文書 textarea に `<label>` が無い／文字数超過が `aria-live` で伝わらない） | 中 |
-| 6 | `ReviewPanel` の打ち切り警告 `.warn-banner` に `role` が無い | 低 |
+| 5 | ~~`ReviewForm` のアクセシビリティ~~ | ✅ 完了（v1.1・`.sr-only` ラベル＋`aria-invalid`＋ライブ領域） |
+| 6 | ~~`ReviewPanel` の打ち切り警告に `role` が無い~~ | ✅ 完了（v1.1・`role="alert"`） |
+| 7 | `CollectionPanel.tsx:391` の `.warn-banner`（「削除は実行されませんでした」）に `role` が無い | 低（**未対応**・同種の残り 1 件） |
 
 詳細と根拠は [`docs/doc_modernization_todo.md`](../../docs/doc_modernization_todo.md) を参照。
 
@@ -217,5 +220,6 @@ npm run build    # 本番ビルド
 
 | 版 | 日付 | 変更内容 |
 |---|---|---|
+| 1.2 | 2026-09-12 | **アクセシビリティ改善に追随。** `ReviewForm` v1.1（`.sr-only` ラベル・`aria-invalid`・ライブ領域）と `ReviewPanel` v1.1（`role="alert"`）を反映。`state/documentLimit.ts`（純関数・10 件）を一覧へ追加し、テスト件数を 19 ファイル / 276 件へ更新。残タスクに `CollectionPanel` の同種 1 件を追加 |
 | 1.1 | 2026-09-12 | 欠落 4 件（`ReviewPanel` / `ReviewForm` / `JobClock` / `MetaErrorBanner`）を新規作成して解消。ヘッダー日付が遅れていた 6 件を実装と突き合わせ、**差分が無いことを確認**（§3.1）。`review_ui.md` を横断文書として位置づけ直し。残タスクにアクセシビリティの 2 件を追加 |
 | 1.0 | 2026-09-12 | 初版作成。文書一覧・実装カバレッジ（欠落 4 件）・state 純関数 16 件・テスト件数（`npm test` の実測 18 ファイル / 266 件）を記載 |

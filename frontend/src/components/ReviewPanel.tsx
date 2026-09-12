@@ -150,8 +150,10 @@ export function ReviewPanel() {
       {result && (
         <>
           <FindingSummaryBar summary={result.summary} />
+          {/* 打ち切りは「結果が不完全である」という重要な事実なので、
+              出現を支援技術へ通知する（MetaErrorBanner と同じ扱い）。 */}
           {result.truncated && (
-            <div className="warn-banner">
+            <div className="warn-banner" role="alert">
               ⚠️ 文書が大きいため途中で打ち切りました（セグメントまたは判定回数の上限）。
               分割して再実行してください。
             </div>

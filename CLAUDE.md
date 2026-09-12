@@ -244,6 +244,7 @@ React の型（`KeyboardEvent` 等）に直接依存させず、必要なフィ�
 | `state/tabKeys.ts` | タブの矢印キー移動 |
 | `state/formMemory.ts` | タブ切替時の入力退避と復元 |
 | `state/interventionKind.ts` | 承認待ちが action（⑥ 実行承認）か question（0-(A) 主質問の選択）か |
+| `state/documentLimit.ts` | 文字数上限の判定・表示文言・**アナウンス文言**（超過中は長さを含めず再読み上げを防ぐ） |
 | `state/metaFetch.ts` | メタ取得失敗を対処可能な文言へ（silent failure を出さない） |
 | `state/timelineAnnounce.ts` | 支援技術へ読み上げる 1 行の決定 |
 | `state/citations.ts` / `highlight.ts` / `elapsed.ts` / `activeJobs.ts` | 表示用の派生値 |
