@@ -1,6 +1,6 @@
-# データ準備パイプライン（チャンキング / 登録 / 削除） ドキュメント
+# データ準備パイプライン（チャンキング / Q/A 生成 / 登録 / 削除） ドキュメント
 
-**Version 1.1** | 最終更新: 2026-08-05
+**Version 1.2** | 最終更新: 2026-09-12
 
 ---
 
@@ -23,14 +23,19 @@
 CLI でしか実行できなかった**データ準備の 3 工程**（チャンク化 → Q/A 生成 → Qdrant 登録）と
 コレクション管理を、Web API と React 画面から実行できるようにした一連のモジュール群。
 
+> **v1.2（2026-09-12）で Q/A 生成を追加した。** それまでは 3 工程のうち Q/A 生成だけが
+> CLI 専用で、`POST /api/qdrant/register` の入力になる Q/A CSV を画面から作れなかった。
+> `qa_qdrant/make_qa_register_qdrant.py` の Phase 1 と同じ `QAPipeline` を通すので、
+> CLI と結果は変わらない。
+
 GRACE-Support・GRACE-Review と**同じジョブ基盤**（`core/jobs.py`）に乗せているため、
 SSE による進捗配信・HITL CONFIRM・ジョブ管理を新規に実装していない。
 
 | 層 | 実体 | 役割 |
 |---|---|---|
 | API（参照） | `backend/app/api/qdrant.py` | コレクション一覧・詳細・ポイント・ヘルス・ファイル一覧 |
-| API（ジョブ） | `backend/app/api/data.py` | チャンク化・登録・削除の起動、SSE、HITL 応答 |
-| runner | `backend/app/core/data_jobs.py` | 3 種のジョブ本体（`register_runner` で登録） |
+| API（ジョブ） | `backend/app/api/data.py` | チャンク化・Q/A 生成・登録・削除の起動、SSE、HITL 応答 |
+| runner | `backend/app/core/data_jobs.py` | 4 種のジョブ本体（`register_runner` で登録） |
 | 進捗転送 | `backend/app/core/job_logs.py` | 既存パッケージの `logging` 出力を SSE イベントへ |
 | ラッパ | `services/data_pipeline_service.py` | CLI に埋まっていた処理の関数化・JSON 化・パス検証 |
 
@@ -46,9 +51,11 @@ SSE による進捗配信・HITL CONFIRM・ジョブ管理を新規に実装し�
 ### 主な責務
 
 - **チャンク化**: CSV / テキスト → セマンティックチャンク CSV（LLM・3 段階）
+- **Q/A 生成**: チャンク済み CSV → Q/A ペア CSV・JSON（`QAPipeline`・カバレージ分析つき）
 - **Qdrant 登録**: Q/A CSV → コレクション（Embedding 生成つき）
 - **コレクション管理**: 一覧・詳細・ポイントのプレビュー・削除
 - **破壊的操作の承認**: 削除は常に、登録は `recreate=True` のときだけ HITL CONFIRM を通す
+  （チャンク化・Q/A 生成は非破壊なので承認なし）
 - **入力ファイルの安全な選択**: 許可ディレクトリのホワイトリスト内に限定する
 - **進捗の可視化**: 既存モジュールを無改修のまま SSE で進捗を流す
 
@@ -57,12 +64,13 @@ SSE による進捗配信・HITL CONFIRM・ジョブ管理を新規に実装し�
 | # | 責務 | 対応モジュール | 説明 |
 |---|------|--------------|------|
 | 1 | チャンク化 | `core/data_jobs.py::_chunking_runner` → `chunking/csv_text_to_chunks_text_csv.py` | `chunks_all_async` を同期ラップして呼ぶ |
-| 2 | Qdrant 登録 | `core/data_jobs.py::_register_runner` → `qa_qdrant/register_to_qdrant.py` | `register_to_qdrant()` は元から純関数 |
-| 3 | 削除 | `core/data_jobs.py::_delete_runner` → `services/data_pipeline_service.py::delete_collection` | CLI に直書きだった処理を関数化 |
-| 4 | 参照 | `api/qdrant.py` → `services/qdrant_service.py` | `QdrantDataFetcher` の DataFrame を JSON 化 |
-| 5 | 承認 | `core/intervention_bridge.py`（既存） | Support / Review と同一の仕組み |
-| 6 | 進捗 | `core/job_logs.py` | `logging.Handler` で横取り |
-| 7 | パス検証 | `services/data_pipeline_service.py` | ホワイトリスト ＋ `resolve()` の二段 |
+| 2 | Q/A 生成 | `core/data_jobs.py::_qa_runner` → `qa_generation/pipeline.py::QAPipeline` | CLI（Phase 1）と同じ経路。パイプライン本体は無改修 |
+| 3 | Qdrant 登録 | `core/data_jobs.py::_register_runner` → `qa_qdrant/register_to_qdrant.py` | `register_to_qdrant()` は元から純関数 |
+| 4 | 削除 | `core/data_jobs.py::_delete_runner` → `services/data_pipeline_service.py::delete_collection` | CLI に直書きだった処理を関数化 |
+| 5 | 参照 | `api/qdrant.py` → `services/qdrant_service.py` | `QdrantDataFetcher` の DataFrame を JSON 化 |
+| 6 | 承認 | `core/intervention_bridge.py`（既存） | Support / Review と同一の仕組み |
+| 7 | 進捗 | `core/job_logs.py` | `logging.Handler` で横取り |
+| 8 | パス検証 | `services/data_pipeline_service.py` | ホワイトリスト ＋ `resolve()` の二段 |
 
 ### 主要機能一覧
 
@@ -74,6 +82,7 @@ SSE による進捗配信・HITL CONFIRM・ジョブ管理を新規に実装し�
 | ポイントのプレビュー | `GET /api/qdrant/collections/{name}/points` | — |
 | 入力ファイル一覧 | `GET /api/files` | — |
 | チャンク化の実行 | `POST /api/chunking/run` | なし |
+| Q/A 生成の実行 | `POST /api/qa/generate` | なし |
 | Qdrant 登録 | `POST /api/qdrant/register` | `recreate=True` のときだけ |
 | コレクション削除 | `POST /api/qdrant/delete` | **常に** |
 | 進捗の購読 | `GET /api/data/stream/{job_id}` | — |
@@ -103,7 +112,7 @@ flowchart TB
     subgraph CORE["ジョブ層（既存基盤を共用）"]
         direction TB
         JOBS["core/jobs.py<br>JobManager / register_runner"]
-        DJ["core/data_jobs.py<br>3 種の runner"]
+        DJ["core/data_jobs.py<br>4 種の runner"]
         JL["core/job_logs.py<br>logging 横取り"]
         IB["core/intervention_bridge.py<br>HITL CONFIRM"]
     end
@@ -251,6 +260,7 @@ style L4 fill:#1a1a1a,stroke:#fff,color:#fff
 | 関数 | `dataframe_to_records()` | DataFrame → `list[dict]`（NaN → None） |
 | 関数 | `collection_columns()` | レコード列から出現順に列名を抽出 |
 | 関数 | `run_chunking_sync()` | `chunks_all_async` の同期ラッパ |
+| 関数 | `run_qa_generation_sync()` | `QAPipeline.run()` の同期ラッパ（`asyncio.run` は挟まない） |
 | 関数 | `load_input_text()` | CSV / テキストの読み込み |
 
 ### 3.3 `backend/app/core/data_jobs.py`
@@ -258,9 +268,11 @@ style L4 fill:#1a1a1a,stroke:#fff,color:#fff
 | 種別 | 名前 | 説明 |
 |---|---|---|
 | dataclass | `ChunkingParams` | チャンク化のパラメータ（CLI 引数と 1:1） |
+| dataclass | `QaGenerationParams` | Q/A 生成のパラメータ |
 | dataclass | `RegisterParams` | 登録のパラメータ |
 | dataclass | `DeleteParams` | 削除のパラメータ |
 | 関数 | `_chunking_runner()` | 読み込み → チャンク化 → 出力 |
+| 関数 | `_qa_runner()` | 読み込み・検証 → Q/A 生成 → カバレージ → 出力 |
 | 関数 | `_register_runner()` | 検証 → 承認（条件付き）→ Embedding → 登録 |
 | 関数 | `_delete_runner()` | 対象確認 → 承認 → 削除 |
 | 関数 | `_ask_confirmation()` | HITL CONFIRM を要求し `(承認, タイムアウト)` を返す |
@@ -354,7 +366,34 @@ style L4 fill:#1a1a1a,stroke:#fff,color:#fff
 
 承認画面には**対象名と合計件数**を出す（何が消えるか分からないまま押させない）。
 
-### 4.5 `_register_runner(params, emit, confirm)`
+### 4.5 `_qa_runner(params, emit, confirm)`
+
+`confirm` は**使わない**（非破壊。出力はタイムスタンプ付きの新規ファイル）。
+
+| 項目 | 内容 |
+|---|---|
+| **Input** | `QaGenerationParams(input_file, output_dir, model, max_docs, use_celery, concurrency, batch_chunks, analyze_coverage)`、`emit` |
+| **Process** | ① 入力の検証（許可パス・`.csv`・テキストカラム）<br>② `run_qa_generation_sync()` で Q/A 生成<br>③ カバレージ分析（`analyze_coverage=False` なら skip）<br>④ 出力ファイルの存在確認 |
+| **Output** | `{"kind": "qa", "qa_csv", "qa_json", "qa_count", "coverage_rate", "total_chunks", "model"}` |
+
+#### 入力の誤りは**入力ステップで**返す
+
+テキストカラムの検証を `QAPipeline` 任せにすると、`ValueError` が生成ステップの
+失敗として見える。**LLM を呼ぶ前に分かる誤り**なので、`pd.read_csv(nrows=1)` で
+先に確かめて ① の error として返す。拡張子が `.csv` でない場合も同じ。
+
+#### 0 件生成は「成功」にしない
+
+例外が出なくても `qa_count == 0` なら error で返す。そのまま通すと、
+後続の Qdrant 登録が空のファイルを掴んで空振りする。
+
+#### 出力先の既定が `qa_output` 直下である理由
+
+`list_input_files()` は `iterdir()` で**サブディレクトリを見ない**。
+`qa_output/pipeline` のような入れ子を既定にすると、生成した Q/A CSV が
+「③ Qdrant 登録」のファイル選択に現れず、画面だけではパイプラインが繋がらない。
+
+### 4.6 `_register_runner(params, emit, confirm)`
 
 承認を求める条件は **`recreate=True` かつ既存コレクションがある**ときだけ。
 
@@ -375,7 +414,7 @@ style L4 fill:#1a1a1a,stroke:#fff,color:#fff
 ```bash
 ./run_dev.sh          # backend :8000 + frontend :5173
 # → ブラウザで「データ管理」タブ
-#   ① チャンキング → ② Qdrant 登録 → ③ コレクション管理
+#   ① チャンキング → ② Q/A 作成 → ③ Qdrant 登録 → ④ コレクション管理
 ```
 
 ### 5.2 API を直接叩く
@@ -455,15 +494,15 @@ ALLOWED_INPUT_DIRS, PathNotAllowedError,
 resolve_allowed_dir, list_input_files, resolve_input_file,
 delete_collection, collection_exists,
 dataframe_to_records, collection_columns,
-run_chunking_sync, load_input_text
+run_chunking_sync, run_qa_generation_sync, load_input_text
 ```
 
 ### `backend/app/core/data_jobs.py`
 
 ```python
-ChunkingParams, RegisterParams, DeleteParams
-CHUNKING_STEP_IDS, REGISTER_STEP_IDS, DELETE_STEP_IDS
-CHUNKING_STEP_LABELS, REGISTER_STEP_LABELS, DELETE_STEP_LABELS
+ChunkingParams, QaGenerationParams, RegisterParams, DeleteParams
+CHUNKING_STEP_IDS, QA_STEP_IDS, REGISTER_STEP_IDS, DELETE_STEP_IDS
+CHUNKING_STEP_LABELS, QA_STEP_LABELS, REGISTER_STEP_LABELS, DELETE_STEP_LABELS
 ```
 
 > runner（`_chunking_runner` 等）は private。`register_runner()` により
@@ -477,6 +516,7 @@ CHUNKING_STEP_LABELS, REGISTER_STEP_LABELS, DELETE_STEP_LABELS
 |---|---|---|
 | 1.0 | 2026-08-05 | 初版作成（D0〜D10） |
 | 1.1 | 2026-08-05 | 再購読（タブ離脱後の進捗復元）の節を追加。`stream_events()` が先頭からリプレイする性質に依存することを明記 |
+| 1.2 | 2026-09-12 | **Q/A 生成を追加**（`_qa_runner` / `POST /api/qa/generate` / サブタブ「② Q/A 作成」）。runner は 4 種になり、サブタブは ①〜④ へ繰り下げ |
 
 ---
 
@@ -519,5 +559,5 @@ style REUSE fill:#1a1a1a,stroke:#fff,color:#fff
 ```
 
 **新規 5 ファイルに対し、再利用 6 ファイルは無改修。** `jobs.py` の
-`register_runner` 機構と `InterventionBridge` が、そのまま 3 種類目の
+`register_runner` 機構と `InterventionBridge` が、そのまま 4 種類目の
 ジョブ系統を受け入れられる設計だったことによる。

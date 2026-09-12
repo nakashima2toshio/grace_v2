@@ -1,27 +1,39 @@
 # backend/app/core/data_jobs.py
-"""データ準備パイプラインのジョブ runner（チャンキング / 登録 / 削除）。
+"""データ準備パイプラインのジョブ runner（チャンキング / Q/A 生成 / 登録 / 削除）。
 
 GRACE-Support・GRACE-Review と**同じジョブ基盤**（`core/jobs.py`）に乗せる。
 `register_runner(params_type, runner, kind)` で params の型から runner を解決する
-仕組みがすでにあるため、`jobs.py` 側に手を入れずに 3 種類を追加できる。
+仕組みがすでにあるため、`jobs.py` 側に手を入れずに 4 種類を追加できる。
 
 | params | kind | 実処理 |
 |---|---|---|
 | `ChunkingParams` | `chunking` | `chunking/csv_text_to_chunks_text_csv.py` |
+| `QaGenerationParams` | `qa` | `qa_generation/pipeline.py::QAPipeline` |
 | `RegisterParams` | `register` | `qa_qdrant/register_to_qdrant.py` |
 | `DeleteParams` | `delete` | `services/data_pipeline_service.delete_collection` |
 
 ## 進捗の出し方
 
-3 パッケージとも進捗コールバックを持たないため、`core/job_logs.py` の
+どのパッケージも進捗コールバックを持たないため、`core/job_logs.py` の
 `capture_logs()` で `logging` 出力を横取りして SSE の log イベントへ流す
 （既存コードは無改修）。ステップの区切りだけは runner 側で `step` イベントを出す。
+
+## プロバイダ
+
+- **チャンク化・Q/A 生成の LLM**: Anthropic Claude（CLAUDE.md §3 のプロバイダ方針）。
+  `ANTHROPIC_API_KEY` が必要
+- **登録時の Embedding**: Gemini（`gemini-embedding-001` / 3072次元）。`GOOGLE_API_KEY` が必要
+
+⚠️ LLM 用途と Embedding 用途は別系統である。`RegisterParams.provider` を
+`"anthropic"` にしてはいけない（既存 Qdrant コレクションの次元が変わる）。
 
 ## 破壊的操作の承認（HITL CONFIRM）
 
 - **削除**は常に承認を求める
 - **登録**は `recreate=True`（既存コレクションを作り直す）のときだけ承認を求める
   — 毎回ダイアログが出ると煩わしいため、破壊を伴う場合に限定する
+- **チャンク化・Q/A 生成**は承認不要（どちらも既存データを壊さない）。
+  Q/A 生成の出力はタイムスタンプ付きの新規ファイルなので、既存の Q/A CSV も残る
 
 承認は Support / Review と同じ `InterventionBridge` を通るので、
 フロントは既存の `ConfirmModal` をそのまま使える。タイムアウト時は
@@ -54,6 +66,14 @@ CHUNKING_STEP_LABELS: Dict[str, str] = {
     "load": "① 入力読み込み（CSV / テキスト）",
     "chunk": "② セマンティックチャンク化（LLM・3 段階）",
     "save": "③ CSV 出力",
+}
+
+QA_STEP_IDS: tuple[str, ...] = ("load", "generate", "coverage", "save")
+QA_STEP_LABELS: Dict[str, str] = {
+    "load": "① チャンク済み CSV の読み込み",
+    "generate": "② Q/A ペア生成（LLM）",
+    "coverage": "③ カバレージ分析（任意）",
+    "save": "④ Q/A CSV・JSON 出力",
 }
 
 REGISTER_STEP_IDS: tuple[str, ...] = ("prepare", "confirm", "embed", "upsert")
@@ -91,6 +111,34 @@ class ChunkingParams:
     combine_rows: bool = False
     # CheckpointManager の再開用ジョブ ID（--resume 相当）
     resume: Optional[str] = None
+    verbose: bool = False
+
+
+@dataclass
+class QaGenerationParams:
+    """POST /api/qa/generate のパラメータ。
+
+    入力は**チャンク済み CSV**（`chunking` ジョブの出力）。`text` /
+    `Combined_Text` / `content` / `chunk_text` のいずれかのカラムが要る。
+    """
+
+    # 'ディレクトリ名/ファイル名' 形式（許可ディレクトリ内に限る）
+    input_file: str
+    # ⚠️ **既定は `qa_output` 直下にする。** `list_input_files()` は
+    #    `iterdir()` でサブディレクトリを見ないため、`qa_output/pipeline`
+    #    のような入れ子に出すと「③ Qdrant 登録」の選択肢に現れず、
+    #    画面だけではパイプラインが繋がらない。
+    output_dir: str = "qa_output"
+    # Q/A 生成は文章生成の比重が大きいので、チャンク化の軽量モデルではなく
+    # CLI（make_qa_register_qdrant.py --model）と `QAPipeline` の既定に合わせる
+    model: str = "claude-sonnet-4-6"
+    max_docs: Optional[int] = None
+    # ⚠️ True にするなら Celery ワーカーが起動していること。落ちていると
+    #    パイプラインが例外を投げる（runner が error イベントへ変換する）
+    use_celery: bool = False
+    concurrency: int = 8
+    batch_chunks: int = 3
+    analyze_coverage: bool = True
     verbose: bool = False
 
 
@@ -266,6 +314,170 @@ def _chunking_runner(
         "output_file": output_file,
         "chunks": len(chunks),
         "chars": len(text),
+        "model": params.model,
+    }
+
+
+# =============================================================================
+# Q/A 生成
+# =============================================================================
+
+def _qa_runner(
+    params: QaGenerationParams, emit: EmitFn, confirm: ConfirmFn
+) -> Optional[Dict[str, Any]]:
+    """チャンク済み CSV → Q/A ペア CSV。
+
+    `qa_qdrant/make_qa_register_qdrant.py` の **Phase 1 と同じ経路**
+    （`QAPipeline`）を通る。CLI と Web で結果が食い違わないよう、
+    パイプライン本体には手を入れていない。
+
+    `confirm` は使わない（Q/A 生成は既存データを壊さないため承認不要）。
+    出力はタイムスタンプ付きの新規ファイルなので、既存の Q/A CSV も消えない。
+    """
+    import os
+
+    from services.data_pipeline_service import (
+        resolve_input_file,
+        run_qa_generation_sync,
+    )
+
+    log, step_started, step_finished, step_skipped, error = _make_emitters(emit)
+
+    if not os.getenv("ANTHROPIC_API_KEY"):
+        error("⚠️ ANTHROPIC_API_KEY が未設定です。.env に設定してください。")
+        return None
+
+    # --- ① 入力読み込み -----------------------------------------------------
+    step_started("load", QA_STEP_LABELS["load"], input_file=params.input_file)
+    try:
+        input_path = resolve_input_file(params.input_file)
+    except (ValueError, FileNotFoundError) as e:
+        error(f"❌ 入力ファイルを開けません: {e}")
+        return None
+
+    if input_path.suffix.lower() != ".csv":
+        error(
+            f"❌ Q/A 生成の入力はチャンク済み CSV です（渡された拡張子: {input_path.suffix}）。"
+            "先に「① チャンキング」を実行してください。"
+        )
+        return None
+
+    # ⚠️ **カラムの検証はここで先に行う。** QAPipeline は読み込んだあとに
+    #    ValueError を投げるが、それだと「LLM を呼ぶ前に分かる誤り」なのに
+    #    生成ステップの失敗として見えてしまう。入力の問題は入力ステップで返す。
+    try:
+        import pandas as pd
+
+        df_head = pd.read_csv(input_path, nrows=1)
+    except Exception as e:
+        error(f"❌ CSV を読めません: {type(e).__name__}: {e}")
+        return None
+
+    text_col = next(
+        (c for c in ("text", "Combined_Text", "content", "chunk_text") if c in df_head.columns),
+        None,
+    )
+    if text_col is None:
+        error(
+            "❌ テキストカラムが見つかりません。"
+            f"利用可能なカラム: {list(df_head.columns)} / "
+            "必要: 'text' / 'Combined_Text' / 'content' / 'chunk_text' のいずれか"
+        )
+        return None
+
+    step_finished("load", source_file=input_path.name, text_column=text_col, model=params.model)
+    log(
+        f"  入力: {input_path.name}（テキストカラム: {text_col} / モデル: {params.model}）",
+        step="load",
+    )
+
+    # --- ② Q/A 生成 ---------------------------------------------------------
+    step_started(
+        "generate",
+        QA_STEP_LABELS["generate"],
+        model=params.model,
+        use_celery=params.use_celery,
+        concurrency=params.concurrency,
+        batch_chunks=params.batch_chunks,
+        max_docs=params.max_docs,
+    )
+    if params.use_celery:
+        log(
+            f"  Celery 並列モード（並列タスク数 {params.concurrency}）"
+            " — ワーカーが起動している必要があります",
+            step="generate",
+        )
+
+    try:
+        with capture_logs(emit, step="generate") as handler:
+            result = run_qa_generation_sync(
+                str(input_path),
+                model=params.model,
+                output_dir=params.output_dir,
+                max_docs=params.max_docs,
+                use_celery=params.use_celery,
+                concurrency=params.concurrency,
+                batch_chunks=params.batch_chunks,
+                analyze_coverage=params.analyze_coverage,
+            )
+            # 生成が終わった時点で以降のログは次のステップへ寄せる
+            handler.set_step("coverage" if params.analyze_coverage else "save")
+    except Exception as e:
+        logger.exception("Q/A 生成に失敗")
+        hint = ""
+        if params.use_celery:
+            hint = (
+                "\n   Celery ワーカーが起動しているか確認してください"
+                "（起動していない場合は Celery を外して再実行）。"
+            )
+        error(f"❌ Q/A 生成に失敗しました: {type(e).__name__}: {e}{hint}")
+        return None
+
+    qa_count = int(result.get("qa_count") or 0)
+    step_finished("generate", qa_count=qa_count, model=params.model)
+
+    if qa_count == 0:
+        # 例外は出ていないが 1 件も作れていない。後続の登録が空振りするので
+        # ここで失敗として返す（「成功したのに 0 件」を黙って通さない）。
+        error(
+            "❌ Q/A ペアが 1 件も生成されませんでした。"
+            "モデル名・チャンク内容・（Celery 使用時は）ワーカーの状態を確認してください。"
+        )
+        return None
+
+    # --- ③ カバレージ分析 ---------------------------------------------------
+    coverage = result.get("coverage_results") or {}
+    coverage_rate = coverage.get("coverage_rate")
+    if params.analyze_coverage:
+        step_started("coverage", QA_STEP_LABELS["coverage"])
+        step_finished(
+            "coverage",
+            coverage_rate=coverage_rate,
+            covered_chunks=coverage.get("covered_chunks"),
+            total_chunks=coverage.get("total_chunks"),
+        )
+        if isinstance(coverage_rate, (int, float)):
+            log(f"  カバレージ率: {coverage_rate:.1%}", step="coverage")
+    else:
+        step_skipped("coverage", reason="analyze_coverage=False")
+
+    # --- ④ 出力 -------------------------------------------------------------
+    saved = result.get("saved_files") or {}
+    qa_csv = saved.get("qa_csv")
+    step_started("save", QA_STEP_LABELS["save"], output_dir=params.output_dir)
+    exists = bool(qa_csv) and Path(qa_csv).exists()
+    step_finished("save", qa_csv=qa_csv, qa_json=saved.get("qa_json"), written=exists)
+    if not exists:
+        log(f"  ⚠️ 出力ファイルが見つかりません: {qa_csv}", step="save")
+
+    return {
+        "kind": "qa",
+        "input_file": params.input_file,
+        "qa_csv": qa_csv,
+        "qa_json": saved.get("qa_json"),
+        "qa_count": qa_count,
+        "coverage_rate": coverage_rate,
+        "total_chunks": coverage.get("total_chunks"),
         "model": params.model,
     }
 
@@ -543,5 +755,6 @@ def _delete_runner(
 # =============================================================================
 
 register_runner(ChunkingParams, _chunking_runner, "chunking")
+register_runner(QaGenerationParams, _qa_runner, "qa")
 register_runner(RegisterParams, _register_runner, "register")
 register_runner(DeleteParams, _delete_runner, "delete")

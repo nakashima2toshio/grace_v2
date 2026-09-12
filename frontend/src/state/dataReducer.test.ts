@@ -9,7 +9,7 @@ import {
 } from './dataReducer';
 import type { SupportEvent } from '../types';
 
-function started(kind: 'chunking' | 'register' | 'delete' = 'chunking'): DataJobState {
+function started(kind: 'chunking' | 'qa' | 'register' | 'delete' = 'chunking'): DataJobState {
   return dataReducer(initialDataState(kind), { type: 'started', jobId: 'job1', kind });
 }
 
@@ -20,12 +20,13 @@ function apply(state: DataJobState, event: SupportEvent): DataJobState {
 describe('stepIdsFor / stepLabelsFor', () => {
   it('ジョブ種別ごとにステップが違う', () => {
     expect(stepIdsFor('chunking')).toEqual(['load', 'chunk', 'save']);
+    expect(stepIdsFor('qa')).toEqual(['load', 'generate', 'coverage', 'save']);
     expect(stepIdsFor('register')).toEqual(['prepare', 'confirm', 'embed', 'upsert']);
     expect(stepIdsFor('delete')).toEqual(['inspect', 'confirm', 'delete']);
   });
 
   it('全ステップにラベルがある（ラベル漏れがあると空欄で表示される）', () => {
-    for (const kind of ['chunking', 'register', 'delete'] as const) {
+    for (const kind of ['chunking', 'qa', 'register', 'delete'] as const) {
       const labels = stepLabelsFor(kind);
       for (const id of stepIdsFor(kind)) {
         expect(labels[id], `${kind}.${id} のラベルが無い`).toBeTruthy();
@@ -216,5 +217,41 @@ describe('failed / reset', () => {
     expect(state.phase).toBe('idle');
     expect(state.kind).toBe('register');
     expect(state.steps.prepare.status).toBe('pending');
+  });
+});
+
+describe('Q/A 生成ジョブ', () => {
+  it('生成ステップのデータを畳み込む', () => {
+    let state = started('qa');
+    state = apply(state, {
+      type: 'step',
+      step: 'generate',
+      status: 'finished',
+      data: { qa_count: 42, model: 'claude-sonnet-4-6' },
+    } as SupportEvent);
+    expect(state.steps.generate.status).toBe('done');
+    expect(state.steps.generate.data.qa_count).toBe(42);
+  });
+
+  it('カバレージのスキップを skipped として保つ', () => {
+    let state = started('qa');
+    state = apply(state, {
+      type: 'step',
+      step: 'coverage',
+      status: 'skipped',
+      data: { reason: 'analyze_coverage=False' },
+    } as SupportEvent);
+    expect(state.steps.coverage.status).toBe('skipped');
+  });
+
+  it('結果を kind つきで受け取る', () => {
+    let state = started('qa');
+    state = apply(state, {
+      type: 'result',
+      data: { kind: 'qa', qa_count: 42, qa_csv: 'qa_output/qa_pairs_x.csv' },
+    } as SupportEvent);
+    expect(state.result?.kind).toBe('qa');
+    expect(state.result?.qa_count).toBe(42);
+    expect(state.result?.qa_csv).toBe('qa_output/qa_pairs_x.csv');
   });
 });

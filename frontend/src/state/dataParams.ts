@@ -2,7 +2,7 @@
 //
 // `queryParams.ts` と同じ方針で、**JSX から切り出してテスト可能にする**。
 // 数値の空欄・トリム・null 化の扱いはここに集約する（フォーム側で散らさない）。
-import type { ChunkingParams, InputFileInfo, RegisterParams } from '../types';
+import type { ChunkingParams, InputFileInfo, QaParams, RegisterParams } from '../types';
 
 // 入力ファイルのブラウズ先。backend の ALLOWED_INPUT_DIRS と 1:1。
 // パイプラインの流れ順に並べる（生データ → チャンク → Q/A）。
@@ -61,6 +61,45 @@ export function buildChunkingParams(state: ChunkingFormState): ChunkingParams {
     resume: toOptionalString(state.resume),
     verbose: state.verbose,
   };
+}
+
+export interface QaFormState {
+  inputFile: string;
+  outputDir: string;
+  model: string;
+  maxDocs: string;
+  useCelery: boolean;
+  concurrency: number;
+  batchChunks: number;
+  analyzeCoverage: boolean;
+  verbose: boolean;
+}
+
+export function buildQaParams(state: QaFormState): QaParams {
+  return {
+    input_file: state.inputFile.trim(),
+    // ⚠️ 既定は `qa_output` 直下。入れ子にすると GET /api/files が拾わず、
+    // 「③ Qdrant 登録」の選択肢に出てこない（backend の既定と揃える）
+    output_dir: state.outputDir.trim() || 'qa_output',
+    model: state.model.trim(),
+    max_docs: toOptionalNumber(state.maxDocs),
+    use_celery: state.useCelery,
+    concurrency: state.concurrency,
+    batch_chunks: state.batchChunks,
+    analyze_coverage: state.analyzeCoverage,
+    verbose: state.verbose,
+  };
+}
+
+/**
+ * 送信ボタンを押せるか（Q/A 生成）。
+ *
+ * ⚠️ **モデル欄が空でも押せるようにしない。** 空文字を送ると、キー自体は
+ * 存在するためサーバー側の `Field(default=...)` が働かず、空のモデル名で
+ * LLM を呼びに行って実行時に失敗する。ここで止める方が原因が分かりやすい。
+ */
+export function canSubmitQa(state: QaFormState, running: boolean): boolean {
+  return !running && state.inputFile.trim() !== '' && state.model.trim() !== '';
 }
 
 export interface RegisterFormState {

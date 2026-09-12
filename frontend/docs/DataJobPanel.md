@@ -1,6 +1,6 @@
 # DataJobPanel.tsx - チャンキング / Qdrant 登録の実行パネル ドキュメント
 
-**Version 1.1** | 最終更新: 2026-08-05
+**Version 1.2** | 最終更新: 2026-09-12
 
 ---
 
@@ -25,32 +25,32 @@
 | 項目 | 内容 |
 |---|---|
 | ファイル | `frontend/src/components/DataJobPanel.tsx` |
-| 種別 | コンテナコンポーネント（`useReducer` + `useState` × 13 + `useEffect` × 2 + `useRef`） |
-| 親 | `DataPanel.tsx`（`variant` を渡して 2 用途で共用） |
+| 種別 | コンテナコンポーネント（`useReducer` + `useState` × 23 + `useEffect` × 2 + `useRef`） |
+| 親 | `DataPanel.tsx`（`variant` を渡して 3 用途で共用） |
 | 子 | `Timeline.tsx`、`ConfirmModal.tsx` |
 | 主な依存 | `../api/client`, `../state/dataParams`, `../state/dataReducer` |
-| 対応バックエンド | `backend/app/api/data.py`（`/api/chunking/run`, `/api/qdrant/register`） |
+| 対応バックエンド | `backend/app/api/data.py`（`/api/chunking/run`, `/api/qa/generate`, `/api/qdrant/register`） |
 
 ### 主な責務
 
 - 入力ファイルを**許可ディレクトリから選ばせる**（自由入力させない）。
-- チャンク化 / 登録のパラメータをフォームで受け、API パラメータへ組み立てる。
+- チャンク化 / Q/A 生成 / 登録のパラメータをフォームで受け、API パラメータへ組み立てる。
 - ジョブを起動し、SSE で進捗を購読して `Timeline` に流す。
 - `recreate=True` の承認要求（intervention）を `ConfirmModal` で処理する。
-- 結果（チャンク数 / 登録件数）を提示する。
+- 結果（チャンク数 / Q/A ペア数・カバレージ率 / 登録件数）を提示する。
 
-### なぜ 1 コンポーネントで 2 用途を兼ねるのか
+### なぜ 1 コンポーネントで 3 用途を兼ねるのか
 
-チャンキングと登録は**器が同じ**（フォーム → ジョブ起動 → SSE 購読 → Timeline → 結果）で、
+チャンキング・Q/A 生成・登録は**器が同じ**（フォーム → ジョブ起動 → SSE 購読 → Timeline → 結果）で、
 違うのはフォームの中身と呼ぶ API だけ。`SupportPanel` が基本版 / Support を
 `variant` で兼ねているのと同じ構造にしてある。
 
-| 要素 | チャンキング | 登録 | 扱い |
-|---|---|---|---|
-| ジョブ起動・SSE・承認 | 同じ | 同じ | ✅ 共通 |
-| フォーム項目 | ワーカー数・ブロックサイズ等 | コレクション名・バッチサイズ等 | ❌ `variant` で分岐 |
-| 既定の入力ディレクトリ | `OUTPUT` | `qa_output` | ❌ `DEFAULT_DIR` |
-| 承認 | 不要 | `recreate` 時のみ | ❌ バックエンド側で判断 |
+| 要素 | チャンキング | Q/A 生成 | 登録 | 扱い |
+|---|---|---|---|---|
+| ジョブ起動・SSE・承認 | 同じ | 同じ | 同じ | ✅ 共通 |
+| フォーム項目 | ワーカー数・ブロックサイズ等 | チャンク数・Celery 等 | コレクション名・バッチサイズ等 | ❌ `variant` で分岐 |
+| 既定の入力ディレクトリ | `OUTPUT` | `output_chunked` | `qa_output` | ❌ `DEFAULT_DIR` |
+| 承認 | 不要 | 不要 | `recreate` 時のみ | ❌ バックエンド側で判断 |
 
 ### 主要機能一覧
 
@@ -59,8 +59,8 @@
 | ディレクトリ選択 | `INPUT_DIRS` | 許可 4 ディレクトリ（backend と 1:1） |
 | ファイル選択 | `fetchInputFiles(dir)` | サイズ・更新日時つきで列挙 |
 | コレクション名の補完 | `suggestCollectionName()` | 登録時、未入力ならファイル名から |
-| パラメータ組み立て | `buildChunkingParams` / `buildRegisterParams` | 純関数（テスト済み） |
-| 送信可否 | `canSubmitChunking` / `canSubmitRegister` | 純関数（テスト済み） |
+| パラメータ組み立て | `buildChunkingParams` / `buildQaParams` / `buildRegisterParams` | 純関数（テスト済み） |
+| 送信可否 | `canSubmitChunking` / `canSubmitQa` / `canSubmitRegister` | 純関数（テスト済み） |
 | 進捗表示 | `Timeline` | ステップ ID はジョブ種別で変わる |
 | 承認 | `ConfirmModal` | Support / Review と共用 |
 
@@ -73,7 +73,7 @@ flowchart TB
     subgraph Container["コンテナ（本ドキュメント対象）"]
         direction TB
         DP["DataPanel.tsx<br>useState(sub)"]
-        DJ["DataJobPanel.tsx<br>useReducer(dataReducer)<br>useState × 13"]
+        DJ["DataJobPanel.tsx<br>useReducer(dataReducer)<br>useState × 23"]
     end
     subgraph Logic["純ロジック"]
         direction TB
@@ -103,7 +103,7 @@ style Presentational fill:#1a1a1a,stroke:#fff,color:#fff
 ## 2. Props インターフェース
 
 ```typescript
-export type DataJobVariant = 'chunking' | 'register';
+export type DataJobVariant = 'chunking' | 'qa' | 'register';
 
 export function DataJobPanel({ variant }: { variant: DataJobVariant })
 ```
@@ -127,7 +127,7 @@ export function DataJobPanel({ variant }: { variant: DataJobVariant })
 
 | 変数 | 型 | 初期値 | 更新契機 | 説明 |
 |---|---|---|---|---|
-| `dir` | `string` | `DEFAULT_DIR[variant]`（`'OUTPUT'` / `'qa_output'`） | セレクタ変更 | 入力ディレクトリ |
+| `dir` | `string` | `DEFAULT_DIR[variant]`（`'OUTPUT'` / `'output_chunked'` / `'qa_output'`） | セレクタ変更 | 入力ディレクトリ |
 | `files` | `InputFileInfo[]` | `[]` | `useEffect`（dir 変更時） | ファイル候補 |
 | `inputFile` | `string` | `''` | セレクタ変更 | `dir/name` 形式 |
 | `outputDir` | `string` | `'output_chunked'` | 入力 | チャンク化の出力先 |
@@ -137,6 +137,12 @@ export function DataJobPanel({ variant }: { variant: DataJobVariant })
 | `textColumn` | `string` | `''` | 入力 | CSV のテキストカラム（空 = 自動検出） |
 | `maxRows` | `string` | `''` | 入力 | 最大行数（空 = 全件）。**文字列で保持** |
 | `combineRows` | `boolean` | `false` | チェックボックス | CSV 全行を結合 |
+| `qaOutputDir` | `string` | `'qa_output'` | 入力 | Q/A CSV・JSON の出力先。**入れ子にしない**（§7） |
+| `qaModel` | `string` | `'claude-sonnet-4-6'` | 入力 | Q/A 生成の LLM（チャンク化とは別の既定） |
+| `useCelery` | `boolean` | `false` | チェックボックス | Celery で並列生成（**ワーカーが要る**） |
+| `concurrency` | `number` | `8` | 入力 | Celery の並列タスク数 |
+| `batchChunks` | `number` | `3` | 入力 | 1 回の生成で渡すチャンク数 |
+| `analyzeCoverage` | `boolean` | `true` | チェックボックス | カバレージ分析を実行 |
 | `collection` | `string` | `''` | 入力 / ファイル選択で補完 | 登録先コレクション名 |
 | `recreate` | `boolean` | `false` | チェックボックス | **既存を作り直す（要承認）** |
 | `batchSize` | `number` | `100` | 入力 | Embedding バッチサイズ |
@@ -308,6 +314,7 @@ const selectFile = (path: string) => {
 | `fetchInputFiles` | GET | `/api/files?dir=` | 入力ファイル候補 |
 | `fetchDataJobStatus` | GET | `/api/data/result/{job_id}` | 再購読前の存在確認 |
 | `startChunking` | POST | `/api/chunking/run` | チャンク化ジョブの起動 |
+| `startQaGeneration` | POST | `/api/qa/generate` | Q/A 生成ジョブの起動 |
 | `startRegister` | POST | `/api/qdrant/register` | 登録ジョブの起動 |
 | `subscribeStream` | GET(SSE) | `/api/data/stream/{job_id}` | 進捗の購読（`kind='data'`） |
 | `confirmDataIntervention` | POST | `/api/data/confirm/{job_id}` | HITL 応答 |
@@ -330,6 +337,7 @@ Support / Review と**完全に同一**（`SupportEvent` を共用）。
 | variant | ステップ | バックエンド定義 |
 |---|---|---|
 | `chunking` | `load` / `chunk` / `save` | `CHUNKING_STEP_IDS` |
+| `qa` | `load` / `generate` / `coverage` / `save` | `QA_STEP_IDS` |
 | `register` | `prepare` / `confirm` / `embed` / `upsert` | `REGISTER_STEP_IDS` |
 
 ---
@@ -353,6 +361,7 @@ Support / Review と**完全に同一**（`SupportEvent` を共用）。
 | variant | 条件 |
 |---|---|
 | `chunking` | `running` または `inputFile` が空白のみ |
+| `qa` | `running` または `inputFile` が空白のみ |
 | `register` | `running` または `inputFile` が空白のみ または `collection` が空白のみ |
 
 ### 6.2 操作フロー図
@@ -382,6 +391,7 @@ class S,F,P,V,Go,RC,M,Run,Cancel,D default
 | TS 型（`src/types.ts`） | 対応する Python | 定義元 |
 |---|---|---|
 | `ChunkingParams` | `ChunkingRequest` / `ChunkingParams` | `backend/app/schemas.py` / `core/data_jobs.py` |
+| `QaParams` | `QaGenerationRequest` / `QaGenerationParams` | 同上 |
 | `RegisterParams` | `RegisterRequest` / `RegisterParams` | 同上 |
 | `InputFileInfo` | `InputFileInfo` | `backend/app/schemas.py` |
 | `DataJobResult` | runner の戻り dict | `backend/app/core/data_jobs.py` |
@@ -393,6 +403,20 @@ class S,F,P,V,Go,RC,M,Run,Cancel,D default
 > `frontend` は blocking な CI ゲート（`tsc --noEmit`）なので、型がズレると
 > **PR がマージできなくなる**。ただし `DataJobResult` はすべて optional なので、
 > フィールド名の変更は型検査に引っかからない（画面に `-` が出るだけ）。
+
+### Q/A の出力先を入れ子にしない
+
+`GET /api/files`（`list_input_files()`）は `iterdir()` で**サブディレクトリを見ない**。
+`qaOutputDir` の既定を `qa_output/pipeline` のような入れ子にすると、生成した
+Q/A CSV が**「③ Qdrant 登録」のファイルセレクタに出てこない**。入力は `<select>` で
+自由入力できないため、画面だけではパイプラインが繋がらなくなる。
+
+### Q/A 生成のモデル既定がチャンク化と違う理由
+
+| variant | 既定 | 理由 |
+|---|---|---|
+| `chunking` | `claude-haiku-4-5` | 文字列処理が主。軽量モデルで足りる |
+| `qa` | `claude-sonnet-4-6` | 文章生成の比重が大きい。CLI（`make_qa_register_qdrant.py --model`）と `QAPipeline` の既定に合わせる |
 
 ### Embedding プロバイダの固定
 
@@ -436,14 +460,14 @@ LLM 用途（Anthropic Claude）とは別系統なので、画面から切り替
 
 | テストファイル | 対象 | ケース数 | 実行 |
 |---|---|:---:|---|
-| `src/state/dataParams.test.ts` | パラメータ組み立て・送信可否・整形 | 26 | `npm test` |
-| `src/state/dataReducer.test.ts` | SSE イベントの畳み込み | 21 | `npm test` |
+| `src/state/dataParams.test.ts` | パラメータ組み立て・送信可否・整形 | 34 | `npm test` |
+| `src/state/dataReducer.test.ts` | SSE イベントの畳み込み | 24 | `npm test` |
 | （本コンポーネントの専用テストなし） | — | — | — |
 
 ### テスト方針
 
 - **ロジックを JSX の外へ出してテストする。** `buildChunkingParams` /
-  `buildRegisterParams` / `canSubmit*` / `toOptionalNumber` はすべて
+  `buildQaParams` / `buildRegisterParams` / `canSubmit*` / `toOptionalNumber` はすべて
   `state/dataParams.ts` の純関数で、`queryParams.ts` と同じ方式。
 - 特に検証しているのは **空欄の数値が `0` にならないこと**
   （`toOptionalNumber('')` → `null`）。ここを間違えると「最大 0 件」で
@@ -470,3 +494,4 @@ LLM 用途（Anthropic Claude）とは別系統なので、画面から切り替
 |---|---|---|
 | 1.0 | 2026-08-05 | 初版作成 |
 | 1.1 | 2026-08-05 | タブ離脱時に進捗を失う不具合を修正（`activeJobs` による再購読）。`role="alert"` と `Timeline` のライブ領域を追加 |
+| 1.2 | 2026-09-12 | **`variant='qa'`（Q/A 生成）を追加**。`useState` は 17 → 23（旧版の「× 13」は実装より古かった）、呼ぶ API は 2 → 3。出力先を入れ子にしない理由とモデル既定が違う理由を §7 に追記。テスト件数を実測値へ更新 |

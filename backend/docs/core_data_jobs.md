@@ -1,6 +1,6 @@
 # core/data_jobs.py - データ準備ジョブ runner ドキュメント
 
-**Version 1.0** | 最終更新: 2026-09-04
+**Version 1.1** | 最終更新: 2026-09-12
 
 > **参考ドキュメント**
 > - [`backend/docs/api_data.md`](./api_data.md) — 本モジュールを起動する API 層
@@ -26,21 +26,22 @@
 ## 概要
 
 `backend/app/core/data_jobs.py` は、データ準備パイプライン
-（チャンキング / Qdrant 登録 / コレクション削除）の**ジョブ runner** である。
+（チャンキング / Q/A 生成 / Qdrant 登録 / コレクション削除）の**ジョブ runner** である。
 
 GRACE-Support・GRACE-Review と**同じジョブ基盤**（`core/jobs.py`）に乗せる。
 `register_runner(params_type, runner, kind)` で params の型から runner を解決する
-仕組みがすでにあるため、**`jobs.py` 側に手を入れずに** 3 種類を追加できる。
+仕組みがすでにあるため、**`jobs.py` 側に手を入れずに** 4 種類を追加できる。
 
 | params | kind | 実処理 |
 |---|---|---|
 | `ChunkingParams` | `chunking` | `chunking/csv_text_to_chunks_text_csv.py` |
+| `QaGenerationParams` | `qa` | `qa_generation/pipeline.py::QAPipeline` |
 | `RegisterParams` | `register` | `qa_qdrant/register_to_qdrant.py` |
 | `DeleteParams` | `delete` | `services/data_pipeline_service.delete_collection` |
 
 ### 主な責務
 
-- 3 種のジョブパラメータ（dataclass）を定義する
+- 4 種のジョブパラメータ（dataclass）を定義する
 - 各 runner でステップを刻み、`step` / `log` / `error` イベントを出す
 - 既存パッケージの `logging` 出力を `capture_logs()` で横取りして SSE へ流す
 - 破壊的操作の前に HITL CONFIRM を通す
@@ -53,21 +54,21 @@ GRACE-Support・GRACE-Review と**同じジョブ基盤**（`core/jobs.py`）に
 | 2 | ログ横取り | `core/job_logs.py` :: `capture_logs` |
 | 3 | HITL CONFIRM | `grace/intervention.py` :: `InterventionRequest` / `InterventionLevel` |
 | 4 | イベント型 | `core/support_agent.py` :: `SupportEvent` / `EmitFn` / `ConfirmFn` |
-| 5 | 実処理 | `chunking/` `qa_qdrant/` `services/data_pipeline_service.py` |
+| 5 | 実処理 | `chunking/` `qa_generation/` `qa_qdrant/` `services/data_pipeline_service.py` |
 
 ### 主要機能一覧
 
 | 機能 | 説明 |
 |------|------|
-| `ChunkingParams` / `RegisterParams` / `DeleteParams` | 3 種のジョブパラメータ |
-| `CHUNKING_STEP_IDS` ほか 6 定数 | フロントの Timeline が使うステップ ID とラベル |
+| `ChunkingParams` / `QaGenerationParams` / `RegisterParams` / `DeleteParams` | 4 種のジョブパラメータ |
+| `CHUNKING_STEP_IDS` ほか 8 定数 | フロントの Timeline が使うステップ ID とラベル |
 | `_make_emitters(emit)` | `log` / `step_started` / `step_finished` / `step_skipped` / `error` を作る |
 | `_ask_confirmation(confirm, message, reason)` | HITL CONFIRM を要求し `(承認, タイムアウト)` を返す |
-| `_chunking_runner` / `_register_runner` / `_delete_runner` | 3 種の実処理 |
+| `_chunking_runner` / `_qa_runner` / `_register_runner` / `_delete_runner` | 4 種の実処理 |
 
 ### 進捗の出し方
 
-3 パッケージとも進捗コールバックを持たないため、`core/job_logs.py` の
+どのパッケージも進捗コールバックを持たないため、`core/job_logs.py` の
 `capture_logs()` で `logging` 出力を横取りして SSE の log イベントへ流す
 （**既存コードは無改修**）。ステップの区切りだけは runner 側で `step` イベントを出す。
 
@@ -88,9 +89,11 @@ flowchart TB
 
     subgraph THIS["core/data_jobs.py"]
         CP["ChunkingParams"]
+        QP["QaGenerationParams"]
         RP["RegisterParams"]
         DP["DeleteParams"]
         CR["_chunking_runner"]
+        QR["_qa_runner"]
         RR["_register_runner"]
         DR["_delete_runner"]
         EMIT["_make_emitters()"]
@@ -99,6 +102,7 @@ flowchart TB
 
     subgraph EXT2["実処理（無改修）"]
         CHUNKPKG["chunking/"]
+        QAGPKG["qa_generation/"]
         QAQPKG["qa_qdrant/"]
         DPS2["services/data_pipeline_service.py"]
     end
@@ -106,22 +110,26 @@ flowchart TB
     POST --> JM
     JM --> REG
     REG --> CR
+    REG --> QR
     REG --> RR
     REG --> DR
     CP --> CR
+    QP --> QR
     RP --> RR
     DP --> DR
     CR --> EMIT
+    QR --> EMIT
     RR --> EMIT
     DR --> EMIT
     RR --> ASK
     DR --> ASK
     CR --> CHUNKPKG
+    QR --> QAGPKG
     RR --> QAQPKG
     DR --> DPS2
 classDef default fill:#000,stroke:#fff,color:#fff
 classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
-class POST,JM,REG,CP,RP,DP,CR,RR,DR,EMIT,ASK,CHUNKPKG,QAQPKG,DPS2 default
+class POST,JM,REG,CP,QP,RP,DP,CR,QR,RR,DR,EMIT,ASK,CHUNKPKG,QAGPKG,QAQPKG,DPS2 default
 style API2 fill:#1a1a1a,stroke:#fff,color:#fff
 style JOBS fill:#1a1a1a,stroke:#fff,color:#fff
 style THIS fill:#1a1a1a,stroke:#fff,color:#fff
@@ -138,6 +146,7 @@ ID のタプル（`*_STEP_IDS`）とラベルの辞書（`*_STEP_LABELS`）を�
 | 定数 | 型 | 用途 |
 |---|---|---|
 | `CHUNKING_STEP_IDS` / `CHUNKING_STEP_LABELS` | `tuple[str, ...]` / `Dict[str, str]` | チャンキングの 3 段 |
+| `QA_STEP_IDS` / `QA_STEP_LABELS` | 同上 | Q/A 生成の 4 段 |
 | `REGISTER_STEP_IDS` / `REGISTER_STEP_LABELS` | 同上 | 登録の 4 段 |
 | `DELETE_STEP_IDS` / `DELETE_STEP_LABELS` | 同上 | 削除の 3 段 |
 
@@ -151,7 +160,19 @@ runner は `step_started(id, LABELS[id], ...)` の形でラベルを引く。
 | `chunk` | ② セマンティックチャンク化（LLM・3 段階） |
 | `save` | ③ CSV 出力 |
 
-### 2.2 登録（`REGISTER_STEP_IDS`）
+### 2.2 Q/A 生成（`QA_STEP_IDS`）
+
+| ID | ラベル |
+|---|---|
+| `load` | ① チャンク済み CSV の読み込み |
+| `generate` | ② Q/A ペア生成（LLM） |
+| `coverage` | ③ カバレージ分析（任意） |
+| `save` | ④ Q/A CSV・JSON 出力 |
+
+> 📝 `analyze_coverage=False` のとき `coverage` は **`step_skipped`** になる
+> （無言で飛ばさない）。
+
+### 2.3 登録（`REGISTER_STEP_IDS`）
 
 | ID | ラベル |
 |---|---|
@@ -160,7 +181,7 @@ runner は `step_started(id, LABELS[id], ...)` の形でラベルを引く。
 | `embed` | ③ Embedding 生成 |
 | `upsert` | ④ Qdrant へ登録 |
 
-### 2.3 削除（`DELETE_STEP_IDS`）
+### 2.4 削除（`DELETE_STEP_IDS`）
 
 | ID | ラベル |
 |---|---|
@@ -175,11 +196,13 @@ runner は `step_started(id, LABELS[id], ...)` の形でラベルを引く。
 | 名前 | 種別 | 概要 |
 |---|---|---|
 | `ChunkingParams` | dataclass | `POST /api/chunking/run` のパラメータ（CLI 引数と 1:1） |
+| `QaGenerationParams` | dataclass | `POST /api/qa/generate` のパラメータ |
 | `RegisterParams` | dataclass | `POST /api/qdrant/register` のパラメータ |
 | `DeleteParams` | dataclass | `POST /api/qdrant/delete` のパラメータ |
 | `_make_emitters(emit)` | 関数 | `support_agent.py` と同じ形の step/log ヘルパを 5 つ返す |
 | `_ask_confirmation(confirm, message, reason)` | 関数 | CONFIRM を要求し `(承認されたか, タイムアウトしたか)` を返す |
 | `_chunking_runner(params, emit, confirm)` | runner | CSV / テキスト → セマンティックチャンク CSV |
+| `_qa_runner(params, emit, confirm)` | runner | チャンク済み CSV → Q/A ペア CSV・JSON |
 | `_register_runner(params, emit, confirm)` | runner | Q/A CSV → Qdrant コレクション |
 | `_delete_runner(params, emit, confirm)` | runner | コレクション削除 |
 
@@ -207,7 +230,37 @@ class ChunkingParams:
 > 📝 **CLI 引数と 1:1 対応**。`resume` は `--resume` 相当で、
 > `CheckpointManager` の再開に使う。
 
-### 4.2 `RegisterParams`
+### 4.2 `QaGenerationParams`
+
+```python
+@dataclass
+class QaGenerationParams:
+    input_file: str                      # 'ディレクトリ名/ファイル名' 形式
+    output_dir: str = "qa_output"
+    model: str = "claude-sonnet-4-6"
+    max_docs: Optional[int] = None
+    use_celery: bool = False
+    concurrency: int = 8
+    batch_chunks: int = 3
+    analyze_coverage: bool = True
+    verbose: bool = False
+```
+
+> 📝 入力は**チャンク済み CSV**。`text` / `Combined_Text` / `content` /
+> `chunk_text` のいずれかのカラムが要る。
+
+> ⚠️ **`output_dir` の既定を入れ子にしない。** `list_input_files()` は
+> `iterdir()` でサブディレクトリを見ないため、`qa_output/pipeline` にすると
+> 生成した Q/A CSV が「③ Qdrant 登録」の選択肢に出てこない。
+
+> 📝 **モデルの既定はチャンク化（`claude-haiku-4-5`）と違う。** Q/A 生成は
+> 文章生成の比重が大きいので、CLI（`make_qa_register_qdrant.py --model`）と
+> `QAPipeline` の既定に合わせて `claude-sonnet-4-6` にしてある。
+
+> ⚠️ **`use_celery=True` にするなら Celery ワーカーが起動していること。**
+> 落ちているとパイプラインが例外を投げ、runner が error イベントへ変換する。
+
+### 4.3 `RegisterParams`
 
 ```python
 @dataclass
@@ -232,7 +285,7 @@ class RegisterParams:
 > 📝 **`provider="gemini"` は正しい。** Embedding は Gemini（`gemini-embedding-001`・3072 次元）で、
 > LLM 用途（Anthropic）とは別系統（CLAUDE.md §3 のプロバイダ方針）。
 
-### 4.3 `DeleteParams`
+### 4.4 `DeleteParams`
 
 ```python
 @dataclass
@@ -297,7 +350,25 @@ def _ask_confirmation(confirm: ConfirmFn, message: str, reason: str) -> tuple[bo
 > 📝 **`confirm` は使わない。** チャンク化は既存データを壊さないため承認不要。
 > 出力ファイルが既にあっても、**CLI と同じく上書きする**。
 
-### 5.4 `_register_runner`
+### 5.4 `_qa_runner`
+
+| 項目 | 内容 |
+|------|------|
+| **Input** | `QaGenerationParams`、`emit`、`confirm`（**使わない**） |
+| **Process** | ① `ANTHROPIC_API_KEY` が無ければ error して終了 ② `load`: `resolve_input_file()` → 拡張子（`.csv`）とテキストカラムを検証 ③ `generate`: `capture_logs(step="generate")` の中で `run_qa_generation_sync()`。終わったら `handler.set_step()` で以降のログを次段へ寄せる。**0 件なら error** ④ `coverage`: 結果の `coverage_results` を出す（`analyze_coverage=False` なら skip） ⑤ `save`: 出力ファイルの存在を確認 |
+| **Output** | `{"kind": "qa", "input_file", "qa_csv", "qa_json", "qa_count", "coverage_rate", "total_chunks", "model"}`（失敗時は `None`） |
+
+> 📝 **`confirm` は使わない。** Q/A 生成は既存データを壊さない。出力は
+> タイムスタンプ付きの新規ファイルなので、既存の Q/A CSV も消えない。
+
+> ⚠️ **入力の誤りは ① で返す。** テキストカラムの検証を `QAPipeline` 任せに
+> すると、`ValueError` が**生成ステップの失敗**として見えてしまう。
+> LLM を呼ぶ前に分かる誤りなので `pd.read_csv(nrows=1)` で先に確かめる。
+
+> ⚠️ **`qa_count == 0` は成功にしない。** 例外が出ていなくても、そのまま通すと
+> 後続の Qdrant 登録が空のファイルを掴んで空振りする。
+
+### 5.5 `_register_runner`
 
 | 項目 | 内容 |
 |------|------|
@@ -311,7 +382,7 @@ def _ask_confirmation(confirm: ConfirmFn, message: str, reason: str) -> tuple[bo
 > 📝 **登録後の件数取得に失敗しても error にしない。** 登録自体は成功しているため、
 > 警告ログに留める。
 
-### 5.5 `_delete_runner`
+### 5.6 `_delete_runner`
 
 | 項目 | 内容 |
 |------|------|
@@ -333,6 +404,7 @@ def _ask_confirmation(confirm: ConfirmFn, message: str, reason: str) -> tuple[bo
 | 操作 | 承認 | 理由 |
 |---|---|---|
 | チャンク化 | **なし** | 既存データを壊さない |
+| Q/A 生成 | **なし** | 出力はタイムスタンプ付きの新規ファイル。既存の Q/A CSV も残る |
 | 登録（`recreate=False`） | なし | 追記のみ |
 | 登録（`recreate=True`） | **あり** | 既存コレクションを削除して作り直す |
 | 削除 | **常にあり** | 不可逆 |
@@ -347,6 +419,7 @@ def _ask_confirmation(confirm: ConfirmFn, message: str, reason: str) -> tuple[bo
 ```python
 # この import 時点で jobs.py に効く
 register_runner(ChunkingParams, _chunking_runner, "chunking")
+register_runner(QaGenerationParams, _qa_runner, "qa")
 register_runner(RegisterParams, _register_runner, "register")
 register_runner(DeleteParams,   _delete_runner,   "delete")
 ```
@@ -362,3 +435,4 @@ register_runner(DeleteParams,   _delete_runner,   "delete")
 | バージョン | 変更内容 |
 |-----------|---------|
 | 1.0 | 初版作成。`backend/app/core/data_jobs.py`（547 行）の全公開要素を IPO 形式で記述。3 種のステップ定義、`jobs.py` に手を入れず `register_runner` で追加する方式、既存 3 パッケージを無改修のまま `capture_logs()` で進捗を出す方式、CONFIRM の要否（削除は常に／登録は `recreate=True` のときだけ）とその理由、`provider="gemini"` が Embedding 用途として正しいことを実コードのコメントから起こして記載 |
+| 1.1 | **Q/A 生成を追加**（`QaGenerationParams` / `_qa_runner` / `QA_STEP_IDS`）。runner は 4 種になった。出力先の既定を `qa_output` 直下にした理由（`list_input_files()` が非再帰）、入力検証を ① で完結させる理由、0 件生成を error にする理由を追記。§2・§4・§5 の節番号を繰り下げ |

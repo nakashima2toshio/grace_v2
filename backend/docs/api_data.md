@@ -1,6 +1,6 @@
 # api/data.py - データ準備ジョブ API ドキュメント
 
-**Version 1.0** | 最終更新: 2026-09-04
+**Version 1.1** | 最終更新: 2026-09-12
 
 > **参考ドキュメント**
 > - [`backend/docs/core_data_jobs.md`](./core_data_jobs.md) — 各ジョブの runner 実装
@@ -23,7 +23,7 @@
 
 ## 概要
 
-`backend/app/api/data.py` は、データ準備パイプライン（チャンク化 / Qdrant 登録 / コレクション削除）を
+`backend/app/api/data.py` は、データ準備パイプライン（チャンク化 / Q/A 生成 / Qdrant 登録 / コレクション削除）を
 **非同期ジョブとして起動し、SSE で進捗を配信する** API 層である。
 
 `api/support.py` / `api/review.py` と**構造は同一**。違うのはジョブのパラメータ型と結果の形だけで、
@@ -31,7 +31,7 @@
 
 ### 主な責務
 
-- 3 種のジョブ（チャンク化 / 登録 / 削除）を `job_manager.start()` で起動し `202 Accepted` を返す
+- 4 種のジョブ（チャンク化 / Q/A 生成 / 登録 / 削除）を `job_manager.start()` で起動し `202 Accepted` を返す
 - 進捗を SSE（`text/event-stream`）で逐次配信する
 - HITL CONFIRM への応答（承認 / 拒否）を注入する
 - ジョブの状態と結果をポーリングで返す（SSE のフォールバック）
@@ -41,19 +41,20 @@
 | # | 責務 | 対応モジュール | 説明 |
 |---|------|--------------|------|
 | 1 | ジョブ起動 | `core/jobs.py` | `job_manager.start(params)` が params の型から runner を解決 |
-| 2 | 実処理 | `core/data_jobs.py` | `_chunking_runner` / `_register_runner` / `_delete_runner` |
+| 2 | 実処理 | `core/data_jobs.py` | `_chunking_runner` / `_qa_runner` / `_register_runner` / `_delete_runner` |
 | 3 | 進捗の横取り | `core/job_logs.py` | 既存パッケージの `logging` 出力を log イベントへ転送 |
-| 4 | リクエスト／レスポンス型 | `backend/app/schemas.py` | `ChunkingRequest` / `RegisterRequest` / `DeleteCollectionsRequest` ほか |
+| 4 | リクエスト／レスポンス型 | `backend/app/schemas.py` | `ChunkingRequest` / `QaGenerationRequest` / `RegisterRequest` / `DeleteCollectionsRequest` ほか |
 
 ### 主要機能一覧
 
 | 機能 | 説明 |
 |------|------|
 | `run_chunking(request)` | チャンク化ジョブを起動（承認なし） |
+| `generate_qa(request)` | チャンク済み CSV から Q/A を生成（承認なし） |
 | `register_collection(request)` | Q/A CSV を Qdrant へ登録（`recreate=True` のときだけ承認） |
 | `delete_collections(request)` | コレクション削除（**常に**承認） |
-| `stream_events(job_id)` | 進捗を SSE で配信（3 種で共通） |
-| `confirm_intervention(job_id, request)` | HITL CONFIRM への応答を注入（3 種で共通） |
+| `stream_events(job_id)` | 進捗を SSE で配信（4 種で共通） |
+| `confirm_intervention(job_id, request)` | HITL CONFIRM への応答を注入（4 種で共通） |
 | `get_result(job_id)` | ジョブの状態・結果を返す（ポーリング用） |
 
 ---
@@ -68,7 +69,7 @@ flowchart TB
     end
 
     subgraph API["backend/app/api/data.py"]
-        POST3["POST /api/chunking/run<br/>/qdrant/register<br/>/qdrant/delete"]
+        POST3["POST /api/chunking/run<br/>/qa/generate<br/>/qdrant/register<br/>/qdrant/delete"]
         SSE["GET /api/data/stream/{job_id}"]
         CONFIRM["POST /api/data/confirm/{job_id}"]
         RESULT["GET /api/data/result/{job_id}"]
@@ -115,17 +116,18 @@ style EXT fill:#1a1a1a,stroke:#fff,color:#fff
 | メソッド | パス | ステータス | レスポンス | CONFIRM |
 |---|---|---|---|---|
 | POST | `/api/chunking/run` | 202 | `QueryAccepted` | なし（非破壊） |
+| POST | `/api/qa/generate` | 202 | `QueryAccepted` | なし（非破壊） |
 | POST | `/api/qdrant/register` | 202 | `QueryAccepted` | `recreate=True` のときだけ |
 | POST | `/api/qdrant/delete` | 202 | `QueryAccepted` | **常に** |
 | GET | `/api/data/stream/{job_id}` | 200 | `text/event-stream` | — |
 | POST | `/api/data/confirm/{job_id}` | 200 | `ConfirmResponse` | — |
 | GET | `/api/data/result/{job_id}` | 200 | `DataJobStatusResponse` | — |
 
-> 📝 **SSE と HITL 応答は 3 種で共通のエンドポイントにまとめてある。**
+> 📝 **SSE と HITL 応答は 4 種で共通のエンドポイントにまとめてある。**
 > ジョブ種別ごとに分けても中身が同じになるため。種別は `job.kind` が持つ。
 
 > ⚠️ **`backend.app.core.data_jobs` の import には副作用がある。**
-> import 時に `register_runner()` が 3 件走る。パラメータ型を使う以上この import は
+> import 時に `register_runner()` が 4 件走る。パラメータ型を使う以上この import は
 > 必ず発生するので、**登録漏れは構造的に起きない**（`review_agent.py` と同じ方式）。
 
 ---
@@ -147,9 +149,30 @@ def run_chunking(request: ChunkingRequest) -> QueryAccepted
 
 > 📝 **入力ファイルの検証はここでしない。** 許可ディレクトリ外・不在なら runner 側が
 > error イベントを流してジョブが失敗する。400 を返さないのは、**起動と検証の責務を
-> runner に寄せて 3 種の API を同じ形にするため**。
+> runner に寄せて 4 種の API を同じ形にするため**。
 
-### 3.2 `register_collection`
+### 3.2 `generate_qa`
+
+```python
+@router.post("/qa/generate", response_model=QueryAccepted, status_code=202)
+def generate_qa(request: QaGenerationRequest) -> QueryAccepted
+```
+
+| 項目 | 内容 |
+|------|------|
+| **Input** | `QaGenerationRequest`（`input_file` / `output_dir` / `model` / `max_docs` / `use_celery` / `concurrency` / `batch_chunks` / `analyze_coverage` / `verbose`） |
+| **Process** | `QaGenerationParams` へ詰め替えて `job_manager.start()` |
+| **Output** | `QueryAccepted(job_id, stream_url)` — `202 Accepted` |
+
+> 📝 入力は**チャンク済み CSV**（`/api/chunking/run` の出力）。出力の Q/A CSV は
+> そのまま `/api/qdrant/register` の入力になる。パイプラインの流れは
+> **チャンク化 → Q/A 生成 → Qdrant 登録**。
+
+> ⚠️ **`use_celery=True` を渡すなら Celery ワーカーが起動していること。**
+> 落ちている場合はジョブが error イベントで失敗する。起動時に弾かないのは、
+> ワーカーの生死が起動から実行までの間に変わりうるため（実行時に確かめる）。
+
+### 3.3 `register_collection`
 
 ```python
 @router.post("/qdrant/register", response_model=QueryAccepted, status_code=202)
@@ -167,7 +190,7 @@ def register_collection(request: RegisterRequest) -> QueryAccepted
 
 > 📝 **入力は「既に作られた Q/A CSV」である。** Q/A 生成そのものは UI に無く CLI のみ。
 
-### 3.3 `delete_collections`
+### 3.4 `delete_collections`
 
 ```python
 @router.post("/qdrant/delete", response_model=QueryAccepted, status_code=202)
@@ -184,7 +207,7 @@ def delete_collections(request: DeleteCollectionsRequest) -> QueryAccepted
 > 承認を経ずに消える経路を作らないため。削除は不可逆なので、
 > **必ず intervention → 承認 → 実行**を通す。
 
-### 3.4 `stream_events`
+### 3.5 `stream_events`
 
 ```python
 @router.get("/data/stream/{job_id}")
@@ -204,7 +227,7 @@ def stream_events(job_id: str) -> StreamingResponse
 > 📝 `X-Accel-Buffering: no` は nginx 等のリバースプロキシがバッファリングして
 > SSE が届かなくなるのを防ぐため。
 
-### 3.5 `confirm_intervention`
+### 3.6 `confirm_intervention`
 
 ```python
 @router.post("/data/confirm/{job_id}", response_model=ConfirmResponse)
@@ -219,7 +242,7 @@ def confirm_intervention(job_id: str, request: ConfirmRequest) -> ConfirmRespons
 
 > ⚠️ **拒否・タイムアウトの場合、削除も再作成も実行されない**（安全側）。
 
-### 3.6 `get_result`
+### 3.7 `get_result`
 
 ```python
 @router.get("/data/result/{job_id}", response_model=DataJobStatusResponse)
@@ -274,3 +297,4 @@ curl http://localhost:8000/api/data/result/<job_id>
 | バージョン | 変更内容 |
 |-----------|---------|
 | 1.0 | 初版作成。`backend/app/api/data.py`（160 行）の 6 エンドポイントを IPO 形式で記述。3 種のジョブと CONFIRM の要否、SSE / HITL を共通エンドポイントにまとめた理由、`DELETE` メソッドを使わない理由、入力検証を runner に寄せた理由を実コードのコメントから起こして記載 |
+| 1.1 | **`POST /api/qa/generate` を追加**（`QaGenerationRequest` → `QaGenerationParams`）。ジョブは 4 種になり、SSE / HITL の共通エンドポイントもそのまま 4 種で共有する。§3 の節番号を繰り下げ |

@@ -96,6 +96,14 @@ python qa_qdrant/make_qa_register_qdrant.py
 #   登録のみ: python qa_qdrant/register_to_qdrant.py
 ```
 
+上の 3 工程（チャンク化 → Q/A 生成 → Qdrant 登録）とコレクション管理は、
+**アプリの「データ管理」タブ**からも実行できる（`./run_dev.sh` → :5173）。
+サブタブは ① チャンキング / ② Q/A 作成 / ③ Qdrant 登録 / ④ コレクション管理。
+CLI と同じ関数（`QAPipeline` など）を呼ぶので挙動は同一。
+設計は `backend/docs/data_pipeline.md` を参照。
+
+> `--resume` つきの大規模バッチは引き続き CLI の方が適している。
+
 ### 検証（CI と同じゲート）
 ```bash
 uv run ruff check . --no-cache          # lint

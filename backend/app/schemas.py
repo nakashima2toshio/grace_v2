@@ -362,6 +362,38 @@ class ChunkingRequest(BaseModel):
     verbose: bool = False
 
 
+class QaGenerationRequest(BaseModel):
+    """POST /api/qa/generate。
+
+    入力は**チャンク済み CSV**（`chunking` ジョブの出力）。`text` /
+    `Combined_Text` / `content` / `chunk_text` のいずれかのカラムが要る。
+
+    ⚠️ 承認（HITL CONFIRM）は発生しない。出力はタイムスタンプ付きの
+    新規ファイルなので、既存の Q/A CSV を壊さない。
+    """
+
+    input_file: str = Field(
+        min_length=1, description="チャンク済み CSV（'ディレクトリ名/ファイル名'）"
+    )
+    # ⚠️ 既定は `qa_output` 直下。入れ子にすると GET /api/files が拾わず、
+    #    「③ Qdrant 登録」の選択肢に出てこない（`QaGenerationParams` と同じ理由）
+    output_dir: str = Field(default="qa_output", description="Q/A CSV・JSON の出力先")
+    model: str = Field(
+        default="claude-sonnet-4-6", description="Q/A 生成に使う LLM（Anthropic Claude）"
+    )
+    max_docs: Optional[int] = Field(
+        default=None, ge=1, description="処理する最大チャンク数（テスト用）"
+    )
+    # ⚠️ True にするなら Celery ワーカーが起動していること
+    use_celery: bool = Field(default=False, description="Celery 並列処理を使う")
+    concurrency: int = Field(default=8, ge=1, le=32, description="Celery の並列タスク数")
+    batch_chunks: int = Field(
+        default=3, ge=1, le=20, description="1 回の LLM 呼び出しで処理するチャンク数"
+    )
+    analyze_coverage: bool = Field(default=True, description="カバレージ分析を実行する")
+    verbose: bool = False
+
+
 class RegisterRequest(BaseModel):
     """POST /api/qdrant/register。
 
@@ -399,7 +431,7 @@ class DeleteCollectionsRequest(BaseModel):
 class DataJobStatusResponse(BaseModel):
     """GET /api/data/result/{job_id}。
 
-    結果の形はジョブ種別（chunking / register / delete）で異なるため、
+    結果の形はジョブ種別（chunking / qa / register / delete）で異なるため、
     `result` は素の dict にして `kind` で判別させる。
     """
 
