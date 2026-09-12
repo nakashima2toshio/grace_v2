@@ -1,6 +1,6 @@
 # frontend/docs 棚卸し
 
-**Version 1.2** | 最終更新: 2026-09-12
+**Version 1.3** | 最終更新: 2026-09-12
 
 `frontend/`（Vite + React 18 + TypeScript）のドキュメント一覧と、実装への追随状況・
 欠落・残タスクをまとめる。
@@ -47,12 +47,12 @@
 
 | 文書 | 対象 | 実装行数 | 版 | 重要度 |
 |---|---|---:|---|:--:|
-| `SupportPanel.md` | `components/SupportPanel.tsx` — 基本版 / GRACE-Support 共用 | 184 | 1.3 | ★★★ |
+| `SupportPanel.md` | `components/SupportPanel.tsx` — 基本版 / GRACE-Support 共用 | 184 | 1.4 | ★★★ |
 | `DataJobPanel.md` | `components/DataJobPanel.tsx` — データ準備ジョブ 3 種 | 736 | 1.2 | ★★★ |
 | `DataPanel.md` | `components/DataPanel.tsx` — データ管理タブの枠 | 94 | 1.2 | ★★ |
-| `CollectionPanel.md` | `components/CollectionPanel.tsx` — コレクション管理 | 406 | 1.2 | ★★ |
+| `CollectionPanel.md` | `components/CollectionPanel.tsx` — コレクション管理 | 413 | 1.3 | ★★ |
 | `App.md` | `App.tsx` — タブ切替とパネルの振り分け | 86 | 1.2 | ★★ |
-| `ReviewPanel.md` | `components/ReviewPanel.tsx` — GRACE-Review 本体 | 202 | 1.1 | ★★★ |
+| `ReviewPanel.md` | `components/ReviewPanel.tsx` — GRACE-Review 本体 | 202 | 1.2 | ★★★ |
 
 ### 2.2 入力・モーダル
 
@@ -210,7 +210,7 @@ npm run build    # 本番ビルド
 | 4 | ルート `README.md` のスクリーンショット残り 14 枚（`ANTHROPIC_API_KEY` と Qdrant のある環境が必要） | 中 |
 | 5 | ~~`ReviewForm` のアクセシビリティ~~ | ✅ 完了（v1.1・`.sr-only` ラベル＋`aria-invalid`＋ライブ領域） |
 | 6 | ~~`ReviewPanel` の打ち切り警告に `role` が無い~~ | ✅ 完了（v1.1・`role="alert"`） |
-| 7 | `CollectionPanel.tsx:391` の `.warn-banner`（「削除は実行されませんでした」）に `role` が無い | 低（**未対応**・同種の残り 1 件） |
+| 7 | ~~`CollectionPanel.tsx` の中止バナーに `role` が無い~~ | ✅ 完了（v1.3・`role="status"`）。**banner 系 9 箇所すべてに role が付いた** |
 
 詳細と根拠は [`docs/doc_modernization_todo.md`](../../docs/doc_modernization_todo.md) を参照。
 
@@ -220,6 +220,7 @@ npm run build    # 本番ビルド
 
 | 版 | 日付 | 変更内容 |
 |---|---|---|
+| 1.3 | 2026-09-12 | 残タスク 7（`CollectionPanel` の中止バナー）を完了し、**banner 系 9 箇所すべてに `role` が付いた**。あわせて `SupportPanel.md` / `ReviewPanel.md` の「実行中であることが伝わるか ❌」を訂正（`Timeline` の `aria-live` が読み上げており、バナーに足すと二重読み上げになる） |
 | 1.2 | 2026-09-12 | **アクセシビリティ改善に追随。** `ReviewForm` v1.1（`.sr-only` ラベル・`aria-invalid`・ライブ領域）と `ReviewPanel` v1.1（`role="alert"`）を反映。`state/documentLimit.ts`（純関数・10 件）を一覧へ追加し、テスト件数を 19 ファイル / 276 件へ更新。残タスクに `CollectionPanel` の同種 1 件を追加 |
 | 1.1 | 2026-09-12 | 欠落 4 件（`ReviewPanel` / `ReviewForm` / `JobClock` / `MetaErrorBanner`）を新規作成して解消。ヘッダー日付が遅れていた 6 件を実装と突き合わせ、**差分が無いことを確認**（§3.1）。`review_ui.md` を横断文書として位置づけ直し。残タスクにアクセシビリティの 2 件を追加 |
 | 1.0 | 2026-09-12 | 初版作成。文書一覧・実装カバレッジ（欠落 4 件）・state 純関数 16 件・テスト件数（`npm test` の実測 18 ファイル / 266 件）を記載 |

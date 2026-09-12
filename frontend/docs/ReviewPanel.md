@@ -1,6 +1,6 @@
 # ReviewPanel.tsx - 文書 → 指摘 パネル ドキュメント
 
-**Version 1.1** | 最終更新: 2026-09-12
+**Version 1.2** | 最終更新: 2026-09-12
 
 ---
 
@@ -468,7 +468,7 @@ class S,V,R,Go,Err,Fail,Stream,I,M,D,Sel default
 |---|:--:|---|
 | エラーが支援技術へ通知されるか | ✅ | `.error-banner` に `role="alert"` |
 | 打ち切り警告が通知されるか | ✅ | `.warn-banner`（打ち切り）に `role="alert"` を付けた（v1.1）。**結果が不完全であるという重要な事実**なので出現を通知する |
-| 点検中であることが伝わるか | ❌ | `.running-banner` は視覚のみ。`aria-busy` 等は未設定 |
+| 点検中であることが伝わるか | ✅ | `.running-banner` 自体は視覚のみだが、**`Timeline` が `sr-only` の `aria-live="polite"` で「実行中: <ステップ名>」を読み上げている**（`state/timelineAnnounce.ts`）。バナーにもライブ領域を足すと**二重読み上げ**になるため、付けない |
 | 二重送信が防げるか | ✅ | `running` で送信ボタンを `disabled` |
 | 承認の二重送信が防げるか | ✅ | `confirming` でモーダルのボタンを `disabled` |
 | 左右ペインの連動が伝わるか | ⚠️ | 選択は視覚的なハイライトのみ。`aria-selected` 等は `FindingList` 側の実装に依存 |
@@ -508,5 +508,6 @@ class S,V,R,Go,Err,Fail,Stream,I,M,D,Sel default
 
 | 版 | 日付 | 変更内容 |
 |---|---|---|
+| 1.2 | 2026-09-12 | **アクセシビリティ記述の訂正。** 「点検中であることが伝わるか」を ❌ としていたが誤りだった。`Timeline` が `sr-only` の `aria-live="polite"` で「実行中: <ステップ名>」を読み上げており（`state/timelineAnnounce.ts`）、実行中であることは支援技術へ伝わっている。`.running-banner` にライブ領域を足すと二重読み上げになるため、あえて付けない |
 | 1.1 | 2026-09-12 | **打ち切り警告 `.warn-banner` に `role="alert"` を追加**（`MetaErrorBanner` / `CollectionPanel` と同じ扱い）。結果が不完全であることは利用者が気付くべき事実なので、視覚のみの表示では足りなかった |
 | 1.0 | 2026-09-12 | 初版作成。実装は 2026-08 からあり `review_ui.md` が部分的に触れるだけで、props・reducer・SSE を記した単体の文書が無かった |
