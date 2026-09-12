@@ -13,7 +13,7 @@ agent_rag.pyから分離したビジネスロジック
 - dataset_service.py: データセット操作（ダウンロード、前処理）
 - qdrant_service.py: Qdrant操作（CRUD、ヘルスチェック）
 - file_service.py: ファイル操作（履歴読み込み、保存）
-- qa_service.py: Q/A生成（OpenAI API、サブプロセス実行）
+- qa_service.py: Q/A生成（Anthropic Claude）
 """
 
 from services.cache_service import (
@@ -60,7 +60,6 @@ from services.json_service import (
 )
 from services.qa_service import (
     generate_qa_pairs,
-    run_advanced_qa_generation,
     save_qa_pairs_to_file,
 )
 from services.qdrant_service import (
@@ -126,7 +125,6 @@ __all__ = [
     "load_source_qa_data",
     "load_collection_qa_preview",
     # qa_service
-    "run_advanced_qa_generation",
     "generate_qa_pairs",
     "save_qa_pairs_to_file",
     # token_service

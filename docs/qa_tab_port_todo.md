@@ -244,11 +244,23 @@ local の UI 注意書き（`./start_celery.sh restart -c 8`）を**そのまま
 grace_v2 で有効なのは直接起動:
 
 ```bash
-celery -A celery_tasks worker --loglevel=info --concurrency=8 --pool=prefork --queues=qa_generation
+celery -A celery_config worker --loglevel=info --concurrency=8 \
+    -Q celery,high_priority,normal_priority,low_priority
 ```
 
 （`qa_qdrant/docs/01_install.md` §5.3「方法2: 直接起動」。同ファイルの「方法1」は
 リポジトリに無いスクリプトを案内しており、これ自体が別途の負債 → §5）
+
+> **⚠️ 2026-09-12 追記・訂正。** 上の `01_install.md` §5.3「方法2」は
+> **それ自体が誤っていた**（`-A celery_tasks` / `--queues=qa_generation`）。
+> `qa_generation` は `Celery('qa_generation')` の**アプリ名**であってキュー名ではなく、
+> `celery_config.py` が定義するキューは `celery` / `high_priority` /
+> `normal_priority` / `low_priority` の 4 つである。この誤りを PR #129 で
+> UI の注意書きへそのまま持ち込んでしまったため、後続 PR で是正した。
+>
+> **また §5 の判断も変更した**: `start_celery.sh` はリポジトリへ**移植した**
+> （`celery_config.py` は両リポジトリでバイト単位に同一なのでドロップイン）。
+> 現在の案内は `./start_celery.sh restart -c 8`。
 
 ### 3-3. モデル欄 — 素のテキスト入力のまま、既定は `claude-sonnet-4-6`
 

@@ -1,6 +1,6 @@
 # qa_service.py - Q/A生成サービス ドキュメント
 
-**Version 1.0** | 最終更新: 2026-06-17
+**Version 1.1** | 最終更新: 2026-09-12
 
 ---
 
@@ -23,9 +23,15 @@
 
 `qa_service.py` は、Q/Aペアの生成と保存に関するビジネスロジックを提供するサービスモジュールです。LLM には **Anthropic Claude**（既定モデル `claude-sonnet-4-6`）を使用し、`create_llm_client(provider="anthropic")` 経由でクライアントを生成します。構造化出力 API でテキストからQ/Aペアを生成し、CSV/JSON 形式でファイルに保存します。
 
+> ⚠️ **Q/A 生成パイプライン（`QAPipeline`）の実行口は本モジュールではない。**
+> CLI は `qa_qdrant/make_qa_register_qdrant.py`、Web（データ管理タブ「② Q/A 作成」）は
+> `services/data_pipeline_service.py::run_qa_generation_sync()` を通る。
+> v1.0 に載っていた `run_advanced_qa_generation()` は、**存在しない
+> `qa_generator_runner` を import する死にコード**だったため 2026-09-12 に削除した
+> （呼ぶと必ず `{"success": False, ...}` を返していた）。
+
 ### 主な責務
 
-- 外部ランナー（`qa_generator_runner`）を直接インポートしてQ/A生成パイプラインを実行する
 - Anthropic Claude を用いたテキストからのQ/Aペア自動生成
 - 生成されたQ/Aペアへのメタデータ（チャンクID・データセットタイプ等）の付与
 - Q/AペアのCSV・JSON形式でのファイル保存
@@ -35,11 +41,10 @@
 
 | # | 責務 | 対応モジュール | 説明 |
 |---|------|--------------|------|
-| 1 | Q/A生成パイプラインの実行 | `qa_service.py` | `run_advanced_qa_generation()` が `qa_generator_runner` を直接実行 |
-| 2 | Anthropic Claude によるQ/A生成 | `qa_service.py` | `generate_qa_pairs()` が `create_llm_client("anthropic")` を利用 |
-| 3 | メタデータの付与 | `models.py` | `QAPair` モデルにチャンクID等を格納 |
-| 4 | CSV・JSON保存 | `qa_service.py` | `save_qa_pairs_to_file()` が `pandas`/`json` で出力 |
-| 5 | 進捗・エラー通知 | `qa_service.py` | 各関数の `log_callback` 引数で通知 |
+| 1 | Anthropic Claude によるQ/A生成 | `qa_service.py` | `generate_qa_pairs()` が `create_llm_client("anthropic")` を利用 |
+| 2 | メタデータの付与 | `models.py` | `QAPair` モデルにチャンクID等を格納 |
+| 3 | CSV・JSON保存 | `qa_service.py` | `save_qa_pairs_to_file()` が `pandas`/`json` で出力 |
+| 4 | 進捗・エラー通知 | `qa_service.py` | 各関数の `log_callback` 引数で通知 |
 
 ### 主要機能一覧
 
@@ -47,7 +52,6 @@
 |------|------|
 | `QAPair` | Q/Aペアのデータモデル（Pydantic、`models.py` 定義） |
 | `QAPairsResponse` | Q/Aペア生成レスポンスモデル（構造化出力用、`models.py` 定義） |
-| `run_advanced_qa_generation()` | Q/A生成パイプラインを直接インポートモードで実行 |
 | `generate_qa_pairs()` | テキストから Anthropic Claude でQ/Aペアを生成 |
 | `save_qa_pairs_to_file()` | Q/AペアをCSVとJSONで保存 |
 
@@ -60,13 +64,10 @@
 ```mermaid
 flowchart TB
     subgraph CLIENT["クライアント層"]
-        UI["Streamlit UI"]
-        RUNNER["qa_generator_runner"]
         CELERY["Celery タスク"]
     end
 
     subgraph MODULE["qa_service.py"]
-        RUN["run_advanced_qa_generation()"]
         GEN["generate_qa_pairs()"]
         SAVE["save_qa_pairs_to_file()"]
     end
@@ -77,17 +78,14 @@ flowchart TB
         MODELS["models.py (QAPair / QAPairsResponse)"]
     end
 
-    UI --> RUN
     CELERY --> GEN
-    RUNNER --> GEN
-    RUN --> GEN
     GEN --> CLAUDE
     GEN --> MODELS
     SAVE --> FS
     GEN --> SAVE
 classDef default fill:#000,stroke:#fff,color:#fff
 classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
-class UI,RUNNER,CELERY,RUN,GEN,SAVE,CLAUDE,FS,MODELS default
+class CELERY,GEN,SAVE,CLAUDE,FS,MODELS default
 style CLIENT fill:#1a1a1a,stroke:#fff,color:#fff
 style MODULE fill:#1a1a1a,stroke:#fff,color:#fff
 style EXTERNAL fill:#1a1a1a,stroke:#fff,color:#fff
@@ -95,11 +93,10 @@ style EXTERNAL fill:#1a1a1a,stroke:#fff,color:#fff
 
 ### 1.2 データフロー
 
-1. クライアント層（UI・ランナー・Celery）からQ/A生成リクエストを受信
-2. `run_advanced_qa_generation()` が `qa_generator_runner` をインポートして実行
-3. `generate_qa_pairs()` が Anthropic Claude の構造化出力APIを呼び出しQ/Aを生成
-4. 生成結果に `QAPair` メタデータを付与
-5. `save_qa_pairs_to_file()` がCSV・JSONとして `qa_output/` に保存
+1. 呼び出し側（Celery タスク等）からQ/A生成リクエストを受信
+2. `generate_qa_pairs()` が Anthropic Claude の構造化出力APIを呼び出しQ/Aを生成
+3. 生成結果に `QAPair` メタデータを付与
+4. `save_qa_pairs_to_file()` がCSV・JSONとして `qa_output/` に保存
 
 ---
 
@@ -115,10 +112,6 @@ flowchart TB
         LOGGER["logger"]
     end
 
-    subgraph PIPELINE["パイプライン実行"]
-        RUN["run_advanced_qa_generation()"]
-    end
-
     subgraph GENERATION["Q/A生成"]
         GEN["generate_qa_pairs()"]
     end
@@ -130,7 +123,6 @@ flowchart TB
     LLM --> GEN
     QAMODELS --> GEN
     LOGGER --> GEN
-    RUN --> GEN
     GEN --> SAVE
 classDef default fill:#000,stroke:#fff,color:#fff
 classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
@@ -155,7 +147,6 @@ style PERSIST fill:#1a1a1a,stroke:#fff,color:#fff
 | `helper.helper_llm.create_llm_client` | LLM クライアント生成（provider="anthropic"） |
 | `models.QAPair` | Q/Aペアのデータモデル |
 | `models.QAPairsResponse` | 構造化出力レスポンスモデル |
-| `qa_generator_runner`（実行時インポート） | Q/A生成パイプライン本体 |
 
 ---
 
@@ -185,12 +176,6 @@ style PERSIST fill:#1a1a1a,stroke:#fff,color:#fff
 | `qa_pairs` | 生成されたQ/Aペア（`QAPair`）のリスト |
 
 ### 3.2 関数一覧（カテゴリ別）
-
-#### パイプライン実行
-
-| 関数名 | 概要 |
-|-------|------|
-| `run_advanced_qa_generation(...)` | Q/A生成を直接インポートモードで実行 |
 
 #### Q/A生成
 
@@ -304,85 +289,7 @@ print(len(resp.qa_pairs))
 
 ---
 
-### 4.3 パイプライン実行関数
-
-#### `run_advanced_qa_generation`
-
-**概要**: Q/A生成を直接インポートモードで実行する。プロセス間通信の問題を回避するため、`qa_generator_runner` をモジュールとしてインポートして直接実行します。
-
-```python
-def run_advanced_qa_generation(
-    dataset: Optional[str],
-    input_file: Optional[str],
-    use_celery: bool,
-    celery_workers: int,
-    batch_chunks: int,
-    max_docs: int,
-    merge_chunks: bool,
-    min_tokens: int,
-    max_tokens: int,
-    coverage_threshold: float,
-    model: str,
-    analyze_coverage: bool,
-    log_callback,
-    progress_callback=None,
-) -> Dict[str, Any]
-```
-
-| パラメータ | 型 | デフォルト | 説明 |
-|------------|------|-----------|------|
-| `dataset` | Optional[str] | - | データセット名 |
-| `input_file` | Optional[str] | - | 入力ファイルパス |
-| `use_celery` | bool | - | Celery を使用するか |
-| `celery_workers` | int | - | Celery ワーカー数 |
-| `batch_chunks` | int | - | バッチあたりのチャンク数 |
-| `max_docs` | int | - | 最大ドキュメント数 |
-| `merge_chunks` | bool | - | チャンクをマージするか |
-| `min_tokens` | int | - | 最小トークン数 |
-| `max_tokens` | int | - | 最大トークン数 |
-| `coverage_threshold` | float | - | カバレッジ閾値 |
-| `model` | str | - | 使用するLLMモデル |
-| `analyze_coverage` | bool | - | カバレッジ分析を行うか |
-| `log_callback` | Callable | - | ログコールバック関数 |
-| `progress_callback` | Optional[Callable] | None | 進捗コールバック関数 |
-
-| 項目 | 内容 |
-|------|------|
-| **Input** | 上記パラメータ一式 |
-| **Process** | 1. カレントディレクトリを `sys.path` に追加<br>2. `qa_generator_runner` をインポート<br>3. `run_qa_generator()` を各引数で呼び出し<br>4. 例外時はトレースバックをログ出力 |
-| **Output** | `Dict[str, Any]`: 実行結果（失敗時 `{"success": False, "error": ...}`） |
-
-**戻り値例**:
-```python
-{
-    "success": False,
-    "error": "qa_generator_runner module not found"
-}
-```
-
-```python
-# 使用例
-result = run_advanced_qa_generation(
-    dataset="faq",
-    input_file=None,
-    use_celery=False,
-    celery_workers=1,
-    batch_chunks=10,
-    max_docs=100,
-    merge_chunks=True,
-    min_tokens=50,
-    max_tokens=200,
-    coverage_threshold=0.8,
-    model="claude-sonnet-4-6",
-    analyze_coverage=True,
-    log_callback=print,
-)
-print(result["success"])
-```
-
----
-
-### 4.4 Q/A生成関数
+### 4.3 Q/A生成関数
 
 #### `generate_qa_pairs`
 
@@ -444,7 +351,7 @@ print(f"生成数: {len(pairs)}")
 
 ---
 
-### 4.5 保存関数
+### 4.4 保存関数
 
 #### `save_qa_pairs_to_file`
 
@@ -537,32 +444,29 @@ print(f"CSV: {saved['csv']}")
 print(f"JSON: {saved['json']}")
 ```
 
-### 6.2 応用ワークフロー（パイプライン一括実行）
+### 6.2 パイプライン一括実行はここではない
+
+チャンク済み CSV から Q/A を一括生成するのは `QAPipeline` の仕事で、
+本モジュールは通らない。
 
 ```python
-from services.qa_service import run_advanced_qa_generation
+# CLI（大規模バッチ・--resume つき）
+#   python qa_qdrant/make_qa_register_qdrant.py --input-file ... --collection ...
 
-result = run_advanced_qa_generation(
-    dataset="faq",
-    input_file=None,
-    use_celery=False,
-    celery_workers=1,
-    batch_chunks=10,
-    max_docs=100,
-    merge_chunks=True,
-    min_tokens=50,
-    max_tokens=200,
-    coverage_threshold=0.8,
+# Web（データ管理タブ「② Q/A 作成」と同じ経路）
+from services.data_pipeline_service import run_qa_generation_sync
+
+result = run_qa_generation_sync(
+    "output_chunked/cc_news_chunks.csv",
     model="claude-sonnet-4-6",
+    output_dir="qa_output",
+    max_docs=100,
     analyze_coverage=True,
-    log_callback=print,
 )
-
-if result.get("success"):
-    print("Q/A生成完了")
-else:
-    print(f"エラー: {result.get('error')}")
+print(result["qa_count"], result["saved_files"]["qa_csv"])
 ```
+
+詳細は [`backend/docs/data_pipeline.md`](../../backend/docs/data_pipeline.md)。
 
 ---
 
@@ -572,7 +476,6 @@ else:
 
 ```python
 # 関数
-run_advanced_qa_generation   # Q/A生成パイプライン実行
 generate_qa_pairs            # Anthropic Claude によるQ/A生成
 save_qa_pairs_to_file        # CSV・JSON保存
 
@@ -588,6 +491,7 @@ QAPairsResponse              # Q/Aペア生成レスポンスモデル
 | バージョン | 変更内容 |
 |-----------|---------|
 | 1.0 | 初版作成（2026-06-17） |
+| 1.1 | `run_advanced_qa_generation()` の削除に追随（存在しない `qa_generator_runner` を import する死にコードだった）。Streamlit UI の記述を削除し、Q/A 生成パイプラインの実際の実行口（CLI / `run_qa_generation_sync()`）を明記（2026-09-12） |
 
 ---
 
@@ -610,21 +514,15 @@ flowchart LR
         QARESP["QAPairsResponse"]
     end
 
-    subgraph RUNTIME["実行時インポート"]
-        RUNNER["qa_generator_runner"]
-    end
-
     QASERVICE --> DF
     QASERVICE --> LLMCLIENT
     QASERVICE --> QAPAIR
     QASERVICE --> QARESP
-    QASERVICE --> RUNNER
     LLMCLIENT --> CLAUDE["Anthropic Claude"]
 classDef default fill:#000,stroke:#fff,color:#fff
 classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
-class QASERVICE,DF,LLMCLIENT,QAPAIR,QARESP,RUNNER,CLAUDE default
+class QASERVICE,DF,LLMCLIENT,QAPAIR,QARESP,CLAUDE default
 style PANDAS fill:#1a1a1a,stroke:#fff,color:#fff
 style HELPER fill:#1a1a1a,stroke:#fff,color:#fff
 style MODELSPKG fill:#1a1a1a,stroke:#fff,color:#fff
-style RUNTIME fill:#1a1a1a,stroke:#fff,color:#fff
 ```

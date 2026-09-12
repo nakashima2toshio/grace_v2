@@ -471,9 +471,7 @@ export function DataJobPanel({ variant }: { variant: DataJobVariant }) {
                 </div>
                 <p className="notice">
                   ⚠️ Celery ワーカーが起動している必要があります（
-                  <code>
-                    celery -A celery_tasks worker --concurrency={concurrency} --queues=qa_generation
-                  </code>
+                  <code>./start_celery.sh restart -c {concurrency}</code>
                   ）。起動していない場合はジョブが失敗します。
                 </p>
               </>

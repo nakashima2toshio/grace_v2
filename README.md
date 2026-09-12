@@ -1096,7 +1096,7 @@ sequenceDiagram
 `qa_generation/pipeline.py::QAPipeline` を通す。カバレージ分析は既定 ON で、
 `③ カバレージ分析` ステップに率が出る。Celery での並列生成も選べるが、
 **ワーカーが起動していない場合はジョブが失敗する**
-（`celery -A celery_tasks worker --concurrency=8 --queues=qa_generation`）。
+（`./start_celery.sh restart -c 8`。手順は `qa_qdrant/docs/celery_quick_start.md`）。
 
 > ⚠️ 出力先の既定は `qa_output` **直下**。`GET /api/files` はサブディレクトリを
 > 見ないため、入れ子にすると ③ のファイル選択に出てこない。

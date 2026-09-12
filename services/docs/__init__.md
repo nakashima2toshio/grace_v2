@@ -1,6 +1,6 @@
 # __init__.py - services パッケージ ドキュメント
 
-**Version 1.0** | 最終更新: 2026-06-17
+**Version 1.1** | 最終更新: 2026-09-12
 
 ---
 
@@ -242,7 +242,7 @@ style SERVICES fill:#1a1a1a,stroke:#fff,color:#fff
 
 | シンボル | 種別 |
 |---------|------|
-| `run_advanced_qa_generation` `generate_qa_pairs` `save_qa_pairs_to_file` | 関数 |
+| `generate_qa_pairs` `save_qa_pairs_to_file` | 関数 |
 
 ---
 
@@ -287,7 +287,6 @@ style SERVICES fill:#1a1a1a,stroke:#fff,color:#fff
 | `safe_json_serializer` | 関数 | `json_service` |
 | `save_json_file` | 関数 | `json_service` |
 | `generate_qa_pairs` | 関数 | `qa_service` |
-| `run_advanced_qa_generation` | 関数 | `qa_service` |
 | `save_qa_pairs_to_file` | 関数 | `qa_service` |
 | `COLLECTION_CSV_MAPPING` | 定数 | `qdrant_service` |
 | `COLLECTION_EMBEDDINGS_SEARCH` | 定数 | `qdrant_service` |
@@ -416,7 +415,6 @@ __all__ = [
     "load_source_qa_data",
     "load_collection_qa_preview",
     # qa_service
-    "run_advanced_qa_generation",
     "generate_qa_pairs",
     "save_qa_pairs_to_file",
     # token_service
@@ -468,6 +466,7 @@ __all__ = [
 | バージョン | 変更内容 |
 |-----------|---------|
 | 1.0 | 初版作成（2026-06-17） |
+| 1.1 | `run_advanced_qa_generation` の削除に追随（死にコードのため `qa_service.py` から撤去し、`__init__.py` の import と `__all__` からも外した）（2026-09-12） |
 
 ---
 
