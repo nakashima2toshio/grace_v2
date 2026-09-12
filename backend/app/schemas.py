@@ -117,6 +117,13 @@ class JobStatusResponse(BaseModel):
     status: Literal["running", "completed", "failed"]
     result: Optional[SupportResultModel] = None
 
+    # --- 実行時刻（サーバ時計・エポック秒）------------------------------------
+    # フロントは通常 SSE イベントの ts から開始・完了時刻を組み立てるが、
+    # ストリームを購読していない経路（結果だけを引く・リロード直後）でも
+    # 所要時間を出せるよう、ジョブ側の実測値をそのまま返す。
+    created_at: Optional[float] = None
+    finished_at: Optional[float] = None
+
 
 class SupportEventModel(BaseModel):
     """SSE で配信される進捗イベント（core.SupportEvent ＋ 通し番号/時刻）。"""
@@ -249,6 +256,13 @@ class ReviewJobStatusResponse(BaseModel):
     job_id: str
     status: Literal["running", "completed", "failed"]
     result: Optional[ReviewResultModel] = None
+
+    # --- 実行時刻（サーバ時計・エポック秒）------------------------------------
+    # フロントは通常 SSE イベントの ts から開始・完了時刻を組み立てるが、
+    # ストリームを購読していない経路（結果だけを引く・リロード直後）でも
+    # 所要時間を出せるよう、ジョブ側の実測値をそのまま返す。
+    created_at: Optional[float] = None
+    finished_at: Optional[float] = None
 
 
 class RuleSetInfo(BaseModel):
@@ -439,3 +453,10 @@ class DataJobStatusResponse(BaseModel):
     kind: str
     status: Literal["running", "completed", "failed"]
     result: Optional[Dict[str, Any]] = None
+
+    # --- 実行時刻（サーバ時計・エポック秒）------------------------------------
+    # フロントは通常 SSE イベントの ts から開始・完了時刻を組み立てるが、
+    # ストリームを購読していない経路（結果だけを引く・リロード直後）でも
+    # 所要時間を出せるよう、ジョブ側の実測値をそのまま返す。
+    created_at: Optional[float] = None
+    finished_at: Optional[float] = None

@@ -37,7 +37,7 @@ from backend.app.core.data_jobs import (
     QaGenerationParams,
     RegisterParams,
 )
-from backend.app.core.jobs import job_manager
+from backend.app.core.jobs import done_event, job_manager
 from backend.app.schemas import (
     ChunkingRequest,
     ConfirmRequest,
@@ -160,7 +160,7 @@ def stream_events(job_id: str) -> StreamingResponse:
                 yield ": keepalive\n\n"
                 continue
             yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
-        yield f"data: {json.dumps({'type': 'done', 'status': job.status}, ensure_ascii=False)}\n\n"
+        yield f"data: {json.dumps(done_event(job), ensure_ascii=False)}\n\n"
 
     return StreamingResponse(
         sse(),
@@ -192,5 +192,6 @@ def get_result(job_id: str) -> DataJobStatusResponse:
     if job is None:
         raise HTTPException(status_code=404, detail="job not found")
     return DataJobStatusResponse(
-        job_id=job.job_id, kind=job.kind, status=job.status, result=job.result
+        job_id=job.job_id, kind=job.kind, status=job.status, result=job.result,
+        created_at=job.created_at, finished_at=job.finished_at,
     )

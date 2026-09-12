@@ -520,6 +520,23 @@ def test_result_endpoint_returns_kind(stub_qdrant):
     assert result.json()["kind"] == "delete"
 
 
+def test_result_endpoint_returns_server_timestamps(stub_qdrant):
+    """**SSE を購読していなくても所要時間が出せる。**
+
+    タブを離れて戻った直後やリロード直後は、ブラウザ側の開始時刻を失っている。
+    結果だけを引く経路でもサーバ時計の実測値を返しておけば、
+    `frontend/src/state/elapsed.ts` が所要時間を組み立てられる。
+    """
+    response = client.post("/api/qdrant/delete", json={"collections": ["faq_anthropic"]})
+    job_id = response.json()["job_id"]
+
+    body = client.get(f"/api/data/result/{job_id}").json()
+    assert body["created_at"] is not None
+    # 承認待ちで止まっているので、完了時刻はまだ無い
+    assert body["status"] == "running"
+    assert body["finished_at"] is None
+
+
 def test_result_endpoint_404():
     assert client.get("/api/data/result/no_such_job").status_code == 404
 

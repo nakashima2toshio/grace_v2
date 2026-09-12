@@ -181,7 +181,14 @@ class TestReviewApi:
         assert job.status == "failed"
         payloads = _read_stream(job.job_id)
         assert any(p["type"] == "error" for p in payloads)
-        assert payloads[-1] == {"type": "done", "status": "failed"}
+        done = payloads[-1]
+        assert done["type"] == "done"
+        assert done["status"] == "failed"
+        # 終端イベントは実行時刻を運ぶ（frontend/src/state/elapsed.ts が使う）。
+        # ここが欠けると画面の「完了 … ／ 所要 …」が出なくなる。
+        assert done["ts"] is not None
+        assert done["started_at"] is not None
+        assert done["started_at"] <= done["ts"]
 
     def test_do_action_false_skips_action(self, review_stub):
         job_id = _submit(do_action=False).json()["job_id"]

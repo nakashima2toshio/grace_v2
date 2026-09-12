@@ -1,6 +1,6 @@
 # core/jobs.py - ジョブ管理（インメモリ）ドキュメント
 
-**Version 1.2** | 最終更新: 2026-08-01
+**Version 1.3** | 最終更新: 2026-09-12
 
 ---
 
@@ -253,7 +253,42 @@ style MANAGER fill:#1a1a1a,stroke:#fff,color:#fff
 
 ### 3.2 関数一覧
 
-モジュールレベル関数はない（`job_manager` はシングルトンインスタンス）。
+| 関数 | 概要 |
+|---------|------|
+| `done_event(job)` | SSE の終端イベント（番兵）を組み立てる。3 つのストリームで共用 |
+
+`job_manager` はモジュールレベルのシングルトンインスタンス。
+
+#### `done_event(job)`
+
+```python
+def done_event(job: "Job") -> Dict[str, Any]
+```
+
+| 項目 | 内容 |
+|------|------|
+| **Input** | `Job`（決着後に呼ばれる） |
+| **Process** | `status` と 2 つの時刻を詰める |
+| **Output** | `{"type": "done", "status", "ts", "started_at"}` |
+
+**戻り値例**:
+
+```python
+{"type": "done", "status": "completed",
+ "ts": 1789173816.57, "started_at": 1789173800.12}
+```
+
+> ⚠️ **`ts` と `started_at` を必ず載せる。** フロントは実行の開始・完了時刻を
+> **サーバ時計**から取る（`frontend/src/state/elapsed.ts::applyServerEvent`）。
+> この 2 つが無いと完了時刻が永久に埋まらず、「完了 … ／ 所要 …」の行が
+> まるごと消える（姉妹リポジトリで実測 2026-08-29）。
+
+> 📝 **`started_at` は POST の受付時刻（`Job.created_at`）であって、
+> 「最初のイベントが出た時刻」ではない。** 受付から最初のイベントまでに
+> planner / executor の生成で待ちが入る。そこを所要時間から落とすと、
+> 利用者が実際に待った時間より短く見える。
+
+回帰は `backend/tests/test_done_event_timing.py` で固定している。
 
 ---
 
@@ -603,11 +638,12 @@ print(j.status, j.result)
 
 `__all__` 定義はない。`api/support.py` が `JobParams` / `job_manager`、`api/review.py` が
 `job_manager`、`core/review_agent.py` が `register_runner` を import する。
+`done_event` は 3 つの API（`support` / `review` / `data`）が SSE の終端で使う。
 
 ```python
 # 公開シンボル（明示的 __all__ はなし）
 JobParams, Job, SupportJob, JobManager, JobRunner,
-register_runner, job_manager, MAX_FINISHED_JOBS
+register_runner, done_event, job_manager, MAX_FINISHED_JOBS
 ```
 
 `SupportJob` は `Job` の後方互換エイリアス（`SupportJob is Job`）。既存の
@@ -622,6 +658,7 @@ register_runner, job_manager, MAX_FINISHED_JOBS
 | 1.0 | 2026-07-15 | 初版作成（JobParams / SupportJob / JobManager / job_manager の IPO ドキュメント） |
 | 1.1 | 2026-07-29 | runner 注入方式へ汎用化（PR #39）。`SupportJob` → `Job` へ改名し後方互換エイリアスを追加。`register_runner` / `_resolve_runner` / `_support_runner` / `JobRunner` を追記 |
 | 1.2 | 2026-08-01 | `JobParams` に `identity` を追加し、`_support_runner` の `identity=None` 直書きを `params.identity` の素通しへ変更。画面から本人確認の識別子を渡せるようにしたもので、回帰は `test_jobs_generic.py::test_identity_is_passed_through_to_core` で固定 |
+| 1.3 | 2026-09-12 | `done_event(job)` を追加（3 つの SSE ストリームで共用）。終端イベントに `ts`（完了時刻）と `started_at`（受付時刻）を載せ、フロントがサーバ時計から所要時間を組み立てられるようにした。回帰は `test_done_event_timing.py` で固定 |
 
 ---
 

@@ -217,7 +217,7 @@ def stream_events(job_id: str) -> StreamingResponse
 | 項目 | 内容 |
 |------|------|
 | **Input** | `job_id` |
-| **Process** | `job_manager.get(job_id)`（無ければ **404**）。`job.stream_events()` を回し、`None` は `": keepalive\n\n"`、それ以外は `data: {json}\n\n` として yield。最後に `{"type": "done", "status": job.status}` を送る |
+| **Process** | `job_manager.get(job_id)`（無ければ **404**）。`job.stream_events()` を回し、`None` は `": keepalive\n\n"`、それ以外は `data: {json}\n\n` として yield。最後に `done_event(job)`（`type` / `status` / `ts` / `started_at`）を送る |
 | **Output** | `StreamingResponse`（`media_type="text/event-stream"`、`Cache-Control: no-cache` / `X-Accel-Buffering: no`） |
 
 > 📝 **形式は Support / Review と完全に同一。** 既存パッケージの `logging` 出力は
