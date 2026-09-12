@@ -80,7 +80,7 @@ local 側の該当ファイルには、Q/A タブとは**無関係な local 専�
 | `ollama_unreachable_message()` / `model_not_pulled_message()` / `list_pulled_ollama_models()` | ローカル LLM 固有の事前チェック。Anthropic 版は **`ANTHROPIC_API_KEY` ガード**が同じ役割を果たす |
 | `config.py::get_default_chunking_workers()` / `DEFAULT_CHUNKING_WORKERS = 1` | Ollama が既定で直列実行することへの対処。Anthropic API は並列で回るので **`workers: 8` のままにする** |
 | `done_event()` / `created_at` / `finished_at` / `state/serverTiming.ts` | サーバ時計から所要時間を出す**別機能**。Q/A タブとは独立 → §5 の別タスクへ |
-| `ChunkingAbortedError` の捕捉 | local の chunking 側の改修。grace_v2 の `chunking/` に**この例外は存在しない** → §5 |
+| `ChunkingAbortedError` の捕捉 | local の chunking 側の改修 → §5（**2026-09-12 に実装済み**） |
 
 **逆に、grace_v2 にしか無いもの（`formMemory` / `metaFetch` / `timelineAnnounce` /
 `MetaErrorBanner`）を消さないこと。** 今回触る 4 ファイルは直接は関係しないが、
@@ -297,7 +297,7 @@ Q/A 生成は文章生成の比重が大きい）。
 | 候補 | 内容 | 備考 |
 |---|---|---|
 | ~~サーバ時計による所要時間~~ | `done_event()` / `created_at` / `finished_at` / `elapsed.ts` の追加分 / `useJobTiming` の `observe` | **✅ 2026-09-12 実装済み**（`state/serverTiming.ts` ではなく `elapsed.ts` の末尾に入っていた） |
-| `ChunkingAbortedError` の握り | LLM 連続失敗をメッセージ付きで error にする | grace_v2 の `chunking/` に**この例外は無い**（`grep` で 0 件）。移植するなら例外の追加から |
+| ~~`ChunkingAbortedError` の握り~~ | LLM 連続失敗をメッセージ付きで error にする | **✅ 2026-09-12 実装済み**（例外を新規追加。`SchemaEchoError` 分岐は Ollama 固有なので移植していない） |
 | ~~`qa_qdrant/docs/01_install.md` の `start_celery.sh`~~ | リポジトリに無いスクリプトを「推奨」として案内していた | **✅ 2026-09-12 対応済み**（スクリプトを移植。あわせて `-Q qa_generation` という存在しないキュー名も是正） |
 | ~~`services/qa_service.py::run_advanced_qa_generation`~~ | `import qa_generator_runner` するが `qa_generator_runner.py` は存在しない死にコードだった | **✅ 2026-09-12 削除済み** |
 | ~~`services/docs/data_pipeline_service.md`~~ | `services/docs/` にこの 1 本だけ無かった | **✅ 2026-09-12 新規作成**（IPO 形式・513 行） |

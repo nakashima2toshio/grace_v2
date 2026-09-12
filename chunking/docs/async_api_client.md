@@ -1,6 +1,6 @@
-# async_api_client.py - 非同期APIクライアント ドキュメント
+# async_api_client.py - チャンク化用 非同期APIクライアント ドキュメント
 
-**Version 1.0** | 最終更新: 2025-01-29
+**Version 2.0** | 最終更新: 2026-09-12
 
 ---
 
@@ -21,29 +21,46 @@
 
 ## 概要
 
-`async_api_client.py`は、Google Gemini APIへの非同期アクセスを提供するクライアントモジュールです。`asyncio.to_thread()`で同期APIをラップし、Semaphoreによる並列数制御、指数バックオフによるリトライロジック、不完全JSONの検出とリトライ機能を備えています。
+`chunking/async_api_client.py` は、チャンク化の 3 段階（階層分割 → 意味チャンク化 → 連続性チェック）
+から呼ばれる**構造化出力つき非同期 LLM クライアント**である。
+
+LLM は **Anthropic Claude**（既定 `claude-sonnet-4-6`・`ANTHROPIC_API_KEY`）。
+同期の `create_llm_client("anthropic").generate_structured()` を
+`asyncio.to_thread()` でラップし、`asyncio.Semaphore` で並列数を絞る。
+
+> ⚠️ **v1.0 の本書は Gemini 時代の記述だった**（`genai.Client` / `_is_valid_json()` /
+> `_is_truncated_response()` など、**現在は存在しないメソッド**を載せていた）。
+> v2.0 で実装（210 行）と突き合わせて全面的に書き直している。
 
 ### 主な責務
 
-- Google Gemini APIへの非同期リクエスト送信
-- Semaphoreによる並列実行数の制御（デフォルト8並列）
-- 指数バックオフによるリトライロジック（最大3回）
-- 不完全JSON/切断レスポンスの検出と自動リトライ
-- レート制限エラー（429）への対応
-- API呼び出し統計情報の収集・管理
+- 構造化出力（Pydantic スキーマ準拠）の生成を**非同期で**行う
+- `Semaphore` で並列実行数を絞る
+- 指数バックオフでリトライする（レート制限は待ち時間を延ばす）
+- **連続失敗が続いたらチャンク化を中断する**（`ChunkingAbortedError`）
+- 呼び出し統計を収集する
+
+### 各責務対応のモジュール
+
+| # | 責務 | 対応モジュール | 説明 |
+|---|------|--------------|------|
+| 1 | LLM 呼び出し | `helper/helper_llm.py` | `create_llm_client("anthropic")` |
+| 2 | 非同期化 | 本モジュール | 同期 API を `asyncio.to_thread()` で包む |
+| 3 | 並列制御 | 本モジュール | `asyncio.Semaphore(max_workers)` |
+| 4 | 中断判断 | 本モジュール | 連続失敗のカウントと `ChunkingAbortedError` |
+| 5 | エラー表示 | `backend/app/core/data_jobs.py` | 中断を error イベントへ変換 |
 
 ### 主要機能一覧
 
 | 機能 | 説明 |
 |------|------|
-| `AsyncAPIClient` | 非同期APIクライアントクラス |
-| `AsyncAPIClient.__init__()` | コンストラクタ（API Key、並列数、リトライ設定） |
-| `AsyncAPIClient.generate_content()` | セマフォ制御でGemini API呼び出し |
-| `AsyncAPIClient._execute_with_retry()` | リトライロジック実行（プライベート） |
-| `AsyncAPIClient._is_valid_json()` | JSON完全性チェック（プライベート） |
-| `AsyncAPIClient._is_truncated_response()` | レスポンス切断チェック（プライベート） |
-| `AsyncAPIClient.get_stats()` | API呼び出し統計情報を取得 |
-| `AsyncAPIClient.reset_stats()` | 統計情報をリセット |
+| `DEFAULT_ABORT_AFTER_CONSECUTIVE_FAILURES` | 連続失敗の既定許容回数（環境変数で変更可） |
+| `ChunkingAbortedError` | 連続失敗による中断。**握りつぶしてはいけない** |
+| `AsyncAPIClient` | 非同期クライアント本体 |
+| `AsyncAPIClient.generate_content()` | セマフォ制御つきの構造化出力生成 |
+| `AsyncAPIClient._execute_with_retry()` | リトライと中断判断（プライベート） |
+| `AsyncAPIClient._resolve_model()` | 非 Claude 名を既定モデルへ回避（静的メソッド） |
+| `AsyncAPIClient.get_stats()` / `reset_stats()` | 統計の取得・リセット |
 
 ---
 
@@ -53,34 +70,53 @@
 
 ```mermaid
 flowchart TB
-    subgraph CLIENT["クライアント層"]
-        CHUNKER[csv_text_to_chunks_text_csv.py]
-        BATCH[バッチ処理スクリプト]
-        TEST[テストコード]
+    subgraph CALLER["呼び出し側"]
+        STEP1["_step1_hierarchical_split"]
+        STEP2["_step2_semantic_chunking"]
+        STEP3["_step3_continuity_check"]
     end
 
-    subgraph MODULE["async_api_client.py"]
-        ASYNC_CLIENT[AsyncAPIClient]
+    subgraph THIS["chunking/async_api_client.py"]
+        GEN["generate_content()"]
+        SEM["Semaphore(max_workers)"]
+        RETRY["_execute_with_retry()"]
+        ABORT["ChunkingAbortedError"]
     end
 
-    subgraph EXTERNAL["外部サービス層"]
-        GEMINI[Google Gemini API]
+    subgraph EXT["外部"]
+        LLM["create_llm_client(anthropic)"]
+        CLAUDE["Anthropic Claude"]
     end
 
-    CHUNKER --> ASYNC_CLIENT
-    BATCH --> ASYNC_CLIENT
-    TEST --> ASYNC_CLIENT
-    ASYNC_CLIENT --> GEMINI
+    RUNNER["core/data_jobs.py::_chunking_runner"]
+
+    STEP1 --> GEN
+    STEP2 --> GEN
+    STEP3 --> GEN
+    GEN --> SEM
+    SEM --> RETRY
+    RETRY --> LLM
+    LLM --> CLAUDE
+    RETRY --> ABORT
+    ABORT --> RUNNER
+classDef default fill:#000,stroke:#fff,color:#fff
+classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
+class STEP1,STEP2,STEP3,GEN,SEM,RETRY,ABORT,LLM,CLAUDE,RUNNER default
+style CALLER fill:#1a1a1a,stroke:#fff,color:#fff
+style THIS fill:#1a1a1a,stroke:#fff,color:#fff
+style EXT fill:#1a1a1a,stroke:#fff,color:#fff
 ```
 
 ### 1.2 データフロー
 
-1. クライアント層から`generate_content()`を呼び出し
-2. Semaphoreで並列数を制御（最大8並列）
-3. `asyncio.to_thread()`で同期API（`genai.Client`）を非同期実行
-4. レスポンス検証（切断チェック、JSON完全性チェック）
-5. 失敗時は指数バックオフでリトライ（最大3回）
-6. 成功時はJSONテキストを返却、全リトライ失敗時は`None`を返却
+1. 3 段階のいずれかが `generate_content(model, contents, response_schema, task_id)` を呼ぶ
+2. `Semaphore` が空くまで待つ（同時実行は `max_workers` 件まで）
+3. `_execute_with_retry()` が `asyncio.to_thread()` で同期の `generate_structured()` を呼ぶ
+4. 成功 → Pydantic インスタンスを `model_dump_json()` した**文字列**を返し、連続失敗カウントを 0 に戻す
+5. 失敗 → 指数バックオフで `max_retries` 回まで再試行
+6. 使い切ったら連続失敗カウントを 1 増やし、
+   **上限に達していれば `ChunkingAbortedError` を送出**。達していなければ `None` を返す
+   （呼び出し側は機械的分割へフォールバックして次のブロックへ進む）
 
 ---
 
@@ -90,48 +126,51 @@ flowchart TB
 
 ```mermaid
 flowchart TB
-    subgraph ASYNC_CLIENT["AsyncAPIClient クラス"]
-        INIT["__init__()"]
-
-        subgraph PUBLIC["公開メソッド"]
-            GEN["generate_content()"]
-            STATS["get_stats()"]
-            RESET["reset_stats()"]
-        end
-
-        subgraph PRIVATE["プライベートメソッド"]
-            RETRY["_execute_with_retry()"]
-            VALID_JSON["_is_valid_json()"]
-            TRUNCATED["_is_truncated_response()"]
-        end
+    subgraph CONST["モジュール定数・例外"]
+        DEF["DEFAULT_ABORT_AFTER_CONSECUTIVE_FAILURES"]
+        ERR["ChunkingAbortedError"]
     end
 
-    INIT --> GEN
-    GEN --> RETRY
-    RETRY --> VALID_JSON
-    RETRY --> TRUNCATED
-    RETRY --> STATS
+    subgraph CLS["AsyncAPIClient"]
+        INIT["__init__()"]
+        RESOLVE["_resolve_model()"]
+        GENC["generate_content()"]
+        EXEC["_execute_with_retry()"]
+        STATS["get_stats() / reset_stats()"]
+    end
+
+    DEF --> INIT
+    INIT --> GENC
+    GENC --> EXEC
+    EXEC --> RESOLVE
+    EXEC --> ERR
+    EXEC --> STATS
+classDef default fill:#000,stroke:#fff,color:#fff
+classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
+class DEF,ERR,INIT,RESOLVE,GENC,EXEC,STATS default
+style CONST fill:#1a1a1a,stroke:#fff,color:#fff
+style CLS fill:#1a1a1a,stroke:#fff,color:#fff
 ```
 
 ### 2.2 外部依存関係
 
-| ライブラリ | バージョン | 用途 |
-|-----------|-----------|------|
-| `google-genai` | >= 0.1.0 | Gemini APIクライアント |
-| `pydantic` | >= 2.0 | レスポンススキーマ定義 |
+| ライブラリ | 用途 |
+|-----------|------|
+| `pydantic` | `BaseModel`（レスポンススキーマの型） |
 
 ### 2.3 標準ライブラリ依存
 
 | モジュール | 用途 |
 |-----------|------|
-| `asyncio` | 非同期処理、Semaphore、`to_thread()` |
-| `json` | JSON解析・検証 |
-| `logging` | ログ出力 |
-| `typing` | 型ヒント（`Type`, `Optional`） |
+| `asyncio` | `to_thread` / `Semaphore` / `sleep` |
+| `logging` | リトライ・失敗のログ |
+| `os` | `CHUNKING_ABORT_AFTER_FAILURES` の読み取り |
 
 ### 2.4 内部依存モジュール
 
-（このモジュールは外部依存のみで、内部モジュールへの依存はありません）
+| モジュール | 用途 |
+|-----------|------|
+| `helper.helper_llm.create_llm_client` | LLM クライアント生成（`provider="anthropic"`） |
 
 ---
 
@@ -139,307 +178,175 @@ flowchart TB
 
 ### 3.1 クラス一覧
 
+#### ChunkingAbortedError
+
+`RuntimeError` のサブクラス。LLM 呼び出しが連続で失敗したためチャンク化を中断したことを表す。
+
+> ⚠️ **握りつぶしてフォールバックで続行してはいけない。** 続行しても、
+> LLM を使わない機械的な分割結果しか得られない。
+> 捕捉は `backend/app/core/data_jobs.py::_chunking_runner` が行い、error イベントへ変換する。
+
 #### AsyncAPIClient
 
 | メソッド | 概要 |
 |---------|------|
-| `__init__(api_key, max_workers, max_retries, max_output_tokens)` | コンストラクタ |
-| `generate_content(model, contents, response_schema, task_id)` | セマフォ制御でAPI呼び出し |
-| `_execute_with_retry(model, contents, response_schema, task_id)` | リトライロジック実行 |
-| `_is_valid_json(text)` | JSON完全性チェック |
-| `_is_truncated_response(response)` | レスポンス切断チェック |
+| `__init__(api_key, max_workers, max_retries, max_output_tokens, default_model, abort_after_consecutive_failures)` | コンストラクタ |
+| `_resolve_model(model, default_model)` | 非 Claude 名を既定モデルへ回避（`@staticmethod`） |
+| `generate_content(model, contents, response_schema, task_id)` | セマフォ制御つきの生成（`async`） |
+| `_execute_with_retry(model, contents, response_schema, task_id)` | リトライと中断判断（`async`） |
 | `get_stats()` | 統計情報を取得 |
 | `reset_stats()` | 統計情報をリセット |
+
+### 3.2 関数一覧
+
+モジュールレベル関数はない。
 
 ---
 
 ## 4. クラス・関数 IPO詳細
 
-### 4.1 AsyncAPIClient クラス
+### 4.1 `AsyncAPIClient.__init__`
 
-Google Gemini APIへの非同期アクセスを提供するクライアント。Semaphoreによる並列数制御と指数バックオフによるリトライ機能を備える。
-
-#### コンストラクタ: `__init__`
-
-**概要**: AsyncAPIClientインスタンスを初期化する。Geminiクライアント、Semaphore、統計カウンタを設定。
+**概要**: LLM クライアント・Semaphore・中断しきい値・統計カウンタを用意する。
 
 ```python
 AsyncAPIClient(
-    api_key: str,
+    api_key: Optional[str] = None,
     max_workers: int = 8,
     max_retries: int = 3,
-    max_output_tokens: int = 8192
+    max_output_tokens: int = 8192,
+    default_model: str = "claude-sonnet-4-6",
+    abort_after_consecutive_failures: Optional[int] = None,
 )
 ```
 
 | パラメータ | 型 | デフォルト | 説明 |
 |------------|------|-----------|------|
-| `api_key` | str | - | Google API Key |
-| `max_workers` | int | 8 | 並列実行数（Semaphore制御） |
-| `max_retries` | int | 3 | 最大リトライ回数 |
+| `api_key` | Optional[str] | None | **未使用**（後方互換のため残置）。実際は `ANTHROPIC_API_KEY` を参照 |
+| `max_workers` | int | 8 | 並列実行数（Semaphore 制御） |
+| `max_retries` | int | 3 | 1 呼び出しあたりの最大リトライ回数 |
 | `max_output_tokens` | int | 8192 | 出力トークン制限 |
+| `default_model` | str | `claude-sonnet-4-6` | 既定 Claude モデル |
+| `abort_after_consecutive_failures` | Optional[int] | None | 連続失敗の許容回数。None なら `DEFAULT_ABORT_AFTER_CONSECUTIVE_FAILURES`。**0 で中断を無効** |
 
 | 項目 | 内容 |
 |------|------|
-| **Input** | `api_key: str`, `max_workers: int = 8`, `max_retries: int = 3`, `max_output_tokens: int = 8192` |
-| **Process** | 1. `genai.Client`を初期化<br>2. `asyncio.Semaphore`を作成<br>3. 統計カウンタを初期化（`_total_requests`, `_failed_requests`, `_truncated_responses`） |
-| **Output** | `AsyncAPIClient`インスタンス |
+| **Input** | 上記パラメータ |
+| **Process** | ① `create_llm_client("anthropic", default_model=...)`<br>② `asyncio.Semaphore(max_workers)`<br>③ 中断しきい値の決定<br>④ 統計カウンタの初期化 |
+| **Output** | `AsyncAPIClient` インスタンス |
 
 **インスタンス属性**:
 
 | 属性 | 型 | 説明 |
 |------|-----|------|
-| `client` | `genai.Client` | Gemini APIクライアント |
-| `max_workers` | `int` | 並列数 |
-| `semaphore` | `asyncio.Semaphore` | 並列制御用セマフォ |
-| `max_retries` | `int` | 最大リトライ回数 |
-| `max_output_tokens` | `int` | 出力トークン制限 |
-| `_total_requests` | `int` | 総リクエスト数 |
-| `_failed_requests` | `int` | 失敗リクエスト数 |
-| `_truncated_responses` | `int` | 切断レスポンス数 |
+| `llm` | LLM クライアント | `create_llm_client("anthropic", ...)` の戻り |
+| `default_model` | `str` | 既定モデル |
+| `max_workers` / `semaphore` | `int` / `asyncio.Semaphore` | 並列制御 |
+| `max_retries` / `max_output_tokens` | `int` | リトライ・出力上限 |
+| `abort_after_consecutive_failures` | `int` | 中断しきい値（0 で無効） |
+| `_consecutive_failures` | `int` | **連続**失敗回数。成功で 0 に戻る |
+| `_total_requests` / `_failed_requests` / `_truncated_responses` | `int` | 統計 |
+
+### 4.2 `AsyncAPIClient._resolve_model`
+
+**概要**: 渡されたモデル名が Claude 系でなければ既定モデルへ回避する。
 
 ```python
-# 使用例
-from chunking import AsyncAPIClient
-import os
-
-client = AsyncAPIClient(
-    api_key=os.getenv("GOOGLE_API_KEY"),
-    max_workers=8,
-    max_retries=3,
-    max_output_tokens=8192
-)
+@staticmethod
+def _resolve_model(model: Optional[str], default_model: str) -> str
 ```
 
----
+| 項目 | 内容 |
+|------|------|
+| **Input** | `model`（呼び出し側の指定）、`default_model` |
+| **Process** | `model` が `claude` で始まれば採用、それ以外は `default_model` |
+| **Output** | 実際に使うモデル名 |
 
-#### メソッド: `generate_content`
+> 📝 チャンク化の呼び出し側にはレガシーで Gemini モデル名を渡す経路が残っている。
+> Anthropic エンドポイントへ非 Claude 名を投げて失敗しないための保護である。
 
-**概要**: セマフォで並列数を制御しながらGemini API呼び出しを行う。失敗時は指数バックオフでリトライ。
+### 4.3 `AsyncAPIClient.generate_content`
+
+**概要**: セマフォで並列数を絞りつつ構造化出力を生成する。
 
 ```python
 async def generate_content(
-    self,
     model: str,
     contents: str,
     response_schema: Type[BaseModel],
-    task_id: Optional[str] = None
+    task_id: Optional[str] = None,
 ) -> Optional[str]
 ```
 
-| パラメータ | 型 | デフォルト | 説明 |
-|------------|------|-----------|------|
-| `model` | str | - | Geminiモデル名（例: `gemini-2.0-flash`） |
-| `contents` | str | - | 入力テキスト（プロンプト） |
-| `response_schema` | Type[BaseModel] | - | レスポンスのPydanticスキーマ |
-| `task_id` | Optional[str] | None | タスク識別子（ログ用） |
-
 | 項目 | 内容 |
 |------|------|
-| **Input** | `model: str`, `contents: str`, `response_schema: Type[BaseModel]`, `task_id: Optional[str] = None` |
-| **Process** | 1. `async with self.semaphore`で並列数制御<br>2. `_execute_with_retry()`を呼び出し |
-| **Output** | `Optional[str]`: レスポンスJSONテキスト、失敗時は`None` |
+| **Input** | モデル名、プロンプト、レスポンススキーマ、タスク識別子（ログ用） |
+| **Process** | `async with self.semaphore:` の中で `_execute_with_retry()` を呼ぶ |
+| **Output** | 検証済み JSON **文字列**、または `None`（全リトライ失敗） |
 
 **戻り値例**:
 
 ```python
-# 成功時
-'{"sentences": [{"id": 1, "text": "文章1"}, {"id": 2, "text": "文章2"}]}'
-
-# 失敗時
-None
+'{"blocks": ["第1節 …", "第2節 …"]}'
 ```
 
-```python
-# 使用例
-import asyncio
-from pydantic import BaseModel
-from typing import List
+> 📝 **戻り値は Pydantic インスタンスではなく JSON 文字列。** 呼び出し側が
+> `model_validate_json()` でパースする契約を、Gemini 時代から維持している。
 
-class SentenceResult(BaseModel):
-    sentences: List[dict]
+### 4.4 `AsyncAPIClient._execute_with_retry`
 
-async def main():
-    client = AsyncAPIClient(api_key="your-api-key")
-
-    result = await client.generate_content(
-        model="gemini-2.0-flash",
-        contents="以下のテキストを分析してください: ...",
-        response_schema=SentenceResult,
-        task_id="task_001"
-    )
-
-    if result:
-        print(f"成功: {result}")
-    else:
-        print("失敗: Noneが返されました")
-
-asyncio.run(main())
-```
-
----
-
-#### メソッド: `_execute_with_retry`
-
-**概要**: リトライロジックを実行する。不完全JSON/切断レスポンス検出時は指数バックオフでリトライ。レート制限エラー時は長めの待機。
-
-```python
-async def _execute_with_retry(
-    self,
-    model: str,
-    contents: str,
-    response_schema: Type[BaseModel],
-    task_id: Optional[str]
-) -> Optional[str]
-```
-
-| パラメータ | 型 | デフォルト | 説明 |
-|------------|------|-----------|------|
-| `model` | str | - | Geminiモデル名 |
-| `contents` | str | - | 入力テキスト |
-| `response_schema` | Type[BaseModel] | - | レスポンススキーマ |
-| `task_id` | Optional[str] | - | タスク識別子 |
+**概要**: リトライと**中断判断**。本モジュールの中核。
 
 | 項目 | 内容 |
 |------|------|
-| **Input** | `model: str`, `contents: str`, `response_schema: Type[BaseModel]`, `task_id: Optional[str]` |
-| **Process** | 1. `max_retries`回ループ<br>2. `asyncio.to_thread()`でAPI呼び出し<br>3. `_is_truncated_response()`で切断チェック<br>4. `_is_valid_json()`でJSON完全性チェック<br>5. 失敗時は指数バックオフ（`2^attempt`秒）で待機<br>6. レート制限時は`30*(attempt+1)`秒待機 |
-| **Output** | `Optional[str]`: 成功時はJSONテキスト、全リトライ失敗時は`None` |
+| **Input** | モデル名、プロンプト、レスポンススキーマ、`task_id` |
+| **Process** | ① `_resolve_model()`<br>② `max_retries` 回ループし `asyncio.to_thread(generate_structured, ...)`<br>③ 成功したら `_consecutive_failures = 0` にして JSON 文字列を返す<br>④ 失敗は指数バックオフで待つ（レート制限は長め）<br>⑤ 使い切ったら `_failed_requests` と `_consecutive_failures` を加算<br>⑥ しきい値に達していれば `ChunkingAbortedError`、達していなければ `None` |
+| **Output** | JSON 文字列 / `None`。中断時は `ChunkingAbortedError` |
 
 **リトライ待機時間**:
 
-| 状況 | 待機時間 |
-|------|---------|
-| 通常エラー/不完全JSON | 2^attempt 秒（1, 2, 4秒） |
-| レート制限（429） | 30*(attempt+1) 秒（30, 60, 90秒） |
+| 状況 | 判定 | 待機時間 |
+|------|------|---------|
+| レート制限 | エラー文字列に `429` / `rate` / `quota` | `30 * (attempt + 1)` 秒（30・60・90） |
+| それ以外 | — | `2 ** attempt` 秒（1・2・4） |
 
-> 📝 **注意**: このメソッドはプライベートです。直接呼び出さず、`generate_content()`を使用してください。
+#### なぜ中断が要るのか
 
----
+`None` を返して次のブロックへ進む（＝機械的分割へのフォールバック）は、
+**1 ブロックだけ落ちたとき**には正しい。しかし
 
-#### メソッド: `_is_valid_json`
+- API キー切れ・権限不足
+- モデル名の誤り
+- ネットワーク断・継続的なレート制限
 
-**概要**: 文字列が完全なJSONとして解析可能かチェックする。
+のように**全ブロックで等しく失敗する**原因では話が別で、1 ブロックあたり
+`max_retries` 回ぶんの待ちを払い続けたうえ、**LLM を一度も使えていないのに
+「成功」した CSV** が出来上がる。ブロック数が多いほど被害が大きい
+（姉妹リポジトリ grace_v2_local では 1229 ブロックを 185 時間かけて処理し、
+中身のない CSV を書き出した。実測 2026-09-06）。
 
-```python
-def _is_valid_json(self, text: str) -> bool
-```
+**連続**失敗で数えるのが要点で、途中で 1 件でも成功すればカウントは 0 に戻る。
+単発の失敗が積み上がって止まることはない。
 
-| パラメータ | 型 | デフォルト | 説明 |
-|------------|------|-----------|------|
-| `text` | str | - | チェック対象の文字列 |
+回帰は `backend/tests/test_chunking_abort.py` で固定している。
 
-| 項目 | 内容 |
-|------|------|
-| **Input** | `text: str` |
-| **Process** | 1. 空文字列チェック<br>2. `json.loads()`で解析を試行 |
-| **Output** | `bool`: 有効なJSONなら`True`、それ以外は`False` |
-
-```python
-# 内部動作例
-client._is_valid_json('{"key": "value"}')  # True
-client._is_valid_json('{"key": "value"')   # False（閉じ括弧なし）
-client._is_valid_json('')                   # False（空文字列）
-client._is_valid_json(None)                 # False
-```
-
----
-
-#### メソッド: `_is_truncated_response`
-
-**概要**: Gemini APIレスポンスが途中で切断されたかチェックする。`finish_reason`を検査。
-
-```python
-def _is_truncated_response(self, response) -> bool
-```
-
-| パラメータ | 型 | デフォルト | 説明 |
-|------------|------|-----------|------|
-| `response` | GenerateContentResponse | - | Gemini APIレスポンス |
+### 4.5 `AsyncAPIClient.get_stats` / `reset_stats`
 
 | 項目 | 内容 |
 |------|------|
-| **Input** | `response: GenerateContentResponse` |
-| **Process** | 1. `response.candidates[0].finish_reason`を取得<br>2. `STOP`/`END`/`1`（正常終了）以外なら切断と判定 |
-| **Output** | `bool`: 切断されていれば`True`、正常なら`False` |
-
-**finish_reason判定**:
-
-| finish_reason | 判定 |
-|---------------|------|
-| `None` | 正常（`False`） |
-| `"STOP"`, `"END"` | 正常（`False`） |
-| `1`（Enum値） | 正常（`False`） |
-| その他 | 切断（`True`） |
-
----
-
-#### メソッド: `get_stats`
-
-**概要**: API呼び出しの統計情報を取得する。
-
-```python
-def get_stats(self) -> dict
-```
-
-| 項目 | 内容 |
-|------|------|
-| **Input** | なし（selfのみ） |
-| **Process** | 内部カウンタから統計情報を集計 |
-| **Output** | `dict`: 統計情報の辞書 |
+| **Input** | なし |
+| **Process** | カウンタから成功率を計算（取得）／ カウンタを 0 に戻す（リセット） |
+| **Output** | `{"total_requests", "failed_requests", "truncated_responses", "success_rate", "concurrency"}` / `None` |
 
 **戻り値例**:
 
 ```python
-{
-    "total_requests": 100,
-    "failed_requests": 2,
-    "truncated_responses": 5,
-    "success_rate": 98.0,
-    "concurrency": 8
-}
+{"total_requests": 338, "failed_requests": 0, "truncated_responses": 0,
+ "success_rate": 100.0, "concurrency": 8}
 ```
 
-| キー | 型 | 説明 |
-|-----|-----|------|
-| `total_requests` | int | 総リクエスト数 |
-| `failed_requests` | int | 全リトライ失敗したリクエスト数 |
-| `truncated_responses` | int | 切断/不完全JSONが検出された回数 |
-| `success_rate` | float | 成功率（%） |
-| `concurrency` | int | 設定された並列数 |
-
-```python
-# 使用例
-stats = client.get_stats()
-print(f"成功率: {stats['success_rate']:.1f}%")
-print(f"失敗: {stats['failed_requests']}/{stats['total_requests']}")
-```
-
----
-
-#### メソッド: `reset_stats`
-
-**概要**: 統計情報をリセットする。
-
-```python
-def reset_stats(self) -> None
-```
-
-| 項目 | 内容 |
-|------|------|
-| **Input** | なし（selfのみ） |
-| **Process** | `_total_requests`, `_failed_requests`, `_truncated_responses`を0にリセット |
-| **Output** | `None` |
-
-```python
-# 使用例
-client.reset_stats()
-# バッチ処理開始
-for batch in batches:
-    await process_batch(batch, client)
-# バッチ終了後に統計確認
-print(client.get_stats())
-```
+> 📝 `_truncated_responses` は Gemini 時代の切断検出で使っていたカウンタで、
+> 現在は**常に 0**。統計の形を変えないために残してある。
 
 ---
 
@@ -451,176 +358,80 @@ print(client.get_stats())
 |-----|-------------|------|
 | `max_workers` | 8 | 並列実行数 |
 | `max_retries` | 3 | 最大リトライ回数 |
-| `max_output_tokens` | 8192 | 出力トークン制限 |
+| `max_output_tokens` | 8192 | 出力トークン制限（呼び出し側は 16384 を渡す） |
+| `default_model` | `claude-sonnet-4-6` | 既定モデル |
 
-### 5.2 リトライ設定
-
-| 設定 | 値 | 説明 |
-|-----|-----|------|
-| 通常エラー待機 | 2^attempt 秒 | 指数バックオフ（1, 2, 4秒） |
-| レート制限待機 | 30*(attempt+1) 秒 | 長めの待機（30, 60, 90秒） |
-
-### 5.3 レート制限判定キーワード
+### 5.2 `DEFAULT_ABORT_AFTER_CONSECUTIVE_FAILURES`
 
 ```python
-# エラー文字列に以下が含まれる場合、レート制限と判定
-["429", "rate", "quota"]
+DEFAULT_ABORT_AFTER_CONSECUTIVE_FAILURES = int(
+    os.getenv("CHUNKING_ABORT_AFTER_FAILURES", "3")
+)
 ```
+
+| 値 | 挙動 |
+|---|---|
+| `3`（既定） | 3 ブロック連続で失敗したら中断する |
+| `0` | 中断しない（従来どおりフォールバックで進む） |
+| `1` | 最初の失敗で中断する |
+
+### 5.3 レート制限の判定キーワード
+
+エラーメッセージ（小文字化）に `429` / `rate` / `quota` のいずれかが含まれるとき、
+レート制限として待ち時間を延ばす。
 
 ---
 
 ## 6. 使用例
 
-### 6.1 基本的なワークフロー
+### 6.1 基本（チャンク化の 3 段階から）
 
 ```python
-import asyncio
-import os
-from pydantic import BaseModel
-from typing import List
-from chunking import AsyncAPIClient
+from chunking.async_api_client import AsyncAPIClient
 
-# レスポンススキーマ定義
-class AnalysisResult(BaseModel):
-    sentences: List[dict]
-    summary: str
+client = AsyncAPIClient(max_workers=8, max_retries=3, max_output_tokens=16384)
 
-async def main():
-    # 1. クライアント初期化
-    client = AsyncAPIClient(
-        api_key=os.getenv("GOOGLE_API_KEY"),
-        max_workers=8,
-        max_retries=3
-    )
-
-    # 2. API呼び出し
-    result = await client.generate_content(
-        model="gemini-2.0-flash",
-        contents="以下のテキストを分析してください: 今日は良い天気です。",
-        response_schema=AnalysisResult,
-        task_id="analysis_001"
-    )
-
-    # 3. 結果処理
-    if result:
-        import json
-        data = json.loads(result)
-        print(f"分析結果: {data}")
-    else:
-        print("分析に失敗しました")
-
-    # 4. 統計確認
-    stats = client.get_stats()
-    print(f"成功率: {stats['success_rate']:.1f}%")
-
-asyncio.run(main())
+json_text = await client.generate_content(
+    model="claude-sonnet-4-6",
+    contents=prompt,
+    response_schema=Step1Response,
+    task_id="step1_block_3",
+)
+if json_text is None:
+    ...   # このブロックだけ失敗 → 機械的分割へフォールバック
+else:
+    result = Step1Response.model_validate_json(json_text)
 ```
 
-### 6.2 並列バッチ処理
+### 6.2 中断を捕まえる（ジョブ runner 側）
 
 ```python
-import asyncio
-from chunking import AsyncAPIClient
+from chunking.async_api_client import ChunkingAbortedError
 
-async def process_batch(texts: list, client: AsyncAPIClient):
-    """複数テキストを並列処理"""
-    tasks = [
-        client.generate_content(
-            model="gemini-2.0-flash",
-            contents=text,
-            response_schema=MySchema,
-            task_id=f"batch_{i}"
-        )
-        for i, text in enumerate(texts)
-    ]
-
-    # 並列実行（Semaphoreで8並列に制限）
-    results = await asyncio.gather(*tasks)
-    return results
-
-async def main():
-    client = AsyncAPIClient(api_key="your-api-key", max_workers=8)
-
-    texts = ["テキスト1", "テキスト2", "テキスト3", ...]
-
-    # バッチサイズごとに処理
-    batch_size = 50
-    all_results = []
-
-    for i in range(0, len(texts), batch_size):
-        batch = texts[i:i+batch_size]
-        results = await process_batch(batch, client)
-        all_results.extend(results)
-
-        # 進捗表示
-        stats = client.get_stats()
-        print(f"進捗: {i+len(batch)}/{len(texts)}, 成功率: {stats['success_rate']:.1f}%")
-
-    # 最終統計
-    final_stats = client.get_stats()
-    print(f"完了: {final_stats}")
-
-asyncio.run(main())
+try:
+    chunks = run_chunking_sync(text, model=model, ...)
+except ChunkingAbortedError as e:
+    # 原因と対処はメッセージ側が持っている。型名を前置きしない
+    error(f"❌ {e}")
+    return None
 ```
 
-### 6.3 エラーハンドリング付きワークフロー
+### 6.3 中断を無効にする
 
-```python
-import asyncio
-import logging
-from chunking import AsyncAPIClient
-
-logging.basicConfig(level=logging.INFO)
-
-async def safe_process(client: AsyncAPIClient, text: str, task_id: str):
-    """エラーハンドリング付き処理"""
-    try:
-        result = await client.generate_content(
-            model="gemini-2.0-flash",
-            contents=text,
-            response_schema=MySchema,
-            task_id=task_id
-        )
-
-        if result is None:
-            logging.warning(f"[{task_id}] API呼び出し失敗（全リトライ失敗）")
-            return {"status": "failed", "task_id": task_id}
-
-        return {"status": "success", "task_id": task_id, "data": result}
-
-    except Exception as e:
-        logging.error(f"[{task_id}] 予期せぬエラー: {e}")
-        return {"status": "error", "task_id": task_id, "error": str(e)}
-
-async def main():
-    client = AsyncAPIClient(api_key="your-api-key")
-
-    results = await asyncio.gather(*[
-        safe_process(client, text, f"task_{i}")
-        for i, text in enumerate(texts)
-    ])
-
-    # 結果集計
-    success = sum(1 for r in results if r["status"] == "success")
-    failed = sum(1 for r in results if r["status"] == "failed")
-    errors = sum(1 for r in results if r["status"] == "error")
-
-    print(f"成功: {success}, 失敗: {failed}, エラー: {errors}")
-
-asyncio.run(main())
+```bash
+CHUNKING_ABORT_AFTER_FAILURES=0 python -m chunking.csv_text_to_chunks_text_csv
 ```
 
 ---
 
 ## 7. エクスポート
 
-`chunking/__init__.py`でエクスポートされる要素：
+`__all__` の定義はない。公開要素は以下のとおり。
 
 ```python
-__all__ = [
-    # API Client
-    "AsyncAPIClient",
-]
+DEFAULT_ABORT_AFTER_CONSECUTIVE_FAILURES   # 連続失敗の既定許容回数
+ChunkingAbortedError                       # 連続失敗による中断
+AsyncAPIClient                             # 非同期クライアント
 ```
 
 ---
@@ -629,7 +440,8 @@ __all__ = [
 
 | バージョン | 変更内容 |
 |-----------|---------|
-| 1.0 | 初版作成 |
+| 1.0 | 初版作成（Gemini `genai.Client` 前提）（2025-01-29） |
+| 2.0 | **実装と突き合わせて全面改訂。** v1.0 は Gemini 時代のままで、現在は存在しない `_is_valid_json()` / `_is_truncated_response()` / `genai.Client` を載せていた。あわせて `ChunkingAbortedError` と `DEFAULT_ABORT_AFTER_CONSECUTIVE_FAILURES` を追加記述（2026-09-12） |
 
 ---
 
@@ -637,76 +449,28 @@ __all__ = [
 
 ```mermaid
 flowchart LR
-    ASYNC[async_api_client.py]
+    AAC["async_api_client.py"]
 
-    subgraph GOOGLE["google-genai"]
-        GENAI[genai.Client]
-        TYPES[genai.types]
+    subgraph CALLERS["呼び出し元"]
+        CSV["csv_text_to_chunks_text_csv.py"]
     end
 
-    subgraph PYDANTIC["pydantic"]
-        BASEMODEL[BaseModel]
+    subgraph DEPS["依存"]
+        HLM["helper/helper_llm.py"]
+        PYD["pydantic"]
+        ASY["asyncio"]
     end
 
-    subgraph STDLIB["標準ライブラリ"]
-        ASYNCIO[asyncio]
-        JSON[json]
-        LOGGING[logging]
-        TYPING[typing]
-    end
+    CATCH["backend/app/core/data_jobs.py"]
 
-    ASYNC --> GENAI
-    ASYNC --> TYPES
-    ASYNC --> BASEMODEL
-    ASYNC --> ASYNCIO
-    ASYNC --> JSON
-    ASYNC --> LOGGING
-    ASYNC --> TYPING
-
-    GENAI --> GEN_CONTENT["models.generate_content()"]
-    TYPES --> CONFIG["GenerateContentConfig"]
-    ASYNCIO --> SEMAPHORE["Semaphore"]
-    ASYNCIO --> TO_THREAD["to_thread()"]
-```
-
----
-
-## 付録: 処理フロー図
-
-### API呼び出しフロー
-
-```mermaid
-flowchart TB
-    START(["generate_content() 呼び出し"]) --> SEM{"Semaphore<br/>取得可能?"}
-    SEM -->|待機| SEM
-    SEM -->|取得| RETRY["_execute_with_retry()"]
-
-    subgraph RETRY_LOOP["リトライループ (max 3回)"]
-        API["asyncio.to_thread()<br/>Gemini API呼び出し"]
-        API --> TRUNC{"切断<br/>チェック"}
-        TRUNC -->|切断| WAIT["待機 (2^attempt秒)"]
-        TRUNC -->|OK| JSON_CHECK{"JSON<br/>完全性"}
-        JSON_CHECK -->|不完全| WAIT
-        JSON_CHECK -->|OK| SUCCESS(["成功: JSONテキスト返却"])
-        WAIT --> NEXT{"次の<br/>リトライ?"}
-        NEXT -->|Yes| API
-        NEXT -->|No| FAIL(["失敗: None返却"])
-    end
-
-    RETRY --> RETRY_LOOP
-```
-
-### レート制限対応フロー
-
-```mermaid
-flowchart TB
-    ERROR["例外発生"] --> CHECK{"エラー種別"}
-    CHECK -->|"429/rate/quota"| RATE["レート制限"]
-    CHECK -->|その他| NORMAL["通常エラー"]
-
-    RATE --> WAIT_LONG["待機: 30*(attempt+1)秒<br/>(30, 60, 90秒)"]
-    NORMAL --> WAIT_SHORT["待機: 2^attempt秒<br/>(1, 2, 4秒)"]
-
-    WAIT_LONG --> RETRY["リトライ"]
-    WAIT_SHORT --> RETRY
+    CSV --> AAC
+    AAC --> HLM
+    AAC --> PYD
+    AAC --> ASY
+    AAC -->|"ChunkingAbortedError"| CATCH
+classDef default fill:#000,stroke:#fff,color:#fff
+classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
+class AAC,CSV,HLM,PYD,ASY,CATCH default
+style CALLERS fill:#1a1a1a,stroke:#fff,color:#fff
+style DEPS fill:#1a1a1a,stroke:#fff,color:#fff
 ```
