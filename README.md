@@ -1411,18 +1411,45 @@ python qa_qdrant/make_qa_register_qdrant.py      # 2-3. Q/A 生成 + Qdrant 登�
 
 ### 7.1 画面から呼ばれる API クライアント（`frontend/src/api/client.ts`）
 
+**全 18 関数**（`frontend/src/api/client.ts`・2026-09-12 時点）。
+
 ```ts
+// --- Support（基本版 / GRACE-Support） ---
 startQuery(params)                                   // POST /api/support/query
 confirmIntervention(jobId, interventionId, approve)  // POST /api/support/confirm/{job_id}
 fetchVerticals()                                     // GET  /api/verticals
+
+// --- Review（GRACE-Review） ---
 startReview(params)                                  // POST /api/review/submit
 confirmReviewIntervention(jobId, iid, approve)       // POST /api/review/confirm/{job_id}
 fetchRuleSets()                                      // GET  /api/rulesets
+
+// --- 共通（SSE） ---
 subscribeStream(jobId, onEvent, onError, kind)       // GET  /api/{kind}/stream/{job_id}（SSE）
+
+// --- データ管理: ジョブ起動 ---
+startChunking(params)                                // POST /api/chunking/run
+startQaGeneration(params)                            // POST /api/qa/generate
+startRegister(params)                                // POST /api/qdrant/register
+startDelete(params)                                  // POST /api/qdrant/delete
+confirmDataIntervention(jobId, iid, approve)         // POST /api/data/confirm/{job_id}
+fetchDataJobStatus(jobId)                            // GET  /api/data/result/{job_id}
+
+// --- データ管理: Qdrant 参照（読み取り専用） ---
+fetchQdrantHealth()                                  // GET  /api/qdrant/health
+fetchCollections()                                   // GET  /api/qdrant/collections
+fetchCollectionDetail(name)                          // GET  /api/qdrant/collections/{name}
+fetchCollectionPoints(name, ...)                     // GET  /api/qdrant/collections/{name}/points
+fetchInputFiles(dir)                                 // GET  /api/files
 ```
 
-`subscribeStream` は **Support / Review で 1 本を共用**する（SSE のイベント形式が同一のため）。
-戻り値は購読解除関数で、`done` イベントで自動クローズする。
+`subscribeStream` は **Support / Review / データ管理で 1 本を共用**する
+（SSE のイベント形式が同一のため）。戻り値は購読解除関数で、`done` イベントで自動クローズする。
+データ管理の SSE は `kind='data'` で `GET /api/data/stream/{job_id}` を購読する。
+
+> 📌 **2026-09-12 追記**: 以前この一覧には Support / Review の 7 関数しか載っておらず、
+> データ管理タブの 11 関数（`/api/qa/generate`・`/api/data/result/{job_id}`・
+> `/api/qdrant/health`・`/api/qdrant/collections/{name}/points` 等）が抜けていた。
 
 ### 7.2 バックエンドの入口
 
@@ -1441,7 +1468,8 @@ from backend.app.core.jobs import job_manager, JobParams
 | Support の処理ステップ詳細 | [`backend/docs/backend_flow.md`](./backend/docs/backend_flow.md) |
 | Review の処理ステップ詳細 | [`backend/docs/review_flow.md`](./backend/docs/review_flow.md) |
 | Review の設計判断 | [`backend/docs/review_agent_spec.md`](./backend/docs/review_agent_spec.md) |
-| データ管理の全体像（IPO 形式・クラス/関数の詳細） | [`README_DATA.md`](./README_DATA.md) |
+| データ管理の設計全体 | [`backend/docs/data_pipeline.md`](./backend/docs/data_pipeline.md) |
+| データ管理のモジュール別文書への索引 | [`README_DATA.md`](./README_DATA.md)（v2.0 で索引化。IPO 詳細は `backend/docs/` 側） |
 | データ準備パイプラインの設計判断 | [`backend/docs/data_pipeline.md`](./backend/docs/data_pipeline.md) |
 | インストール・環境構築 | [`backend/docs/install_and_setup.md`](./backend/docs/install_and_setup.md) |
 | React コンポーネント仕様 | [`frontend/docs/`](./frontend/docs/) — [`App.md`](./frontend/docs/App.md)（4タブのルート）/ [`SupportPanel.md`](./frontend/docs/SupportPanel.md)（基本版・Support 共用）/ [`QueryForm.md`](./frontend/docs/QueryForm.md)（入力フォーム）/ [`AnswerCard.md`](./frontend/docs/AnswerCard.md)（回答カード）/ [`DocumentView.md`](./frontend/docs/DocumentView.md)（原文＋ハイライト）/ [`FindingList.md`](./frontend/docs/FindingList.md)（指摘カード一覧）/ [`ConfirmModal.md`](./frontend/docs/ConfirmModal.md)（HITL CONFIRM・Support/Review 共用）/ [`Timeline.md`](./frontend/docs/Timeline.md)（ステップトレース・Support/Review 共用）/ [`StepTimeline.md`](./frontend/docs/StepTimeline.md)（Support アダプタ）/ [`ReviewTimeline.md`](./frontend/docs/ReviewTimeline.md)（Review アダプタ）/ [`Markdown.md`](./frontend/docs/Markdown.md)（Markdown レンダラ＋パーサ）/ [`DataPanel.md`](./frontend/docs/DataPanel.md)（データ管理タブのルート）/ [`DataJobPanel.md`](./frontend/docs/DataJobPanel.md)（チャンク化・登録）/ [`CollectionPanel.md`](./frontend/docs/CollectionPanel.md)（コレクション管理・削除）/ [`review_ui.md`](./frontend/docs/review_ui.md)（Review UI） |
