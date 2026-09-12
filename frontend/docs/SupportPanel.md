@@ -1,6 +1,6 @@
 # SupportPanel.tsx - 問い合わせ → 回答 パネル ドキュメント
 
-**Version 1.2** | 最終更新: 2026-08-05
+**Version 1.3** | 最終更新: 2026-09-12
 
 ---
 
@@ -27,8 +27,8 @@
 | ファイル | `frontend/src/components/SupportPanel.tsx` |
 | 種別 | **コンテナコンポーネント**（reducer・副作用・API 呼び出しを束ねる） |
 | 親 | `App.tsx` |
-| 子 | `QueryForm` / `StepTimeline` / `AnswerCard` / `ConfirmModal` |
-| 主な依存 | `../api/client` / `../state/jobReducer` |
+| 子 | `QueryForm` / `StepTimeline` / `AnswerCard` / `ConfirmModal` / `QuestionSelectModal` / `MetaErrorBanner` / `JobClock`（`JobStartLine` / `JobFinishLine`） |
+| 主な依存 | `../api/client` / `../state/jobReducer` / `../state/interventionKind` / `../state/metaFetch` / `../state/useJobTiming` |
 | 対応バックエンド | `backend/app/core/support_agent.py`（`run_support_agent_core` / `STEP_IDS`） |
 
 **基本版タブと GRACE-Support タブで共用**するパネル。両者はまったく同じパイプライン
@@ -50,6 +50,8 @@
 - HITL CONFIRM の承認 / 拒否をバックエンドへ送る
 - `variant` に応じて業界プロファイル一覧の取得可否とフォームの表示を切り替える
 - 実行中バナー・エラーバナーを出す
+- 業界プロファイル取得の**失敗理由**を `MetaErrorBanner` で伝え、再取得させる
+- ジョブの開始・完了時刻を保持し、開始行 / 完了行として表示する
 
 ### 主要機能一覧
 
@@ -61,6 +63,10 @@
 | HITL 応答 | `respond(approve)` | `confirmIntervention()` → `dispatch('confirm_sent')` |
 | 二重送信の防止 | `running` prop | `state.phase === 'running'` を `QueryForm` へ渡す |
 | リード文の切替 | `LEAD[variant]` | 基本版 / Support で説明文を変える |
+| 承認待ちの種別判定 | `interventionKind(state.intervention)` | `'question'` → `QuestionSelectModal` / `'action'` → `ConfirmModal` |
+| メタ取得失敗の可視化 | `metaErrorMessage()` + `MetaErrorBanner` | **握りつぶさない**。理由を出し `onRetry` で再取得 |
+| 所要時間の表示 | `useJobTiming(state.phase)` | 開始は押下時、完了は phase の決着で自動記録 |
+| 複数行入力 | `multiline={variant === 'basic'}` | 基本版のみ textarea |
 
 ---
 
@@ -74,7 +80,7 @@ flowchart TB
     end
     subgraph Container["コンテナ（状態の所有者）"]
         direction TB
-        SP["SupportPanel.tsx<br>useReducer(jobReducer)<br>useState(verticals, confirming)<br>useRef(unsubscribe)"]
+        SP["SupportPanel.tsx<br>useReducer(jobReducer)<br>useState(verticals, verticalsError, loadingVerticals, confirming)<br>useJobTiming(timing)<br>useRef(unsubscribe)"]
     end
     subgraph Presentational["表示コンポーネント"]
         direction TB
@@ -82,16 +88,22 @@ flowchart TB
         Timeline["StepTimeline.tsx<br>ステートレス"]
         Answer["AnswerCard.tsx<br>ステートレス"]
         Modal["ConfirmModal.tsx<br>ステートレス"]
+        QModal["QuestionSelectModal.tsx<br>useState(selected)"]
+        Banner["MetaErrorBanner.tsx<br>ステートレス"]
+        Clock["JobClock.tsx<br>ステートレス"]
     end
 
     App -->|"variant + key"| SP
-    SP -->|"verticals, running, showVertical / onSubmit"| Form
+    SP -->|"verticals, running, showVertical, multiline / onSubmit"| Form
     SP -->|"state"| Timeline
-    SP -->|"result"| Answer
+    SP -->|"result, timing"| Answer
     SP -->|"intervention, actionStep, submitting / onRespond"| Modal
+    SP -->|"intervention, submitting / onRespond"| QModal
+    SP -->|"message, retrying / onRetry"| Banner
+    SP -->|"timing"| Clock
 classDef default fill:#000,stroke:#fff,color:#fff
 classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
-class App,SP,Form,Timeline,Answer,Modal default
+class App,SP,Form,Timeline,Answer,Modal,QModal,Banner,Clock default
 style Root fill:#1a1a1a,stroke:#fff,color:#fff
 style Container fill:#1a1a1a,stroke:#fff,color:#fff
 style Presentational fill:#1a1a1a,stroke:#fff,color:#fff
@@ -115,10 +127,13 @@ export function SupportPanel({ variant = 'vertical' }: { variant?: SupportVarian
 
 | 子 | 渡す props |
 |---|---|
-| `QueryForm` | `verticals` / `running`（`phase === 'running'`）/ `showVertical` / `onSubmit` |
+| `QueryForm` | `verticals` / `running`（`phase === 'running'`）/ `showVertical` / `multiline`（基本版のみ `true`）/ `onSubmit` |
 | `StepTimeline` | `state`（`JobState` 全体） |
-| `AnswerCard` | `result`（`state.result` が非 null のときだけ描画） |
+| `AnswerCard` | `result`（`state.result` が非 null のときだけ描画）/ `timing` |
 | `ConfirmModal` | `intervention` / `actionStep`（`state.steps.action`）/ `submitting` / `onRespond` |
+| `QuestionSelectModal` | `intervention` / `submitting` / `onRespond`（**0-(A) の主質問選択**） |
+| `MetaErrorBanner` | `message`（`verticalsError`）/ `retrying`（`loadingVerticals`）/ `onRetry` |
+| `JobStartLine` / `JobFinishLine` | `timing` |
 
 ### コールバックの契約
 
@@ -126,6 +141,8 @@ export function SupportPanel({ variant = 'vertical' }: { variant?: SupportVarian
 |---|---|---|
 | `onSubmit`（← `QueryForm`） | フォーム submit かつ `query` が空白でなく `running === false` | 前回購読の解除 → ジョブ起動 → SSE 購読開始 |
 | `onRespond`（← `ConfirmModal`） | 承認 / 拒否ボタンの `click` | `confirmIntervention()` を送り、モーダルを閉じる |
+| `onRespond`（← `QuestionSelectModal`） | 主質問を選んで送信 | 第 2 引数 `selectedOption` に選択肢を載せて送る（既定 `null` で従来と互換） |
+| `onRetry`（← `MetaErrorBanner`） | 「再取得」ボタンの `click` | `loadVerticals()` を再実行する |
 
 ---
 
@@ -135,8 +152,11 @@ export function SupportPanel({ variant = 'vertical' }: { variant?: SupportVarian
 
 | 変数 | 型 | 初期値 | 更新契機 | 説明 |
 |---|---|---|---|---|
-| `verticals` | `VerticalInfo[]` | `[]` | マウント時の `fetchVerticals()` | セレクタの選択肢。**基本版では取得しないので空のまま** |
+| `verticals` | `VerticalInfo[]` | `[]` | `loadVerticals()` | セレクタの選択肢。**基本版では取得しないので空のまま** |
+| `verticalsError` | `string \| null` | `null` | `loadVerticals()` の成否 | 取得失敗の理由。非 null で `MetaErrorBanner` を出す |
+| `loadingVerticals` | `boolean` | `false` | `loadVerticals()` の前後 | 再取得中。バナーのボタンを `disabled` にする |
 | `confirming` | `boolean` | `false` | `respond()` の前後 | 承認送信中。モーダルのボタンを `disabled` にする |
+| `timing` | `JobTiming` | `EMPTY_TIMING` | `beginTiming()` / `observeTiming()` | 開始・完了時刻。`useJobTiming(state.phase)` が返す（実体は `useState`） |
 | `unsubscribeRef` | `useRef<(() => void) \| null>` | `null` | 購読開始時 | SSE 解除関数の保持（**再レンダリングで消えないよう ref**） |
 
 > 📝 **`unsubscribeRef` が `useState` ではなく `useRef` である理由**: 解除関数は
@@ -191,6 +211,8 @@ stateDiagram-v2
 |---|---|---|
 | `showVertical` | `variant === 'vertical'` | プロファイル取得の可否・`QueryForm` への受け渡し |
 | `running` | `state.phase === 'running'` | `QueryForm` の入力無効化 |
+| 承認待ちの種別 | `interventionKind(state.intervention)` | `QuestionSelectModal` と `ConfirmModal` の出し分け |
+| `multiline` | `variant === 'basic'` | 基本版だけ textarea（複数行入力） |
 
 ---
 
@@ -200,25 +222,50 @@ stateDiagram-v2
 
 | # | 目的 | 依存配列 | クリーンアップ | 備考 |
 |---|---|---|---|---|
-| 1 | 業界プロファイル一覧の取得 | `[showVertical]` | `() => unsubscribeRef.current?.()` | **基本版（`showVertical=false`）では取得せず、クリーンアップだけ返す** |
+| 1 | 業界プロファイル一覧の取得 | `[showVertical, loadVerticals]` | `() => unsubscribeRef.current?.()` | **基本版（`showVertical=false`）では取得せず、クリーンアップだけ返す** |
+
+取得の本体は `useCallback` に切り出してある。`MetaErrorBanner` の「再取得」からも
+同じ関数を呼ぶためで、`useEffect` の中に直書きすると再取得の経路が作れない。
 
 ```tsx
+const loadVerticals = useCallback(() => {
+  setLoadingVerticals(true);
+  setVerticalsError(null);
+  return fetchVerticals()
+    .then((list) => {
+      setVerticals(list);
+      setVerticalsError(null);
+    })
+    .catch((error: unknown) => {
+      // 空配列に倒すのは正しい（古い選択肢を残すより安全）。
+      // 足りていなかったのは「なぜ空なのか」を伝えること。
+      setVerticals([]);
+      setVerticalsError(metaErrorMessage(error, '業界プロファイル'));
+    })
+    .finally(() => setLoadingVerticals(false));
+}, []);
+
 useEffect(() => {
   // 基本版は業界プロファイルを使わないので取得しない。
   if (!showVertical) return () => unsubscribeRef.current?.();
-  fetchVerticals()
-    .then(setVerticals)
-    .catch(() => setVerticals([]));
+  void loadVerticals();
   return () => unsubscribeRef.current?.();
-}, [showVertical]);
+}, [showVertical, loadVerticals]);
 ```
 
 > ⚠️ **早期 return でもクリーンアップを返している。** `if (!showVertical) return;` と
 > 書くとアンマウント時に `EventSource` が閉じず、購読が残る。**両方の分岐で同じ
 > クリーンアップを返すこと。**
 
-> 📝 **取得失敗は握りつぶして `[]` にする。** バックエンド停止中でも画面は開けるべき
-> だから。セレクタが「（なし）」だけになるので、症状は画面上で分かる。
+> ⚠️ **取得失敗を握りつぶさない（v1.2 で修正した不具合）。** 以前は
+> `.catch(() => setVerticals([]))` だけで、バックエンド（:8000）が落ちていても画面には
+> 「業界プロファイル: （なし）」としか出ず、**なぜ選べないのかが利用者に伝わらなかった**。
+> 空配列に倒すこと自体は正しい（古い選択肢を残すより安全）が、**理由を必ず添える**。
+> 文言の組み立ては `state/metaFetch.ts` の `metaErrorMessage()`（純関数・vitest 10 件）。
+
+| # | 目的 | 依存配列 | 備考 |
+|---|---|---|---|
+| 2 | ジョブ決着の検知 | `useJobTiming` 内部（`[phase]`） | `phase` が `completed` / `failed` になった瞬間に完了時刻を確定する |
 
 ### 4.2 多重購読の防止（2 段構え）
 
@@ -256,7 +303,7 @@ class User,Form,Unsub,Start,JobId,Started,Sub,Ev,Red,UI,Fail default
 
 | 関数 | メソッド | パス | 用途 | 呼ぶ条件 |
 |---|---|---|---|---|
-| `fetchVerticals` | GET | `/api/verticals` | 業界プロファイル一覧 | **`variant === 'vertical'` のときだけ** |
+| `fetchVerticals` | GET | `/api/verticals` | 業界プロファイル一覧 | **`variant === 'vertical'` のときだけ**。失敗は `MetaErrorBanner` へ |
 | `startQuery` | POST | `/api/support/query` | ジョブ起動（202） | フォーム送信時 |
 | `subscribeStream` | GET(SSE) | `/api/support/stream/{job_id}` | ステップ進捗の購読 | 起動成功後 |
 | `confirmIntervention` | POST | `/api/support/confirm/{job_id}` | HITL CONFIRM への承認/拒否 | モーダルのボタン押下 |
@@ -332,13 +379,25 @@ sequenceDiagram
 
 | 表示 | 条件 |
 |---|---|
+| `MetaErrorBanner` | `verticalsError` が非 null（業界プロファイル取得に失敗） |
 | `div.error-banner` | `state.error` が非 null |
 | `div.running-banner`「実行中…」 | `phase === 'running'` **かつ** `intervention` が無い |
-| `AnswerCard` | `state.result` が非 null |
-| `ConfirmModal` | `state.intervention` が非 null |
+| `JobStartLine` | 常時（`timing` に開始時刻が入ってから中身が出る） |
+| `AnswerCard`（完了行を内包） | `state.result` が非 null |
+| `JobFinishLine`（単独） | `state.result` が **null**（＝失敗時） |
+| `QuestionSelectModal` | `intervention` が非 null **かつ** `interventionKind() === 'question'` |
+| `ConfirmModal` | `intervention` が非 null **かつ** `interventionKind() === 'action'` |
 
 > 📝 **承認待ちの間は「実行中…」を出さない。** モーダルが最前面に出ているため、
 > 背後で実行中バナーが重なると「動いているのか待っているのか」が分からなくなる。
+
+> 📝 **完了行の置き場所が 2 通りあるのは失敗時のため。** 通常は `AnswerCard` の末尾に出すが、
+> **失敗するとカード自体が無い**ので、そのときだけパネル直下へ出す
+> （決着したのに時刻が消える、を防ぐ）。
+
+> ⚠️ **承認待ちの 2 種類を `ConfirmModal` の中で見分けない。** vitest は `.test.tsx` を
+> 収集しないため、コンポーネント内の分岐はテストできない。判定は必ず
+> `state/interventionKind.ts`（純関数・vitest 4 件）に置く。
 
 ### 6.3 操作フロー図
 
@@ -402,11 +461,24 @@ class S,V,R,Go,Err,Fail,Stream,I,M,D default
 
 ## 9. テスト
 
-| テストファイル | 対象 | 実行 |
-|---|---|---|
-| `src/state/jobReducer.test.ts` | reducer の畳み込み（7 件） | `npm test` |
-| `src/state/queryParams.test.ts` | 送信ペイロードの組み立て（19 件） | `npm test` |
-| `backend/tests/test_api.py` | 呼び先の API（ジョブ起動・SSE・confirm） | `uv run pytest backend/tests` |
+本パネルが依存する純関数のテスト（**2026-09-12 に `npm test` を実行した実測値**）。
+
+| テストファイル | 対象 | 件数 |
+|---|---|---:|
+| `src/state/jobReducer.test.ts` | reducer の畳み込み | 7 |
+| `src/state/queryParams.test.ts` | 送信ペイロードの組み立て | 25 |
+| `src/state/interventionKind.test.ts` | 承認待ちの種別判定 | 4 |
+| `src/state/metaFetch.test.ts` | メタ取得失敗の文言 | 10 |
+| `src/state/elapsed.test.ts` | 所要時間の整形 | 22 |
+| `src/state/serverTiming.test.ts` | サーバ権威タイムスタンプの反映 | 16 |
+| `src/state/submitKey.test.ts` | 送信キー（IME 変換中は送信しない） | 10 |
+| `src/state/formMemory.test.ts` | タブ切替時の入力退避 | 13 |
+
+`backend/tests/test_api.py` が呼び先の API（ジョブ起動・SSE・confirm）を押さえる
+（`uv run pytest backend/tests`）。
+
+> 📌 **フロント全体は 18 ファイル / 266 件**（同上の実測）。件数は記憶で書かず、
+> 変更時に `npm test` を実行して数え直すこと。
 
 ### テスト方針
 
@@ -427,7 +499,8 @@ class S,V,R,Go,Err,Fail,Stream,I,M,D default
 
 | 版 | 日付 | 変更内容 |
 |---|---|---|
-| 1.1 | 2026-08-29 | 承認待ちモーダルを 2 種類に分岐（`state/interventionKind.ts` の純関数で判定）。0-(A) の主質問選択は `QuestionSelectModal`、従来のアクション承認は `ConfirmModal`。`respond` が `selectedOption` を受け取る（既定 `null` で従来呼び出しと互換） |
-| 1.0 | 2026-08-01 | 初版作成。基本版 / GRACE-Support で共用する `variant` 方式に基づく。早期 return でもクリーンアップを返す必要があること、多重購読を 2 段で防いでいること、承認待ち中は実行中バナーを出さないことを明記 |
+| 1.3 | 2026-09-12 | **本文を実装へ追随させた（それまで §4.1 は修正前のコード `.catch(() => setVerticals([]))` を載せたままだった）。** v1.1〜1.2 で実装済みの `MetaErrorBanner` / `QuestionSelectModal` / `interventionKind` を本文（概要・ツリー図・props・状態管理・副作用・表示の出し分け）へ反映。`useJobTiming` による開始・完了行（`JobClock`）と基本版の複数行入力（`multiline`）を追記。テスト件数を `npm test` の実測値へ差し替え。版番号の重複（1.1 が 2 行）を解消 |
+| 1.2 | 2026-08-30 | **業界プロファイル取得の失敗を握りつぶしていた不具合を修正。** `.catch(() => setVerticals([]))` だとバックエンド停止時に「（なし）しか選べない」としか見えなかったため、`MetaErrorBanner` で理由と復旧手順を表示し再取得できるようにした |
+| 1.1b | 2026-08-29 | 承認待ちモーダルを 2 種類に分岐（`state/interventionKind.ts` の純関数で判定）。0-(A) の主質問選択は `QuestionSelectModal`、従来のアクション承認は `ConfirmModal`。`respond` が `selectedOption` を受け取る（既定 `null` で従来呼び出しと互換） |
 | 1.1 | 2026-08-05 | エラーバナーに `role="alert"` を追加 |
-| 1.2 | 2026-08-05 | **業界プロファイル取得の失敗を握りつぶしていた不具合を修正。** `.catch(() => setVerticals([]))` だとバックエンド停止時に「（なし）しか選べない」としか見えなかったため、`MetaErrorBanner` で理由と復旧手順を表示し再取得できるようにした |
+| 1.0 | 2026-08-01 | 初版作成。基本版 / GRACE-Support で共用する `variant` 方式に基づく。早期 return でもクリーンアップを返す必要があること、多重購読を 2 段で防いでいること、承認待ち中は実行中バナーを出さないことを明記 |

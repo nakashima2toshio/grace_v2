@@ -42,7 +42,8 @@ Generation）に、根拠検証（groundedness）・Web 裏取り・HITL（Human
 | パイプライン中核 | `backend/app/core/support_agent.py::run_support_agent_core` |
 | 自律エージェント基盤 | `grace/` — planner / executor / confidence / intervention / replan / tools |
 | ツール・検索 | `agent_tools.py`, `agent_parallel_search.py`, `agent_cache.py`, `qdrant_client_wrapper.py` |
-| データ準備 | `chunking/`, `qa_generation/`, `qa_qdrant/` |
+| データ準備（CLI） | `chunking/`, `qa_generation/`, `qa_qdrant/` |
+| データ準備（Web） | `backend/app/api/data.py` / `api/qdrant.py`、`backend/app/core/data_jobs.py`、`services/data_pipeline_service.py` |
 | ベクトルDB | Qdrant（`docker-compose/docker-compose.yml`） |
 
 ### 業界プロファイル（vertical）
@@ -51,7 +52,8 @@ Generation）に、根拠検証（groundedness）・Web 裏取り・HITL（Human
 
 ### パイプライン 1 周
 ```
-S1 業界プロファイル適用
+0-(A) 入力・質問分析（複数質問の検知 → 選択 → 再構成）
+ → 0-(B) 業界プロファイル適用
  → ① Plan（planner）
  → ② Execute（内部RAG → reasoning）
  → ③ Confidence（GroundednessVerifier で根拠検証）
@@ -238,10 +240,19 @@ React の型（`KeyboardEvent` 等）に直接依存させず、必要なフィ�
 |---|---|
 | `state/queryParams.ts` | 送信ペイロードの組み立て・基本版での vertical 固定・識別子の有無 |
 | `state/submitKey.ts` | textarea の送信キー（Ctrl+Enter / ⌘+Enter・**IME 変換中は送信しない**） |
+| `state/dataParams.ts` | データ準備フォームの入力 → API パラメータ組み立て（空欄・トリム・null 化） |
 | `state/tabKeys.ts` | タブの矢印キー移動 |
 | `state/formMemory.ts` | タブ切替時の入力退避と復元 |
+| `state/interventionKind.ts` | 承認待ちが action（⑥ 実行承認）か question（0-(A) 主質問の選択）か |
+| `state/metaFetch.ts` | メタ取得失敗を対処可能な文言へ（silent failure を出さない） |
+| `state/timelineAnnounce.ts` | 支援技術へ読み上げる 1 行の決定 |
 | `state/citations.ts` / `highlight.ts` / `elapsed.ts` / `activeJobs.ts` | 表示用の派生値 |
 | `state/jobReducer.ts` / `dataReducer.ts` / `reviewReducer.ts` | ジョブ状態の遷移 |
+
+> `state/useJobTiming.ts` は**例外的にフック**（`useState` / `useEffect` を持つ）。
+> ただし判断は持たず、`Date.now()` の取得と phase の決着検知だけを行い、
+> **整形・比較は `elapsed.ts` の純関数**が受け持つ（テストは `elapsed.test.ts` /
+> `serverTiming.test.ts` 側にある）。ここに分岐を足さないこと。
 
 コンポーネント側に残すのは**入力の保持と描画だけ**にする。
 
