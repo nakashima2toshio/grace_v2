@@ -27,7 +27,8 @@ class ModelConfig:
     # 利用可能なモデル一覧（テキスト生成）
     AVAILABLE_MODELS: List[str] = [
         "claude-sonnet-4-6",            # デフォルト（推論・生成）
-        "claude-haiku-4-5-20251001",    # 高速・文字列処理向け
+        "claude-haiku-4-5-20251001",    # 高速・文字列処理向け（日付指定）
+        "claude-haiku-4-5",             # 同上のエイリアス。チャンキングの既定値
     ]
 
     # デフォルトモデル
@@ -37,9 +38,18 @@ class ModelConfig:
     NO_TEMPERATURE_MODELS: List[str] = []
 
     # モデル料金（$/1K tokens）。Gemini エントリは後方互換のため残置。
+    #
+    # ⚠️ **日付サフィックスの有無で 2 行必要。** 参照は `.get(model, <既定>)` なので、
+    #    表に無いモデル名を渡しても落ちず、**静かに既定値へフォールバックする**。
+    #    チャンキングの既定は `claude-haiku-4-5`（日付なし。
+    #    `chunking/csv_text_to_chunks_text_csv.py` / `backend/app/core/data_jobs.py`）で、
+    #    以前はこの行が無かったためコストと上限が既定値で計算されていた。
+    #    **既定モデル名を変えるときは、この表と MODEL_LIMITS の両方に行を足すこと。**
     MODEL_PRICING: Dict[str, Dict[str, float]] = {
         "claude-sonnet-4-6": {"input": 0.003, "output": 0.015},
         "claude-haiku-4-5-20251001": {"input": 0.001, "output": 0.005},
+        "claude-haiku-4-5": {"input": 0.001, "output": 0.005},
+
         "gemini-3-pro-preview": {"input": 0.00125, "output": 0.010},
         "gemini-2.5-flash-preview": {"input": 0.00015, "output": 0.0035},
         "gemini-2.0-flash": {"input": 0.0001, "output": 0.0004},
@@ -51,6 +61,8 @@ class ModelConfig:
     MODEL_LIMITS: Dict[str, Dict[str, int]] = {
         "claude-sonnet-4-6": {"max_tokens": 200000, "max_output": 8192},
         "claude-haiku-4-5-20251001": {"max_tokens": 200000, "max_output": 8192},
+        "claude-haiku-4-5": {"max_tokens": 200000, "max_output": 8192},
+
         "gemini-3-pro-preview": {"max_tokens": 1000000, "max_output": 64000},
         "gemini-2.5-flash-preview": {"max_tokens": 1000000, "max_output": 64000},
         "gemini-2.0-flash": {"max_tokens": 1000000, "max_output": 8192},

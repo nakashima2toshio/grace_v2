@@ -1,6 +1,6 @@
 # planner.py - GRACE 計画生成エージェント ドキュメント
 
-**Version 3.5** | 最終更新: 2026-09-04
+**Version 3.6** | 最終更新: 2026-09-12
 
 ---
 
@@ -86,7 +86,7 @@ flowchart TB
     subgraph CLIENT["クライアント層"]
         ORCH["Orchestrator / Executor"]
         REPLAN["ReplanManager"]
-        UI["agent_rag.py (Streamlit)"]
+        UI["backend/app/core/support_agent.py<br>（Web からは FastAPI → SSE → React UI）"]
     end
 
     subgraph MODULE["planner.py"]
@@ -1125,6 +1125,7 @@ __all__ = [
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 3.6 | **Streamlit 残骸の除去。** Mermaid の呼び出し元ノードを `support_agent.py` へ是正。`agent_rag.py` は存在しない（2026-09-12） |
 | 1.0 | 初版作成（LLM計画生成のみ） |
 | 2.0 | 二層方式（ルールベース / LLM）の振り分け、フォールバック計画を追加 |
 | 3.0 | IPO形式に全面再構成 |

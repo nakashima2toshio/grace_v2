@@ -1,6 +1,21 @@
 # file_service.py - ファイル操作サービス ドキュメント
 
-**Version 1.0** | 最終更新: 2026-06-17
+**Version 1.1** | 最終更新: 2026-09-12
+
+---
+
+> ## ⚠️ 現在このリポジトリ内に呼び出し元が無い（2026-09-12 実測）
+>
+> `grep -rn "from services" --include='*.py'` で確認した結果、本モジュールの関数を
+> 呼んでいるのは **`services/__init__.py` の再エクスポートだけ**で、
+> `backend/`・`grace/`・`chunking/`・`qa_generation/`・`qa_qdrant/` のいずれからも
+> 呼ばれていない。**Streamlit 版アプリ（`ui/`）の時代に使われていた名残**である。
+>
+> 本書は実装の記述としては有効だが、**「この関数を使えば動く」とは限らない**
+> （現行の Web / CLI 経路には組み込まれていない）。扱いは
+> [`docs/doc_modernization_todo.md`](../../docs/doc_modernization_todo.md) の
+> 残タスクとする。**本書を読んで新しい呼び出しを書く前に、現行経路に同等の実装が
+> 無いか確認すること**（例: ファイル読み込みは `qa_generation/data_io.py` が別に持つ）。
 
 ---
 
@@ -63,7 +78,7 @@
 ```mermaid
 flowchart TB
     subgraph CLIENT["クライアント層"]
-        ST["Streamlit UI"]
+        ST["呼び出し元（現在は無し・冒頭の注記を参照）"]
         AGENT["Agent / Service"]
     end
 
@@ -98,7 +113,7 @@ style EXTERNAL fill:#1a1a1a,stroke:#fff,color:#fff
 
 ### 1.2 データフロー
 
-1. クライアント層（Streamlit UI / Agent）が履歴取得・保存・プレビュー関数を呼び出す
+1. 呼び出し元が履歴取得・保存・プレビュー関数を呼び出す（**現在このリポジトリ内に呼び出し元は無い**・冒頭の注記を参照）
 2. 履歴取得関数は `qa_output/` または `OUTPUT/` をスキャンしファイル情報をDataFrame化
 3. 保存関数は DataFrame を CSV・TXT・JSONメタデータとして `OUTPUT/` に書き出す
 4. プレビュー関数は `services.qdrant_service.map_collection_to_csv()` でCSV名を解決し読み込む
@@ -509,6 +524,7 @@ load_collection_qa_preview
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 1.1 | **Streamlit 残骸の除去。** **現在このリポジトリ内に呼び出し元が無い**ことを冒頭に明記（Streamlit 時代の名残）。Mermaid のクライアント層ノードを是正（2026-09-12） |
 | 1.0 | 初版作成（2026-06-17） |
 
 ---

@@ -1,8 +1,28 @@
 # components/ReviewPanel ほか - GRACE-Review UI ドキュメント
 
-**Version 1.2** | 最終更新: 2026-08-05
+**Version 1.3** | 最終更新: 2026-09-12
 
 ---
+
+> ## 📌 本書の位置づけ（2026-09-12 改訂）
+>
+> **本書は GRACE-Review 画面の「横断文書」である。** `frontend/docs/` の命名規則は
+> `<Component>.md`（`.tsx` と 1:1）だが、本書に対応する単一の `.tsx` は無く、
+> Review 画面**全体**の設計・データの流れ・画面構成を俯瞰する役割を持つ。
+>
+> **個別コンポーネントの仕様は、以下のそれぞれの文書が正とする。**
+> 本書と食い違ったときは個別文書を信じること。
+>
+> | コンポーネント | 個別文書 |
+> |---|---|
+> | `ReviewPanel.tsx` | [`ReviewPanel.md`](./ReviewPanel.md)（2026-09-12 新規） |
+> | `ReviewForm.tsx` | [`ReviewForm.md`](./ReviewForm.md)（2026-09-12 新規） |
+> | `ReviewTimeline.tsx` | [`ReviewTimeline.md`](./ReviewTimeline.md) |
+> | `DocumentView.tsx` | [`DocumentView.md`](./DocumentView.md) |
+> | `FindingList.tsx` / `FindingSummaryBar` | [`FindingList.md`](./FindingList.md) |
+> | `ConfirmModal.tsx` | [`ConfirmModal.md`](./ConfirmModal.md) |
+>
+> 一覧は [`frontend/docs/README.md`](./README.md) を参照。
 
 ## 目次
 
@@ -553,6 +573,7 @@ document.slice(finding.start, finding.end) === finding.excerpt
 
 | 版 | 日付 | 変更内容 |
 |---|---|---|
+| 1.3 | 2026-09-12 | **横断文書として位置づけを明記した。** `ReviewPanel.md` / `ReviewForm.md` を新規作成したため、個別コンポーネントの仕様はそちらが正となる。本書は Review 画面全体の俯瞰に役割を絞る |
 | 1.0 | 2026-07-29 | 初版作成（GRACE-Review STEP6・PR #42 に対応） |
 | 1.1 | 2026-08-05 | **ルールセット取得の失敗を握りつぶしていた不具合を修正。** バックエンド停止時にセレクタが空になるだけで理由が出なかったため、`MetaErrorBanner` で復旧手順を表示し再取得できるようにした |
 | 1.2 | 2026-08-05 | **タブを切り替えると入力が既定値へ戻る不具合を修正。** 貼り付けた文書・タイトル・ルールセット・チェックを `state/formMemory.ts` へ退避し、再マウント時に復元する |

@@ -1,6 +1,6 @@
 # __init__.py - services パッケージ ドキュメント
 
-**Version 1.1** | 最終更新: 2026-09-12
+**Version 1.2** | 最終更新: 2026-09-12
 
 ---
 
@@ -67,7 +67,7 @@
 flowchart TB
     subgraph CLIENT["クライアント層"]
         AGENT["agent_rag / Agent"]
-        UI["Streamlit UI"]
+        UI["React UI (frontend/) + FastAPI (backend/app/)"]
         SCRIPT["バッチ・登録処理"]
     end
 
@@ -465,6 +465,7 @@ __all__ = [
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 1.2 | **Streamlit 残骸の除去。** Mermaid のクライアント層ノードを `React UI + FastAPI` へ是正（2026-09-12） |
 | 1.0 | 初版作成（2026-06-17） |
 | 1.1 | `run_advanced_qa_generation` の削除に追随（死にコードのため `qa_service.py` から撤去し、`__init__.py` の import と `__all__` からも外した）（2026-09-12） |
 

@@ -1,6 +1,6 @@
 # agent_service.py - ReAct + Reflection エージェント（Anthropic Tool Use ネイティブ）ドキュメント
 
-**Version 2.0** | 最終更新: 2026-06-21
+**Version 2.1** | 最終更新: 2026-09-12
 
 ---
 
@@ -21,7 +21,7 @@
 
 ## 概要
 
-`agent_service.py` は、Anthropic Messages API の **ネイティブ Tool Use**（`generate_with_tools()` / `stop_reason == "tool_use"`）を用いた **ReAct エージェント**（`ReActAgent`）を提供するモジュールです。ユーザーの質問に対し「Thought（思考）→ Action（ツール実行）→ Observation（観察）」のサイクルを回して RAG 検索ツールを呼び出し、回答案を作成したのち **Reflection（自己評価・推敲）** フェーズで最終回答に仕上げます。進捗はジェネレータでイベントとして逐次 `yield` され、Streamlit UI（`ui/pages/agent_chat_page.py`）がリアルタイム表示します。
+`agent_service.py` は、Anthropic Messages API の **ネイティブ Tool Use**（`generate_with_tools()` / `stop_reason == "tool_use"`）を用いた **ReAct エージェント**（`ReActAgent`）を提供するモジュールです。ユーザーの質問に対し「Thought（思考）→ Action（ツール実行）→ Observation（観察）」のサイクルを回して RAG 検索ツールを呼び出し、回答案を作成したのち **Reflection（自己評価・推敲）** フェーズで最終回答に仕上げます。進捗はジェネレータでイベントとして逐次 `yield` され、**呼び出し元がそれを配信**します。実際の呼び出し元は `grace/executor.py`（ReAct 実行経路）と `grace/step_trace/benchmark.py`（A/B 計測）の 2 つで、Web からは FastAPI（`/api/support/stream/{job_id}`）が SSE として React UI（`frontend/`）へ中継します。
 
 > 📝 **注意（Anthropic ネイティブ）**: 本モジュールの LLM は **Anthropic Claude**（既定 `claude-sonnet-4-6`、`create_llm_client("anthropic")` 経由）です。Embedding（検索）は **Gemini**（`gemini-embedding-001`）を維持します。会話履歴は Anthropic のステートレス設計に合わせ `self._messages`（dict のリスト）で自前管理し、`execute_turn()` の先頭でリセットします。GRACE 本体（Plan→Execute 型）の現行実装は `grace/executor.py` 側にあり、本 ReAct は `run_legacy_agent` ステップから内部呼び出しされることもあります。
 
@@ -71,7 +71,7 @@
 ```mermaid
 flowchart TB
     subgraph CLIENT["クライアント層"]
-        UI["agent_chat_page.py (Streamlit)"]
+        UI["grace/executor.py<br>（Web からは FastAPI → SSE → React UI）"]
         OTHER["その他の呼び出し元 (GRACE run_legacy_agent 等)"]
     end
 
@@ -107,7 +107,7 @@ style EXTERNAL fill:#1a1a1a,stroke:#fff,color:#fff
 
 ### 1.2 データフロー
 
-1. クライアント層（Streamlit UI）が `ReActAgent(selected_collections=...)` を生成し `execute_turn(user_input)` を呼ぶ。
+1. 呼び出し元（`grace/executor.py` / `grace/step_trace/benchmark.py`）が `ReActAgent(selected_collections=...)` を生成し `execute_turn(user_input)` を呼ぶ。
 2. ReAct ループで `generate_with_tools(messages, tools, system)` を呼び、`stop_reason == "tool_use"` なら対応ツール（`agent_tools`）を実行。
 3. ツール結果（RAG 検索結果）を `tool_result` ブロックとして `self._messages` に追記し、次ループで Anthropic に再送して思考を継続。
 4. `stop_reason` が `tool_use` でなくなった（`end_turn` 等）時点の回答案を取得し、Reflection フェーズ（`tools=[]`）で推敲。
@@ -518,7 +518,7 @@ for event in agent.execute_turn("Tech Mountain はどんな事業ですか？"):
         print("最終回答:", event["content"])
 ```
 
-### 6.2 応用的なワークフロー（Streamlit でのイベント表示）
+### 6.2 応用的なワークフロー（イベントを SSE へ中継する）
 
 ```python
 # 特定コレクション・Dense のみ検索・セッション固定・モデル明示
@@ -529,16 +529,18 @@ agent = ReActAgent(
     use_hybrid_search=False,
 )
 
+# `execute_turn()` はジェネレータなので、受け取った側が好きな形へ変換できる。
+# Web 経路では backend/app/core/jobs.py の Job.emit() が SSE イベントにして流す。
 for event in agent.execute_turn(user_query):
     etype = event["type"]
     if etype == "log":
-        st.markdown(event["content"])
+        job.log(event["content"], step="execute")
     elif etype == "tool_call":
-        st.info(f"🛠️ {event['name']}({event['args']})")
+        job.log(f"🛠️ {event['name']}({event['args']})", step="execute")
     elif etype == "tool_result":
-        st.code(event["content"])
+        job.log(event["content"], step="execute")
     elif etype == "final_answer":
-        st.success(event["content"])
+        answer = event["content"]
 ```
 
 ---
@@ -565,6 +567,7 @@ REFLECTION_INSTRUCTION
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 2.1 | **Streamlit 残骸の除去。** Streamlit UI（`ui/pages/agent_chat_page.py`）を呼び出し元としていたが、**実際の呼び出し元は `grace/executor.py` と `grace/step_trace/benchmark.py`**（Web からは FastAPI → SSE → React UI）。§6.2 の例も SSE 中継の形へ差し替えた（2026-09-12） |
 | 1.0 | 初版作成（2026-06-17）。Gemini ネイティブ function-calling 版の ReAct + Reflection に整合 |
 | 2.0 | 2026-06-21。**Anthropic Tool Use ネイティブ**へ全面改修（`create_llm_client("anthropic")` + `generate_with_tools` / `stop_reason=="tool_use"`、会話履歴 `self._messages` 自前管理）。`_setup_client()`/`_create_chat()` 廃止、`_build_system_instruction()`/`_build_tools()` を追加。設定キー・依存関係・図を Anthropic に更新（Embedding は Gemini 維持） |
 

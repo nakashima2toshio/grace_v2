@@ -3,6 +3,11 @@
 `policy-01`（表示内容と社内規程の不一致）の誤検出を起点にした、3 日間の調査と修正の記録・
 残タスク。**実測ログに基づく**（推測で書かない）。
 
+> **✅ §0 の 4 項目はすべて解消済み。本書は調査記録として残す。**
+> （`docs/qa_tab_port_todo.md` と同じ扱い。2026-09-12 に完了表記を追加）
+> 現在の Review の設計は [`backend/docs/review_agent_spec.md`](../backend/docs/review_agent_spec.md) と
+> [`backend/docs/core_review_gates.md`](../backend/docs/core_review_gates.md) を参照。
+
 ---
 
 ## 0. 現在地

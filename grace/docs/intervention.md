@@ -1,6 +1,6 @@
 # intervention.py - HITL介入システム ドキュメント
 
-**Version 1.3** | 最終更新: 2026-09-04
+**Version 1.4** | 最終更新: 2026-09-12
 
 ---
 
@@ -1482,49 +1482,46 @@ else:
     print("計画がキャンセルされました。")
 ```
 
-### 6.4 Streamlitでの統合例
+### 6.4 Web UI との統合（実装されている経路）
+
+**実際の統合は `backend/app/core/intervention_bridge.py` が行う。**
+`create_intervention_handler(on_confirm=..., on_escalate=...)` に渡すコールバックの中で、
+承認待ちを SSE イベントとして流し、フロントの応答を待つ。
 
 ```python
-import streamlit as st
-from grace.intervention import (
-    create_intervention_handler,
-    InterventionRequest,
-    InterventionResponse,
-    InterventionAction,
+# backend/app/core/intervention_bridge.py の骨子
+#
+# 1. intervention イベントを SSE ストリームへ流す（フロントはモーダルを表示）
+# 2. POST /api/{kind}/confirm/{job_id} が届くまで待つ
+# 3. 届いた応答を InterventionResponse へ変換して grace 側へ返す
+#
+# ⚠️ **タイムアウトしたら安全側（拒否）に倒す。** 既定のタイムアウトは
+#    grace.config の intervention.default_timeout。
+
+pending = PendingIntervention(
+    intervention_id=uuid.uuid4().hex[:12], request=request
 )
-
-# セッション状態で介入リクエストを管理
-if "pending_request" not in st.session_state:
-    st.session_state.pending_request = None
-
-def on_confirm(request: InterventionRequest) -> InterventionResponse:
-    st.session_state.pending_request = request
-    # ここでは一旦Noneを返し、UIで処理する
-    return None
-
-# ハンドラーを作成
-handler = create_intervention_handler(on_confirm=on_confirm)
-
-# 介入リクエストがあれば表示
-if st.session_state.pending_request:
-    request = st.session_state.pending_request
-
-    st.warning(request.message)
-
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        if st.button("続行"):
-            response = InterventionResponse(action=InterventionAction.PROCEED)
-            st.session_state.pending_request = None
-    with col2:
-        if st.button("修正"):
-            response = InterventionResponse(action=InterventionAction.MODIFY)
-            st.session_state.pending_request = None
-    with col3:
-        if st.button("キャンセル"):
-            response = InterventionResponse(action=InterventionAction.CANCEL)
-            st.session_state.pending_request = None
+job.emit(
+    type="intervention",
+    status="waiting",
+    data={"intervention_id": pending.intervention_id, ...},
+)
+# フロントの POST を待って InterventionResponse を返す
 ```
+
+フロント側の受け手は次の 2 つで、**どちらを出すかは純関数が判定する**
+（`frontend/src/state/interventionKind.ts`）。
+
+| 種別 | コンポーネント | 用途 |
+|---|---|---|
+| `action` | `ConfirmModal.tsx` | ⑥ アクション実行の承認（承認 / 拒否の 2 択） |
+| `question` | `QuestionSelectModal.tsx` | 0-(A) 主質問の選択（N 択） |
+
+詳細は [`backend/docs/core_intervention_bridge.md`](../../backend/docs/core_intervention_bridge.md) と
+[`frontend/docs/ConfirmModal.md`](../../frontend/docs/ConfirmModal.md) を参照。
+
+> 📌 **v1 にあった Streamlit（`st.session_state` / `st.button`）の統合例は削除した。**
+> 本リポジトリに Streamlit は無く（CLAUDE.md §9.3）、その例のとおりに書いても動かない。
 
 ---
 
@@ -1560,6 +1557,7 @@ __all__ = [
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 1.4 | **Streamlit 残骸の除去。** §6.4 の Streamlit 統合例を、実装されている経路（`backend/app/core/intervention_bridge.py` と `ConfirmModal` / `QuestionSelectModal`）の説明へ全面差し替え（2026-09-12） |
 | 1.0 | 初版作成 |
 | 1.1 | フォーマット仕様v1.4準拠: 「各責務対応のモジュール」テーブル追加、ASCII図をMermaid v9フローチャートに変更（アーキテクチャ構成図・モジュール構成図・付録依存関係図） |
 | 1.3 | 2026-09-04: **`InterventionHandler` の非公開メソッド 5 件が未記載**だった（AST 照合）ので追加 — `_create_notify_message` / `_create_confirm_message` / `_create_escalate_message`（いずれも `step` の有無で 2 分岐。CONFIRM だけが「続行しますか？」で終わるのは応答を待つ介入だから）、`_format_plan`（`request_confirmation` が確認メッセージに埋める整形）、`_record_history`（`response` が `None` でも記録するので、`response_action` が `None` の行は「通知しただけ」を意味する）。§3.1 の一覧表にも追記 |

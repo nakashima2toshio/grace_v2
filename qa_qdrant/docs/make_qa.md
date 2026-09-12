@@ -62,7 +62,7 @@
 |------|----------------------|
 | LLM（Q/A生成・Agent応答） | Anthropic Claude（`claude-sonnet-4-6`） — APIキー `ANTHROPIC_API_KEY` |
 | Embedding（Qdrant登録・検索） | Gemini `gemini-embedding-001`（3072次元）— APIキー `GOOGLE_API_KEY` |
-| 本モジュールで使う `--model` 既定値 | `gemini-2.5-flash`（`QAPipeline` 経由のLLM呼び出しに渡される値） |
+| 本モジュールで使う `--model` 既定値 | **`claude-sonnet-4-6`**（`make_qa.py:108` の実装値。`QAPipeline` 経由の LLM 呼び出しに渡される） |
 
 ---
 
@@ -299,7 +299,7 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 | 引数 | デフォルト値 | 説明 |
 |------|-------------|------|
-| `--model` | `gemini-2.5-flash` | 使用するLLMモデル名（`QAPipeline` に渡される） |
+| `--model` | `claude-sonnet-4-6` | 使用する LLM モデル名（Anthropic Claude・`QAPipeline` に渡される） |
 | `--output` | `{PROJECT_ROOT}/qa_output/pipeline` | 出力ディレクトリ |
 | `--max-docs` | `None` | 処理する最大チャンク数（無制限） |
 | `--analyze-coverage` | `False` | カバレージ分析を実行するフラグ |

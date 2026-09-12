@@ -29,7 +29,7 @@
 
 - チャンク済みCSVファイルの読み込みと検証
 - チャンクデータの分析とQ/A数の動的決定
-- LLM（Gemini API）を使用したQ/Aペアの生成
+- LLM（Anthropic API）を使用したQ/Aペアの生成
 - 生成結果の保存（CSV、JSONサマリー）
 - オプションでカバレージ分析の実行
 - Celery並列処理のサポート（オプション）
@@ -78,7 +78,7 @@ flowchart TB
     end
 
     subgraph EXTERNAL["外部サービス層"]
-        GEMINI[Gemini API]
+        GEMINI[Anthropic API<br>claude-sonnet-4-6]
     end
 
     subgraph STORAGE["ストレージ層"]
@@ -201,8 +201,8 @@ flowchart TB
 
 | ライブラリ | バージョン | 用途 |
 |-----------|-----------|------|
-| `google-genai` | 最新 | Gemini API（新API） |
-| `google-generativeai` | フォールバック | Gemini API（旧API） |
+| `anthropic` | 最新 | **Q/A 生成の LLM**（`claude-sonnet-4-6`・鍵 `ANTHROPIC_API_KEY`） |
+| `google-genai` | 最新 | **Embedding 専用**（`gemini-embedding-001`・3072 次元・鍵 `GOOGLE_API_KEY`） |
 | `pandas` | - | DataFrame処理 |
 | `pathlib` | 標準 | パス操作 |
 
@@ -269,7 +269,7 @@ Q/A生成パイプライン全体を制御するクラス。チャンク済みCS
 QAPipeline(
     dataset_name: Optional[str] = None,
     input_file: Optional[str] = None,
-    model: str = "gemini-2.0-flash",
+    model: str = "claude-sonnet-4-6",
     output_dir: str = "qa_output/pipeline",
     max_docs: Optional[int] = None,
     client: Optional[LLMClient] = None
@@ -280,7 +280,7 @@ QAPipeline(
 |------------|------|-----------|------|
 | `dataset_name` | Optional[str] | None | 事前定義データセット名（cc_news, wikipedia_ja等） |
 | `input_file` | Optional[str] | None | チャンク済みCSVファイルのパス |
-| `model` | str | "gemini-2.0-flash" | 使用するGeminiモデル |
+| `model` | str | "claude-sonnet-4-6" | 使用する LLM モデル（Anthropic Claude） |
 | `output_dir` | str | "qa_output/pipeline" | 出力ディレクトリ |
 | `max_docs` | Optional[int] | None | 処理する最大チャンク数 |
 | `client` | Optional[LLMClient] | None | LLMクライアント（DI用） |
@@ -459,18 +459,18 @@ def run(
 
 #### コンストラクタ: `__init__`
 
-**概要**: SmartQAGeneratorを初期化し、Gemini APIクライアントを準備する。
+**概要**: SmartQAGeneratorを初期化し、統一 LLM クライアント（`create_llm_client("anthropic")`）を準備する。
 
 ```python
 SmartQAGenerator(
-    model: str = "gemini-2.0-flash",
+    model: str = "claude-sonnet-4-6",
     api_key: Optional[str] = None
 )
 ```
 
 | パラメータ | 型 | デフォルト | 説明 |
 |------------|------|-----------|------|
-| `model` | str | "gemini-2.0-flash" | 使用するGeminiモデル |
+| `model` | str | "claude-sonnet-4-6" | 使用する LLM モデル（Anthropic Claude） |
 | `api_key` | Optional[str] | None | API Key（Noneの場合は環境変数から取得） |
 
 | 項目 | 内容 |
@@ -601,7 +601,7 @@ def process_chunk(self, chunk_text: str) -> Dict
 
 ```python
 # 使用例
-generator = SmartQAGenerator(model="gemini-2.0-flash")
+generator = SmartQAGenerator(model="claude-sonnet-4-6")
 result = generator.process_chunk("チャンクテキスト...")
 
 if result['success']:
@@ -686,7 +686,7 @@ def analyze_qa_statistics(results: List[Dict]) -> Dict
 
 | 設定項目 | 値 | 説明 |
 |---------|-----|------|
-| デフォルトモデル | `gemini-2.0-flash` | 使用するGeminiモデル |
+| デフォルトモデル | `claude-sonnet-4-6` | 使用する LLM モデル（Anthropic Claude） |
 | 分析時temperature | 0.1 | 分析プロンプトの温度 |
 | 生成時temperature | 0.3 | Q/A生成プロンプトの温度 |
 | Q/A数範囲 | 0-5 | 1チャンクあたりの生成Q/A数 |
@@ -701,7 +701,7 @@ def analyze_qa_statistics(results: List[Dict]) -> Dict
 from qa_generation.smart_qa_generator import SmartQAGenerator
 
 # 初期化
-generator = SmartQAGenerator(model="gemini-2.0-flash")
+generator = SmartQAGenerator(model="claude-sonnet-4-6")
 
 # チャンクテキスト
 chunk_text = """
@@ -728,7 +728,7 @@ from qa_generation.pipeline import QAPipeline
 # パイプライン初期化
 pipeline = QAPipeline(
     input_file="output_chunked/data_chunks.csv",
-    model="gemini-2.0-flash",
+    model="claude-sonnet-4-6",
     output_dir="qa_output/pipeline",
     max_docs=10  # テスト用に制限
 )

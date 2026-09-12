@@ -1,6 +1,21 @@
 # dataset_service.py - データセット操作サービス ドキュメント
 
-**Version 1.0** | 最終更新: 2026-06-17
+**Version 1.1** | 最終更新: 2026-09-12
+
+---
+
+> ## ⚠️ 現在このリポジトリ内に呼び出し元が無い（2026-09-12 実測）
+>
+> `grep -rn "from services" --include='*.py'` で確認した結果、本モジュールの関数を
+> 呼んでいるのは **`services/__init__.py` の再エクスポートだけ**で、
+> `backend/`・`grace/`・`chunking/`・`qa_generation/`・`qa_qdrant/` のいずれからも
+> 呼ばれていない。**Streamlit 版アプリ（`ui/`）の時代に使われていた名残**である。
+>
+> 本書は実装の記述としては有効だが、**「この関数を使えば動く」とは限らない**
+> （現行の Web / CLI 経路には組み込まれていない）。扱いは
+> [`docs/doc_modernization_todo.md`](../../docs/doc_modernization_todo.md) の
+> 残タスクとする。**本書を読んで新しい呼び出しを書く前に、現行経路に同等の実装が
+> 無いか確認すること**（例: ファイル読み込みは `qa_generation/data_io.py` が別に持つ）。
 
 ---
 
@@ -23,7 +38,7 @@
 
 `dataset_service.py`は、日本語RAG Q&Aシステムにおけるデータセットの取得・読み込み・前処理を担当するサービスモジュールです。HuggingFace公開データセットやLivedoorニュースコーパスのダウンロード、ユーザーがアップロードしたファイル（CSV/TXT/JSON/JSONL）の読み込み、そしてそれらから RAG パイプラインで共通利用する `Combined_Text` カラムを生成するテキスト抽出処理を提供します。
 
-本モジュールはクラスを持たず、すべて関数ベースで構成されており、Streamlit UI やデータ登録スクリプトから呼び出されることを想定しています。LLM（Anthropic Claude）や Embedding（Gemini `gemini-embedding-001`、3072次元）の処理は行わず、その前段となる素データの整形のみを担います。
+本モジュールはクラスを持たず、すべて関数ベースで構成されています（**現在の呼び出し元については冒頭の注記を参照**）。LLM（Anthropic Claude）や Embedding（Gemini `gemini-embedding-001`、3072次元）の処理は行わず、その前段となる素データの整形のみを担います。
 
 ### 主な責務
 
@@ -62,7 +77,7 @@
 ```mermaid
 flowchart TB
     subgraph CLIENT["クライアント層"]
-        ST["Streamlit UI"]
+        ST["呼び出し元（現在は無し・冒頭の注記を参照）"]
         REG["データ登録スクリプト"]
         CLI["CLIツール"]
     end
@@ -323,7 +338,7 @@ print(df["category"].value_counts())
 
 #### `load_uploaded_file`
 
-**概要**: Streamlitの`file_uploader`等で取得したファイルを拡張子に応じて読み込み、`Combined_Text`カラムを付与したDataFrameを返します。
+**概要**: ファイルオブジェクト（またはパス）を拡張子に応じて読み込み、`Combined_Text`カラムを付与したDataFrameを返します。
 
 ```python
 def load_uploaded_file(uploaded_file) -> pd.DataFrame
@@ -347,15 +362,16 @@ def load_uploaded_file(uploaded_file) -> pd.DataFrame
 ```
 
 ```python
-# 使用例
-import streamlit as st
+# 使用例（CLI / スクリプトから）
 from services.dataset_service import load_uploaded_file
 
-uploaded = st.file_uploader("ファイルを選択", type=["csv", "txt", "json", "jsonl"])
-if uploaded is not None:
-    df = load_uploaded_file(uploaded)
-    st.dataframe(df, use_container_width=True)
+df = load_uploaded_file("OUTPUT/cc_news_1per.csv")
+print(df.head())
 ```
+
+> ⚠️ **現行の Web 経路はこの関数を使っていない。** データ管理タブの入力ファイル
+> 選択は `GET /api/files`（`backend/app/api/qdrant.py`）で候補を出し、実処理は
+> `services/data_pipeline_service.py` と `qa_generation/data_io.py` が持つ。
 
 > 📝 **注意**: 未対応の拡張子、または不正なJSON構造（リスト/オブジェクト以外）の場合は`ValueError`を送出し、その他の読み込みエラーは再送出されます。
 
@@ -486,6 +502,7 @@ load_uploaded_file         # アップロードファイルの読み込み
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 1.1 | **Streamlit 残骸の除去。** **現在このリポジトリ内に呼び出し元が無い**ことを冒頭に明記（Streamlit 時代の名残）。`import streamlit as st` を使った例を CLI の例へ差し替えた（2026-09-12） |
 | 1.0 | 初版作成（2026-06-17） |
 
 ---

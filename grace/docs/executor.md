@@ -1,6 +1,6 @@
 # executor.py - GRACE計画実行エージェント ドキュメント
 
-**Version 4.2** | 最終更新: 2026-09-04
+**Version 4.3** | 最終更新: 2026-09-12
 
 ---
 
@@ -121,7 +121,7 @@
 flowchart TB
     subgraph CLIENT["クライアント層"]
         PLAN["ExecutionPlan (from Planner)"]
-        UI["Streamlit UI / benchmark"]
+        UI["backend/app/core/support_agent.py<br>/ grace/step_trace/benchmark.py"]
     end
 
     subgraph MODULE["executor.py"]
@@ -2055,6 +2055,7 @@ __all__ = [
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 4.3 | **Streamlit 残骸の除去。** Mermaid の呼び出し元ノードを `support_agent.py / benchmark.py` へ是正。Streamlit は本リポジトリに無い（2026-09-12） |
 | 0.1.0 | 初版作成 |
 | 1.0 | ドキュメント改修: フォーマット v1.2準拠、主な責務・主要機能一覧・IPO詳細に「**概要**:」ラベルを追加 |
 | 2.0 | フォーマット v1.4準拠: ASCII図をMermaid v9に全面変更、「各責務対応のモジュール」テーブル追加、補助メソッドのIPO詳細を追加 |

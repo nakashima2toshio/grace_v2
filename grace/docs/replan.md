@@ -1,6 +1,6 @@
 # replan.py - GRACE 動的リプランニングシステム ドキュメント
 
-**Version 2.0** | 最終更新: 2026-09-04
+**Version 2.1** | 最終更新: 2026-09-12
 
 ---
 
@@ -75,7 +75,7 @@ flowchart TB
     subgraph CLIENT["クライアント層"]
         EXEC["Executor"]
         ORCHESTRATOR["GRACE Orchestrator"]
-        UI["agent_rag.py (Streamlit)"]
+        UI["backend/app/core/support_agent.py<br>（Web からは FastAPI → SSE → React UI）"]
     end
 
     subgraph MODULE["replan.py"]
@@ -1082,6 +1082,7 @@ __all__ = [
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 2.1 | **Streamlit 残骸の除去。** Mermaid の呼び出し元ノードを `support_agent.py` へ是正。`agent_rag.py` は存在しない（2026-09-12） |
 | 1.0 | 初版作成（リプラントリガー・戦略・ReplanManager） |
 | 1.2 | ReplanOrchestrator を追加、自動リプランフローを整理 |
 | 1.3 | フォールバックチェーン（`_SEARCH_FALLBACK_CHAIN`）を追加 |

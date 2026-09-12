@@ -186,7 +186,7 @@ class QAPipeline:
     def __init__(self,
                  dataset_name: str = None,
                  input_file: str = None,      # チャンク済みCSV
-                 model: str = "gemini-2.0-flash",
+                 model: str = "claude-sonnet-4-6",
                  output_dir: str = "qa_output/pipeline",
                  max_docs: int = None):
         """
@@ -249,7 +249,7 @@ def _load_chunks_from_csv(self, csv_path: str) -> List[Dict]:
 class SmartQAGenerator:
     """コンテンツを考慮したインテリジェントQ/A生成（v2.5）"""
 
-    def __init__(self, model: str = "gemini-2.0-flash", api_key: str = None):
+    def __init__(self, model: str = "claude-sonnet-4-6", api_key: str = None):
         """
         初期化
 
@@ -423,7 +423,7 @@ python qa_qdrant/make_qa.py [OPTIONS]
 --input-file PATH        # チャンク済みCSVファイルパス
 
 # === 共通パラメータ ===
---model NAME             # LLMモデル (default: gemini-2.0-flash)
+--model NAME             # LLMモデル (default: claude-sonnet-4-6 / Anthropic Claude)
 --output DIR             # 出力ディレクトリ (default: qa_output/pipeline)
 --max-docs N             # 処理する最大チャンク数
 
@@ -464,7 +464,7 @@ python qa_qdrant/make_qa_register_qdrant.py [OPTIONS]
 --block-size N           # 結合する行数 (default: 400)
 
 # === Q/A生成オプション ===
---model NAME             # LLMモデル (default: gemini-2.0-flash)
+--model NAME             # LLMモデル (default: claude-sonnet-4-6 / Anthropic Claude)
 --use-smart-generation   # スマート生成有効 (default: True)
 --no-smart-generation    # 従来方式
 --batch-chunks N         # バッチあたりのチャンク数 (default: 3)
@@ -681,10 +681,10 @@ CELERY_RESULT_BACKEND=redis://localhost:6379/0
 - **2段階処理**: 分析（temperature=0.1）→ 生成（temperature=0.3）
 - **フォールバック**: API障害時は文字数ベースで簡易判定
 
-### 10.2 Gemini API
+### 10.2 Embedding（Gemini API）
 
 - **google.genai** パッケージ使用（新API）
-- 埋め込み: 3072次元（Gemini最大精度）
+- 埋め込み: `gemini-embedding-001` 3072 次元（**Embedding のみ Gemini**。LLM は Anthropic）
 - フォールバック: google.generativeai（旧API）
 
 ### 10.3 並列処理

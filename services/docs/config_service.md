@@ -1,6 +1,6 @@
 # config_service.py - 設定管理サービス ドキュメント
 
-**Version 1.0** | 最終更新: 2026-06-17
+**Version 1.1** | 最終更新: 2026-09-12
 
 ---
 
@@ -75,7 +75,7 @@ flowchart TB
     subgraph CLIENT["クライアント層"]
         AGENT["GRACE Agent"]
         SERVICES["他サービスモジュール"]
-        UI["Streamlit UI"]
+        UI["React UI (frontend/) + FastAPI (backend/app/)"]
     end
 
     subgraph MODULE["config_service.py"]
@@ -844,6 +844,7 @@ __all__ = [
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 1.1 | **Streamlit 残骸の除去。** Mermaid のクライアント層ノードを `React UI + FastAPI` へ是正（2026-09-12） |
 | 1.0 | 初版作成（2026-06-17） |
 
 ---

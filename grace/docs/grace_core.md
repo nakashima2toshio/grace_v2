@@ -1,6 +1,6 @@
 # grace_core.md - GRACE コアモジュール群（Planner 系）アーキテクチャ ドキュメント
 
-**Version 2.0** | 最終更新: 2026-09-04
+**Version 2.1** | 最終更新: 2026-09-12
 
 ---
 
@@ -140,7 +140,7 @@ class START,PLANNER,EXECUTOR,TOOLS,CONFIDENCE,CALIBRATION,INTERVENTION,REPLAN,ME
 ```mermaid
 flowchart TB
     subgraph CLIENT["クライアント層"]
-        UI["Streamlit UI<br>(agent_rag.py)"]
+        UI["React UI (frontend/)<br>← FastAPI (backend/app/) ← SSE"]
         BENCH["ベンチマーク<br>(benchmark.py)"]
         API["API / CLI"]
     end
@@ -879,6 +879,7 @@ __all__ = [
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 2.1 | **Streamlit 残骸の除去。** Mermaid の UI ノードを `React UI ← FastAPI ← SSE` へ是正。`agent_rag.py` は存在しない（2026-09-12） |
 | 1.0 | 初版作成（A グループ 8 モジュールの横断まとめ。先頭にモジュール・ブロック図、3 層構成図、モジュール構成図、処理シーケンス、横断設定表を整備） |
 | 1.1 | 目次・本文の採番を整理（モジュール別サマリーのサブ番号 3.1–3.8 を本文番号と一致させ、目次を明示番号付き箇条書きに変更）。新章「4. 実行メモリが貯まるまで（planner → executor → memory）」を例データ・場合分け・黒背景シーケンス図つきで追加し、以降の章を 5〜9 に繰り下げ |
 | 2.0 | 実装との突き合わせによる訂正。(1) **行番号参照 13 件を全廃**（`planner.py:232`→実際は 254、`executor.py:991`→1026、`executor.py:432`/`:698`→463/729、`executor.py:1891`→2164、`memory.py:147`→161、`memory.py:192`→206 と、ほぼすべてズレていた）。シンボル名参照へ置換した。(2) **§4.5 の `_record_memory` が修正前のコードのままだった**ため、現行実装（`dynamic_steps` ＋ `PlanStep.dynamic` を成否判定から除外し、`_final_answer_of()` の有無も条件に入れる）へ差し替え、回帰の経緯を注記。旧記述のままでは「全ステップ success」が条件に読めるが、それは Web 障害だけで RAG コレクションに失敗が刻まれる不具合そのものだった。(3) 文書冒頭のタイトルが旧名 `grace_a.md` のままだったのを `grace_core.md` へ是正 |
