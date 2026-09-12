@@ -1,6 +1,6 @@
 # frontend/docs 棚卸し
 
-**Version 1.0** | 最終更新: 2026-09-12
+**Version 1.1** | 最終更新: 2026-09-12
 
 `frontend/`（Vite + React 18 + TypeScript）のドキュメント一覧と、実装への追随状況・
 欠落・残タスクをまとめる。
@@ -33,11 +33,11 @@
 
 | # | 問題 | 状態 |
 |---|---|---|
-| 1 | `ReviewPanel` / `ReviewForm` / `JobClock` / `MetaErrorBanner` に対応する文書が無い | ⏳ 未対応（§3） |
+| 1 | `ReviewPanel` / `ReviewForm` / `JobClock` / `MetaErrorBanner` に対応する文書が無い | ✅ 解消（4 件を新規作成。§3） |
 | 2 | `SupportPanel.md` §4.1 が**修正前のコード**（`.catch(() => setVerticals([]))`）を載せていた | ✅ 解消（v1.3 で本文を実装へ追随） |
 | 3 | `frontend/docs` に索引が無く、欠落を検知できなかった | ✅ 解消（本書） |
-| 4 | `review_ui.md` が対応する `.tsx` を持たず、命名規則（`<Component>.md`）から外れている | ⏳ 未対応（§7 の #2） |
-| 5 | 5 件の文書でヘッダー日付が実装の最終更新より古い | ⏳ 未対応（§7 の #1） |
+| 4 | `review_ui.md` が対応する `.tsx` を持たず、命名規則（`<Component>.md`）から外れている | ✅ 解消（v1.3 で**横断文書**と位置づけを明記） |
+| 5 | 6 件の文書でヘッダー日付が実装の最終更新より古い | ✅ 解消（**内容は実装と一致していた**。§3.1） |
 
 ---
 
@@ -50,57 +50,75 @@
 | `SupportPanel.md` | `components/SupportPanel.tsx` — 基本版 / GRACE-Support 共用 | 184 | 1.3 | ★★★ |
 | `DataJobPanel.md` | `components/DataJobPanel.tsx` — データ準備ジョブ 3 種 | 736 | 1.2 | ★★★ |
 | `DataPanel.md` | `components/DataPanel.tsx` — データ管理タブの枠 | 94 | 1.2 | ★★ |
-| `CollectionPanel.md` | `components/CollectionPanel.tsx` — コレクション管理 | 406 | 1.1 | ★★ |
+| `CollectionPanel.md` | `components/CollectionPanel.tsx` — コレクション管理 | 406 | 1.2 | ★★ |
 | `App.md` | `App.tsx` — タブ切替とパネルの振り分け | 86 | 1.2 | ★★ |
-| — | `components/ReviewPanel.tsx` — GRACE-Review 本体 | 200 | **欠落** | ★★★ |
+| `ReviewPanel.md` | `components/ReviewPanel.tsx` — GRACE-Review 本体 | 200 | 1.0 | ★★★ |
 
 ### 2.2 入力・モーダル
 
 | 文書 | 対象 | 実装行数 | 版 | 重要度 |
 |---|---|---:|---|:--:|
 | `QueryForm.md` | `components/QueryForm.tsx` | 266 | 1.2 | ★★★ |
-| `ConfirmModal.md` | `components/ConfirmModal.tsx` — HITL アクション承認 | 95 | 1.0 | ★★ |
+| `ConfirmModal.md` | `components/ConfirmModal.tsx` — HITL アクション承認 | 95 | 1.1 | ★★ |
 | `QuestionSelectModal.md` | `components/QuestionSelectModal.tsx` — 0-(A) 主質問の選択 | 76 | 1.0 | ★★ |
-| — | `components/ReviewForm.tsx` | 210 | **欠落** | ★★ |
+| `ReviewForm.md` | `components/ReviewForm.tsx` | 210 | 1.0 | ★★ |
 
 ### 2.3 表示コンポーネント
 
 | 文書 | 対象 | 実装行数 | 版 | 重要度 |
 |---|---|---:|---|:--:|
 | `AnswerCard.md` | `components/AnswerCard.tsx` | 226 | 1.2 | ★★★ |
-| `FindingList.md` | `components/FindingList.tsx` | 128 | 1.0 | ★★ |
+| `FindingList.md` | `components/FindingList.tsx` | 128 | 1.1 | ★★ |
 | `Markdown.md` | `components/Markdown.tsx`（`markdown/parseMarkdown.ts`） | 114 | 1.1 | ★★ |
 | `Timeline.md` | `components/Timeline.tsx` | 77 | 1.1 | ★★ |
-| `StepTimeline.md` | `components/StepTimeline.tsx` | 45 | 1.0 | ★★ |
-| `ReviewTimeline.md` | `components/ReviewTimeline.tsx` | 64 | 1.0 | ★ |
-| `DocumentView.md` | `components/DocumentView.tsx` | 49 | 1.0 | ★ |
-| — | `components/JobClock.tsx` — 開始行 / 完了行 | 47 | **欠落** | ★ |
-| — | `components/MetaErrorBanner.tsx` — メタ取得失敗の表示 | 24 | **欠落** | ★ |
+| `StepTimeline.md` | `components/StepTimeline.tsx` | 45 | 1.1 | ★★ |
+| `ReviewTimeline.md` | `components/ReviewTimeline.tsx` | 64 | 1.1 | ★ |
+| `DocumentView.md` | `components/DocumentView.tsx` | 49 | 1.1 | ★ |
+| `JobClock.md` | `components/JobClock.tsx` — 開始行 / 完了行 | 47 | 1.0 | ★ |
+| `MetaErrorBanner.md` | `components/MetaErrorBanner.tsx` — メタ取得失敗の表示 | 24 | 1.0 | ★ |
 
 ### 2.4 横断文書
 
 | 文書 | 内容 | 版 | 備考 |
 |---|---|---|---|
-| `review_ui.md` | GRACE-Review 画面全体の設計 | 1.2 | 対応する `.tsx` が無い横断文書（§7 の #2） |
+| `review_ui.md` | GRACE-Review 画面全体の設計を俯瞰する**横断文書** | 1.3 | 対応する `.tsx` は無い。個別仕様は各 `<Component>.md` が正（v1.3 で明記） |
 
 ---
 
 ## 3. 実装カバレッジ（欠落している文書）
 
-`frontend/src/components/*.tsx` は **18 件**、対応する `<Component>.md` は **14 件**。
+`frontend/src/components/*.tsx` は **18 件**、対応する `<Component>.md` も **18 件**。
+**欠落は無い**（2026-09-12 に 4 件を新規作成して解消）。
 
-| コンポーネント | 実装の最終更新 | 欠落の影響 |
+| コンポーネント | 文書 | 作成日 |
 |---|---|---|
-| `ReviewPanel.tsx` | 2026-09-12 | **Review タブの中核**。`review_ui.md` が部分的に触れるだけで、props・reducer・SSE の記述が無い |
-| `ReviewForm.tsx` | 2026-08-20 | 単体テスト `ReviewForm.examples.test.ts`（17 件）は在るが、仕様書が無い |
-| `JobClock.tsx` | 2026-08-18 | ルート `README.md` の対応表に 1 行あるのみ |
-| `MetaErrorBanner.tsx` | 2026-08-18 | `SupportPanel.md` v1.3 から参照されるが、単体の文書が無い |
+| `ReviewPanel.tsx` | `ReviewPanel.md` | 2026-09-12 |
+| `ReviewForm.tsx` | `ReviewForm.md` | 2026-09-12 |
+| `JobClock.tsx` | `JobClock.md` | 2026-09-12 |
+| `MetaErrorBanner.tsx` | `MetaErrorBanner.md` | 2026-09-12 |
 
 > 📌 `main.tsx`（10 行）・`types.ts`（390 行）・`api/client.ts`（287 行）には個別文書が無い。
 > `types.ts` はバックエンドのスキーマと 1:1 で `backend/docs/schemas.md` が正、
 > `api/client.ts` は各パネル文書の「API 通信」節が実質の記述である。**意図的に持たない。**
 
----
+### 3.1 ヘッダー日付が遅れていた 6 件 — 内容は一致していた
+
+ヘッダーの「最終更新」が実装の最終コミットより古い文書が 6 件あったため、
+**実装と突き合わせて確認した**（2026-09-12）。
+
+| 文書 | 確認したこと | 結果 |
+|---|---|---|
+| `ConfirmModal.md` / `DocumentView.md` / `FindingList.md` | Props の TS ブロックが実装の逐語コピーか | **一致** |
+| `ReviewTimeline.md` / `StepTimeline.md` | export シグネチャ・ステップ数（ともに 9） | **一致** |
+| `CollectionPanel.md` | export シグネチャ（props なし） | **一致** |
+
+**内容の修正は不要だった。** 遅れていたのはヘッダーの日付だけで、本文は
+同じコミットで更新されていた。検証した事実を残すため版を 1 つ上げ、
+変更履歴に「差分が無いことを確認」と記録した。
+
+> 📌 **「日付が古い ＝ 内容も古い」とは限らない。** 逆に `SupportPanel.md` v1.2 は
+> **変更履歴だけが新しく本文が古い**（修正前のコードを載せていた）という、
+> より危険な状態だった。**日付ではなく本文を実装と突き合わせて判断すること。**
 
 ## 4. state/ 純関数の一覧
 
@@ -184,10 +202,12 @@ npm run build    # 本番ビルド
 
 | # | 内容 | 優先 |
 |---|---|:--:|
-| 1 | ヘッダー日付が実装より古い 5 件（`CollectionPanel` / `ConfirmModal` / `DocumentView` / `FindingList` / `ReviewTimeline` / `StepTimeline`）の Props を実装と突き合わせる | 高 |
-| 2 | `review_ui.md` を「Review 画面の横断文書」と位置づけ直し、`ReviewPanel.md` / `ReviewForm.md` と役割を分ける | 中 |
-| 3 | §3 の欠落 4 件を `a_react_page_md_format.md` に従って作成する | 高 |
-| 4 | ルート `README.md` の画像リンク切れ 25 件（`docs/images/`）を撮影して埋める | 高 |
+| 1 | ~~ヘッダー日付が古い 6 件の Props 突き合わせ~~ | ✅ 完了（§3.1・差分なし） |
+| 2 | ~~`review_ui.md` の位置づけ直し~~ | ✅ 完了（v1.3） |
+| 3 | ~~欠落 4 件の文書作成~~ | ✅ 完了（§3） |
+| 4 | ルート `README.md` のスクリーンショット残り 14 枚（`ANTHROPIC_API_KEY` と Qdrant のある環境が必要） | 中 |
+| 5 | `ReviewForm` のアクセシビリティ（タイトル・文書 textarea に `<label>` が無い／文字数超過が `aria-live` で伝わらない） | 中 |
+| 6 | `ReviewPanel` の打ち切り警告 `.warn-banner` に `role` が無い | 低 |
 
 詳細と根拠は [`docs/doc_modernization_todo.md`](../../docs/doc_modernization_todo.md) を参照。
 
@@ -197,4 +217,5 @@ npm run build    # 本番ビルド
 
 | 版 | 日付 | 変更内容 |
 |---|---|---|
+| 1.1 | 2026-09-12 | 欠落 4 件（`ReviewPanel` / `ReviewForm` / `JobClock` / `MetaErrorBanner`）を新規作成して解消。ヘッダー日付が遅れていた 6 件を実装と突き合わせ、**差分が無いことを確認**（§3.1）。`review_ui.md` を横断文書として位置づけ直し。残タスクにアクセシビリティの 2 件を追加 |
 | 1.0 | 2026-09-12 | 初版作成。文書一覧・実装カバレッジ（欠落 4 件）・state 純関数 16 件・テスト件数（`npm test` の実測 18 ファイル / 266 件）を記載 |
