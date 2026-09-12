@@ -8,7 +8,7 @@ from typing import Iterator
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 
-from backend.app.core.jobs import JobParams, job_manager
+from backend.app.core.jobs import JobParams, done_event, job_manager
 from backend.app.schemas import (
     ConfirmRequest,
     ConfirmResponse,
@@ -53,7 +53,7 @@ def stream_events(job_id: str) -> StreamingResponse:
                 continue
             yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
         # 終端: フロントが EventSource を閉じるための番兵
-        yield f"data: {json.dumps({'type': 'done', 'status': job.status}, ensure_ascii=False)}\n\n"
+        yield f"data: {json.dumps(done_event(job), ensure_ascii=False)}\n\n"
 
     return StreamingResponse(
         sse(),
@@ -83,4 +83,7 @@ def get_result(job_id: str) -> JobStatusResponse:
     job = job_manager.get(job_id)
     if job is None:
         raise HTTPException(status_code=404, detail="job not found")
-    return JobStatusResponse(job_id=job.job_id, status=job.status, result=job.result)
+    return JobStatusResponse(
+        job_id=job.job_id, status=job.status, result=job.result,
+        created_at=job.created_at, finished_at=job.finished_at,
+    )

@@ -41,7 +41,7 @@ const LEAD: Record<SupportVariant, string> = {
 export function SupportPanel({ variant = 'vertical' }: { variant?: SupportVariant }) {
   const [state, dispatch] = useReducer(jobReducer, initialJobState);
   // 開始・完了時刻。完了の記録は phase の決着を見て自動で入る（useJobTiming）。
-  const [timing, beginTiming] = useJobTiming(state.phase);
+  const [timing, beginTiming, observeTiming] = useJobTiming(state.phase);
   const [verticals, setVerticals] = useState<VerticalInfo[]>([]);
   // 取得に失敗した理由。null なら成功（または未取得）。
   // ⚠️ **握りつぶさない**。以前は空配列に倒すだけで、バックエンドが落ちていても
@@ -85,7 +85,10 @@ export function SupportPanel({ variant = 'vertical' }: { variant?: SupportVarian
       dispatch({ type: 'started', jobId: job_id });
       unsubscribeRef.current = subscribeStream(
         job_id,
-        (event) => dispatch({ type: 'event', event }),
+        (event) => {
+          observeTiming(event);
+          dispatch({ type: 'event', event });
+        },
         (message) => dispatch({ type: 'failed', message }),
         'support',
       );

@@ -5,7 +5,13 @@ export type Decision = 'answer' | 'escalate';
 /** SSE（/api/support/stream/{job_id}）で届く進捗イベント。 */
 export interface SupportEvent {
   seq?: number;
+  /** イベント発生時刻（サーバ時計・エポック秒）。`done` では実行の完了時刻。 */
   ts?: number;
+  /**
+   * `done` イベントだけが持つ、ジョブの**受付時刻**（サーバ時計・エポック秒）。
+   * `state/elapsed.ts::applyServerEvent` が所要時間の起点に使う。
+   */
+  started_at?: number | null;
   type: 'step' | 'log' | 'intervention' | 'result' | 'error' | 'done';
   step?: string | null;
   status?: string | null;
@@ -377,4 +383,8 @@ export interface DataJobStatusResponse {
   kind: string;
   status: 'running' | 'completed' | 'failed';
   result: DataJobResult | null;
+  /** 実行開始時刻（サーバ時計・エポック秒）。旧バックエンドでは undefined。 */
+  created_at?: number | null;
+  /** 実行完了時刻（サーバ時計・エポック秒）。実行中は null。 */
+  finished_at?: number | null;
 }

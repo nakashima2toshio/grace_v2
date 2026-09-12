@@ -1,6 +1,6 @@
 # schemas.py - API スキーマ（Pydantic）ドキュメント
 
-**Version 1.4** | 最終更新: 2026-09-12
+**Version 1.5** | 最終更新: 2026-09-12
 
 ---
 
@@ -460,6 +460,8 @@ class JobStatusResponse(BaseModel):
     job_id: str
     status: Literal["running", "completed", "failed"]
     result: Optional[SupportResultModel] = None
+    created_at: Optional[float] = None
+    finished_at: Optional[float] = None
 ```
 
 | フィールド | 型 | デフォルト | 説明 |
@@ -467,6 +469,13 @@ class JobStatusResponse(BaseModel):
 | `job_id` | str | - | ジョブ ID |
 | `status` | Literal[...] | - | running / completed / failed |
 | `result` | Optional[SupportResultModel] | None | 完了時の結果 |
+| `created_at` | Optional[float] | None | 実行開始（POST 受付）時刻・サーバ時計のエポック秒 |
+| `finished_at` | Optional[float] | None | 実行完了時刻。実行中は None |
+
+> 📝 **`created_at` / `finished_at` は SSE を購読していない経路のためにある。**
+> 通常はイベントの `ts` から所要時間を組み立てるが、結果だけを引く・リロード直後の
+> 経路ではブラウザ側の開始時刻が無い。ジョブ側の実測値をそのまま返しておけば
+> そこでも所要時間を出せる。
 
 | 項目 | 内容 |
 |------|------|
@@ -704,7 +713,15 @@ class ReviewJobStatusResponse(BaseModel):
     job_id: str
     status: Literal["running", "completed", "failed"]
     result: Optional[ReviewResultModel] = None
+    created_at: Optional[float] = None
+    finished_at: Optional[float] = None
 ```
+
+> 📝 **`created_at` / `finished_at` は SSE を購読していない経路のためにある。**
+> 通常はイベントの `ts` から所要時間を組み立てるが、結果だけを引く・リロード直後の
+> 経路ではブラウザ側の開始時刻が無い。ジョブ側の実測値をそのまま返しておけば
+> そこでも所要時間を出せる。
+
 
 | 項目 | 内容 |
 |------|------|
@@ -858,13 +875,21 @@ class DeleteCollectionsRequest(BaseModel):
 ```python
 class DataJobStatusResponse(BaseModel):
     job_id: str
-    kind: str                                              # "chunking" / "register" / "delete"
+    kind: str                          # "chunking" / "qa" / "register" / "delete"
     status: Literal["running", "completed", "failed"]
     result: Optional[Dict[str, Any]] = None
+    created_at: Optional[float] = None
+    finished_at: Optional[float] = None
 ```
 
 > 📝 **`result` を素の `dict` にしてある**のは、結果の形がジョブ種別で違うため。
 > 受け手は `kind` で判別する。
+
+> 📝 **`created_at` / `finished_at` は SSE を購読していない経路のためにある。**
+> 通常はイベントの `ts` から所要時間を組み立てるが、結果だけを引く・リロード直後の
+> 経路ではブラウザ側の開始時刻が無い。ジョブ側の実測値をそのまま返しておけば
+> そこでも所要時間を出せる。
+
 
 ---
 
@@ -997,6 +1022,7 @@ ReviewResultModel, ReviewJobStatusResponse, RuleSetInfo
 | 1.1 | 2026-07-29 | GRACE-Review のスキーマ 7 モデル＋`MAX_DOCUMENT_CHARS` を追加（PR #41）。Support 側のモデルは無変更 |
 | 1.2 | 2026-08-01 | `QueryRequest` に `identity`（本人確認の識別子・CLI の `--identity` 相当）を追加。実際に照合される条件（`ec` ＋ `dry_run=False` ＋ `SUPPORT_IDENTITY_FILE`）を注記 |
 | 1.4 | 2026-09-12 | `QaGenerationRequest` を追加（`POST /api/qa/generate`）。`DataJobStatusResponse` の `kind` が 4 種になったことを反映 |
+| 1.5 | 2026-09-12 | 3 つの状態レスポンス（`JobStatusResponse` / `ReviewJobStatusResponse` / `DataJobStatusResponse`）に `created_at` / `finished_at`（サーバ時計・エポック秒）を追加。SSE を購読していない経路でも所要時間を出せるようにするもの |
 
 ---
 

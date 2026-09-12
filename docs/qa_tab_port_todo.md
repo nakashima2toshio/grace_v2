@@ -296,11 +296,11 @@ Q/A 生成は文章生成の比重が大きい）。
 
 | 候補 | 内容 | 備考 |
 |---|---|---|
-| サーバ時計による所要時間 | `done_event()` / `created_at` / `finished_at` / `state/serverTiming.ts` / `useJobTiming` の `observeTiming` | SSE 未購読でも所要時間が出る。3 タブ共通の改善 |
+| ~~サーバ時計による所要時間~~ | `done_event()` / `created_at` / `finished_at` / `elapsed.ts` の追加分 / `useJobTiming` の `observe` | **✅ 2026-09-12 実装済み**（`state/serverTiming.ts` ではなく `elapsed.ts` の末尾に入っていた） |
 | `ChunkingAbortedError` の握り | LLM 連続失敗をメッセージ付きで error にする | grace_v2 の `chunking/` に**この例外は無い**（`grep` で 0 件）。移植するなら例外の追加から |
-| `qa_qdrant/docs/01_install.md` の `start_celery.sh` | リポジトリに無いスクリプトを「推奨」として案内している | §3-2 |
-| `services/qa_service.py::run_advanced_qa_generation` | `import qa_generator_runner` するが **`qa_generator_runner.py` は存在しない**（呼ぶと確実に失敗する死にコード） | 削除可否の判断が要る |
-| `services/docs/data_pipeline_service.md` | `services/docs/` に**この 1 本だけ無い**（両リポジトリとも） | §9.1 の IPO 形式で新規作成 |
+| ~~`qa_qdrant/docs/01_install.md` の `start_celery.sh`~~ | リポジトリに無いスクリプトを「推奨」として案内していた | **✅ 2026-09-12 対応済み**（スクリプトを移植。あわせて `-Q qa_generation` という存在しないキュー名も是正） |
+| ~~`services/qa_service.py::run_advanced_qa_generation`~~ | `import qa_generator_runner` するが `qa_generator_runner.py` は存在しない死にコードだった | **✅ 2026-09-12 削除済み** |
+| ~~`services/docs/data_pipeline_service.md`~~ | `services/docs/` にこの 1 本だけ無かった | **✅ 2026-09-12 新規作成**（IPO 形式・513 行） |
 
 ---
 

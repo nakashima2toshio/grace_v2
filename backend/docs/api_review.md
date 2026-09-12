@@ -312,8 +312,14 @@ data: {"seq":1,"ts":1753800000.2,"type":"log","step":"ruleset","message":"  ル�
 
 data: {"seq":42,"ts":1753800012.9,"type":"result","data":{"document_title":"LP案","findings":[...]}}
 
-data: {"type":"done","status":"completed"}
+data: {"type":"done","status":"completed","ts":1753800013.0,"started_at":1753800000.0}
 ```
+
+> ⚠️ **終端イベントは実行時刻を運ぶ**（`core/jobs.py::done_event`）。
+> `ts` は完了時刻、`started_at` は **POST の受付時刻**（`Job.created_at`）。
+> フロントはこの 2 つから所要時間を組み立てる（`frontend/src/state/elapsed.ts`）ので、
+> どちらかが欠けると「完了 … ／ 所要 …」の行がまるごと消える。
+
 
 > **イベントは常に先頭からリプレイされる。** 完了後に購読しても全イベントが取れるため、
 > 再接続・途中購読で取りこぼさない。`seq` は 0 起点の通し番号で、欠番の検知に使える。

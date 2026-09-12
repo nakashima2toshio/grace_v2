@@ -223,7 +223,7 @@ def stream_events(job_id: str) -> StreamingResponse
 | 項目 | 内容 |
 |------|------|
 | **Input** | `job_id: str` |
-| **Process** | 1. `job_manager.get(job_id)`、無ければ 404<br>2. `job.stream_events()` を反復<br>3. None は `: keepalive` コメント、イベントは `data: {JSON}`<br>4. 終端で `data: {"type": "done", "status": ...}` を送出 |
+| **Process** | 1. `job_manager.get(job_id)`、無ければ 404<br>2. `job.stream_events()` を反復<br>3. None は `: keepalive` コメント、イベントは `data: {JSON}`<br>4. 終端で `done_event(job)`（`type` / `status` / `ts` / `started_at`）を送出 |
 | **Output** | `StreamingResponse`（media_type=`text/event-stream`、`Cache-Control: no-cache` / `X-Accel-Buffering: no`） |
 
 **戻り値例**:
@@ -232,8 +232,14 @@ data: {"seq": 0, "ts": 1752543210.1, "type": "log", "step": "plan", "message": "
 
 : keepalive
 
-data: {"type": "done", "status": "completed"}
+data: {"type": "done", "status": "completed", "ts": 1752543299.8, "started_at": 1752543210.0}
 ```
+
+> ⚠️ **終端イベントは実行時刻を運ぶ**（`core/jobs.py::done_event`）。
+> `ts` は完了時刻、`started_at` は **POST の受付時刻**（`Job.created_at`）。
+> フロントはこの 2 つから所要時間を組み立てる（`frontend/src/state/elapsed.ts`）ので、
+> どちらかが欠けると「完了 … ／ 所要 …」の行がまるごと消える。
+
 
 ```python
 # 使用例（フロント）
