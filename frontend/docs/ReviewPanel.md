@@ -1,6 +1,6 @@
 # ReviewPanel.tsx - 文書 → 指摘 パネル ドキュメント
 
-**Version 1.0** | 最終更新: 2026-09-12
+**Version 1.1** | 最終更新: 2026-09-12
 
 ---
 
@@ -467,7 +467,7 @@ class S,V,R,Go,Err,Fail,Stream,I,M,D,Sel default
 | 観点 | 状態 | 補足 |
 |---|:--:|---|
 | エラーが支援技術へ通知されるか | ✅ | `.error-banner` に `role="alert"` |
-| 打ち切り警告が通知されるか | ❌ | `.warn-banner`（打ち切り）に `role` 指定が無い（`MetaErrorBanner` の方は付いている） |
+| 打ち切り警告が通知されるか | ✅ | `.warn-banner`（打ち切り）に `role="alert"` を付けた（v1.1）。**結果が不完全であるという重要な事実**なので出現を通知する |
 | 点検中であることが伝わるか | ❌ | `.running-banner` は視覚のみ。`aria-busy` 等は未設定 |
 | 二重送信が防げるか | ✅ | `running` で送信ボタンを `disabled` |
 | 承認の二重送信が防げるか | ✅ | `confirming` でモーダルのボタンを `disabled` |
@@ -508,4 +508,5 @@ class S,V,R,Go,Err,Fail,Stream,I,M,D,Sel default
 
 | 版 | 日付 | 変更内容 |
 |---|---|---|
+| 1.1 | 2026-09-12 | **打ち切り警告 `.warn-banner` に `role="alert"` を追加**（`MetaErrorBanner` / `CollectionPanel` と同じ扱い）。結果が不完全であることは利用者が気付くべき事実なので、視覚のみの表示では足りなかった |
 | 1.0 | 2026-09-12 | 初版作成。実装は 2026-08 からあり `review_ui.md` が部分的に触れるだけで、props・reducer・SSE を記した単体の文書が無かった |

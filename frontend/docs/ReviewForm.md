@@ -1,6 +1,6 @@
 # ReviewForm.tsx - 文書レビュー入力フォーム ドキュメント
 
-**Version 1.0** | 最終更新: 2026-09-12
+**Version 1.1** | 最終更新: 2026-09-12
 
 ---
 
@@ -27,7 +27,7 @@
 | 種別 | **状態保持コンポーネント**（`useState` × 7） |
 | 親 | `ReviewPanel.tsx` |
 | 子 | なし |
-| 主な依存 | `../state/formMemory`（`recallReviewForm` / `rememberReviewForm`） |
+| 主な依存 | `../state/formMemory`（`recallReviewForm` / `rememberReviewForm`）/ `../state/documentLimit`（`documentLimit`） |
 | 対応バックエンド | `POST /api/review/submit`（`api/review.py`）/ `ReviewRequest`（`schemas.py`） |
 
 GRACE-Review の入力フォーム。**文書 textarea・ルールセットセレクタ・実行オプション・
@@ -45,8 +45,9 @@ GRACE-Review の入力フォーム。**文書 textarea・ルールセットセ�
 | 機能 | 実装 | 説明 |
 |---|---|---|
 | 入力の退避・復元 | `recallReviewForm()` / `rememberReviewForm()` | **タブ切替はアンマウント**なので退避しないと全部消える |
-| 文字数の上限判定 | `tooLong = document.length > MAX_DOCUMENT_CHARS` | 50,000 字。`schemas.py` の `MAX_DOCUMENT_CHARS` と一致させる |
+| 文字数の上限判定 | `documentLimit(document, MAX_DOCUMENT_CHARS)` | 50,000 字。`schemas.py` の `MAX_DOCUMENT_CHARS` と一致させる。**判定・表示文言・アナウンス文言を純関数が返す** |
 | 送信可否 | `canSubmit` | 空白のみ不可・上限超過不可・実行中不可 |
+| 上限超過の通知 | `aria-invalid` ＋ sr-only のライブ領域 | 超過した瞬間に 1 回だけ読み上げる（下記 §7） |
 | ルールセット注記 | `selected` から対象法令・常時チェック件数・支持率を表示 | 選択中のルールセットの中身を見せる |
 | 例文チップ | `EXAMPLES.map(...)` | 3 件。**テストから参照するため `export` している** |
 
@@ -140,9 +141,17 @@ interface Props {
 
 | 値 | 導出 | 用途 |
 |---|---|---|
-| `tooLong` | `document.length > MAX_DOCUMENT_CHARS` | カウンタの警告表示・送信の抑止 |
-| `canSubmit` | `!!document.trim() && !tooLong && !running` | 送信ボタンの `disabled` |
+| `limit` | `documentLimit(document, MAX_DOCUMENT_CHARS)` | 下記 3 つをまとめて返す純関数の結果 |
+| `limit.over` | 同上 | カウンタの `.over`・`aria-invalid`・送信の抑止 |
+| `limit.label` | 同上 | カウンタの表示文言（超過時は対処方法つき） |
+| `limit.announcement` | 同上 | ライブ領域の文言。`null` なら読み上げない |
+| `canSubmit` | `!!document.trim() && !limit.over && !running` | 送信ボタンの `disabled` |
 | `selected` | `rulesets.find((r) => r.id === ruleset)` | 対象法令・常時チェック件数・支持率の注記 |
+
+> ⚠️ **アナウンス文言に文字数を入れないこと。** `aria-live` はテキストが変わるたびに
+> 読み上げるため、文字数を混ぜると**1 打鍵ごとに読み上げが走って実用にならない**。
+> `documentLimit()` は超過中は**長さに依存しない固定文**を返すので、超えた瞬間に
+> 1 回だけ鳴る。この性質は `documentLimit.test.ts` が明示的に検証している。
 
 ---
 
@@ -267,16 +276,46 @@ onSubmit({
 
 | 観点 | 状態 | 補足 |
 |---|:--:|---|
-| 各入力にラベルがあるか | ⚠️ 一部 | チェックボックスは `<label>` で囲んでいるが、**タイトル入力と文書 textarea は `placeholder` のみ**（`<label>` なし） |
-| 文字数超過が伝わるか | ⚠️ | `.review-counter.over` は**視覚のみ**。`aria-live` / `aria-invalid` は未設定 |
+| 各入力にラベルがあるか | ✅ | チェックボックスは `<label>` で囲み、**タイトルと文書には `.sr-only` のラベル**を付けた（`placeholder` は入力すると消えるのでラベルの代わりにならない） |
+| 文字数超過が伝わるか | ✅ | `aria-invalid` ＋ `aria-describedby="review-counter"` ＋ sr-only のライブ領域 |
+| 超過の読み上げが繰り返されないか | ✅ | 超過中の文言が長さに依存しないため、1 回だけ鳴る |
 | 二重送信が防げるか | ✅ | `canSubmit` で送信ボタンを `disabled` |
 | 実行中の入力が防げるか | ✅ | 全入力に `disabled={running}` |
 | キーボードのみで操作できるか | ✅ | すべて `<input>` / `<select>` / `<textarea>` / `<button>` |
 
-> 📌 **改善候補**: タイトル・文書に `<label>` を付ける、超過時に `aria-invalid` と
-> `aria-live` を足す。いずれも未対応（本書作成時点の事実）。
+### 上限超過の伝え方（v1.1 で追加）
 
----
+```tsx
+<label className="sr-only" htmlFor="review-document">点検する文書</label>
+<textarea
+  id="review-document"
+  aria-invalid={limit.over}
+  aria-describedby="review-counter"
+  …
+/>
+<div id="review-counter" className={`review-counter${limit.over ? ' over' : ''}`}>
+  {limit.label}
+</div>
+<p className="sr-only" aria-live="polite" aria-atomic="true">
+  {limit.announcement ?? ''}
+</p>
+```
+
+| 手段 | 伝わること |
+|---|---|
+| `.review-counter.over`（赤字） | **視覚**: 超過と対処方法 |
+| `aria-invalid` | **状態**: この入力が不正であること |
+| `aria-describedby` | **文脈**: フォーカス時に「N / M 文字」が読まれる |
+| `aria-live` のライブ領域 | **変化**: 超えた瞬間に 1 回だけ通知 |
+
+`.sr-only` は視覚的に隠して支援技術には読ませる定番手法（`styles.css`）。
+`display:none` / `visibility:hidden` にすると**読み上げからも消える**ので使わない。
+
+> 📌 **実機で確認した挙動**（2026-09-12・Playwright）:
+> `getByLabel('文書タイトル')` / `getByLabel('点検する文書')` がそれぞれ 1 件ヒット、
+> 通常時 `aria-invalid="false"` ＋ ライブ領域が空、超過時 `aria-invalid="true"` ＋
+> ライブ領域に文言、さらに入力しても文言が変わらないこと（再読み上げなし）、
+> 送信ボタンが `disabled` になること。README のスロット **[E-03]** がこの状態の画面。
 
 ## 8. テスト
 
@@ -284,8 +323,9 @@ onSubmit({
 |---|---|---:|
 | `src/components/ReviewForm.examples.test.ts` | **`EXAMPLES` の中身**（各例文が満たすべき条件） | 17 |
 | `src/state/formMemory.test.ts` | 入力の退避と復元 | 13 |
+| `src/state/documentLimit.test.ts` | 上限の境界・表示文言・**アナウンス文言の不変性** | 10 |
 
-**2026-09-12 に `npm test` を実行した実測値。**
+**2026-09-12 に `npm test` を実行した実測値**（フロント全体は 19 ファイル / 276 件）。
 
 ### テスト方針
 
@@ -302,4 +342,5 @@ onSubmit({
 
 | 版 | 日付 | 変更内容 |
 |---|---|---|
+| 1.1 | 2026-09-12 | **アクセシビリティを改善。** タイトルと文書に `.sr-only` のラベルを付け、上限超過を `aria-invalid` ＋ `aria-describedby` ＋ ライブ領域で伝えるようにした。判定・文言は `state/documentLimit.ts`（純関数・vitest 10 件）へ切り出し、**超過中のアナウンス文言を長さに依存させない**ことで再読み上げを防いでいる |
 | 1.0 | 2026-09-12 | 初版作成。実装は 2026-08-20 からあったが文書が無かった（`frontend/docs/README.md` の索引が無く欠落を検知できていなかった） |

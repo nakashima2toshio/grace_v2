@@ -3,6 +3,7 @@
 // ⚠️ 入力内容は `state/formMemory.ts` へ退避する。タブ切替はアンマウントなので、
 //    退避しないと貼り付けた文書もチェックも既定値へ戻る（詳細はそちらの冒頭）。
 import { FormEvent, useEffect, useState } from 'react';
+import { documentLimit } from '../state/documentLimit';
 import { recallReviewForm, rememberReviewForm } from '../state/formMemory';
 import type { ReviewParams, RuleSetInfo } from '../types';
 
@@ -91,8 +92,9 @@ export function ReviewForm({ rulesets, running, onSubmit }: Props) {
     rememberReviewForm({ document, title, ruleset, useWeb, dryRun, verbose });
   }, [document, title, ruleset, useWeb, dryRun, verbose]);
 
-  const tooLong = document.length > MAX_DOCUMENT_CHARS;
-  const canSubmit = !!document.trim() && !tooLong && !running;
+  // 文字数の判定・表示文言・アナウンス文言は純関数へ出す（CLAUDE.md §6）。
+  const limit = documentLimit(document, MAX_DOCUMENT_CHARS);
+  const canSubmit = !!document.trim() && !limit.over && !running;
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
@@ -113,7 +115,13 @@ export function ReviewForm({ rulesets, running, onSubmit }: Props) {
   return (
     <form className="review-form" onSubmit={submit}>
       <div className="review-row">
+        {/* 視覚的にはプレースホルダで足りるが、支援技術にはラベルが要る。
+            placeholder は入力すると消えるため、ラベルの代わりにならない。 */}
+        <label className="sr-only" htmlFor="review-title">
+          文書タイトル
+        </label>
         <input
+          id="review-title"
           type="text"
           value={title}
           placeholder="文書タイトル（例: 春キャンペーンLP案）"
@@ -125,18 +133,31 @@ export function ReviewForm({ rulesets, running, onSubmit }: Props) {
         </button>
       </div>
 
+      <label className="sr-only" htmlFor="review-document">
+        点検する文書
+      </label>
       <textarea
+        id="review-document"
         className="review-document"
         value={document}
         placeholder="点検したい広告文・LP・バナー原稿を貼り付けてください"
         rows={12}
         onChange={(e) => setDocument(e.target.value)}
         disabled={running}
+        // 上限超過を支援技術へ伝える。カウンタを説明として紐づけるので、
+        // フォーカスした時点で「N / M 文字」が読まれる。
+        aria-invalid={limit.over}
+        aria-describedby="review-counter"
       />
-      <div className={`review-counter${tooLong ? ' over' : ''}`}>
-        {document.length.toLocaleString()} / {MAX_DOCUMENT_CHARS.toLocaleString()} 文字
-        {tooLong && '（上限を超えています。分割して実行してください）'}
+      <div id="review-counter" className={`review-counter${limit.over ? ' over' : ''}`}>
+        {limit.label}
       </div>
+      {/* 超過した瞬間だけ読み上げるライブ領域。文言は長さに依存しないので、
+          超過したまま入力を続けても読み上げは繰り返されない
+          （判定は state/documentLimit.ts・vitest 10 件）。 */}
+      <p className="sr-only" aria-live="polite" aria-atomic="true">
+        {limit.announcement ?? ''}
+      </p>
 
       <div className="query-options">
         <label>
