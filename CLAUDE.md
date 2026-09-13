@@ -31,26 +31,57 @@
 
 ## 1. プロジェクト概要
 
-**GRACE-Support** — 業界特化・自律型サポートエージェント。日本語 RAG（Retrieval-Augmented
-Generation）に、根拠検証（groundedness）・Web 裏取り・HITL（Human-In-The-Loop）アクションを
-組み合わせたシステム。
+**GRACE** — 業界特化・自律型エージェント基盤。日本語 RAG（Retrieval-Augmented Generation）に
+根拠検証（groundedness）・Web 裏取り・HITL（Human-In-The-Loop）アクションを組み合わせる。
+
+### ⚠️ エージェントは 2 つある
+
+| エージェント | 情報の流れ | コア関数 | 画面 |
+|---|---|---|---|
+| **GRACE-Support** | 問い合わせ → **回答** | `backend/app/core/support_agent.py::run_support_agent_core` | 「基本版」「GRACE-Support」タブ |
+| **GRACE-Review** | 文書 → **指摘** | `backend/app/core/review_agent.py::run_review_agent_core` | 「GRACE-Review」タブ |
+
+**Support だけ見て作業しない。** `backend/tests` の約 1/3（58 ファイル中 18 ファイル）が
+Review 系である。中核部品（`GroundednessVerifier` / `InterventionBridge` /
+`support_actions.py` の `ActionBackend`）は**両者で共用**しているので、
+Support のつもりで触った変更が Review を壊す。
 
 | 層 | 実体 |
 |---|---|
 | フロントエンド | `frontend/` — Vite + React 18 + TypeScript（dev: `:5173`） |
 | Web API | `backend/app/` — FastAPI（dev: `:8000`）。SSE でステップ進捗を配信 |
-| パイプライン中核 | `backend/app/core/support_agent.py::run_support_agent_core` |
+| Support コア | `backend/app/core/support_agent.py`、ゲートは `core/gates.py`、業界定義は `core/verticals.py` |
+| Review コア | `backend/app/core/review_agent.py`、ゲートは `core/review_gates.py`、ルール定義は `core/rulesets.py` |
 | 自律エージェント基盤 | `grace/` — planner / executor / confidence / intervention / replan / tools |
 | ツール・検索 | `agent_tools.py`, `agent_parallel_search.py`, `agent_cache.py`, `qdrant_client_wrapper.py` |
+| アクション実行 | `support_actions.py`（`ActionBackend`。**Support / Review 共用**） |
 | データ準備（CLI） | `chunking/`, `qa_generation/`, `qa_qdrant/` |
 | データ準備（Web） | `backend/app/api/data.py` / `api/qdrant.py`、`backend/app/core/data_jobs.py`、`services/data_pipeline_service.py` |
 | ベクトルDB | Qdrant（`docker-compose/docker-compose.yml`） |
 
-### 業界プロファイル（vertical）
+### 画面は 4 タブ（`frontend/src/App.tsx`）
+
+| タブ id | ラベル | 中身 |
+|---|---|---|
+| `basic` | 基本版 | `SupportPanel variant="basic"` — 業界プロファイル**セレクタを出さない** |
+| `support` | GRACE-Support | `SupportPanel variant="vertical"` — 業界プロファイルを選ぶ |
+| `review` | GRACE-Review | `ReviewPanel` — 文書 textarea → 指摘一覧（左右 2 ペイン） |
+| `data` | データ管理 | `DataPanel` — チャンク化 / Q&A 作成 / Qdrant 登録 / コレクション管理 |
+
+`basic` と `support` は**同じ `SupportPanel`** に `variant` を渡しているだけである
+（別コンポーネントではない）。タブ切替はアンマウント方式。
+
+### 業界プロファイル（vertical）— Support 用
 `backend/app/core/verticals.py` に `gov` / `saas` / `ec` を定義。各プロファイルが
 許可コレクション・エスカレーションキーワード・アクションマップ・閾値・プロンプト追記を持つ。
 
-### パイプライン 1 周
+### ルールセット（ruleset）— Review 用
+`backend/app/core/rulesets.py` に `ec_ad`（EC広告表示）を定義。`VerticalProfile` と役割は
+似るが「1 プロファイル = N 個の検査ルール」を持つため**型を分けている**
+（`RuleSet` / `RuleItem`）。現在 23 ルール（景表法 / 薬機法 / 特商法 / 社内方針）。
+`GET /api/rulesets` と ① S1 の解決に使う。
+
+### パイプライン 1 周（Support）
 ```
 0-(A) 入力・質問分析（複数質問の検知 → 選択 → 再構成）
  → 0-(B) 業界プロファイル適用
@@ -65,9 +96,30 @@ Generation）に、根拠検証（groundedness）・Web 裏取り・HITL（Human
 `support_rate = supported / (supported + contradicted)` — neutral は分母から除外する
 （＝答えていない内容を減点しない）。
 
-> **⚠️ Web API と CLI は同じ `run_support_agent_core` を通る。**
-> `uvicorn backend.app.main:app` も `agent_support_example.py` も、この 1 関数を呼ぶ。
-> 「Web だけ / CLI だけ」の分岐は存在しないので、片方で検証した挙動は他方にも当てはまる。
+### パイプライン 1 周（Review）
+`REVIEW_STEP_IDS` の順に実行する。番号は Support との**対応を示す呼称**であり、
+実行順とは一致しない。
+```
+S1 ruleset   RuleSet 適用（検索スコープ・しきい値・重大リスク語）
+ → ① segment  文書を検査単位へ分割（決定的・原文オフセット保持）
+ → ② retrieve セグメントごとに規程を RAG 検索
+ → ③ detect   二段判定で違反候補を検出
+ → ④ ground   GroundednessVerifier で「指摘が規程で裏付けられるか」を検証
+ → ④' suppress 誤検知抑止 + 救済
+ → ⑥ web      法改正の裏取り（任意・信頼度を下げる方向にのみ使う）
+ → ⑤ severity 重大度の確定（＋重大リスク語による強制 high）
+ → ⑦ action   レポート → HITL CONFIRM → バックエンド実行
+```
+Review の新規実装は **Segment / Detect / Severity の 3 つだけ**で、
+Retrieve・Ground・誤検知抑止・Action は Support と同じ機構の再利用である。
+設計は `backend/docs/review_agent_spec.md`。
+
+> **⚠️ Web API と CLI は同じコア関数を通る（Support のみ）。**
+> `uvicorn backend.app.main:app` も `agent_support_example.py` も
+> `run_support_agent_core` を呼ぶ。「Web だけ / CLI だけ」の分岐は存在しないので、
+> 片方で検証した挙動は他方にも当てはまる。
+> **ただし Review に CLI 入口は無い**（`run_review_agent_core` は Web API 専用）。
+> Review の挙動確認は `./run_dev.sh` か `backend/tests/test_review_agent_core.py` で行う。
 
 ---
 
@@ -128,13 +180,55 @@ cd frontend && npm run lint && npm test && npm run build   # frontend
 | **それ以外の全 LLM 用途**（Q&A生成・Plan/Execute/Reasoning/Confidence/Replan/ReAct 等） | **Anthropic** | `claude-sonnet-4-6`（軽量 `claude-haiku-4-5-20251001`） | `ANTHROPIC_API_KEY` |
 
 - LLM クライアントは `helper.helper_llm.create_llm_client("anthropic")` /
-  `grace.llm_compat.create_chat_client`。LLM モデル既定は `config.ModelConfig.DEFAULT_MODEL`。
+  `grace.llm_compat.create_chat_client`。
 - `config.GeminiConfig` は **Embedding 用途（`EMBEDDING_MODEL` / `EMBEDDING_DIMS`）に限って**参照可。
 - **Embedding 文脈の `provider="gemini"` / `GOOGLE_API_KEY` は正しい**ので変更しない。
 - 本リポジトリは Gemini 由来コードから Anthropic へ移植した経緯があり、コードに残る
-  Gemini 系の **LLM** 既定（`gemini-2.5-flash` 等）は「設計上の意図」ではなく
-  **移植漏れ（負債）**とみなす。発見次第 Anthropic へ是正する。
-  「現存コード＝意図」と推論しないこと。
+  Gemini 系の **LLM** 既定は「設計上の意図」ではなく **移植漏れ（負債）**とみなす。
+  発見次第 Anthropic へ是正する。「現存コード＝意図」と推論しないこと。
+
+### 3.1 ⚠️ モデル名の解決経路は 3 本ある
+
+「既定モデルを変える」ときに 1 箇所だけ直すと**取り残しが出る**。
+必ず 3 本とも確認すること。
+
+| # | 経路 | 実体 | 誰が読むか |
+|---|---|---|---|
+| 1 | **設定ファイル（正）** | `config/grace_config.yml` の `llm.model` / `llm.light_model` | `grace/config.py::ConfigLoader` 経由で planner / reasoning / groundedness / ReAct |
+| 2 | **モジュール定数** | `backend/app/core/verticals.py::INTENT_MODEL`（リテラル） | 判定系（意図分類・情報なし判定）。**yml を一切見ない** |
+| 3 | **Python 定数** | `config.py::ModelConfig.DEFAULT_MODEL` | 上記以外（チャンキング・Q&A 生成など CLI 側） |
+
+**経路 1 が正。** 経路 2 は `backend/app/core/gates.py::judge_model()` が
+「config から解決できないときだけ `INTENT_MODEL` へフォールバックする」形に是正済みなので、
+**`INTENT_MODEL` を直接使うコードを新たに書かない**こと（詳細は同関数の docstring）。
+経路 1 と 2 は現在たまたま同じ値（`claude-haiku-4-5-20251001`）なので、
+**取り残しはテストでは表面化しない**。
+
+設定は yml → 環境変数（接頭辞 `GRACE_`）→ `GraceConfig`（pydantic）で検証、の 3 段。
+
+> ⚠️ トップレベルの **`config.py`（モジュール）** と **`config/`（ディレクトリ）** は別物。
+> `config/` に入っているのは `grace_config.yml` だけで、`import config` は `config.py` を指す。
+
+### 3.2 実在するモデル名（勝手に「修正」しない）
+
+`config.py::ModelConfig` が定義する 3 つはすべて実在し、**すべて正しい**。
+
+| モデル名 | 用途 |
+|---|---|
+| `claude-sonnet-4-6` | 既定（推論・生成） |
+| `claude-haiku-4-5-20251001` | 軽量（日付指定）。`llm.light_model` / `INTENT_MODEL` の値 |
+| **`claude-haiku-4-5`** | 上記の**エイリアス（日付なし）。チャンキングの既定値** |
+
+**`claude-haiku-4-5` を「日付が抜けている」と判断して書き換えないこと。**
+意図的なエイリアスであり、`MODEL_PRICING` / `MODEL_LIMITS` にも 3 つとも登録されている。
+これは R1（モデル名のマッピングを作らない）と同種の事故である。
+
+### 3.3 調査済み・触らなくてよい残置コード
+
+- `config.py::GeminiConfig.DEFAULT_MODEL = "gemini-2.5-flash"` と `AVAILABLE_MODELS` —
+  **参照ゼロ**（リポジトリ全体 grep 済み）。クラス docstring に「後方互換」と明記されている。
+  §3 の「Gemini 系 LLM 既定は負債」に**該当しない**（死んでいるので実害が無い）。
+  毎回調べ直さないよう、ここに結論を残す。
 
 ---
 
@@ -157,9 +251,28 @@ cd frontend && npm run lint && npm test && npm run build   # frontend
 > `frontend/src/types.ts` も必ず追随させる。
 
 ### ruff 設定の要点
-`[tool.ruff.lint.isort] known-first-party` を**明示必須**。未設定だと
-「CI（未インストール）＝first-party」「ローカル（導入済）＝third-party」で isort 分類が割れ、
-**I001 がローカル緑／CI 赤**になる。**新規トップレベルモジュールを足したらここにも追記する。**
+
+`[tool.ruff.lint.isort] known-first-party` にトップレベルモジュールを列挙している。
+**新規トップレベルモジュールを足したらここにも追記する**（現在は `scripts` /
+`qdrant_delete_collection` を含む全 21 個）。
+
+> ⚠️ **この設定の効き目を過大評価しないこと（2026-09-13 実測）。**
+> `known-first-party` を丸ごとコメントアウトして `ruff 0.12.11 check .` を回しても
+> **All checks passed** だった。ruff の isort 分類は `src`（既定 `["."]`）を使った
+> **ファイルシステム解決**が先に効くため、リポジトリ直下に実体があるモジュールは
+> 設定が無くても first-party になる。site-packages の導入状況は見ていない。
+>
+> つまり「未設定だと I001 がローカル緑／CI 赤になる」という以前の記述は
+> **本リポジトリでは再現しない**。この列挙は保険であって、I001 の原因ではない。
+> **I001 が出たときに真っ先にこの設定を疑って時間を溶かさないこと。**
+> まず `ruff check --no-cache` の実出力（どのファイルのどの import 順か）を読む。
+
+> ⚠️ **ローカルの `ruff` が CI と同じ版とは限らない。**
+> この環境の `ruff` は uv ツール管理で新しい版が入っていることがある
+> （実測: `ruff --version` → 0.15.8）。CI ゲートを再現するなら版を固定して呼ぶ:
+> ```bash
+> uvx ruff@0.12.11 check . --no-cache
+> ```
 
 ### ブランチ
 - 開発は `claude/<topic>` ブランチ。**ドラフト PR** で作成（auto-merge が Ready 化する）。
@@ -187,8 +300,13 @@ cd frontend && npm run lint && npm test && npm run build   # frontend
 | `state/formMemory.ts`（タブ切替時の入力退避） | ✅ | ❌ |
 | `state/metaFetch.ts` / `state/timelineAnnounce.ts` | ✅ | ❌ |
 | `components/MetaErrorBanner.tsx` | ✅ | ❌ |
+| `state/documentLimit.ts`（文字数上限の判定・アナウンス文言） | ✅ | ❌ |
 | `components/ModelSelect.tsx` / `state/modelLabel.ts` | ❌ | ✅ |
 | LLM プロバイダ | Anthropic | Ollama（ローカル） |
+
+> この表は「**local からコピーすると消えるもの**」の一覧である。
+> 実測日: 2026-09-13（`frontend/src/` を両リポジトリで突き合わせ）。
+> こちらにしかないフロント資産を足したら、**この表にも 1 行足す**こと。
 
 **実例（2026-08-25）**: 基本版タブの複数行入力を local から移植する際、
 `QueryForm.tsx` を丸ごとコピーしていれば `formMemory`（外した dry-run が
@@ -393,11 +511,15 @@ python -m chunking.csv_text_to_chunks_text_csv \
 | 用途 | ✅ 正しい表記 | ❌ 禁止表記 |
 |---|---|---|
 | LLM全般 | `Anthropic Claude` | `OpenAI GPT`, `Gemini`（LLM 用途） |
-| デフォルトモデル | `claude-sonnet-4-6`（軽量 `claude-haiku-4-5-20251001`） | `gpt-4o-mini`, `gemini-2.5-flash` |
+| デフォルトモデル | `claude-sonnet-4-6`（軽量 `claude-haiku-4-5-20251001` / エイリアス `claude-haiku-4-5`） | `gpt-4o-mini`, `gemini-2.5-flash` |
 | Embedding | `Gemini` `gemini-embedding-001`（3072次元） | `text-embedding-3-*`（本番 Embedding 用途） |
 | LLMクライアント | `create_llm_client("anthropic")` | `"openai"` / `"gemini"`（LLM 用途） |
 | LLM用APIキー | `ANTHROPIC_API_KEY` | `OPENAI_API_KEY` |
+| エージェント名 | `GRACE-Support` / `GRACE-Review` | `GRACE` 単独で Support だけを指すこと |
 | フロントエンド | `Vite + React 18 + TypeScript` | `Streamlit`, `Next.js` |
+
+> `claude-haiku-4-5`（日付なし）は**実在するエイリアスでチャンキングの既定値**。
+> 日付付きへ「統一」しないこと（§3.2）。
 
 ### 9.4 参照してはいけない廃止ファイル
 grace_v2 に**存在しない**: `setup.py` / `server.py` / a-prefixed scripts
@@ -482,4 +604,9 @@ response = client.responses.create(
       （§6・`state/` の純関数へ出さないとテストできない）
 - [ ] コンポーネントを変えたなら `frontend/docs/<Component>.md` を追随させたか？
 - [ ] ドキュメントに書いたテスト件数は**実行して数えた値**か？（記憶で書かない）
+- [ ] **Review 側**（`review_agent.py` / `review_gates.py` / `rulesets.py` /
+      `ReviewPanel` 系）を壊していないか？ 共用部品（`GroundednessVerifier` /
+      `InterventionBridge` / `support_actions.py`）を触ったなら
+      `backend/tests/test_review_*.py`（18 本）も通したか？（§1）
+- [ ] モデル既定を変えたなら**3 本の解決経路すべて**を確認したか？（§3.1）
 - [ ] 確信が持てない → **ユーザーに聞く**
