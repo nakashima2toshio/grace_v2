@@ -95,7 +95,7 @@ flowchart TB
     CLIENT["クライアント層 ／ React :5173<br>文書ビューア + 指摘リスト + CONFIRM モーダル"]
     APILAYER["API 層 ／ FastAPI :8000<br>api/review.py 【新規】 submit・stream・confirm・result<br>api/support.py 【無変更】 /api/support/*<br>api/meta.py 【追記】 /api/rulesets"]
     JOBLAYER["ジョブ層 ／ 汎用化<br>core/jobs.py 【改修】 JobManager — runner 注入方式へ<br>スレッド実行・イベント蓄積・SSE リプレイ・GC<br>core/intervention_bridge.py 【無変更】 HITL 承認ブリッジ"]
-    AGENTS["エージェント層<br>core/review_agent.py 【新規】 パイプライン ①〜⑦<br>core/review_gates.py 【新規】 二段判定・誤検知抑止・救済・重大度<br>core/rulesets.py 【新規】 RuleSet ／ RuleItem — ec_ad 21ルール<br>core/support_agent.py 【無変更】 run_support_agent_core"]
+    AGENTS["エージェント層<br>core/review_agent.py 【新規】 パイプライン ①〜⑦<br>core/review_gates.py 【新規】 二段判定・誤検知抑止・救済・重大度<br>core/rulesets.py 【新規】 RuleSet ／ RuleItem — ec_ad 23ルール<br>core/support_agent.py 【無変更】 run_support_agent_core"]
     SHARED["共有機構 ／ 無改造で再利用<br>grace.confidence — GroundednessVerifier 根拠検証<br>grace.tools — rag_search ／ web_search<br>support_actions.py — ActionBackend ／ IdentityVerifier<br>core/gates.py 【無変更】 _match_keyword ほか純関数"]
 
     CLIENT --> APILAYER
@@ -908,8 +908,8 @@ class ReviewRequest(BaseModel):
 | `MAX_SEGMENTS` | 200 | 超過分は切り捨て、`log` で警告 |
 | `MAX_LLM_CALLS` | 300 | 第2段の呼び出し上限。到達したら打ち切り、`ReviewResult` に警告を載せる |
 
-> ⚠️ **これは必須のガードである。** 200 セグメント × 21 ルールを無条件に第2段へ流すと
-> 4,200 回の LLM 呼び出しになる。第1段のキーワードフィルタが効くので実際はこの 1〜2 割だが、
+> ⚠️ **これは必須のガードである。** 200 セグメント × 23 ルールを無条件に第2段へ流すと
+> 4,600 回の LLM 呼び出しになる。第1段のキーワードフィルタが効くので実際はこの 1〜2 割だが、
 > 上限を置かずに本番投入してはならない。
 
 ---
@@ -1015,7 +1015,7 @@ def test_edge_sample_suppresses_negated_mentions(...):
 
 | ファイル | 役割 | 規模感 |
 |---|---|---|
-| `backend/app/core/rulesets.py` | `RuleItem` / `RuleSet` / `RULESETS`（ec_ad 21 ルール） | 中 |
+| `backend/app/core/rulesets.py` | `RuleItem` / `RuleSet` / `RULESETS`（ec_ad 23 ルール） | 中 |
 | `backend/app/core/review_gates.py` | 検出二段判定・誤検知抑止・救済・重大度（**純関数**） | 中 |
 | `backend/app/core/review_agent.py` | `ReviewParams` / `ReviewFinding` / `run_review_agent_core` | 大 |
 | `backend/app/api/review.py` | `/api/review/*` | 小 |
@@ -1079,3 +1079,4 @@ def test_edge_sample_suppresses_negated_mentions(...):
 |-----------|---------|
 | 1.0 | 初版作成。パイプライン ①〜⑦、`ReviewFinding` スキーマ、`ec_ad` RuleSet（21ルール）、ジョブ基盤の汎用化方針、API / フロント設計、テスト方針、実装計画を記述 |
 | 1.1 | ステータスを「レビュー待ち（未実装）」→「実装済み（STEP1〜7 完了・master マージ済み）」へ更新（計画された新規ファイル・テスト・テストデータの実在を確認済み）。§10.3 を STEP 別の完了表に変更し、STEP7 のドキュメントが計画時の単一 `review_agent.md` ではなくモジュール単位 4 本として作成された旨を追記。冒頭に「設計書と実装が食い違う場合は実装とモジュールドキュメントが正」の位置づけを明記 |
+| 1.2 | **`ec_ad` のルール数を 21 → 23 として本文を実測へ追随させた。** `len(EC_AD.rules)` を実行した実測値は **23**（景品表示法 12 / 特定商取引法 6 / 医薬品医療機器等法 4 / 社内方針 1）で、本文各所が初版の 21 のままだった。組合せ爆発ガードの試算（§7.3）も 200 × 21 = 4,200 回 → **200 × 23 = 4,600 回**へ更新。`MAX_LLM_CALLS = 300` に対し第1段通過が 1〜2 割でも 460〜920 回なので、**ガードが必須である結論は変わらない**。上の 1.0 行の「21ルール」は初版時点の記録なのでそのまま残す |

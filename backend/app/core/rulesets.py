@@ -5,7 +5,7 @@
 
 `verticals.py` の `VerticalProfile`（Support 用の業界プロファイル）と役割は似るが、
 Review は「1 プロファイル = N 個の検査ルール」を持つため型を分けている。
-`VerticalProfile` に 21 個のルール定義を持たせると Support 用の構造が壊れるため。
+`VerticalProfile` に 23 個のルール定義を持たせると Support 用の構造が壊れるため。
 
 ## 2 つの使われ方
 
