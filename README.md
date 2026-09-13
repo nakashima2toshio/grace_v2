@@ -127,7 +127,7 @@ Support の `VerticalProfile` と Review の `RuleSet` は、**9 フィールド
 | # | 責務 | 対応モジュール | 説明 |
 |---|------|--------------|------|
 | 1 | 問い合わせに対する回答を、社内ナレッジを根拠として生成する（GRACE-Support） | `backend/app/core/support_agent.py` | `run_support_agent_core()` が ①Plan → ②Execute（内部RAG → reasoning）を統括。検索は `grace` の executor + tools |
-| 2 | 文書を規程に照らして点検し、根拠条文つきの指摘を生成する（GRACE-Review） | `backend/app/core/review_agent.py` | `run_review_agent_core()` が ①Segment → ②Retrieve → ③Detect を統括。ルールは `core/rulesets.py`（`ec_ad`・21 ルール） |
+| 2 | 文書を規程に照らして点検し、根拠条文つきの指摘を生成する（GRACE-Review） | `backend/app/core/review_agent.py` | `run_review_agent_core()` が ①Segment → ②Retrieve → ③Detect を統括。ルールは `core/rulesets.py`（`ec_ad`・23 ルール） |
 | 3 | 生成した回答・指摘が出典で裏付けられるかを検証し、確度を数値化する | `grace/confidence.py` | `GroundednessVerifier` を両エージェントで共用。`support_rate = supported / (supported + contradicted)` |
 | 4 | 確度が足りない・誤検知の疑いがある結果を、抑止または有人対応へ倒す | `backend/app/core/gates.py` / `core/review_gates.py` | Support=回答ゲート・強制エスカレ・情報なし検知・救済／Review=指摘ゲート・誤検知抑止・救済（いずれも純関数） |
 | 5 | 副作用のあるアクションを、人間の承認を得るまで実行しない | `backend/app/core/intervention_bridge.py` ＋ `components/ConfirmModal.tsx` | HITL 承認の同期⇔非同期変換とモーダル。**タイムアウト時は実行せず有人へ**（安全側） |
@@ -373,20 +373,29 @@ style CORE fill:#1a1a1a,stroke:#fff,color:#fff
 
 | テスト | 件数 | 対象 |
 |---|---:|---|
+| `state/dataParams.test.ts` | 34 | データ管理の入力値変換・送信可否・コレクション名の補完 |
 | `state/queryParams.test.ts` | 25 | 送信ペイロードの組み立て（基本版の `vertical` 固定・識別子の有無・状態メッセージ） |
-| `state/dataParams.test.ts` | 26 | データ管理の入力値変換・送信可否・コレクション名の補完 |
-| `state/dataReducer.test.ts` | 21 | データ管理ジョブの SSE → UI 状態 |
+| `state/dataReducer.test.ts` | 24 | データ管理ジョブの SSE → UI 状態 |
+| `state/elapsed.test.ts` | 22 | 開始・完了時刻と所要時間（§4.6） |
+| `components/ReviewForm.examples.test.ts` | 17 | Review の例文チップ |
+| `state/serverTiming.test.ts` | 16 | サーバ側の所要時間の取り込み（§4.6） |
+| `markdown/parseMarkdown.test.ts` | 16 | Markdown パーサ |
 | `state/reviewReducer.test.ts` | 13 | Review の SSE → UI 状態 |
 | `state/highlight.test.ts` | 13 | 原文の分割・重なり解消 |
 | `state/formMemory.test.ts` | 13 | タブ往復での入力保持（§4.1） |
+| `state/citations.test.ts` | 13 | 出典の整形・重複排除 |
 | `state/tabKeys.test.ts` | 12 | タブの矢印キー移動（roving tabindex） |
-| `markdown/parseMarkdown.test.ts` | 10 | Markdown パーサ |
 | `state/metaFetch.test.ts` | 10 | メタ取得失敗の分類と文言（§6.5） |
+| `state/submitKey.test.ts` | 10 | textarea の送信キー（IME 変換中は送信しない） |
+| `state/documentLimit.test.ts` | 10 | 文字数上限の判定・表示文言・アナウンス文言 |
 | `state/timelineAnnounce.test.ts` | 9 | タイムラインの読み上げ文言（a11y） |
 | `state/activeJobs.test.ts` | 8 | 実行中ジョブ ID の保持（再購読用） |
-| `state/elapsed.test.ts` | 22 | 開始・完了時刻と所要時間（§4.6） |
 | `state/jobReducer.test.ts` | 7 | Support の SSE → UI 状態 |
-| **計** | **189** | 13 ファイル |
+| `state/interventionKind.test.ts` | 4 | 承認待ちが action（⑥ 実行承認）か question（0-(A) 主質問の選択）か |
+| **計** | **276** | 19 ファイル |
+
+> 件数は `cd frontend && npm test` の実測値（2026-09-13）。記憶で書かず、
+> 変更したら必ず実行して数え直すこと。
 
 > ⚠️ **テストは `.test.ts` のみ収集される。** `frontend/vite.config.ts` の
 > `test.include` が `['src/**/*.test.ts']` なので、**`.test.tsx` を置くと 1 件も
@@ -407,7 +416,7 @@ flowchart TB
         BANNER["div.error-banner<br>div.running-banner"]
         TIME["section.timeline<br>ステップトレース"]
         RESULT["結果エリア"]
-        MODALL["div.modal-backdrop<br>ConfirmModal"]
+        MODALL["div.modal-backdrop<br>ConfirmModal / QuestionSelectModal"]
     end
 
     HEAD --> LEAD
@@ -415,7 +424,7 @@ flowchart TB
     FORM --> BANNER
     BANNER --> TIME
     TIME --> RESULT
-    RESULT -.承認待ちで重畳.-> MODALL
+    RESULT -.介入待ちで重畳.-> MODALL
 classDef default fill:#000,stroke:#fff,color:#fff
 classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
 class HEAD,LEAD,FORM,BANNER,TIME,RESULT,MODALL default
@@ -428,11 +437,11 @@ style SCREEN fill:#1a1a1a,stroke:#fff,color:#fff
 |---|---|---|
 | `header` | `基本版` / `GRACE-Support` / `GRACE-Review` / `データ管理` の 4 タブ（共通） | 同左 |
 | `p.panel-lead` | 「内部RAG＋出典 / Web裏取り・相互検証 / アクション＋HITL 承認」 | 「規程 RAG＋根拠検証（groundedness）で広告表示を点検し、条文つきの指摘を出します」 |
-| `form` | `QueryForm`（問い合わせ 1 行 + プロファイル + トグル） | `ReviewForm`（文書 textarea + ルールセット + トグル） |
+| `form` | `QueryForm`（問い合わせ textarea（複数行・Ctrl+Enter / ⌘+Enter で送信）+ プロファイル + トグル 4 つ） | `ReviewForm`（文書 textarea + ルールセット + トグル 3 つ） |
 | バナー | `error-banner`（エラー）／`running-banner`「実行中…」 | 同左（文言は「点検中…」） |
-| `section.timeline` | `StepTimeline`（8 ステップ） | `ReviewTimeline`（9 ステップ） |
+| `section.timeline` | `StepTimeline`（**9 ステップ**・先頭は 0-(A) `analyze`） | `ReviewTimeline`（9 ステップ） |
 | 結果エリア | `AnswerCard` | `FindingSummaryBar` ＋ 左右ペイン ＋ KPI 行 |
-| モーダル | `ConfirmModal`（**両エージェント共用**・承認待ちのときだけ最前面に出る） | 同左 |
+| モーダル | `ConfirmModal`（⑥ 実行承認。**両エージェント共用**）／`QuestionSelectModal`（0-(A) 主質問の選択。**Support 側のみ**） | `ConfirmModal` のみ |
 
 > 📷 **[B-01] 起動直後（基本版タブ 初期表示）** — 既定で開くタブ。ヘッダに**タブ 4 つ**、
 > 説明文、空の入力フォーム、4 つのトグル、識別子欄（**disabled** で理由が出ている状態）、
@@ -553,12 +562,14 @@ style PANES fill:#1a1a1a,stroke:#fff,color:#fff
 ### 3.3 ステップトレースの表示とバックエンドの対応
 
 タイムラインの各行は、バックエンドが発行する `step` イベントと **1:1** で対応する。
+表示ラベルは `jobReducer.ts::STEP_LABELS` / `reviewReducer.ts::REVIEW_STEP_LABELS` の逐語である。
 
 **Support**（`STEP_IDS` / `jobReducer.ts` ⇄ `support_agent.py`）:
 
 | 表示ラベル | ステップ ID | バックエンドの実装 |
 |---|---|---|
-| 業界プロファイル適用 | `profile` | `PROFILES` 適用・config へ注入 |
+| 0-(A) 入力・質問分析（複数質問の検知） | `analyze` | 複数質問の検知 → 主質問の選択（`QuestionSelectModal`）→ 再構成 |
+| 0-(B) 業界プロファイル適用 | `profile` | `PROFILES` 適用・config へ注入 |
 | ① Plan（planner） | `plan` | `grace` planner |
 | ② Execute（内部RAG → reasoning） | `execute` | `grace` executor + tools |
 | ③ Groundedness（根拠検証） | `confidence` | `GroundednessVerifier` |
@@ -577,7 +588,7 @@ style PANES fill:#1a1a1a,stroke:#fff,color:#fff
 | ③ Detect（二段判定で違反候補を検出） | `detect` | `select_candidate_rules` + `create_violation_detector` |
 | ④ Ground（指摘の根拠を検証） | `ground` | `GroundednessVerifier.verify` |
 | ④' Suppress（誤検知抑止 + 救済） | `suppress` | `decide_finding_status` / `should_rescue_finding` |
-| ⑥ Web 裏取り | `web` | `_web_crosscheck` |
+| ⑥ Web 裏取り（法改正・ガイドライン更新） | `web` | `_web_crosscheck` |
 | ⑤ Severity（重大度の確定＋強制 high） | `severity` | `adjust_severity` / `should_force_high` |
 | ⑦ Action（レポート → HITL → 実行） | `action` | `_decide_review_action` / `_perform_action` |
 
@@ -670,7 +681,7 @@ const TABS: Array<{ id: Tab; label: string; description: string }> = [
 
 #### 4.2.1 入力フォーム（`QueryForm`）
 
-**概要**: 問い合わせ 1 行入力＋実行オプション＋本人確認の識別子＋例文チップ。
+**概要**: 問い合わせ textarea（複数行・Ctrl+Enter / ⌘+Enter で送信）＋実行オプション＋本人確認の識別子＋例文チップ。
 **CLI の全引数がここに揃っている**（§3.1 の対応表を参照）。
 
 > 📷 **[S-02] Support 入力フォーム（プロファイル選択）** — 業界プロファイルのセレクタを
@@ -770,7 +781,7 @@ return IdentityVerifier(checker=None, method="none")   # 常に未確認（安�
 
 #### 4.2.3 ステップトレース（`StepTimeline`）
 
-**概要**: 8 ステップを縦に並べ、SSE の到着に合わせて状態アイコンとバッジを更新する。
+**概要**: 9 ステップを縦に並べ、SSE の到着に合わせて状態アイコンとバッジを更新する。
 
 > 📷 **[S-03] Support 実行中のタイムライン** — 一部が `▶`（実行中）、上の方が `✓`（完了）に
 > なっている途中経過。1 ステップのログを開いた状態が望ましい。
@@ -873,7 +884,7 @@ return IdentityVerifier(checker=None, method="none")   # 常に未確認（安�
 | 実行ボタン | `button[type=submit]` | 実行中は「点検中…」。空・上限超過・実行中は disabled |
 | 文書 | `textarea` `rows=12` | 「点検したい広告文・LP・バナー原稿を貼り付けてください」 |
 | 文字数カウンタ | `div.review-counter` | `12,345 / 50,000 文字`。超過で `over` クラス＋警告文 |
-| ルールセット | `select` | `/api/rulesets` の一覧。`ec_ad（EC広告表示チェック・21 ルール）` |
+| ルールセット | `select` | `/api/rulesets` の一覧。`ec_ad（EC広告表示チェック・23 ルール）` |
 | Web 裏取り | `checkbox` | **既定 OFF**（条文が一次情報のため） |
 | dry-run | `checkbox` | **既定 ON**（起票せずログのみ） |
 | 詳細ログ | `checkbox` | 既定 OFF |
@@ -902,7 +913,7 @@ return IdentityVerifier(checker=None, method="none")   # 常に未確認（安�
 
 | ステップ | 表示例 |
 |---|---|
-| `ruleset` | `EC広告表示チェック` / `ルール 21 件` |
+| `ruleset` | `EC広告表示チェック` / `ルール 23 件` |
 | `segment` | `18 セグメント` / `⚠️ 上限で打ち切り` |
 | `detect` | `判定 54 回` / `検出 5 件` / `⚠️ 呼び出し上限で打ち切り` |
 | `suppress` | `抑止 2 件` / `救済 1 件` / `採用 3 件` |
@@ -1245,18 +1256,29 @@ sequenceDiagram
 
 | 定数 | 値 | 定義場所 | 備考 |
 |---|---|---|---|
-| `STEP_IDS` | 8 個 | `state/jobReducer.ts` | `support_agent.py::STEP_IDS` と一致必須 |
+| `STEP_IDS` | 9 個 | `state/jobReducer.ts` | `support_agent.py::STEP_IDS` と一致必須（先頭は `analyze`） |
 | `REVIEW_STEP_IDS` | 9 個 | `state/reviewReducer.ts` | `review_agent.py::REVIEW_STEP_IDS` と一致必須 |
 | `MAX_DOCUMENT_CHARS` | 50,000 | `components/ReviewForm.tsx` | `backend/app/schemas.py` と一致必須 |
 | `SEVERITY_RANK` | high=3 / medium=2 / low=1 | `state/highlight.ts`・`FindingList.tsx` | 並び順・重なり解消 |
 
-### 5.4 UI に出ないが固定で送られる値
+### 5.4 送信ペイロードの既定値
 
-| エージェント | 項目 | 値 | 理由 |
+**UI に出ないで固定で送られるのは Review の `do_action` だけ**である。
+
+| エージェント | 項目 | 値 | 出所 |
 |---|---|---|---|
-| Support | `use_web` | `true` 固定 | Web フォールバックは常に有効 |
-| Support | `do_action` | `true` 固定 | アクション判定は常に行う（実行は dry-run と HITL で制御） |
-| Review | `do_action` | `true` 固定 | 同上 |
+| Review | `do_action` | `true` 固定 | `ReviewForm.tsx` にリテラルで書いてある。アクション判定は常に行う（実行は dry-run と HITL で制御） |
+
+Support の `use_web` / `do_action` は **画面のトグル**である（固定値ではない）。
+フォームごとのトグルは次のとおり。
+
+| フォーム | トグル |
+|---|---|
+| `QueryForm`（基本版 / Support） | `use_web` / `do_action` / `dry_run` / `verbose` の **4 つ** |
+| `ReviewForm`（Review） | `use_web` / `dry_run` / `verbose` の **3 つ**（`do_action` は上記のとおり固定） |
+
+`QueryForm` の送信ペイロードは `state/queryParams.ts::buildQueryParams()` が組み立てる
+（`use_web: state.useWeb` / `do_action: state.doAction`）。
 
 ---
 
@@ -1317,7 +1339,7 @@ docker-compose -f docker-compose/docker-compose.yml up -d
 1. タブ **GRACE-Review** を押す → 📷 **[R-01]**
 2. 例文チップ **`NG 例（優良誤認・薬機法）`** を押す → 📷 **[R-02]**
    - 「業界No.1」「シミが治る」「副作用がない」など、意図的に違反を含む文面
-3. ルールセットが `ec_ad（EC広告表示チェック・21 ルール）` であることを確認
+3. ルールセットが `ec_ad（EC広告表示チェック・23 ルール）` であることを確認
 4. **「表示チェックを実行」** を押す
 5. ステップトレースが進む（`S1` → `① Segment` → `② Retrieve` → …）→ 📷 **[R-03]**
 6. 結果が出る
@@ -1510,10 +1532,10 @@ uv run python agent_support_example.py --vertical gov -v "住民票の写しの�
 | 2.4 | **メニューを 3 つに拡張し、`agent_support_example.py`（CLI）と同等の操作を画面に載せた。** タブを「基本版（業界特化なし）／ GRACE-Support（`VerticalProfile`）／ GRACE-Review（`RuleSet`）」の 3 つにし、**業界特化を足していく順**に並べた。基本版と Support は同一パイプラインのため `SupportPanel` を `variant` で共用する（複製しない・`key={tab}` で確実に作り直す）。CLI 引数のうち画面に無かった **`--no-web` / `--no-action` をトグルとして追加**し、**`--identity` を API → `JobParams` → コアまで新規に通した**（従来は `identity=None` 直書きで画面から渡せなかった）。識別子欄は常時表示しつつ、本人確認が起動しない設定では disabled にして理由を表示する（§4.2.2）。§概要に `VerticalProfile` と `RuleSet` がほぼ同型である旨の対比表、§3.1 に CLI 引数との対応表を追加 |
 | 2.5 | **画面ショットスロットを 3 タブ構成へ更新し、送信ペイロードの組み立てにテストを追加。** スロットは 2 タブ時代のままだったため、`B-01`（基本版タブ初期表示）と `S-06a/b`（識別子欄の disabled / 有効）を追加し、`S-01` を「Support タブ初期表示（B-01 との差分）」へ振り直して 16 枚に整理。§6.2 のシナリオを「基本版 → Support で業界特化の差を見る」構成に書き換え、CLI との対応も注記した。あわせて §4.2 の小節番号の重複（4.2.2 が 2 つ）と目次の見出しずれを修正。コード側は `QueryForm` の判断ロジック（基本版の `vertical` 固定・識別子を送るかどうか・状態メッセージ）を `state/queryParams.ts` の純関数へ切り出し、vitest 19 件を追加（frontend 計 43 → 62 件）。React テストライブラリは導入せず、既存の「純関数だけテストする」方針に揃えた |
 | 2.6 | **4 タブ構成と、その後に入った 3 つの改修へ追随させた。** §4.1 が 3 タブ時代のままで、`TABS` の定義もレンダリング分岐も**データ管理タブを欠いていた**ため実装から起こし直した（タブボタン 3 つ → 4 つ、矢印キー移動 `state/tabKeys.ts` を Input に追記）。あわせて (1) **タブ往復で入力が保持される**仕組み（`state/formMemory.ts`）を §4.1 に新設、(2) **メタ取得エラーバナー**（`MetaErrorBanner`・backend 停止時に業界プロファイル / ルールセットが空になる理由と復旧手順を出す）を §6.5 の症状表と新スロット E-02 に追加、(3) テスト表を実測へ更新（5 ファイル 62 件 → **12 ファイル 167 件**）。テスト表には `vite.config.ts` の `test.include` が `.test.ts` のみで **`.test.tsx` は 1 件も実行されない**という落とし穴を明記した。画面ショットは **H-01（タブヘッダ 4 つ）/ H-02a・H-02b（タブ往復の前後）/ E-02（メタ取得エラー）** の 4 枠を追加し、本文では 1 枠だった `S-06` を一覧に合わせて `S-06a` / `S-06b` へ分割して **28 枚**に統一した（本文と §6.4 一覧でスロット数が食い違っていたのを解消）。「画面ショット挿入位置について」に**各スロットが「どの画面か・どうやって出すか・何が読み取れるべきか」の 3 点を書く**という方針とスロット ID の接頭辞表を追加した |
-| 2.8 | **§1 に概観図（4 層）を追加した。** 既存の構成図は 17 ノードあり初見で全体像を掴むには細かすぎたため、ブラウザ → Vite → FastAPI → コアパイプラインの 4 ノードだけの図を §1.0 として先に置き、既存図を §1.1 詳細へ送った |
-| 2.9 | **4 タブすべてに実行時間の表示を追加した（§4.6 を新設）。** 送信した時刻をフォーム直下に、決着した時刻と所要時間を結果の一番下に出す。時刻は **reducer に持たせず**パネルの state で持つ（reducer は純関数であり `Date.now()` を中で呼ぶと純粋性が壊れるため）。判断と整形は `state/elapsed.ts` の純関数へ出し、vitest 22 件を追加（frontend 計 167 → 189 件）。**失敗時も完了行を出す**——結果カードは成功時にしか描画されないため、結果が無いときはパネル直下へ出す。ブラウザで 4 タブすべての表示を実測し、起動 API を 6 秒遅延させたケースで所要が `00:00:06`（スクリプト実測 6.3 秒）になることも確認した。画面ショット枠 `T-01` を追加して 28 → 29 枚 |
 | 2.7 | **撮影済みの画面ショット 5 枚を掲載した。** `nakashima2toshio/grace_v2_local` の `docs/images/` にあった 5 枚（`b-01` / `s-01` / `s-02` / `s-06a` / `s-06b`）を本リポジトリへ取り込み、該当スロットのコメントを外した。あわせて**埋め込み様式を実態に合わせて修正**した——従来の説明では画像行を `> ` の中に残す形になっていたが、引用ブロック内だと縦罫線の内側へインデントされて窮屈になるため、**説明は引用のまま画像行だけを外に出す**形に改めた（grace_v2_local での実運用と一致）。`B-01` は README 冒頭にも再掲してアプリの第一印象を最初に見せる。§画面ショット挿入位置に「撮影の進捗」表（撮影済み 5 / 未撮影 23）を新設し、§6.4 の一覧にも状態列（✅ / ⬜）を追加した |
 | 2.8 | **§1 に概観図（4 層）を追加した。** 既存の構成図は 17 ノードあり、初見で全体像を掴むには細かすぎた。**ブラウザ → Vite → FastAPI → コアパイプライン**の 4 ノードだけの図を §1.0 として先に置き、既存図を §1.1 詳細へ送った。4 ノードは既存図のサブグラフ名と同一なので、概観と詳細が 1 対 1 で対応する。各層の実体と役割の対応表も添えた。ヘッドレス Chromium ＋ Mermaid 11 で README 内の全 6 ブロックを描画し、新図が 276×406（4 ノードが縦一列）で成立することを確認済み |
+| 2.9 | **4 タブすべてに実行時間の表示を追加した（§4.6 を新設）。** 送信した時刻をフォーム直下に、決着した時刻と所要時間を結果の一番下に出す。時刻は **reducer に持たせず**パネルの state で持つ（reducer は純関数であり `Date.now()` を中で呼ぶと純粋性が壊れるため）。判断と整形は `state/elapsed.ts` の純関数へ出し、vitest 22 件を追加（frontend 計 167 → 189 件）。**失敗時も完了行を出す**——結果カードは成功時にしか描画されないため、結果が無いときはパネル直下へ出す。ブラウザで 4 タブすべての表示を実測し、起動 API を 6 秒遅延させたケースで所要が `00:00:06`（スクリプト実測 6.3 秒）になることも確認した。画面ショット枠 `T-01` を追加して 28 → 29 枚 |
+| 3.0 | **実装との事実突き合わせで記述のずれを是正した。** (1) §3.3 の Support ステップ表が **8 行**で、先頭の `analyze`（0-(A) 入力・質問分析／複数質問の検知）が欠けていた——`support_agent.py::STEP_IDS` と `jobReducer.ts::STEP_IDS` はどちらも **9 個**であり、「`step` イベントと 1:1 で対応する」という同節の記述自体と矛盾していたため行を追加し、表示ラベルを `STEP_LABELS` / `REVIEW_STEP_LABELS` の逐語へ揃えた。(2) §5.3 の `STEP_IDS` を **8 個 → 9 個**へ。「`support_agent.py::STEP_IDS` と一致必須」と書きながら不一致だった。(3) §5.4「UI に出ないが固定で送られる値」から Support の `use_web` / `do_action` を削除——実際は `QueryForm` のトグルで、`state/queryParams.ts::buildQueryParams()` が `state.useWeb` / `state.doAction` を送っている。固定なのは `ReviewForm.tsx` にリテラルで書かれた Review の `do_action: true` **だけ**なので、節名を「送信ペイロードの既定値」に変えフォーム別のトグル数（Support 4 / Review 3）を明記した。(4) **`QuestionSelectModal` の記載が 0 件**だった——0-(A) で複数質問を検知したとき主質問を選ばせるモーダルで、`SupportPanel` が `state/interventionKind.ts` の判定で `ConfirmModal` と出し分けている。§2 の画面レイアウト図と対比表へ追加した。(5) §2 の `StepTimeline` を 8 → **9 ステップ**、`QueryForm` の「問い合わせ 1 行」を **textarea（複数行・Ctrl+Enter / ⌘+Enter で送信）**へ。(6) フロントのテスト表を実測へ更新（**189 件 / 13 ファイル → 276 件 / 19 ファイル**）。`citations` / `dataParams` / `documentLimit` / `interventionKind` / `serverTiming` / `submitKey` / `ReviewForm.examples` の 7 ファイルが表から漏れていた。(7) §4.3 のステップ詳細の例を `ルール 21 件` → **23 件**へ（`len(EC_AD.rules)` を実行して確認。keihyo 12 / tokusho 6 / yakki 4 / policy 1）。(8) §8 の **`2.8` が重複**し、並びが 2.6 → 2.8 → 2.9 → 2.7 → 2.8 と崩れていたので、詳細な方の 2.8 を残して 2.6 → 2.7 → 2.8 → 2.9 の昇順へ直した |
 ---
 
 ## 付録: 依存関係図
