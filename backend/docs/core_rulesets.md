@@ -26,11 +26,11 @@
 検索スコープ・しきい値・重大リスク語をまとめて保持する。
 
 `verticals.py` の `VerticalProfile`（Support 用の業界プロファイル）と役割は似るが、
-**型は分けている**。`VerticalProfile` に 21 個のルール定義を持たせると Support 用の
+**型は分けている**。`VerticalProfile` に 23 個のルール定義を持たせると Support 用の
 構造が壊れるため。
 
-初回プロファイルは `ec_ad`（EC 広告表示）で、景品表示法 12 件・医薬品医療機器等法 3 件・
-特定商取引法 6 件の計 21 ルールを持つ。
+初回プロファイルは `ec_ad`（EC 広告表示）で、景品表示法 12 件・特定商取引法 6 件・
+医薬品医療機器等法 4 件・社内方針 1 件の計 23 ルールを持つ。
 
 > ⚠️ **本ルールセットは技術検証用のサンプルであり、法務レビューを受けていない。**
 > `description` は公開されている条文・ガイドラインの要点を要約したものだが、
@@ -69,7 +69,7 @@
 | `RuleSet.rule_by_id()` | ルール ID から `RuleItem` を引く |
 | `RuleSet.always_check_rules` | 常時チェック対象のルール（表記漏れ検出用） |
 | `RuleSet.keyword_rules` | キーワード一致で候補になるルール |
-| `EC_AD` | 組み込みルールセット（EC 広告表示・21 ルール） |
+| `EC_AD` | 組み込みルールセット（EC 広告表示・23 ルール） |
 | `RULESETS` | ID → `RuleSet` の登録テーブル |
 | `get_ruleset()` | ID からルールセットを解決（未知は `None`） |
 
@@ -90,7 +90,7 @@ flowchart TB
     subgraph MODULE["core/rulesets.py"]
         RULEITEM["RuleItem（条文・判定基準）"]
         RULESET["RuleSet（ルール群＋スコープ）"]
-        ECAD["EC_AD（21 ルール）"]
+        ECAD["EC_AD（23 ルール）"]
         GETRS["get_ruleset()"]
     end
 
@@ -556,7 +556,7 @@ config.llm.prompt_addendum = ruleset.prompt_addendum
 
 print(f"{ruleset.name}: {len(ruleset.rules)} ルール"
       f"（常時チェック {len(ruleset.always_check_rules)}）")
-# EC広告表示: 21 ルール（常時チェック 6）
+# EC広告表示: 23 ルール（常時チェック 7）
 ```
 
 ### 6.2 応用ワークフロー（新しいルールセットの追加）

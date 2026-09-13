@@ -62,7 +62,7 @@ Support（`support_agent.py`）が「問い合わせ → 回答」なのに対�
 | 2 | 文書分割 | `core/review_agent.py` | `split_segments()`（LLM 不使用・決定的） |
 | 3 | 規程検索 | `core/review_agent.py` | `_retrieve_evidence()`（`rag_search` を無改造で使用） |
 | 4 | 判定ロジック | `core/review_gates.py` | 二段判定・抑止・救済・重大度（純関数＋ファクトリ） |
-| 5 | ルール定義 | `core/rulesets.py` | `RuleSet` / `RULESETS`（`ec_ad`・21 ルール） |
+| 5 | ルール定義 | `core/rulesets.py` | `RuleSet` / `RULESETS`（`ec_ad`・23 ルール） |
 | 6 | 根拠検証 | `grace.confidence` | `GroundednessVerifier`（Support と共用） |
 | 7 | HITL・実行 | `core/support_agent.py` / `support_actions.py` | `_perform_action` / `ActionBackend` を再利用 |
 
@@ -113,7 +113,7 @@ flowchart TB
     end
 
     subgraph RULES["ルール定義（rulesets.py）"]
-        RS["RULESETS: ec_ad<br>21 ルール・重大リスク語・しきい値"]
+        RS["RULESETS: ec_ad<br>23 ルール・重大リスク語・しきい値"]
     end
 
     API --> JOBS
@@ -373,8 +373,8 @@ verdict = detect(segment.text, rule, evidence)          # 第2段（LLM）
 | **Process** | 1. `select_candidate_rules()` が `always_check_rules` ＋ キーワード一致ルールを返す<br>2. 候補が無ければ**そのセグメントをスキップ**（LLM を呼ばない）<br>3. 候補ごとに `create_violation_detector()` の判定器を呼ぶ（`DETECT_MODEL = ModelConfig.DEFAULT_MODEL`）<br>4. `verdict.violates == False` なら次の候補へ<br>5. `llm_calls` を数え、`MAX_LLM_CALLS`（300）到達で打ち切り |
 | **Output** | `verdict`（`violates` / メッセージ / 修正案）、`detected_raw` 件数、`truncated` |
 
-> ⚠️ **組合せ爆発ガード**: 200 セグメント × 21 ルールを無条件に第2段へ流すと
-> **4,200 回**の LLM 呼び出しになる。第1段のキーワードフィルタで実際はこの 1〜2 割だが、
+> ⚠️ **組合せ爆発ガード**: 200 セグメント × 23 ルールを無条件に第2段へ流すと
+> **4,600 回**の LLM 呼び出しになる。第1段のキーワードフィルタで実際はこの 1〜2 割だが、
 > 上限（`MAX_LLM_CALLS = 300`）は必ず置く。到達時は `truncated=True` で打ち切り、
 > `detect` ステップの finished に記録する。
 
