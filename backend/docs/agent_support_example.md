@@ -1,6 +1,6 @@
 # agent_support_example.py - 日本語ナレッジ駆動サポート・コパイロット（GRACE-Support）設計書
 
-**Version 1.2（v1〜v3 ＋ 業界特化 実装済み・IPO 詳細追加）** | 最終更新: 2026-07-08
+**Version 1.3（v1〜v3 ＋ 業界特化 実装済み・IPO 詳細追加）** | 最終更新: 2026-09-14
 
 > **参考ドキュメント**
 > - [`backend/docs/agent_support_example_flow.md`](./agent_support_example_flow.md) — **1 コマンドの実行トレース**（`--vertical gov` の IN/OUT データフロー。本書 §1 のフロー図に対応）
@@ -21,7 +21,7 @@
 - [概要](#概要)
 - [1. アーキテクチャ構成図（回答判定フロー）](#1-アーキテクチャ構成図回答判定フロー)
 - [2. 回答ポリシー（groundedness ゲート）](#2-回答ポリシーgroundedness-ゲート)
-- [3. データ契約（schemas 追加案）](#3-データ契約schemas-追加案)
+- [3. データ契約（実装済み・dataclass）](#3-データ契約実装済みdataclass)
 - [4. 新規ツール ActionTool 仕様](#4-新規ツール-actiontool-仕様)
 - [5. HITL ポリシー](#5-hitl-ポリシー)
 - [6. 処理シーケンス](#6-処理シーケンス)
@@ -993,3 +993,4 @@ uv run python agent_support_example.py --vertical ec --no-dry-run \
 | 1.0 | v1〜v3 実装完了に合わせて更新。データ契約を実装済み dataclass（SupportResult/ActionRequest・decision は answer/escalate の 2 値）に、関数構成・CLI 仕様（`--no-web`/`--no-action`/`--dry-run`）を実コードに整合。ロードマップを実装済みに更新し、業界特化設計（`agent_support_verticals.md`）へのリンクを追加 |
 | 1.1 | **業界特化の実装反映＋コマンド表記統一**。コマンド例を `uv run python …` 形式に統一。§8 CLI に `--vertical {gov\|saas\|ec}` / `--identity` を追加し、業界別の実行例（8.1 共通／8.2 業界特化）を新設。§3 データ契約を実コードの dataclass（`groundedness_decided`/`vertical`/`intent`/`forced_escalate`/`identity_checked`/`no_info_detected`/`web_reused` を追記）に更新。§7 関数構成を二段判定・④' 情報なし検知・本人確認フローを含む実装済み関数（`_should_force_escalate`/`_decide_action`/`create_intent_classifier`/`create_no_info_judge`/`_detect_no_info_answer`/`_should_rescue_unaffirmed`/`_perform_action`）＋定数（`PROFILES`/`NO_INFO_MARKERS`/`INTENT_MODEL`）に刷新。ロードマップに業界特化・④' 行を追加。姉妹編 `agent_support_example_flow.md`（1 コマンド実行トレース）へのリンクを各所に追加 |
 | 1.2 | **IPO 詳細を追加**（`a_class_method_md_format.md` §6 準拠）。§7.6「クラス・関数 IPO 詳細」を新設し、データクラス（`ActionRequest`/`VerticalProfile`/`SupportResult`）と主要関数（`run_support_agent`/`_answer_gate`/`_pick_groundedness`/`_should_rescue_unaffirmed`/`create_intent_classifier`/`_match_keyword`/`_should_force_escalate`/`_decide_action`/`create_no_info_judge`/`_detect_no_info_answer`/`_perform_action`/`_collect_citations`/出典ユーティリティ/`_render`/`main`）を **概要・シグネチャ・パラメータ表・IPO テーブル・戻り値例・使用例**で記述。目次に 7.6 を追加 |
+| 1.3 | **目次のアンカー 1 件を見出しへ是正**（2026-09-14）。§3 の見出しが設計フェーズの `データ契約（schemas 追加案）` から実装反映後の `データ契約（実装済み・dataclass）` へ変わった際（v1.0）、**目次だけが旧題のまま**残り `#3-データ契約schemas-追加案` が解決しなくなっていた |
