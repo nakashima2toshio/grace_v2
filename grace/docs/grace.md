@@ -1,6 +1,6 @@
 # GRACE 自律型エージェント アーキテクチャ概説書
 
-**Version 1.0** | 最終更新: 2026-09-14
+**Version 2.0** | 最終更新: 2026-09-14
 
 > **本書の位置づけ（前振り）**
 >
@@ -13,6 +13,11 @@
 > （`confidence.md` / `executor.md` / `planner.md` など）の **上位に立ち、それらを束ねる
 > 「入口（傘）となる概説書」** にあたる。個別仕様はそれらリファレンスへ、
 > 全体像と設計の文脈は本書へ、という役割分担になっている。
+>
+> **横断文書 3 本の役割分担**:
+> - **`grace.md`（本書）** — **WHY**: なぜこの形になったか。ReAct → Reflection → GRACE の経緯と 5 段階設計の定義
+> - [`grace_core.md`](./grace_core.md) — **WHAT**: どう組まれているか。構成図・依存関係・モジュール役割サマリー・最小実行サンプル（**図表の正本**）
+> - [`grace_runtime.md`](./grace_runtime.md) — **HOW**: 実行時に何が飛ぶか。API 発行部とプロンプト全文
 
 ### 本書を一言で表すと
 
@@ -21,6 +26,8 @@
 | 文書タイプ | 主な問い | 担当 |
 |---|---|---|
 | **設計思想・アーキテクチャ概説書** | **なぜ／全体としてどう成り立つか** | ✅ 本書（`grace.md`） |
+| 実装アーキテクチャ | どのモジュールがどう繋がるか | `grace_core.md` |
+| 実行時リファレンス | どの API に何が飛ぶか | `grace_runtime.md` |
 | API/クラス リファレンス | この関数の引数・戻り値は？ | `confidence.md` / `executor.md` ほか |
 | 操作手順書（How-to / Usage） | どう動かすか | `readme_usage_tools.md` |
 
@@ -54,10 +61,11 @@
 
 ### 本書の読みどころ
 
-- **第1部** … (A) ReAct → (B) ReAct+Reflection → (C) GRACE 5段階設計 という改善の **経緯と動機**
+- **第1部** … (A) ReAct → (B) ReAct+Reflection → (C) GRACE 5段階設計 という改善の **経緯と動機**、および **5 段階設計の定義**（本書が正本）
 - **第2部** … `grace/` 全11ファイルを「1行のコード（公開エントリポイント）」へ凝縮した **構成早見**
-- **第3部** … 5段階（Plan/Execute/Confidence/Intervention/Replan）への **モジュール対応一覧＋フロー図**
-- **第4部** … 各段階の **意味づけ**（A→B→C の改善がどこに宿ったか）
+- **第3部** … 各段階の **意味づけ**（A→B→C の改善がどこに宿ったか）
+
+> モジュール一覧表・依存関係・構成図は本書には置かない。[`grace_core.md`](./grace_core.md) が正本である。
 
 ---
 
@@ -152,13 +160,40 @@ ReAct のループは残しつつ、タスクが失敗／終了した段階で**
         ↺（①へ戻る）
 ```
 
-| フェーズ | ルーツ | 役割 |
-|---|---|---|
-| ① Plan | ReAct: Thought の一部 | 最初に道筋を設計 |
-| ② Execute | ReAct: Action + Observation | ツール実行と結果取得 |
-| ③ Confidence | (B) Reflection（自己反省） | 正しさ・ゴール達成を検証 |
-| ④ Intervention | **GRACE 新規** | Human-in-the-Loop で暴走防止 |
-| ⑤ Replan | ReAct の神髄 + (B) 反省 | Thought に戻り次の手を再設計 |
+| フェーズ | ルーツ | 役割 | 主担当モジュール |
+|---|---|---|---|
+| ① Plan | ReAct: Thought の一部 | 最初に道筋を設計 | `planner.py` |
+| ② Execute | ReAct: Action + Observation | ツール実行と結果取得 | `executor.py` + `tools.py` |
+| ③ Confidence | (B) Reflection（自己反省） | 正しさ・ゴール達成を検証 | `confidence.py` + `calibration.py` |
+| ④ Intervention | **GRACE 新規** | Human-in-the-Loop で暴走防止 | `intervention.py` |
+| ⑤ Replan | ReAct の神髄 + (B) 反省 | Thought に戻り次の手を再設計 | `replan.py` |
+
+この 5 段階を 1 枚に表すと次の通り（`memory.py` は履歴を学習して①へ事前分布を還元する横串）。
+
+```mermaid
+flowchart TB
+    START(["ユーザークエリ"])
+    P1["① Plan 計画策定<br>planner.py"]
+    P2["② Execute 逐次実行<br>executor.py + tools.py"]
+    P3["③ Confidence 信頼度評価<br>confidence.py + calibration.py"]
+    P4["④ Intervention 人間介入(HITL)<br>intervention.py"]
+    P5["⑤ Replan 計画再策定<br>replan.py"]
+    MEM["memory.py 実行メモリ<br>履歴学習 → ①へ還元"]
+    DONE(["最終回答"])
+
+    START --> P1
+    P1 --> P2 --> P3 --> P4
+    P4 -- 承認/自動進行 --> DONE
+    P4 -- 拒否/失敗 --> P5
+    P3 -- 失敗・低信頼度 --> P5
+    P5 -. ①へ戻る .-> P1
+    MEM -. 事前分布(優先コレクション) .-> P1
+    P2 -. 実行実績を記録 .-> MEM
+classDef default fill:#000,stroke:#fff,color:#fff
+class START,P1,P2,P3,P4,P5,MEM,DONE default
+```
+
+> 各モジュールの責務一覧・依存関係・主メソッドは [`grace_core.md` §3.0](./grace_core.md#30-モジュール役割サマリー11-モジュール) が正本である。
 
 **(B) からの進化点**：
 
@@ -199,77 +234,13 @@ action  = create_intervention_handler(cfg).handle(decision)       # intervention
 newplan = create_replan_orchestrator(cfg).handle_step_failure(...)# replan.py     : 失敗/低信頼を検知し FULL/PARTIAL/FALLBACK/SKIP で計画再生成
 ```
 
-1 行に凝縮した「役割サマリ」だけ抜き出すと：
-
-| # | ファイル | 1行サマリ |
-|---|---|---|
-| 1 | `config.py` | 全コンポーネントの設定を Pydantic で一元管理（YAML＋環境変数） |
-| 2 | `llm_compat.py` | google-genai 互換のまま Anthropic を呼ぶ薄いアダプタ |
-| 3 | `schemas.py` | Plan/Step/Result/Scratchpad/Thought のデータ契約（型定義） |
-| 4 | `planner.py` | 質問を分析し ExecutionPlan を生成（三層振り分け） |
-| 5 | `memory.py` | 実行履歴を学習しコレクション事前分布を計画へ還元 |
-| 6 | `tools.py` | エージェントの「手足」＝各ツールとレジストリ |
-| 7 | `executor.py` | 計画を実行する司令塔（Plan-Execute／ReActループ） |
-| 8 | `confidence.py` | 多軸＋根拠妥当性で「どれだけ信じられるか」を採点 |
-| 9 | `calibration.py` | 採点の「甘辛」を実正解率へ較正（温度スケーリング） |
-| 10 | `intervention.py` | 信頼度に応じて人間に渡す/止める（HITL） |
-| 11 | `replan.py` | 失敗・低信頼から計画を立て直す |
+1 行に凝縮した「役割サマリ」の一覧表と、5 段階への割り当て（主担当・補助モジュール・主メソッド）は
+[`grace_core.md` §3.0 モジュール役割サマリー](./grace_core.md#30-モジュール役割サマリー11-モジュール)にまとめてある。
+**同じ表を 3 本の文書に持つと必ず片方だけ腐る**ので、本書からはリンクで参照する。
 
 ---
 
-## 第3部. GRACE 5段階設計への繰り込み（一覧表）
-
-5 段階の各フェーズに、**主担当モジュール**と**補助モジュール**を割り当てると以下になる。
-`config / schemas / llm_compat` は全段を貫く**横断基盤**である。
-
-| 段階 | 役割 | 主担当ファイル | 主メソッド | 補助ファイル |
-|---|---|---|---|---|
-| **① Plan**（計画策定） | 質問→実行計画 | `planner.py` | `create_plan(query)` | `memory.py`（事前分布）, `schemas.py`（ExecutionPlan） |
-| **② Execute**（逐次実行） | ツールを動かし観測を得る | `executor.py` ＋ `tools.py` | `execute_plan(plan)` / `tool.execute()` | `llm_compat.py`, `schemas.py`（StepResult/Scratchpad） |
-| **③ Confidence**（信頼度評価） | 結果は正しいか採点 | `confidence.py` ＋ `calibration.py` | `calculate()` / `verify()` / `transform()` | `schemas.py`, `config`（weights/thresholds） |
-| **④ Intervention**（人間介入/HITL） | 暴走を止め人へ渡す | `intervention.py` | `decide_action()`→`handle()` | `confidence.py`（InterventionLevel/ActionDecision） |
-| **⑤ Replan**（計画再策定） | 失敗から立て直す | `replan.py` | `handle_step_failure()` | `planner.py`（再生成）, `memory.py`（学習） |
-| **横断基盤** | 設定・型・LLM接続 | `config.py` / `schemas.py` / `llm_compat.py` | `get_config()` / 各Model / `create_chat_client()` | — |
-
-### 5段階フロー図
-
-```mermaid
-flowchart TB
-    subgraph Stage1["① Plan（planner.py）"]
-        P1["create_plan(query)"]
-        P2["三層振り分け: ask_user / rule / LLM"]
-    end
-    subgraph Stage2["② Execute（executor.py + tools.py）"]
-        E1["execute_plan / ReActループ"]
-        E2["動的fallback: rag→web→ask_user"]
-    end
-    subgraph Stage3["③ Confidence（confidence.py + calibration.py）"]
-        C1["多軸ハイブリッド信頼度"]
-        C2["groundedness ＋ 温度較正"]
-    end
-    subgraph Stage4["④ Intervention（intervention.py）"]
-        I1["SILENT / NOTIFY / CONFIRM / ESCALATE"]
-        I2["動的閾値調整（HITL）"]
-    end
-    subgraph Stage5["⑤ Replan（replan.py）"]
-        R1["FULL / PARTIAL / FALLBACK / SKIP"]
-        R2["エラー文脈を注入し再計画"]
-    end
-    Stage1 --> Stage2 --> Stage3 --> Stage4 --> Stage5
-    Stage5 -->|計画を差し替え| Stage1
-classDef default fill:#000,stroke:#fff,color:#fff
-classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
-class P1,P2,E1,E2,C1,C2,I1,I2,R1,R2 default
-style Stage1 fill:#1a1a1a,stroke:#fff,color:#fff
-style Stage2 fill:#1a1a1a,stroke:#fff,color:#fff
-style Stage3 fill:#1a1a1a,stroke:#fff,color:#fff
-style Stage4 fill:#1a1a1a,stroke:#fff,color:#fff
-style Stage5 fill:#1a1a1a,stroke:#fff,color:#fff
-```
-
----
-
-## 第4部. 各段階の説明（A→B→C の改善がどこに宿ったか）
+## 第3部. 各段階の説明（A→B→C の改善がどこに宿ったか）
 
 ### ① Plan — `planner.py`（+ `memory.py`）
 
@@ -340,3 +311,12 @@ ReAct の神髄＝Thought へ戻る工程を制度化。`should_replan()`（失�
 
 (A) の 3 要素ループを、(B) で「評価・反省・再計画」を足し、(C) で**各工程をモジュールへ分離
 ＋HITL を正式追加**して制度化した、という対応関係になっている。
+
+---
+
+## 変更履歴
+
+| バージョン | 変更内容 |
+|-----------|---------|
+| 2.0 | **横断 4 文書の整理・統合に伴う役割の絞り込み**（2026-09-14）。(1) 旧 `grace_core_flow.md` §A（5 段階設計）と重複していたため、**5 段階設計の定義を本書へ一本化**し、`memory.py` を横串として描いた 5 段階フロー図を第1部 (C) へ吸収した。(2) **第2部の 11 行役割サマリー表と第3部（5 段階→モジュール対応表・フロー図）を削除**し、[`grace_core.md` §3.0](./grace_core.md#30-モジュール役割サマリー11-モジュール) へのリンクに置換——同じ表が `grace.md` / `grace_core_flow.md` の 2 本に重複しており、片方だけ腐る状態だった。旧第4部を第3部へ繰り上げ。(3) 冒頭に横断 3 文書（WHY / WHAT / HOW）の役割分担を明示 |
+| 1.0 | 初版作成。ReAct → Reflection → GRACE の改善経緯、`grace/` 11 ファイルの 1 行凝縮、5 段階設計への対応一覧、各段階の意味づけを整備 |

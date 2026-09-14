@@ -1,6 +1,12 @@
 # grace_core.md - GRACE コアモジュール群（Planner 系）アーキテクチャ ドキュメント
 
-**Version 2.1** | 最終更新: 2026-09-12
+**Version 3.0** | 最終更新: 2026-09-14
+
+> **参考ドキュメント**
+> - [`grace/docs/grace.md`](./grace.md) — 設計思想（**なぜ**この形か。ReAct → Reflection → GRACE 5 段階の経緯）
+> - [`grace/docs/grace_runtime.md`](./grace_runtime.md) — 実行時リファレンス（**何が飛ぶか**。API 発行部とプロンプト全文）
+>
+> 本書は「**どう組まれているか**（WHAT）」を受け持つ。構成図・依存関係テーブル・モジュール役割サマリーは**本書が正本**である。
 
 ---
 
@@ -13,6 +19,7 @@
   - [1.2 データフロー](#12-データフロー)
 - [2. モジュール構成図](#2-モジュール構成図)
 - [3. モジュール別サマリー（クラス・関数一覧）](#3-モジュール別サマリークラス関数一覧)
+  - [3.0 モジュール役割サマリー（11 モジュール）](#30-モジュール役割サマリー11-モジュール)
   - [3.1 planner.py](#31-plannerpy--計画生成)
   - [3.2 executor.py](#32-executorpy--実行オーケストレータ)
   - [3.3 confidence.py](#33-confidencepy--信頼度計算)
@@ -33,7 +40,10 @@
   - [4.9 まとめ：場合分け早見表](#49-まとめ場合分け早見表)
 - [5. 処理シーケンス（GRACE ループ）](#5-処理シーケンスgrace-ループ)
 - [6. 設定・定数（横断）](#6-設定定数横断)
-- [7. 使用例（ワークフロー）](#7-使用例ワークフロー)
+- [7. 使用例（最小実行サンプル）](#7-使用例最小実行サンプル)
+  - [7.1 コード全文](#71-コード全文)
+  - [7.2 実行フロー（5 段階との対応）](#72-実行フロー5-段階との対応)
+  - [7.3 実行方法・前提](#73-実行方法前提)
 - [8. エクスポート](#8-エクスポート)
 - [9. 変更履歴](#9-変更履歴)
 - [付録: 依存関係図](#付録-依存関係図)
@@ -306,6 +316,39 @@ style MEMORY fill:#1a1a1a,stroke:#fff,color:#fff
 
 各モジュールの責務・主要クラス・関数を要約する。IPO 詳細は各「個別ドキュメント」を参照。
 
+### 3.0 モジュール役割サマリー（11 モジュール）
+
+`grace/` の全モジュールを 1 行ずつ要約する。**#4〜#11 が 5 段階設計を担うコア 8 モジュール**、**#1〜#3 はそれを下支えする基盤層**（設定・互換層・型契約）である。
+
+| # | ファイル | 1 行サマリ | 区分 | 個別ドキュメント |
+|---|---|---|---|---|
+| 1 | `config.py` | 全コンポーネントの設定を Pydantic で一元管理（YAML＋環境変数） | 基盤 | [`config.md`](./config.md) |
+| 2 | `llm_compat.py` | google-genai 互換のまま Anthropic を呼ぶ薄いアダプタ | 基盤 | [`llm_compat.md`](./llm_compat.md) |
+| 3 | `schemas.py` | Plan/Step/Result/Scratchpad/Thought のデータ契約（型定義） | 基盤 | [`schemas.md`](./schemas.md) |
+| 4 | `planner.py` | 質問を分析し `ExecutionPlan` を生成（三層振り分け） | ① Plan | [`planner.md`](./planner.md) |
+| 5 | `memory.py` | 実行履歴を学習しコレクション事前分布を計画へ還元 | 横串（①へ還元） | [`memory.md`](./memory.md) |
+| 6 | `tools.py` | エージェントの「手足」＝各ツールとレジストリ | ② Execute | [`tools.md`](./tools.md) |
+| 7 | `executor.py` | 計画を実行する司令塔（Plan-Execute／ReAct ループ） | ② Execute | [`executor.md`](./executor.md) |
+| 8 | `confidence.py` | 多軸＋根拠妥当性で「どれだけ信じられるか」を採点 | ③ Confidence | [`confidence.md`](./confidence.md) |
+| 9 | `calibration.py` | 採点の「甘辛」を実正解率へ較正（温度スケーリング） | ③ Confidence | [`calibration.md`](./calibration.md) |
+| 10 | `intervention.py` | 信頼度に応じて人間に渡す／止める（HITL） | ④ Intervention | [`intervention.md`](./intervention.md) |
+| 11 | `replan.py` | 失敗・低信頼から計画を立て直す | ⑤ Replan | [`replan.md`](./replan.md) |
+
+> 📝 `planner.py` は複雑度・曖昧性に応じて「曖昧クエリの確認（`ask_user`）／ルールベース 2 ステップ計画／LLM 計画」へ振り分ける（**三層振り分け**）。`memory.py` は 5 段階のいずれにも属さないが、過去実績を①の計画へ還元する**横串の学習機構**である（§4 に実例）。
+
+5 段階の各フェーズに主担当・補助モジュールを割り当てると次のようになる。`config` / `schemas` / `llm_compat` は全段を貫く横断基盤である。
+
+| 段階 | 役割 | 主担当ファイル | 主メソッド | 補助ファイル |
+|---|---|---|---|---|
+| **① Plan**（計画策定） | 質問 → 実行計画 | `planner.py` | `create_plan(query)` | `memory.py`（事前分布）, `schemas.py`（`ExecutionPlan`） |
+| **② Execute**（逐次実行） | ツールを動かし観測を得る | `executor.py` ＋ `tools.py` | `execute_plan(plan)` / `tool.execute()` | `llm_compat.py`, `schemas.py`（`StepResult`/`Scratchpad`） |
+| **③ Confidence**（信頼度評価） | 結果は正しいか採点 | `confidence.py` ＋ `calibration.py` | `calculate()` / `verify()` / `transform()` | `schemas.py`, `config`（weights/thresholds） |
+| **④ Intervention**（人間介入/HITL） | 暴走を止め人へ渡す | `intervention.py` | `decide_action()` → `handle()` | `confidence.py`（`InterventionLevel`/`ActionDecision`） |
+| **⑤ Replan**（計画再策定） | 失敗から立て直す | `replan.py` | `handle_step_failure()` | `planner.py`（再生成）, `memory.py`（学習） |
+| **横断基盤** | 設定・型・LLM 接続 | `config.py` / `schemas.py` / `llm_compat.py` | `get_config()` / 各 Model / `create_chat_client()` | — |
+
+> 5 段階そのものの定義と、なぜこの 5 段階になったのか（ReAct → Reflection → GRACE の経緯）は [`grace.md`](./grace.md) を参照。
+
 ### 3.1 planner.py — 計画生成
 
 **個別ドキュメント**: [`planner.md`](./planner.md)
@@ -380,7 +423,7 @@ style MEMORY fill:#1a1a1a,stroke:#fff,color:#fff
 
 ### 3.5 memory.py — 実行メモリ
 
-**個別ドキュメント**: （新規・本書で初出）
+**個別ドキュメント**: [`memory.md`](./memory.md)
 
 実行レコードを JSONL に蓄積し、コレクション別の成功率・平均信頼度（Laplace 平滑化）を集計して、クエリキーワードに基づく**コレクション事前分布**を `planner.py` に提供する（エピソード記憶）。
 
@@ -799,37 +842,85 @@ sequenceDiagram
 
 ---
 
-## 7. 使用例（ワークフロー）
+## 7. 使用例（最小実行サンプル）
+
+コア一式は、**公開 API を 2 つ呼ぶだけ**で動く——`planner.create_plan()`（① Plan）と `executor.execute()`（②〜⑤を内部統括）である。
+
+### 7.1 コード全文
+
+> ⚠️ **これは本書内の解説用コード片であり、リポジトリに置かれたファイルではない。**
+> 実物のエントリポイントは `agent_support_example.py`（CLI。Web と同じコアを通る）と
+> `grace/step_trace/s0_arg.py` … `s9_render.py`（段ごとの IN/Process/OUT 表示）である。
+> 実行方法は §7.3 を参照。
 
 ```python
+"""GRACE エージェントの最小実行サンプル。
+
+planner（計画生成）→ executor（confidence/calibration/intervention/replan/memory を
+内部統括）の一連の流れを 1 クエリで実行する。
+
+前提:
+- `.env` に ANTHROPIC_API_KEY（LLM 用）と GOOGLE_API_KEY（Embedding 用）を設定
+- Qdrant が起動済み（既定 http://localhost:6333）で RAG コレクションが登録済み
+"""
+from __future__ import annotations
+
+import os
+import sys
+
 from grace import (
-    create_planner,
     create_executor,
+    create_planner,
     create_tool_registry,
     get_config,
 )
 
-# 1. 設定の取得
-config = get_config()
+# .env から ANTHROPIC_API_KEY / GOOGLE_API_KEY 等を読み込む（未導入でも続行）
+try:
+    from dotenv import load_dotenv
 
-# 2. ツールレジストリと各エージェントの初期化
-tool_registry = create_tool_registry(config)
-planner = create_planner(config)
-executor = create_executor(config, tool_registry)  # confidence/calibration/intervention/replan/memory を内部初期化
+    load_dotenv()
+except ImportError:
+    pass
 
-# 3. 計画の生成（planner.py）
-plan = planner.create_plan("日本の再生可能エネルギー政策の最新動向を教えて")
+DEFAULT_QUERY = "日本の再生可能エネルギー政策の最新動向を教えて"
 
-# 4. 計画の実行（executor.py が全コンポーネントを統括）
-result = executor.execute(plan)
 
-# 5. 結果の確認
-print(f"最終回答: {result.final_answer}")
-print(f"全体信頼度（較正済み）: {result.overall_confidence:.2f}")
-print(f"ステータス: {result.overall_status}")
+def run_agent(query: str = DEFAULT_QUERY):
+    # 0. API キーの存在チェック（未設定だと LLM 呼び出しで失敗する）
+    if not os.getenv("ANTHROPIC_API_KEY"):
+        print("⚠️ ANTHROPIC_API_KEY が未設定です。.env に設定してください。", file=sys.stderr)
+        return None
+
+    # 1. 設定の取得（config.py が YAML＋環境変数から GraceConfig を構築）
+    config = get_config()
+
+    # 2. ツールレジストリと各エージェントの初期化
+    tool_registry = create_tool_registry(config)
+    planner = create_planner(config)
+    # create_executor は内部で confidence/calibration/intervention/replan/memory を初期化する
+    executor = create_executor(config, tool_registry)
+
+    # 3. 計画の生成（planner.py）＝ ① Plan
+    print(f"❓ 質問: {query}")
+    plan = planner.create_plan(query)
+    print(f"📋 計画: {len(plan.steps)} ステップ (complexity={plan.complexity:.2f})")
+
+    # 4. 計画の実行（executor.py が ②〜⑤ を統括）
+    result = executor.execute(plan)
+
+    # 5. 結果の確認
+    print(f"最終回答: {result.final_answer}")
+    print(f"全体信頼度（較正済み）: {result.overall_confidence:.2f}")
+    print(f"ステータス: {result.overall_status}")
+    return result
+
+
+if __name__ == "__main__":
+    run_agent()
 ```
 
-UI 連携ではブロッキング版の代わりにジェネレータ版を使い、中間イベント（`log` / `tool_call` / `tool_result` / `final_answer`）を逐次表示する。
+UI 連携ではブロッキング版の代わりにジェネレータ版を使い、中間イベント（`log` / `tool_call` / `tool_result` / `final_answer`）を逐次表示する。`execute()` は内部で `execute_plan_generator()` をドレインしているだけなので、逐次表示が要るとき（FastAPI の SSE で進捗を流す Web UI など）は後者を直接使う。
 
 ```python
 # UI 連携（ジェネレータ版）
@@ -837,6 +928,67 @@ for state in executor.execute_plan_generator(plan):
     # state を逐次描画（進捗・ステップ結果・信頼度）
     ...
 ```
+
+### 7.2 実行フロー（5 段階との対応）
+
+呼ぶのは 2 つの公開 API だけだが、`executor.execute()` の内部で 5 段階設計の②〜⑤がすべて回る。
+
+```mermaid
+flowchart TB
+    A0["get_config()<br>設定読込（config.py）"]
+    A1["create_tool_registry()<br>create_planner()<br>create_executor()<br>初期化"]
+    A2["planner.create_plan(query)<br>① Plan"]
+    A3["executor.execute(plan)<br>② Execute → ③ Confidence → ④ Intervention → ⑤ Replan を内部統括"]
+    A4["result の表示<br>final_answer / overall_confidence / overall_status"]
+
+    A0 --> A1 --> A2 --> A3 --> A4
+classDef default fill:#000,stroke:#fff,color:#fff
+class A0,A1,A2,A3,A4 default
+```
+
+| サンプルの処理 | 呼び出す API | 対応するフェーズ |
+|---|---|---|
+| 1. 設定取得 | `get_config()` | 基盤（`config.py`） |
+| 2. 初期化 | `create_tool_registry()` / `create_planner()` / `create_executor()` | 基盤（②の道具立て） |
+| 3. 計画生成 | `planner.create_plan(query)` | **① Plan** |
+| 4. 計画実行 | `executor.execute(plan)` | **② Execute / ③ Confidence / ④ Intervention / ⑤ Replan** |
+| 5. 結果表示 | `result.final_answer` ほか | 出力 |
+
+主な戻り値: `final_answer`（`Optional[str]`）/ `overall_confidence`（**較正済み** 0.0–1.0）/ `overall_status`（`success` / `partial` / `failed` / `cancelled`）。
+
+> 💡 `create_executor()` に渡すのは `tool_registry` だけだが、内部で `confidence` / `calibration` / `intervention` / `replan` / `memory` を初期化する（`executor.py` 内）。だからサンプルは 2 API だけでコア全体を動かせる。
+
+> ⚠️ このコード片は非対話のブロッキング実行のため、④ Intervention が `CONFIRM` 相当を返しても自動進行する。人間の確認を挟むには `execute_plan_generator()` と UI 側のハンドラが要る。
+
+### 7.3 実行方法・前提
+
+```bash
+# 1) Qdrant を起動（RAG 検索のため）
+docker-compose -f docker-compose/docker-compose.yml up -d
+
+# 2) .env に API キーを設定
+#   ANTHROPIC_API_KEY=...   ← LLM（計画・推論・信頼度評価）
+#   GOOGLE_API_KEY=...      ← Embedding（RAG 検索のベクトル化）
+
+# 3) 実行 — 実物のエントリポイントを使う
+uv run python agent_support_example.py --vertical gov -v "住民票の写しの取り方は？"
+
+# 段ごとに確かめたいとき（IN → Process → OUT を表示）
+uv run python grace/step_trace/s2_plan.py --vertical gov "住民票の写しの取り方は？"
+```
+
+**出力例（イメージ・§7.1 のコード片を動かした場合）**:
+
+```
+❓ 質問: 日本の再生可能エネルギー政策の最新動向を教えて
+📋 計画: 2 ステップ (complexity=0.65)
+------------------------------------------------------------
+最終回答: 日本の再生可能エネルギー政策は……（以下、生成された回答）
+全体信頼度（較正済み）: 0.83
+ステータス: success
+```
+
+> このとき内部で**実際にどの API がどの順で飛び、どんなプロンプトが送られるか**は [`grace_runtime.md`](./grace_runtime.md) を参照。
 
 ---
 
@@ -879,6 +1031,7 @@ __all__ = [
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 3.0 | **`grace_core_flow.md` の統合先となり、図表の正本になった**（2026-09-14）。(1) **§3.0 モジュール役割サマリー**を新設——11 モジュールの 1 行サマリ表（旧 `grace_core_flow.md` §C・旧 `grace.md` 第2部）と 5 段階×担当モジュール表（旧 `grace.md` 第3部）をここへ集約し、3 本に散っていた同じ表を 1 箇所にした。(2) **§7 使用例を最小実行サンプルへ差し替え**（旧 `grace_core_flow.md` §D.1/§D.2/§D.4）。旧 §D.3 の行番号による逐行解説は、リポジトリに存在しないコード片への行番号だったため引き継いでいない。(3) §3.5 memory.py の「個別ドキュメント: （新規・本書で初出）」を `memory.md` へのリンクへ是正。(4) 冒頭に `grace.md`（WHY）/ `grace_runtime.md`（HOW）への参照を置き、本書が WHAT を受け持つことを明示 |
 | 2.1 | **Streamlit 残骸の除去。** Mermaid の UI ノードを `React UI ← FastAPI ← SSE` へ是正。`agent_rag.py` は存在しない（2026-09-12） |
 | 1.0 | 初版作成（A グループ 8 モジュールの横断まとめ。先頭にモジュール・ブロック図、3 層構成図、モジュール構成図、処理シーケンス、横断設定表を整備） |
 | 1.1 | 目次・本文の採番を整理（モジュール別サマリーのサブ番号 3.1–3.8 を本文番号と一致させ、目次を明示番号付き箇条書きに変更）。新章「4. 実行メモリが貯まるまで（planner → executor → memory）」を例データ・場合分け・黒背景シーケンス図つきで追加し、以降の章を 5〜9 に繰り下げ |
