@@ -361,9 +361,13 @@ Q/A 生成は CLAUDE.md §3 で **Anthropic 必須**の用途。T6-2 と同じ�
 ### T7-2 `grace/docs` の横断文書 — ✅ 修正不要
 
 `grace.md` / `grace_core.md` / `grace_core_flow.md` / `confidence_calibration.md` は
-対応する `.py` を持たないが、`grace/docs/README.md` §2.2 に**横断文書として明記**されており
-命名規則違反ではない。`benchmark.md` も `grace/step_trace/benchmark.py` 対応と索引にある。
-**「孤児ファイル」と誤認して消さないこと。**
+対応する `.py` を持たないが、`grace/docs/README.md` **§2.3**（C. 横断・アーキテクチャ文書）に
+明記されており命名規則違反ではない。**「孤児ファイル」と誤認して消さないこと。**
+
+> 📌 **2026-09-14 更新**: `grace/docs/README.md` の文書一覧は §2.1 A（コア 8）/ §2.2 B（基盤層 3）/
+> §2.3 C（横断 4）の 3 区分へ再編された（旧 §2.1「モジュール単位」/ §2.2「横断」の 2 区分から）。
+> また `benchmark.md` は対象が `grace/step_trace/benchmark.py` のため
+> **`grace/step_trace/docs/benchmark.md` へ移動済み**（`grace/docs/` には無い）。
 
 ### T7-3 README.md の API 一覧に未記載のエンドポイント
 
