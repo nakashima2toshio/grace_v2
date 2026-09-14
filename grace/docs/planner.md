@@ -1,6 +1,6 @@
 # planner.py - GRACE 計画生成エージェント ドキュメント
 
-**Version 3.6** | 最終更新: 2026-09-12
+**Version 3.7** | 最終更新: 2026-09-14
 
 ---
 
@@ -12,10 +12,9 @@
 4. [3. クラス・関数一覧表](#3-クラス関数一覧表)
 5. [4. クラス・関数 IPO詳細](#4-クラス関数-ipo詳細)
 6. [5. 設定・定数](#5-設定定数)
-7. [6. 使用例](#6-使用例)
-8. [7. エクスポート](#7-エクスポート)
-9. [8. 変更履歴](#8-変更履歴)
-10. [付録: 依存関係図](#付録-依存関係図)
+7. [6. エクスポート](#6-エクスポート)
+8. [7. 変更履歴](#7-変更履歴)
+9. [付録: 依存関係図](#付録-依存関係図)
 
 ---
 
@@ -268,7 +267,49 @@ style FACTORY fill:#1a1a1a,stroke:#fff,color:#fff
 
 ## 4. クラス・関数 IPO詳細
 
-### 4.1 Planner クラス
+### 4.1 使用例
+
+#### 4.1.1 基本的なワークフロー
+
+```python
+from grace.planner import create_planner
+
+# 1. Planner を生成
+planner = create_planner()
+
+# 2. 実行計画を生成
+plan = planner.create_plan("日本の人口について教えて")
+
+# 3. 計画内容を確認
+print(f"複雑度: {plan.complexity}")
+for step in plan.steps:
+    print(f"  step{step.step_id}: {step.action} - {step.description}")
+
+# 4. 必要なら複雑度をLLMで推定
+score = planner.estimate_complexity_with_llm("複数の事象を比較して")
+print(f"LLM複雑度: {score}")
+```
+
+#### 4.1.2 応用ワークフロー（リファインメント）
+
+```python
+from grace.config import get_config
+from grace.planner import create_planner
+
+config = get_config()
+config.planner.force_llm_plan = True  # 常にLLM計画を使用
+
+planner = create_planner(config=config)
+plan = planner.create_plan("生成AIの最新動向を詳しく")
+
+# フィードバックに基づき計画を修正
+refined = planner.refine_plan(plan, "もっとステップを分けて、最新事例を含めて")
+print(f"修正後ステップ数: {len(refined.steps)}")
+```
+
+---
+
+### 4.2 Planner クラス
 
 ユーザーの質問を分析し、実行計画（`ExecutionPlan`）を生成する計画生成エージェント。二層方式（ルールベース / LLM）を採用する。
 
@@ -915,7 +956,7 @@ print(cols)
 # 出力: ["wikipedia_ja", "livedoor", ...]
 ```
 
-### 4.2 判定関数
+### 4.3 判定関数
 
 #### `is_ambiguous_query`
 
@@ -951,7 +992,7 @@ print(is_ambiguous_query("RAGの仕組みを教えて"))
 # 出力: False
 ```
 
-### 4.3 ファクトリ関数
+### 4.4 ファクトリ関数
 
 #### `create_planner`
 
@@ -1060,49 +1101,7 @@ class MemoryConfig(BaseModel):
 
 ---
 
-## 6. 使用例
-
-### 6.1 基本的なワークフロー
-
-```python
-from grace.planner import create_planner
-
-# 1. Planner を生成
-planner = create_planner()
-
-# 2. 実行計画を生成
-plan = planner.create_plan("日本の人口について教えて")
-
-# 3. 計画内容を確認
-print(f"複雑度: {plan.complexity}")
-for step in plan.steps:
-    print(f"  step{step.step_id}: {step.action} - {step.description}")
-
-# 4. 必要なら複雑度をLLMで推定
-score = planner.estimate_complexity_with_llm("複数の事象を比較して")
-print(f"LLM複雑度: {score}")
-```
-
-### 6.2 応用ワークフロー（リファインメント）
-
-```python
-from grace.config import get_config
-from grace.planner import create_planner
-
-config = get_config()
-config.planner.force_llm_plan = True  # 常にLLM計画を使用
-
-planner = create_planner(config=config)
-plan = planner.create_plan("生成AIの最新動向を詳しく")
-
-# フィードバックに基づき計画を修正
-refined = planner.refine_plan(plan, "もっとステップを分けて、最新事例を含めて")
-print(f"修正後ステップ数: {len(refined.steps)}")
-```
-
----
-
-## 7. エクスポート
+## 6. エクスポート
 
 `planner.py` の `__all__`:
 
@@ -1121,10 +1120,11 @@ __all__ = [
 
 ---
 
-## 8. 変更履歴
+## 7. 変更履歴
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 3.7 | 使用例を「## 6. 使用例」から IPO 詳細セクション冒頭の `4.1 使用例` へ移動（フォーマット仕様 v1.6 §6.1）。これに伴い既存の `### 4.N` を 1 つずつ繰り下げ、章番号を エクスポート → `## 6.` / 変更履歴 → `## 7.` へ繰り上げ（2026-09-14） |
 | 3.6 | **Streamlit 残骸の除去。** Mermaid の呼び出し元ノードを `support_agent.py` へ是正。`agent_rag.py` は存在しない（2026-09-12） |
 | 1.0 | 初版作成（LLM計画生成のみ） |
 | 2.0 | 二層方式（ルールベース / LLM）の振り分け、フォールバック計画を追加 |

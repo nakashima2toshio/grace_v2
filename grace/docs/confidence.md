@@ -1,6 +1,6 @@
 # confidence.py - 信頼度計算システム ドキュメント
 
-**Version 2.3** | 最終更新: 2026-09-04
+**Version 2.4** | 最終更新: 2026-09-14
 
 ---
 
@@ -12,10 +12,9 @@
 4. [クラス・関数一覧表](#3-クラス関数一覧表)
 5. [クラス・関数 IPO詳細](#4-クラス関数-ipo詳細)
 6. [設定・定数](#5-設定定数)
-7. [使用例](#6-使用例)
-8. [エクスポート](#7-エクスポート)
-9. [変更履歴](#8-変更履歴)
-10. [付録: 依存関係図](#付録-依存関係図)
+7. [エクスポート](#6-エクスポート)
+8. [変更履歴](#7-変更履歴)
+9. [付録: 依存関係図](#付録-依存関係図)
 
 ---
 
@@ -348,7 +347,67 @@ style FACT fill:#1a1a1a,stroke:#fff,color:#fff
 
 ## 4. クラス・関数 IPO詳細
 
-### 4.1 ConfidenceFactors クラス
+### 4.1 使用例
+
+#### 4.1.1 基本的なワークフロー
+
+```python
+from grace.confidence import (
+    ConfidenceFactors,
+    create_confidence_calculator,
+)
+
+# 1. 計算器を初期化
+calc = create_confidence_calculator()
+
+# 2. 検索結果から要素を構築
+factors = ConfidenceFactors(
+    search_result_count=5,
+    search_max_score=0.82,
+    search_avg_score=0.71,
+    is_search_step=True,
+)
+
+# 3. 信頼度を計算
+score = calc.calculate(factors)
+
+# 4. 介入レベルを決定
+decision = calc.decide_action(score)
+print(f"信頼度: {score.score} ({score.level}) -> {decision.level}")
+# 信頼度: 0.82 (medium) -> InterventionLevel.NOTIFY
+```
+
+#### 4.1.2 応用ワークフロー（最終回答の検証と集計）
+
+```python
+from grace.confidence import (
+    create_llm_evaluator,
+    create_groundedness_verifier,
+    create_confidence_aggregator,
+)
+
+query = "保証期間は？"
+answer = "保証期間は1年間です。"
+sources = ["保証規定: 製品保証は購入から1年間"]
+
+# 統合評価（確信度＋網羅度を1回で）
+evaluator = create_llm_evaluator()
+final = evaluator.evaluate_final(query, answer, sources)
+
+# 根拠妥当性（S1）検証
+verifier = create_groundedness_verifier()
+grounded = verifier.verify(query, answer, sources)
+print(f"support_rate={grounded.support_rate}, verified={grounded.verified}")
+
+# 複数ステップの集計
+aggregator = create_confidence_aggregator()
+total, has_failure = aggregator.aggregate_with_critical_check(step_scores)
+print(f"total={total}, critical_failure={has_failure}")
+```
+
+---
+
+### 4.2 ConfidenceFactors クラス
 
 信頼度を構成する各要素を保持するデータクラス。検索・ソース・LLM 自己評価・ツール・クエリの各指標を集約する。
 
@@ -413,7 +472,7 @@ print(factors.search_max_score)
 # 0.82
 ```
 
-### 4.2 ConfidenceScore クラス
+### 4.3 ConfidenceScore クラス
 
 信頼度スコアと内訳・適用ペナルティを保持するデータクラス。
 
@@ -486,7 +545,7 @@ print(ConfidenceScore(score=0.95, factors=factors).level)
 # high
 ```
 
-### 4.3 InterventionLevel 列挙型
+### 4.4 InterventionLevel 列挙型
 
 介入レベルを表す文字列列挙型。
 
@@ -518,7 +577,7 @@ print(InterventionLevel.CONFIRM.value)
 # confirm
 ```
 
-### 4.4 ActionDecision クラス
+### 4.5 ActionDecision クラス
 
 信頼度に基づくアクション決定を保持するデータクラス。
 
@@ -563,7 +622,7 @@ print(decision.should_proceed)
 # True
 ```
 
-### 4.5 ConfidenceCalculator クラス
+### 4.6 ConfidenceCalculator クラス
 
 ハイブリッド方式による信頼度計算クラス。
 
@@ -713,7 +772,7 @@ print(decision.level, decision.suggested_action)
 # InterventionLevel.NOTIFY proceed_with_status
 ```
 
-### 4.6 LLMSelfEvaluator クラス
+### 4.7 LLMSelfEvaluator クラス
 
 LLM による自己評価クラス。`llm_compat` 経由で Anthropic Claude を呼び出す。
 
@@ -870,7 +929,7 @@ res = evaluator.evaluate_with_factors(description="仕様検索", output="...", 
 print(res["score"], res["reason"])
 ```
 
-### 4.7 SourceAgreementCalculator クラス
+### 4.8 SourceAgreementCalculator クラス
 
 複数ソース間の意味的一致度を Gemini Embedding で計算するクラス。
 
@@ -933,7 +992,7 @@ print(agreement)
 # 0.873
 ```
 
-### 4.8 QueryCoverageCalculator クラス
+### 4.9 QueryCoverageCalculator クラス
 
 クエリ網羅度を LLM で評価するクラス。
 
@@ -1002,7 +1061,7 @@ print(coverage)
 # 0.6
 ```
 
-### 4.9 GroundednessVerifier クラス
+### 4.10 GroundednessVerifier クラス
 
 最終回答の各主張が引用ソースに支持されるか（entailment）を LLM 判定する S1 の中核クラス。
 
@@ -1170,7 +1229,7 @@ def _log_claims(self, result: GroundednessResult) -> None
 
 ---
 
-### 4.10 方針文の除外（`POLICY_CLAIM_MARKERS` / `is_unsupportable_policy_claim`）
+### 4.11 方針文の除外（`POLICY_CLAIM_MARKERS` / `is_unsupportable_policy_claim`）
 
 #### 定数: `POLICY_CLAIM_MARKERS`
 
@@ -1226,7 +1285,7 @@ def is_unsupportable_policy_claim(claim) -> bool
 
 ---
 
-### 4.11 ConfidenceAggregator クラス
+### 4.12 ConfidenceAggregator クラス
 
 複数ステップの信頼度を集計するクラス。
 
@@ -1332,7 +1391,7 @@ print(score, has_failure)
 # 0.49 True
 ```
 
-### 4.12 ファクトリ関数
+### 4.13 ファクトリ関数
 
 #### `create_confidence_calculator`
 
@@ -1583,67 +1642,7 @@ class ConfidenceThresholds(BaseModel):
 
 ---
 
-## 6. 使用例
-
-### 6.1 基本的なワークフロー
-
-```python
-from grace.confidence import (
-    ConfidenceFactors,
-    create_confidence_calculator,
-)
-
-# 1. 計算器を初期化
-calc = create_confidence_calculator()
-
-# 2. 検索結果から要素を構築
-factors = ConfidenceFactors(
-    search_result_count=5,
-    search_max_score=0.82,
-    search_avg_score=0.71,
-    is_search_step=True,
-)
-
-# 3. 信頼度を計算
-score = calc.calculate(factors)
-
-# 4. 介入レベルを決定
-decision = calc.decide_action(score)
-print(f"信頼度: {score.score} ({score.level}) -> {decision.level}")
-# 信頼度: 0.82 (medium) -> InterventionLevel.NOTIFY
-```
-
-### 6.2 応用ワークフロー（最終回答の検証と集計）
-
-```python
-from grace.confidence import (
-    create_llm_evaluator,
-    create_groundedness_verifier,
-    create_confidence_aggregator,
-)
-
-query = "保証期間は？"
-answer = "保証期間は1年間です。"
-sources = ["保証規定: 製品保証は購入から1年間"]
-
-# 統合評価（確信度＋網羅度を1回で）
-evaluator = create_llm_evaluator()
-final = evaluator.evaluate_final(query, answer, sources)
-
-# 根拠妥当性（S1）検証
-verifier = create_groundedness_verifier()
-grounded = verifier.verify(query, answer, sources)
-print(f"support_rate={grounded.support_rate}, verified={grounded.verified}")
-
-# 複数ステップの集計
-aggregator = create_confidence_aggregator()
-total, has_failure = aggregator.aggregate_with_critical_check(step_scores)
-print(f"total={total}, critical_failure={has_failure}")
-```
-
----
-
-## 7. エクスポート
+## 6. エクスポート
 
 `grace.confidence` の `__all__` でエクスポートされる要素：
 
@@ -1679,10 +1678,11 @@ __all__ = [
 
 ---
 
-## 8. 変更履歴
+## 7. 変更履歴
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 2.4 | 使用例を「## 6. 使用例」から IPO 詳細セクション冒頭の `4.1 使用例` へ移動（フォーマット仕様 v1.6 §6.1）。これに伴い既存の `### 4.N` を 1 つずつ繰り下げ、章番号を エクスポート → `## 6.` / 変更履歴 → `## 7.` へ繰り上げ（2026-09-14）。過去の変更履歴行に書かれた旧節番号（§4.x / §6.x）は当時の記録としてそのまま残している |
 | 1.0 | 初版作成 |
 | 2.0 | groundedness（S1）検証・統合評価（evaluate_final）の追加に対応 |
 | 2.1 | 実ソースに整合（2026-06-16）。LLM 呼び出しを `llm_compat`（Anthropic 互換）経由として明記、Embedding を Gemini に統一、全 Mermaid 図を黒背景・白文字スタイルに更新、IPO 詳細・設定値・`__all__` を最新化 |
