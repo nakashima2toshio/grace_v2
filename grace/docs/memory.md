@@ -1,6 +1,6 @@
 # memory.py - GRACE 実行メモリ層（P4） ドキュメント
 
-**Version 1.0** | 最終更新: 2026-09-04
+**Version 1.1** | 最終更新: 2026-09-14
 
 > **参考ドキュメント**
 > - [`grace/docs/grace_core.md`](./grace_core.md) — コアモジュール群の横断アーキテクチャ（§4 に「実行メモリが貯まるまで」の実例あり）
@@ -17,9 +17,8 @@
 - [3. クラス・関数一覧表](#3-クラス関数一覧表)
 - [4. クラス・関数 IPO 詳細](#4-クラス関数-ipo-詳細)
 - [5. 設定・定数](#5-設定定数)
-- [6. 使用例](#6-使用例)
-- [7. 落とし穴](#7-落とし穴)
-- [8. 変更履歴](#8-変更履歴)
+- [6. 落とし穴](#6-落とし穴)
+- [7. 変更履歴](#7-変更履歴)
 - [付録: 依存関係図](#付録-依存関係図)
 
 ---
@@ -207,7 +206,70 @@ style CLS fill:#1a1a1a,stroke:#fff,color:#fff
 
 ## 4. クラス・関数 IPO 詳細
 
-### 4.1 `extract_keywords()`
+### 4.1 使用例
+
+#### 4.1.1 単体で使う
+
+```python
+from grace.memory import create_execution_memory
+
+memory = create_execution_memory("logs/grace_memory.jsonl")
+
+# 1 実行分を記録
+memory.record_many(
+    query="Python の歴史を教えて",
+    collections=["wikipedia_ja"],
+    success=True,
+    confidence=0.85,
+)
+
+# 事前分布を見る
+for stat in memory.collection_priors(query="Python の内包表記とは"):
+    print(f"{stat.collection}: count={stat.count} score={stat.score():.3f}")
+
+# 採用判定
+best = memory.best_collection(query="Python の内包表記とは")
+print(best)   # 実績が十分なら "wikipedia_ja"、足りなければ None
+```
+
+#### 4.1.2 除外述語つきで使う（Planner の実際の呼び方）
+
+```python
+best = memory.best_collection(
+    query=query,
+    min_count=config.memory.min_count,
+    min_score=config.memory.min_score,
+    exclude=self._is_excluded,      # qdrant.excluded_collections に載っていれば True
+)
+```
+
+`best_collection()` が返すのは**過去の実績からの推測**であり、運用者の明示指定ではない。
+一方この戻り値は `PlanStep.collection` に入り、RAGSearchTool 側では明示指定と区別が付かないため、
+`exclude` を渡さないと `qdrant.excluded_collections` を素通りしてしまう。
+
+#### 4.1.3 テストで使う
+
+```python
+def test_best_collection_skips_excluded(tmp_path):
+    memory = create_execution_memory(str(tmp_path / "m.jsonl"))
+    for _ in range(3):
+        memory.record_many(query="住民票", collections=["bad", "gov_faq"],
+                           success=True, confidence=0.9)
+
+    # 除外しなければ首位が返る
+    assert memory.best_collection(query="住民票") in {"bad", "gov_faq"}
+
+    # 除外すると次点が返る（None にはならない）
+    assert memory.best_collection(
+        query="住民票", exclude=lambda c: c == "bad"
+    ) == "gov_faq"
+```
+
+API キーも Qdrant も不要で、`tmp_path` を渡すだけで完結する。
+
+---
+
+### 4.2 `extract_keywords()`
 
 軽量なキーワード抽出。**形態素解析はしない。**
 
@@ -237,7 +299,7 @@ extract_keywords("Python の歴史を教えて")
 > 日本語の連続が丸ごと 1 キーワードになる。したがってキーワード一致が効くのは
 > **英語・カタカナ語・型番など「独立した語」が共通している質問どうし**に限られる。
 
-### 4.2 `MemoryRecord`
+### 4.3 `MemoryRecord`
 
 ```python
 @dataclass
@@ -255,7 +317,7 @@ class MemoryRecord:
 | `to_dict()` | 上記 6 フィールドをそのまま `dict` にする |
 | `from_dict(d)` | 欠損キーを既定値（`""` / `[]` / `None` / `False` / `0.0`）で埋めて復元する。型変換（`bool()` / `float()`）も行うので、手編集で崩れた値もそれなりに読める |
 
-### 4.3 `CollectionStat`
+### 4.4 `CollectionStat`
 
 ```python
 @dataclass
@@ -293,7 +355,7 @@ smoothed_sr = (3 + 1) / (3 + 1 + 1) = 0.8
 score       = 0.8 × 0.843 ≈ 0.674
 ```
 
-### 4.4 `ExecutionMemory.record()`
+### 4.5 `ExecutionMemory.record()`
 
 ```python
 def record(self, query: str, collection: Optional[str], success: bool,
@@ -310,7 +372,7 @@ def record(self, query: str, collection: Optional[str], success: bool,
 > **実行は止めない。** メモリはあくまで補助であり、書けないことを理由にユーザーの質問を
 > 失敗させる理由が無い。
 
-### 4.5 `ExecutionMemory.record_many()`
+### 4.6 `ExecutionMemory.record_many()`
 
 ```python
 def record_many(self, query: str, collections: list[Optional[str]], success: bool,
@@ -323,7 +385,7 @@ def record_many(self, query: str, collections: list[Optional[str]], success: boo
 | **Process** | キーワードを**一度だけ**抽出して使い回し、`seen` で重複を除きながら `record()` を呼ぶ |
 | **Output** | `None`（JSONL に「使ったコレクション数」行が追記される） |
 
-### 4.6 `ExecutionMemory.load()`
+### 4.7 `ExecutionMemory.load()`
 
 ```python
 def load(self) -> list[MemoryRecord]
@@ -339,7 +401,7 @@ def load(self) -> list[MemoryRecord]
 > JSONL は追記専用なので、マージコンフリクトのマーカー混入・書き込み中断・手編集ミスで
 > 壊れた行が混ざりうる。現在は破損行数を `logger.warning` に出したうえで残りを活かす。
 
-### 4.7 `ExecutionMemory.collection_priors()`
+### 4.8 `ExecutionMemory.collection_priors()`
 
 ```python
 def collection_priors(self, query: Optional[str] = None,
@@ -360,9 +422,9 @@ def collection_priors(self, query: Optional[str] = None,
 > ⚠️ **overlap 0 件のときのフォールバックが、誤学習を広く効かせてしまう入口になる。**
 > 「天気」の質問で誤採用されたコレクションが全体集計の首位に居ると、
 > キーワードがまったく重ならない質問（例:「住民票の写しの取り方は？」）でも
-> そのコレクションが返る。対策は `best_collection(exclude=...)` 側にある（§4.8）。
+> そのコレクションが返る。対策は `best_collection(exclude=...)` 側にある（§4.9）。
 
-### 4.8 `ExecutionMemory.best_collection()`
+### 4.9 `ExecutionMemory.best_collection()`
 
 ```python
 def best_collection(self, query: Optional[str] = None,
@@ -392,7 +454,7 @@ def best_collection(self, query: Optional[str] = None,
 > この設計のおかげで、**古い誤学習レコードを消さなくても無害になる**
 > （ログファイルの削除は不可逆なので、運用者に強いたくない）。
 
-### 4.9 `create_execution_memory()`
+### 4.10 `create_execution_memory()`
 
 ```python
 def create_execution_memory(path: str = DEFAULT_MEMORY_PATH) -> ExecutionMemory
@@ -427,70 +489,7 @@ def create_execution_memory(path: str = DEFAULT_MEMORY_PATH) -> ExecutionMemory
 
 ---
 
-## 6. 使用例
-
-### 6.1 単体で使う
-
-```python
-from grace.memory import create_execution_memory
-
-memory = create_execution_memory("logs/grace_memory.jsonl")
-
-# 1 実行分を記録
-memory.record_many(
-    query="Python の歴史を教えて",
-    collections=["wikipedia_ja"],
-    success=True,
-    confidence=0.85,
-)
-
-# 事前分布を見る
-for stat in memory.collection_priors(query="Python の内包表記とは"):
-    print(f"{stat.collection}: count={stat.count} score={stat.score():.3f}")
-
-# 採用判定
-best = memory.best_collection(query="Python の内包表記とは")
-print(best)   # 実績が十分なら "wikipedia_ja"、足りなければ None
-```
-
-### 6.2 除外述語つきで使う（Planner の実際の呼び方）
-
-```python
-best = memory.best_collection(
-    query=query,
-    min_count=config.memory.min_count,
-    min_score=config.memory.min_score,
-    exclude=self._is_excluded,      # qdrant.excluded_collections に載っていれば True
-)
-```
-
-`best_collection()` が返すのは**過去の実績からの推測**であり、運用者の明示指定ではない。
-一方この戻り値は `PlanStep.collection` に入り、RAGSearchTool 側では明示指定と区別が付かないため、
-`exclude` を渡さないと `qdrant.excluded_collections` を素通りしてしまう。
-
-### 6.3 テストで使う
-
-```python
-def test_best_collection_skips_excluded(tmp_path):
-    memory = create_execution_memory(str(tmp_path / "m.jsonl"))
-    for _ in range(3):
-        memory.record_many(query="住民票", collections=["bad", "gov_faq"],
-                           success=True, confidence=0.9)
-
-    # 除外しなければ首位が返る
-    assert memory.best_collection(query="住民票") in {"bad", "gov_faq"}
-
-    # 除外すると次点が返る（None にはならない）
-    assert memory.best_collection(
-        query="住民票", exclude=lambda c: c == "bad"
-    ) == "gov_faq"
-```
-
-API キーも Qdrant も不要で、`tmp_path` を渡すだけで完結する。
-
----
-
-## 7. 落とし穴
+## 6. 落とし穴
 
 | 論点 | 実際の挙動 |
 |---|---|
@@ -503,10 +502,11 @@ API キーも Qdrant も不要で、`tmp_path` を渡すだけで完結する。
 
 ---
 
-## 8. 変更履歴
+## 7. 変更履歴
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 1.1 | 使用例を「## 6. 使用例」から IPO 詳細セクション冒頭の `4.1 使用例` へ移動（フォーマット仕様 v1.6 §6.1）。これに伴い既存の `### 4.N` を 1 つずつ繰り下げ、章番号を 落とし穴 → `## 6.` / 変更履歴 → `## 7.` へ繰り上げ（2026-09-14）。あわせて `best_collection` の注記の内部参照を §4.8 → §4.9 へ是正 |
 | 1.0 | 初版作成。実装（`grace/memory.py` 全 247 行）と突き合わせ、公開シンボル 11 件（`extract_keywords` / `MemoryRecord`＋2 メソッド / `CollectionStat`＋2 / `ExecutionMemory`＋5 / `create_execution_memory`）を IPO 形式で網羅。`best_collection(exclude=...)` の「飛ばして次点を採る」設計意図、`collection_priors` の overlap 0 件フォールバック、`load()` の行単位の破損耐性、Laplace 平滑化の理由を実コードのコメントから起こして記載 |
 
 ---

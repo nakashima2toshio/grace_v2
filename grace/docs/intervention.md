@@ -1,6 +1,6 @@
 # intervention.py - HITL介入システム ドキュメント
 
-**Version 1.4** | 最終更新: 2026-09-12
+**Version 1.5** | 最終更新: 2026-09-14
 
 ---
 
@@ -12,10 +12,9 @@
 4. [クラス・関数一覧表](#3-クラス関数一覧表)
 5. [クラス・関数 IPO詳細](#4-クラス関数-ipo詳細)
 6. [設定・定数](#5-設定定数)
-7. [使用例](#6-使用例)
-8. [エクスポート](#7-エクスポート)
-9. [変更履歴](#8-変更履歴)
-10. [付録: 依存関係図](#付録-依存関係図)
+7. [エクスポート](#6-エクスポート)
+8. [変更履歴](#7-変更履歴)
+9. [付録: 依存関係図](#付録-依存関係図)
 
 ---
 
@@ -306,7 +305,173 @@ style FACTORY fill:#1a1a1a,stroke:#fff,color:#fff
 
 ## 4. クラス・関数 IPO詳細
 
-### 4.1 InterventionRequest クラス
+### 4.1 使用例
+
+#### 4.1.1 基本的なワークフロー
+
+```python
+from grace.intervention import (
+    InterventionHandler,
+    InterventionRequest,
+    InterventionResponse,
+    InterventionAction,
+    create_intervention_handler,
+)
+from grace.confidence import ActionDecision, InterventionLevel
+
+# 1. コールバック関数を定義
+def on_notify(message: str):
+    print(f"[通知] {message}")
+
+def on_confirm(request: InterventionRequest) -> InterventionResponse:
+    print(f"[確認] {request.message}")
+    # 実際にはユーザー入力を待つ
+    user_choice = input("続行しますか？ (y/n/m): ")
+    if user_choice == "y":
+        return InterventionResponse(action=InterventionAction.PROCEED)
+    elif user_choice == "m":
+        return InterventionResponse(action=InterventionAction.MODIFY)
+    else:
+        return InterventionResponse(action=InterventionAction.CANCEL)
+
+# 2. ハンドラーを作成
+handler = create_intervention_handler(
+    on_notify=on_notify,
+    on_confirm=on_confirm
+)
+
+# 3. ActionDecisionに基づいて介入を処理
+decision = ActionDecision(
+    level=InterventionLevel.CONFIRM,
+    confidence_score=0.65,
+    reason="複雑なクエリのため確認が必要"
+)
+
+response = handler.handle(decision)
+
+# 4. レスポンスに基づいて処理を継続/中断
+if response.should_continue:
+    print("処理を継続します")
+else:
+    print("処理を中断します")
+```
+
+#### 4.1.2 動的閾値調整を使用するワークフロー
+
+```python
+from grace.intervention import create_threshold_adjuster
+
+# 1. 閾値調整器を作成
+adjuster = create_threshold_adjuster(learning_rate=0.05)
+
+# 2. 現在の閾値を確認
+thresholds = adjuster.get_current_thresholds()
+print(f"初期閾値: {thresholds}")
+
+# 3. フィードバックを記録（min_samples到達で自動調整）
+adjuster.record_feedback(confidence=0.8, was_correct=True)
+adjuster.record_feedback(confidence=0.75, was_correct=False)
+adjuster.record_feedback(confidence=0.6, was_correct=True)
+
+# 4. 信頼度から介入レベルを取得
+level = adjuster.get_level(confidence=0.72)
+print(f"介入レベル: {level}")
+
+# 5. 閾値をリセット
+adjuster.reset_thresholds()
+```
+
+#### 4.1.3 計画確認フローを使用するワークフロー
+
+```python
+from grace.intervention import (
+    create_intervention_handler,
+    create_confirmation_flow,
+    InterventionRequest,
+    InterventionResponse,
+    InterventionAction,
+)
+from grace.schemas import ExecutionPlan
+
+# 1. 確認コールバックを定義
+def on_confirm(request: InterventionRequest) -> InterventionResponse:
+    print(f"計画を確認してください:\n{request.message}")
+    choice = input("選択 (proceed/modify/cancel): ")
+
+    if choice == "proceed":
+        return InterventionResponse(action=InterventionAction.PROCEED)
+    elif choice == "modify":
+        # 修正された計画を返す
+        return InterventionResponse(
+            action=InterventionAction.MODIFY,
+            modified_plan=request.plan  # 実際には修正した計画
+        )
+    else:
+        return InterventionResponse(action=InterventionAction.CANCEL)
+
+# 2. ハンドラーと確認フローを作成
+handler = create_intervention_handler(on_confirm=on_confirm)
+flow = create_confirmation_flow(handler, max_modifications=3)
+
+# 3. 計画の確認を実行
+execution_plan = ExecutionPlan(original_query="...", steps=[...])
+approved, final_plan = flow.confirm_plan(
+    plan=execution_plan,
+    confidence=0.7
+)
+
+# 4. 結果に基づいて処理
+if approved:
+    print("計画が承認されました。実行を開始します。")
+    # executor.execute(final_plan)
+else:
+    print("計画がキャンセルされました。")
+```
+
+#### 4.1.4 Web UI との統合（実装されている経路）
+
+**実際の統合は `backend/app/core/intervention_bridge.py` が行う。**
+`create_intervention_handler(on_confirm=..., on_escalate=...)` に渡すコールバックの中で、
+承認待ちを SSE イベントとして流し、フロントの応答を待つ。
+
+```python
+# backend/app/core/intervention_bridge.py の骨子
+#
+# 1. intervention イベントを SSE ストリームへ流す（フロントはモーダルを表示）
+# 2. POST /api/{kind}/confirm/{job_id} が届くまで待つ
+# 3. 届いた応答を InterventionResponse へ変換して grace 側へ返す
+#
+# ⚠️ **タイムアウトしたら安全側（拒否）に倒す。** 既定のタイムアウトは
+#    grace.config の intervention.default_timeout。
+
+pending = PendingIntervention(
+    intervention_id=uuid.uuid4().hex[:12], request=request
+)
+job.emit(
+    type="intervention",
+    status="waiting",
+    data={"intervention_id": pending.intervention_id, ...},
+)
+# フロントの POST を待って InterventionResponse を返す
+```
+
+フロント側の受け手は次の 2 つで、**どちらを出すかは純関数が判定する**
+（`frontend/src/state/interventionKind.ts`）。
+
+| 種別 | コンポーネント | 用途 |
+|---|---|---|
+| `action` | `ConfirmModal.tsx` | ⑥ アクション実行の承認（承認 / 拒否の 2 択） |
+| `question` | `QuestionSelectModal.tsx` | 0-(A) 主質問の選択（N 択） |
+
+詳細は [`backend/docs/core_intervention_bridge.md`](../../backend/docs/core_intervention_bridge.md) と
+[`frontend/docs/ConfirmModal.md`](../../frontend/docs/ConfirmModal.md) を参照。
+
+> 📌 **v1 にあった Streamlit（`st.session_state` / `st.button`）の統合例は削除した。**
+> 本リポジトリに Streamlit は無く（CLAUDE.md §9.3）、その例のとおりに書いても動かない。
+
+---
+
+### 4.2 InterventionRequest クラス
 
 介入リクエストを表すデータクラス。介入レベル、メッセージ、オプションなどを保持します。
 
@@ -403,7 +568,7 @@ print(request.requires_response)  # False
 
 ---
 
-### 4.2 InterventionResponse クラス
+### 4.3 InterventionResponse クラス
 
 介入レスポンスを表すデータクラス。ユーザーの応答アクションと関連情報を保持します。
 
@@ -485,7 +650,7 @@ print(response.should_continue)  # False
 
 ---
 
-### 4.3 InterventionAction 列挙型
+### 4.4 InterventionAction 列挙型
 
 介入時のユーザーアクションを定義する `str, Enum` 列挙型。
 
@@ -510,7 +675,7 @@ class InterventionAction(str, Enum):
 
 ---
 
-### 4.4 FeedbackRecord クラス
+### 4.5 FeedbackRecord クラス
 
 フィードバック記録を表すデータクラス。動的閾値調整で使用されます。
 
@@ -557,7 +722,7 @@ print(record.confidence)  # 0.75
 
 ---
 
-### 4.5 InterventionHandler クラス
+### 4.6 InterventionHandler クラス
 
 信頼度レベルに応じた介入リクエストを生成し、ユーザーからのレスポンスを処理するハンドラークラス。
 
@@ -947,7 +1112,7 @@ print(len(handler.get_history()))  # 0
 
 ---
 
-### 4.6 DynamicThresholdAdjuster クラス
+### 4.7 DynamicThresholdAdjuster クラス
 
 ユーザーフィードバックに基づいて介入レベルの閾値を動的に調整するクラス。偽陽性/偽陰性率を監視し、適切な閾値を学習します。
 
@@ -1116,7 +1281,7 @@ print(adjuster.get_current_thresholds())  # 初期値に復帰
 
 ---
 
-### 4.7 ConfirmationFlow クラス
+### 4.8 ConfirmationFlow クラス
 
 計画の確認→修正→実行のフローを管理するクラス。最大修正回数を超えるまで修正を繰り返すことができます。
 
@@ -1207,7 +1372,7 @@ else:
 
 ---
 
-### 4.8 ファクトリ関数
+### 4.9 ファクトリ関数
 
 #### `create_intervention_handler`
 
@@ -1359,173 +1524,7 @@ flow = create_confirmation_flow(handler, max_modifications=5)
 
 ---
 
-## 6. 使用例
-
-### 6.1 基本的なワークフロー
-
-```python
-from grace.intervention import (
-    InterventionHandler,
-    InterventionRequest,
-    InterventionResponse,
-    InterventionAction,
-    create_intervention_handler,
-)
-from grace.confidence import ActionDecision, InterventionLevel
-
-# 1. コールバック関数を定義
-def on_notify(message: str):
-    print(f"[通知] {message}")
-
-def on_confirm(request: InterventionRequest) -> InterventionResponse:
-    print(f"[確認] {request.message}")
-    # 実際にはユーザー入力を待つ
-    user_choice = input("続行しますか？ (y/n/m): ")
-    if user_choice == "y":
-        return InterventionResponse(action=InterventionAction.PROCEED)
-    elif user_choice == "m":
-        return InterventionResponse(action=InterventionAction.MODIFY)
-    else:
-        return InterventionResponse(action=InterventionAction.CANCEL)
-
-# 2. ハンドラーを作成
-handler = create_intervention_handler(
-    on_notify=on_notify,
-    on_confirm=on_confirm
-)
-
-# 3. ActionDecisionに基づいて介入を処理
-decision = ActionDecision(
-    level=InterventionLevel.CONFIRM,
-    confidence_score=0.65,
-    reason="複雑なクエリのため確認が必要"
-)
-
-response = handler.handle(decision)
-
-# 4. レスポンスに基づいて処理を継続/中断
-if response.should_continue:
-    print("処理を継続します")
-else:
-    print("処理を中断します")
-```
-
-### 6.2 動的閾値調整を使用するワークフロー
-
-```python
-from grace.intervention import create_threshold_adjuster
-
-# 1. 閾値調整器を作成
-adjuster = create_threshold_adjuster(learning_rate=0.05)
-
-# 2. 現在の閾値を確認
-thresholds = adjuster.get_current_thresholds()
-print(f"初期閾値: {thresholds}")
-
-# 3. フィードバックを記録（min_samples到達で自動調整）
-adjuster.record_feedback(confidence=0.8, was_correct=True)
-adjuster.record_feedback(confidence=0.75, was_correct=False)
-adjuster.record_feedback(confidence=0.6, was_correct=True)
-
-# 4. 信頼度から介入レベルを取得
-level = adjuster.get_level(confidence=0.72)
-print(f"介入レベル: {level}")
-
-# 5. 閾値をリセット
-adjuster.reset_thresholds()
-```
-
-### 6.3 計画確認フローを使用するワークフロー
-
-```python
-from grace.intervention import (
-    create_intervention_handler,
-    create_confirmation_flow,
-    InterventionRequest,
-    InterventionResponse,
-    InterventionAction,
-)
-from grace.schemas import ExecutionPlan
-
-# 1. 確認コールバックを定義
-def on_confirm(request: InterventionRequest) -> InterventionResponse:
-    print(f"計画を確認してください:\n{request.message}")
-    choice = input("選択 (proceed/modify/cancel): ")
-
-    if choice == "proceed":
-        return InterventionResponse(action=InterventionAction.PROCEED)
-    elif choice == "modify":
-        # 修正された計画を返す
-        return InterventionResponse(
-            action=InterventionAction.MODIFY,
-            modified_plan=request.plan  # 実際には修正した計画
-        )
-    else:
-        return InterventionResponse(action=InterventionAction.CANCEL)
-
-# 2. ハンドラーと確認フローを作成
-handler = create_intervention_handler(on_confirm=on_confirm)
-flow = create_confirmation_flow(handler, max_modifications=3)
-
-# 3. 計画の確認を実行
-execution_plan = ExecutionPlan(original_query="...", steps=[...])
-approved, final_plan = flow.confirm_plan(
-    plan=execution_plan,
-    confidence=0.7
-)
-
-# 4. 結果に基づいて処理
-if approved:
-    print("計画が承認されました。実行を開始します。")
-    # executor.execute(final_plan)
-else:
-    print("計画がキャンセルされました。")
-```
-
-### 6.4 Web UI との統合（実装されている経路）
-
-**実際の統合は `backend/app/core/intervention_bridge.py` が行う。**
-`create_intervention_handler(on_confirm=..., on_escalate=...)` に渡すコールバックの中で、
-承認待ちを SSE イベントとして流し、フロントの応答を待つ。
-
-```python
-# backend/app/core/intervention_bridge.py の骨子
-#
-# 1. intervention イベントを SSE ストリームへ流す（フロントはモーダルを表示）
-# 2. POST /api/{kind}/confirm/{job_id} が届くまで待つ
-# 3. 届いた応答を InterventionResponse へ変換して grace 側へ返す
-#
-# ⚠️ **タイムアウトしたら安全側（拒否）に倒す。** 既定のタイムアウトは
-#    grace.config の intervention.default_timeout。
-
-pending = PendingIntervention(
-    intervention_id=uuid.uuid4().hex[:12], request=request
-)
-job.emit(
-    type="intervention",
-    status="waiting",
-    data={"intervention_id": pending.intervention_id, ...},
-)
-# フロントの POST を待って InterventionResponse を返す
-```
-
-フロント側の受け手は次の 2 つで、**どちらを出すかは純関数が判定する**
-（`frontend/src/state/interventionKind.ts`）。
-
-| 種別 | コンポーネント | 用途 |
-|---|---|---|
-| `action` | `ConfirmModal.tsx` | ⑥ アクション実行の承認（承認 / 拒否の 2 択） |
-| `question` | `QuestionSelectModal.tsx` | 0-(A) 主質問の選択（N 択） |
-
-詳細は [`backend/docs/core_intervention_bridge.md`](../../backend/docs/core_intervention_bridge.md) と
-[`frontend/docs/ConfirmModal.md`](../../frontend/docs/ConfirmModal.md) を参照。
-
-> 📌 **v1 にあった Streamlit（`st.session_state` / `st.button`）の統合例は削除した。**
-> 本リポジトリに Streamlit は無く（CLAUDE.md §9.3）、その例のとおりに書いても動かない。
-
----
-
-## 7. エクスポート
+## 6. エクスポート
 
 `intervention.py` の `__all__` でエクスポートされる要素（`grace/__init__.py` 経由でも公開）：
 
@@ -1553,10 +1552,11 @@ __all__ = [
 
 ---
 
-## 8. 変更履歴
+## 7. 変更履歴
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 1.5 | 使用例を「## 6. 使用例」から IPO 詳細セクション冒頭の `4.1 使用例` へ移動（フォーマット仕様 v1.6 §6.1）。これに伴い既存の `### 4.N` を 1 つずつ繰り下げ、章番号を エクスポート → `## 6.` / 変更履歴 → `## 7.` へ繰り上げ（2026-09-14）。過去の変更履歴行に書かれた旧節番号（§4.x / §6.x）は当時の記録としてそのまま残している |
 | 1.4 | **Streamlit 残骸の除去。** §6.4 の Streamlit 統合例を、実装されている経路（`backend/app/core/intervention_bridge.py` と `ConfirmModal` / `QuestionSelectModal`）の説明へ全面差し替え（2026-09-12） |
 | 1.0 | 初版作成 |
 | 1.1 | フォーマット仕様v1.4準拠: 「各責務対応のモジュール」テーブル追加、ASCII図をMermaid v9フローチャートに変更（アーキテクチャ構成図・モジュール構成図・付録依存関係図） |

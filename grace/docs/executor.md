@@ -1,6 +1,6 @@
 # executor.py - GRACE計画実行エージェント ドキュメント
 
-**Version 4.3** | 最終更新: 2026-09-12
+**Version 4.4** | 最終更新: 2026-09-14
 
 ---
 
@@ -27,15 +27,14 @@
 6. [設定・定数](#5-設定定数)
    - [モジュールレベル定数](#51-モジュールレベル定数)
    - [GraceConfigから使用される設定](#52-graceconfigから使用される設定)
-7. [使用例](#6-使用例)
    - [基本的なワークフロー](#61-基本的なワークフロー)
    - [コールバック付きの使用](#62-コールバック付きの使用)
    - [ジェネレータ版の使用](#63-ジェネレータ版の使用)
-8. [エクスポート](#7-エクスポート)
-9. [変更履歴](#8-変更履歴)
-10. [付録: 依存関係図](#付録-依存関係図)
-11. [付録: 動的フォールバック連鎖](#付録-動的フォールバック連鎖)
-12. [付録: ステータス遷移図](#付録-ステータス遷移図)
+7. [エクスポート](#6-エクスポート)
+8. [変更履歴](#7-変更履歴)
+9. [付録: 依存関係図](#付録-依存関係図)
+10. [付録: 動的フォールバック連鎖](#付録-動的フォールバック連鎖)
+11. [付録: ステータス遷移図](#付録-ステータス遷移図)
 
 ---
 
@@ -329,7 +328,102 @@ style FACTORY_GRP fill:#1a1a1a,stroke:#fff,color:#fff
 
 ## 4. クラス・関数 IPO詳細
 
-### 4.1 ExecutionState データクラス
+### 4.1 使用例
+
+#### 4.1.1 基本的なワークフロー
+
+```python
+from grace.executor import create_executor
+from grace.planner import create_planner
+
+# 1. Plannerインスタンスを作成
+planner = create_planner()
+
+# 2. 計画を生成
+query = "『金色夜叉』の作者は誰ですか？"
+plan = planner.create_plan(query)
+
+# 3. Executorインスタンスを作成
+executor = create_executor()
+
+# 4. 計画を実行
+result = executor.execute_plan(plan)
+
+# 5. 結果を確認
+print(f"ステータス: {result.overall_status}")
+print(f"信頼度: {result.overall_confidence:.2f}")
+print(f"回答: {result.final_answer}")
+print(f"実行時間: {result.total_execution_time_ms}ms")
+
+# 出力例:
+# ステータス: success
+# 信頼度: 0.85
+# 回答: 『金色夜叉』の作者は尾崎紅葉です。
+# 実行時間: 1234ms
+```
+
+#### 4.1.2 コールバック付きの使用
+
+```python
+from grace.executor import create_executor
+
+def on_step_start(step):
+    print(f"▶ ステップ {step.step_id} 開始: {step.description}")
+
+def on_step_complete(result):
+    status = "✓" if result.status == "success" else "✗"
+    print(f"{status} ステップ {result.step_id} 完了: 信頼度={result.confidence:.2f}")
+
+def on_intervention(kind, data):
+    if kind == "confirm":
+        return input(f"確認: {data['message']} (proceed/cancel): ")
+    elif kind == "escalate":
+        return input(f"入力が必要: {data['message']}: ")
+    return None
+
+def on_confidence_update(score, decision):
+    print(f"  信頼度更新: {score.score:.2f} -> {decision.level.value}")
+
+executor = create_executor(
+    on_step_start=on_step_start,
+    on_step_complete=on_step_complete,
+    on_intervention_required=on_intervention,
+    on_confidence_update=on_confidence_update,
+)
+
+result = executor.execute_plan(plan)
+```
+
+#### 4.1.3 ジェネレータ版の使用
+
+```python
+from grace.executor import create_executor
+
+executor = create_executor()
+generator = executor.execute_plan_generator(plan)
+
+try:
+    while True:
+        state = next(generator)
+        completed = len(state.step_results)
+        total = len(state.plan.steps)
+        print(f"進捗: {completed}/{total} ステップ完了")
+
+        if state.is_paused and state.intervention_request:
+            req = state.intervention_request
+            print(f"介入要求: {req.message}")
+            _ = input("応答: ")
+            state.is_paused = False
+
+except StopIteration as e:
+    result = e.value
+    print(f"\n完了: {result.overall_status}")
+    print(f"最終信頼度: {result.overall_confidence:.2f}")
+```
+
+---
+
+### 4.2 ExecutionState データクラス
 
 **概要**: 実行状態管理データクラス。計画の実行状態、ステップ結果、信頼度、制御フラグなどを保持します。
 
@@ -529,7 +623,7 @@ print(f"実行時間: {ms}ms" if ms is not None else "未開始")
 
 ---
 
-### 4.2 Executor クラス
+### 4.3 Executor クラス
 
 **概要**: 計画実行エージェント（GRACEネイティブ実装）。ToolRegistry、Confidence／Calibration、Intervention、Replanの各システムを統合して計画を実行します。
 
@@ -1861,7 +1955,7 @@ self._handle_intervention_if_needed(action_decision, step, state)
 
 ---
 
-### 4.3 ファクトリ関数
+### 4.4 ファクトリ関数
 
 #### `create_executor`
 
@@ -1942,102 +2036,7 @@ LEGACY_AGENT_AVAILABLE: bool  # import 成功時 True
 
 ---
 
-## 6. 使用例
-
-### 6.1 基本的なワークフロー
-
-```python
-from grace.executor import create_executor
-from grace.planner import create_planner
-
-# 1. Plannerインスタンスを作成
-planner = create_planner()
-
-# 2. 計画を生成
-query = "『金色夜叉』の作者は誰ですか？"
-plan = planner.create_plan(query)
-
-# 3. Executorインスタンスを作成
-executor = create_executor()
-
-# 4. 計画を実行
-result = executor.execute_plan(plan)
-
-# 5. 結果を確認
-print(f"ステータス: {result.overall_status}")
-print(f"信頼度: {result.overall_confidence:.2f}")
-print(f"回答: {result.final_answer}")
-print(f"実行時間: {result.total_execution_time_ms}ms")
-
-# 出力例:
-# ステータス: success
-# 信頼度: 0.85
-# 回答: 『金色夜叉』の作者は尾崎紅葉です。
-# 実行時間: 1234ms
-```
-
-### 6.2 コールバック付きの使用
-
-```python
-from grace.executor import create_executor
-
-def on_step_start(step):
-    print(f"▶ ステップ {step.step_id} 開始: {step.description}")
-
-def on_step_complete(result):
-    status = "✓" if result.status == "success" else "✗"
-    print(f"{status} ステップ {result.step_id} 完了: 信頼度={result.confidence:.2f}")
-
-def on_intervention(kind, data):
-    if kind == "confirm":
-        return input(f"確認: {data['message']} (proceed/cancel): ")
-    elif kind == "escalate":
-        return input(f"入力が必要: {data['message']}: ")
-    return None
-
-def on_confidence_update(score, decision):
-    print(f"  信頼度更新: {score.score:.2f} -> {decision.level.value}")
-
-executor = create_executor(
-    on_step_start=on_step_start,
-    on_step_complete=on_step_complete,
-    on_intervention_required=on_intervention,
-    on_confidence_update=on_confidence_update,
-)
-
-result = executor.execute_plan(plan)
-```
-
-### 6.3 ジェネレータ版の使用
-
-```python
-from grace.executor import create_executor
-
-executor = create_executor()
-generator = executor.execute_plan_generator(plan)
-
-try:
-    while True:
-        state = next(generator)
-        completed = len(state.step_results)
-        total = len(state.plan.steps)
-        print(f"進捗: {completed}/{total} ステップ完了")
-
-        if state.is_paused and state.intervention_request:
-            req = state.intervention_request
-            print(f"介入要求: {req.message}")
-            _ = input("応答: ")
-            state.is_paused = False
-
-except StopIteration as e:
-    result = e.value
-    print(f"\n完了: {result.overall_status}")
-    print(f"最終信頼度: {result.overall_confidence:.2f}")
-```
-
----
-
-## 7. エクスポート
+## 6. エクスポート
 
 `executor.py`でエクスポートされる要素：
 
@@ -2051,10 +2050,11 @@ __all__ = [
 
 ---
 
-## 8. 変更履歴
+## 7. 変更履歴
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 4.4 | 使用例を「## 6. 使用例」から IPO 詳細セクション冒頭の `4.1 使用例` へ移動（フォーマット仕様 v1.6 §6.1）。これに伴い既存の `### 4.N` を 1 つずつ繰り下げ、章番号を エクスポート → `## 6.` / 変更履歴 → `## 7.` へ繰り上げ（2026-09-14）。過去の変更履歴行に書かれた旧節番号（§4.x / §6.x）は当時の記録としてそのまま残している |
 | 4.3 | **Streamlit 残骸の除去。** Mermaid の呼び出し元ノードを `support_agent.py / benchmark.py` へ是正。Streamlit は本リポジトリに無い（2026-09-12） |
 | 0.1.0 | 初版作成 |
 | 1.0 | ドキュメント改修: フォーマット v1.2準拠、主な責務・主要機能一覧・IPO詳細に「**概要**:」ラベルを追加 |
