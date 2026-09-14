@@ -1,6 +1,6 @@
 # grace/docs 棚卸し
 
-**Version 1.5** | 最終更新: 2026-09-14
+**Version 1.6** | 最終更新: 2026-09-14
 
 `grace/` パッケージのドキュメント一覧と、実装への追随状況・残タスク・検証手順をまとめる。
 新しく文書を書く／直す前に、まずここを見る。
@@ -49,6 +49,7 @@
 | 12 | 文書一覧が「モジュール / 横断」の 2 区分で、A（コア）と B（基盤層）の別が読み取れない | ✅ 解消（2026-09-14 に A/B/C の 3 区分へ再編。線引きの根拠は §2.4 に実測で明示） |
 | 13 | 横断文書 4 本のうち `grace.md` / `grace_core.md` / `grace_core_flow.md` が**同じ表・同じ図を重複して持っていた**（モジュール構成図 Mermaid 68 行と依存関係テーブルは `grace_core.md` と `grace_core_flow.md` で**バイト単位で一致**。11 行役割サマリー表は `grace.md` と `grace_core_flow.md` で一致。5 段階設計の ASCII 図・使用例コードも重複） | ✅ 解消（2026-09-14 に WHY/WHAT/HOW の 3 本へ統合。`grace_core_flow.md` → `grace_runtime.md` へ改称。§2.3・§2.6） |
 | 14 | §2.1〜§2.3 の「行数」「Ver」列が実測から乖離していた（例: `planner.md` が 1139 行と記載、実測 1183 行） | ✅ 解消（2026-09-14 に `wc -l` と各文書の Version ヘッダーで全件を実測し直した） |
+| 15 | 目次の見出しアンカーが 9 件解決しなくなっていた（節番号の繰り下げ・見出しの言い換えに目次が追随していない）。§4.3 のリンク存在チェックでは**ファイルが実在するため検出できない** | ✅ 解消（2026-09-14。`executor.md` 6 件・`backend/docs` 2 件・`docs/multi_question_handling.md` 1 件を是正し、検査を §4.5 として追加） |
 
 ---
 
@@ -234,7 +235,7 @@ EOF
 
 ## 4. 検証手順
 
-文書を直したら、この 4 つを回す。
+文書を直したら、この 5 つを回す。
 
 ### 4.1 公開シンボルの網羅（AST）
 
@@ -311,6 +312,52 @@ grep -rhoE '`[a-z0-9_]+(/[a-z0-9_]+)+\.(py|sh)`' grace/docs/*.md backend/docs/*.
 > 「存在しないと**明記している**説明文・変更履歴の中の名前」だけになる。
 > 0 件にはならないので、**行を読んで判断する**（件数だけを見ない）。
 
+### 4.5 見出しアンカーの解決確認
+
+文書内リンクの `#` 以降（アンカー）が、実際の見出しから生成される値と一致するかを確認する。
+**節番号を繰り下げたり見出しを言い換えたときに、目次だけが取り残される**のがこの検査で見つかる。
+
+```bash
+python3 - <<'PY' grace/docs backend/docs frontend/docs docs grace/step_trace/docs
+import re, pathlib, sys
+def slug(h):                      # GitHub の見出しアンカー生成則
+    out = []
+    for c in h.lower():
+        if c == ' ': out.append('-')
+        elif c in '-_': out.append(c)
+        # 英数字と CJK は残し、記号（. : （） ・ ~~ ** → ① 等）は区切り無しで落とす
+        elif c.isalnum() and (c.isascii() or c.isalpha() or c.isdecimal()): out.append(c)
+    return ''.join(out)
+def anchors(path):
+    out, fence = set(), False
+    for line in pathlib.Path(path).read_text(encoding='utf-8').splitlines():
+        if line.startswith('```'): fence = not fence; continue
+        if fence or not line.startswith('#'): continue
+        out.add(slug(line.lstrip('#').strip()))
+    return out
+bad = []
+for d in sys.argv[1:]:
+    for md in pathlib.Path(d).glob('*.md'):
+        for link in re.findall(r'\]\(([^)\s]*#[^)\s]+)\)', md.read_text(encoding='utf-8')):
+            f, _, anc = link.partition('#')
+            tgt = (md.parent / f).resolve() if f else md
+            if tgt.exists() and anc not in anchors(tgt): bad.append(f'{md}: #{anc}')
+print('アンカー不一致:', len(bad))
+for b in bad: print('  ', b)
+PY
+```
+
+> ⚠️ **記号は「区切り無しで」落ちる。** `①` `・` `~~` `**` `→` `（）` はいずれも
+> ハイフンに変わらず**消えるだけ**である（例: `### S2. ① Plan（質問分類・計画）`
+> → `#s2--plan質問分類計画`。`①` が消えて前後の空白だけがハイフン 2 個として残る）。
+> 手で書くと必ず間違えるので、**このスクリプトに計算させる**こと。
+>
+> 📝 2026-09-14 にこの検査で **9 件**見つかった。内訳は `executor.md` 6 件
+> （v4.4 で `4.1 使用例` を挿入し `### 4.N` を繰り下げたとき目次だけ旧番号のまま残った）、
+> `backend/docs/README.md` 1 件・`backend/docs/agent_support_example.md` 1 件
+> （見出しを言い換えたが目次は旧題のまま）、`docs/multi_question_handling.md` 1 件。
+> **いずれもリンク存在チェック（§4.3）では検出できない**（ファイルは実在するため）。
+
 ---
 
 ## 5. 残タスク
@@ -352,6 +399,7 @@ grep -rhoE '`[a-z0-9_]+(/[a-z0-9_]+)+\.(py|sh)`' grace/docs/*.md backend/docs/*.
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 1.6 | **見出しアンカーの解決確認を §4.5 として追加し、壊れていた 9 件を是正**（2026-09-14・問題 #15）。`executor.md` 6 件（v4.4 で `4.1 使用例` を挿入し `### 4.N` を繰り下げた際、目次だけ旧番号のまま残った。あわせて移動前の「## 6. 使用例」配下に取り残されていた使用例 3 件を §4.1 の下へ移した）、`backend/docs/README.md` 1 件・`backend/docs/agent_support_example.md` 1 件（見出しを言い換えたが目次は旧題のまま）、`docs/multi_question_handling.md` 1 件。**この種の腐りは §4.3 のリンク存在チェックでは捕まらない**（ファイルは実在し、壊れているのは `#` 以降だけ）ため、検証手順を 4 つから 5 つへ増やした |
 | 1.5 | **横断文書 4 本を WHY/WHAT/HOW の 3 本へ統合**（2026-09-14・問題 #13）。`grace.md` / `grace_core.md` / `grace_core_flow.md` は**同じ表と同じ図を重複して持って**いた（構成図 Mermaid 68 行と依存関係テーブルは `grace_core.md` と `grace_core_flow.md` で**バイト単位で一致**、11 行役割サマリー表は `grace.md` と `grace_core_flow.md` で一致、5 段階設計の ASCII 図・使用例コードも重複）。正本を 1 箇所ずつ決め、**`grace.md`＝5 段階設計の定義（WHY）／ `grace_core.md`＝構成図・依存関係・役割サマリー §3.0・最小実行サンプル §7（WHAT）／ `grace_runtime.md`（旧 `grace_core_flow.md` から改称）＝プロンプトと API 発行部（HOW）** に整理した。重複禁止ルールを §2.6、検出スクリプトを §2.7 として明文化。あわせて §2.1〜§2.3 の行数・Ver を `wc -l` と Version ヘッダーで**実測し直した**（問題 #14。`planner.md` 1139→1183 等がずれていた）。外部からのリンク（`backend/docs/agent_support_example.md` / `agent_support_verticals.md` / `backend/docs/README.md` / `docs/doc_modernization_todo.md`）も張り替えた |
 | 1.4 | **文書一覧を A/B/C の 3 区分へ再編**（2026-09-14）。従来は「モジュール単位 / 横断」の 2 区分で、コア（A）と基盤層（B）の別が読み取れなかった。`grace_core.md` の依存関係図に合わせ **A. コアモジュール 8 / B. 基盤層 3 / C. 横断 4** とし、線引きの根拠を §2.4 に**実測**で載せた（`grace/*.py` を AST 解析。B は依存ゼロ・被依存 6/4/4、`tools.py` は config / llm_compat に依存する側なので A）。あわせて **A を「実行順 1〜8」で並べない**理由を明記——`memory` は planner が読み executor が書く両端モジュール、`calibration` は confidence の後処理、`executor` は `planner` に依存しない（逆に `replan` が依存する）ため。`benchmark.md` は `grace/step_trace/docs/` へ移動（§2.5・問題 #11）。`grace.md` に Version ヘッダーを追加し残タスク #3 を解消 |
 | 1.3 | **GRACE-Support 3 点を `backend/docs/` へ移設**（2026-09-04）。実装が `backend/app/core/support_agent.py` にあるため。`grace/docs/` は `grace/` パッケージの文書だけを持つ状態になった。あわせて、前版でヘッダーの版数だけ 1.1 のまま置き忘れていたのを是正 |
