@@ -6,8 +6,9 @@
 > - [`backend/docs/agent_support_example_flow.md`](./agent_support_example_flow.md) — **1 コマンドの実行トレース**（`--vertical gov` の IN/OUT データフロー。本書 §1 のフロー図に対応）
 > - `docs/migration_and_update.md`（**本リポジトリには無い**） — 需要分析と GRACE-Support 採用方針（本設計の上位資料）
 > - [`backend/docs/agent_support_verticals.md`](./agent_support_verticals.md) — 業界特化（自治体/SaaS/EC）設計
-> - [`grace/docs/grace_core_flow.md`](../../grace/docs/grace_core_flow.md) — 5 段階設計・8 コアモジュール・プロンプト/API 発行部
-> - [`grace/docs/grace_core.md`](../../grace/docs/grace_core.md) — コアモジュール群の横断アーキテクチャ
+> - [`grace/docs/grace.md`](../../grace/docs/grace.md) — 5 段階設計の定義と設計思想（WHY）
+> - [`grace/docs/grace_core.md`](../../grace/docs/grace_core.md) — コアモジュール群の横断アーキテクチャ（WHAT）
+> - [`grace/docs/grace_runtime.md`](../../grace/docs/grace_runtime.md) — 実行時に発行される API とプロンプト全文（HOW）
 
 > ✅ **実装状況**: `agent_support_example.py` は **v1〜v3 ＋ 業界特化（`--vertical {gov|saas|ec}`）を実装済み**（内部RAG＋出典／Webフォールバック＋相互検証／アクション＋HITL・既定ドライラン／二段判定・④' 情報なし回答検知）。本書は実装に合わせて更新済み。
 >

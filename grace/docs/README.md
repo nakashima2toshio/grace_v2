@@ -1,6 +1,6 @@
 # grace/docs 棚卸し
 
-**Version 1.4** | 最終更新: 2026-09-14
+**Version 1.5** | 最終更新: 2026-09-14
 
 `grace/` パッケージのドキュメント一覧と、実装への追随状況・残タスク・検証手順をまとめる。
 新しく文書を書く／直す前に、まずここを見る。
@@ -21,6 +21,8 @@
   - [2.3 C. 横断・アーキテクチャ文書（4）](#23-c-横断アーキテクチャ文書4)
   - [2.4 A / B の線引きの根拠](#24-a--b-の線引きの根拠実測2026-09-14)
   - [2.5 このディレクトリに置かない文書](#25-このディレクトリに置かない文書)
+  - [2.6 横断文書の重複禁止ルール](#26-横断文書の重複禁止ルール)
+  - [2.7 重複の検出](#27-重複の検出)
 - [3. 実装追随状況](#3-実装追随状況)
 - [4. 検証手順](#4-検証手順)
 - [5. 残タスク](#5-残タスク)
@@ -45,6 +47,8 @@
 | 10 | モジュール文書に未記載の公開シンボルが 31 件あった | ✅ 解消（**全 11 モジュールで AST 網羅 100%**。§3） |
 | 11 | `benchmark.md` が `grace/docs/` にあるが対象は `grace/step_trace/benchmark.py`（CLAUDE.md §9.1 違反。#3 では本文の所在表記を直しただけでファイルは動かしていなかった） | ✅ 解消（2026-09-14 に `grace/step_trace/docs/` へ `git mv`。§2.5） |
 | 12 | 文書一覧が「モジュール / 横断」の 2 区分で、A（コア）と B（基盤層）の別が読み取れない | ✅ 解消（2026-09-14 に A/B/C の 3 区分へ再編。線引きの根拠は §2.4 に実測で明示） |
+| 13 | 横断文書 4 本のうち `grace.md` / `grace_core.md` / `grace_core_flow.md` が**同じ表・同じ図を重複して持っていた**（モジュール構成図 Mermaid 68 行と依存関係テーブルは `grace_core.md` と `grace_core_flow.md` で**バイト単位で一致**。11 行役割サマリー表は `grace.md` と `grace_core_flow.md` で一致。5 段階設計の ASCII 図・使用例コードも重複） | ✅ 解消（2026-09-14 に WHY/WHAT/HOW の 3 本へ統合。`grace_core_flow.md` → `grace_runtime.md` へ改称。§2.3・§2.6） |
+| 14 | §2.1〜§2.3 の「行数」「Ver」列が実測から乖離していた（例: `planner.md` が 1139 行と記載、実測 1183 行） | ✅ 解消（2026-09-14 に `wc -l` と各文書の Version ヘッダーで全件を実測し直した） |
 
 ---
 
@@ -63,14 +67,16 @@ IPO 形式・`a_class_method_md_format.md` 準拠。**実行順ではなく役�
 
 | 役割 | 文書 | 対象 | 行数 | Ver | 重要度 |
 |---|---|---|---:|---|---|
-| 計画 | `planner.md` | `grace/planner.py` | 1139 | 3.4 | ★★★ |
-| 実行 | `executor.md` | `grace/executor.py` | 2015 | 4.1 | ★★★ |
-| 実行 | `tools.md` | `grace/tools.py`（`WebSearchTool` を含む全ツール） | 1296 | 3.0 | ★★★ |
-| 評価 | `confidence.md` | `grace/confidence.py` | 1587 | 2.2 | ★★★ |
-| 評価 | `calibration.md` | `grace/calibration.py` | 763 | 1.0 | ★★ |
-| 制御 | `intervention.md` | `grace/intervention.py` | 1514 | 1.2 | ★★ |
-| 制御 | `replan.md` | `grace/replan.py` | 1064 | 1.5 | ★★ |
-| 学習 | `memory.md` | `grace/memory.py` | 546 | 1.0 | ★★ |
+| 計画 | `planner.md` | `grace/planner.py` | 1183 | 3.7 | ★★★ |
+| 実行 | `executor.md` | `grace/executor.py` | 2179 | 4.4 | ★★★ |
+| 実行 | `tools.md` | `grace/tools.py`（`WebSearchTool` を含む全ツール） | 1678 | 3.1 | ★★★ |
+| 評価 | `confidence.md` | `grace/confidence.py` | 1735 | 2.4 | ★★★ |
+| 評価 | `calibration.md` | `grace/calibration.py` | 763 | 1.1 | ★★ |
+| 制御 | `intervention.md` | `grace/intervention.py` | 1611 | 1.5 | ★★ |
+| 制御 | `replan.md` | `grace/replan.py` | 1131 | 2.2 | ★★ |
+| 学習 | `memory.md` | `grace/memory.py` | 546 | 1.1 | ★★ |
+
+> 行数は `wc -l` の実測値（2026-09-14）。
 
 ### 2.2 B. 基盤層（3）— A が共通に依存する土台
 
@@ -78,20 +84,30 @@ IPO 形式・`a_class_method_md_format.md` 準拠。**実行順ではなく役�
 
 | 文書 | 対象 | 行数 | Ver | 重要度 |
 |---|---|---:|---|---|
-| `config.md` | `grace/config.py` | 920 | 1.1 | ★★★ |
-| `schemas.md` | `grace/schemas.py` | 1125 | 1.2 | ★★★ |
+| `config.md` | `grace/config.py` | 972 | 1.3 | ★★★ |
+| `schemas.md` | `grace/schemas.py` | 1314 | 2.0 | ★★★ |
 | `llm_compat.md` | `grace/llm_compat.py` | 806 | 1.1 | ★★★ |
 
 ### 2.3 C. 横断・アーキテクチャ文書（4）
 
-特定の 1 モジュールに紐づかない設計文書。
+特定の 1 モジュールに紐づかない設計文書。**WHY / WHAT / HOW の 3 本立て**で、
+同じ表・同じ図を 2 箇所に持たないことを規約とする（2026-09-14 の統合。§2.6）。
 
-| 文書 | 内容 | 行数 | Ver | 重要度 |
-|---|---|---:|---|---|
-| `grace.md` | GRACE 自律型エージェントの思想・ReAct との関係 | 340 | 1.0 | ★★★ |
-| `grace_core.md` | コア 8 モジュールの横断アーキテクチャ（§4 に実行メモリの実例） | 948 | 2.0 | ★★★ |
-| `grace_core_flow.md` | 5 段階設計・モジュール連携・プロンプト/API 発行部 | 786 | 2.0 | ★★★ |
-| `confidence_calibration.md` | `confidence.py` × `calibration.py` の処理順 | 355 | 1.1 | ★★ |
+| 文書 | 問い | 内容 | 行数 | Ver | 重要度 |
+|---|---|---|---:|---|---|
+| `grace.md` | **WHY** | 設計思想。ReAct → Reflection → GRACE の経緯と **5 段階設計の定義（正本）** | 322 | 2.0 | ★★★ |
+| `grace_core.md` | **WHAT** | 実装アーキテクチャ。**構成図・依存関係・モジュール役割サマリー（§3.0）の正本**。§4 に実行メモリの実例、§7 に最小実行サンプル | 1100 | 3.0 | ★★★ |
+| `grace_runtime.md` | **HOW** | 実行時に発行される API とプロンプト全文（**正本**）。旧 `grace_core_flow.md` | 415 | 3.0 | ★★★ |
+| `confidence_calibration.md` | — | `confidence.py` × `calibration.py` の処理順 | 355 | 1.1 | ★★ |
+
+**どこに何を書くか**（迷ったらこの表を見る）:
+
+| 書きたいもの | 置き場所 |
+|---|---|
+| 5 段階設計の定義・フェーズの意味・A→B→C の経緯 | `grace.md` |
+| モジュール一覧表・依存関係・Mermaid 構成図・使用例コード | `grace_core.md` |
+| プロンプト全文・`messages.create` / `embed_content` の発行部・API の発行順 | `grace_runtime.md` |
+| 1 モジュールの IPO 詳細 | `<module>.md`（A / B 群） |
 
 > 本書（`README.md`）は文書そのものではなく**棚卸しのメタ文書**なので、A/B/C のどれにも入れない。
 
@@ -122,7 +138,7 @@ IPO 形式・`a_class_method_md_format.md` 準拠。**実行順ではなく役�
 > - `executor` は **`planner` に依存していない**（計画は引数で渡る）。逆に
 >   `replan` が `planner` に依存する。番号を振るとこの向きが見えなくなる。
 >
-> パイプラインとしての順序は `grace_core_flow.md`（5 段階設計）が受け持つ。
+> パイプラインとしての順序は `grace.md`（5 段階設計の定義・正本）が受け持つ。
 > 本一覧は**文書の棚卸し**なので役割で束ねる。
 
 ### 2.5 このディレクトリに置かない文書
@@ -132,6 +148,40 @@ IPO 形式・`a_class_method_md_format.md` 準拠。**実行順ではなく役�
 | `benchmark.md` | `grace/step_trace/docs/benchmark.md` | 対象が `grace/step_trace/benchmark.py`。サブパッケージの文書はそのパッケージ配下（CLAUDE.md §9.1）。**2026-09-14 に `grace/docs/` から移動** |
 | `s0_arg.md`〜`s9_render.md` | `grace/step_trace/docs/` | 同上 |
 | GRACE-Support 設計 3 点 | `backend/docs/` | `backend/app/core/` の文書（2026-09-04 に移動済み・§5 タスク 4） |
+
+### 2.6 横断文書の重複禁止ルール
+
+C 区分の 3 本（`grace.md` / `grace_core.md` / `grace_runtime.md`）は
+**同じ表・同じ Mermaid 図を 2 箇所に置かない**。正本は次のとおり。
+
+| 資産 | 正本 | 他の文書での扱い |
+|---|---|---|
+| 5 段階設計の定義・フェーズ表・5 段階フロー図 | `grace.md` 第1部 (C) | リンクで参照 |
+| モジュール役割サマリー（11 モジュール）・5 段階×担当モジュール表 | `grace_core.md` §3.0 | リンクで参照 |
+| モジュール構成図（Mermaid）・依存関係テーブル | `grace_core.md` §2 / §2.1 | リンクで参照 |
+| 最小実行サンプル・実行方法 | `grace_core.md` §7 | リンクで参照 |
+| プロンプト全文・API 発行部・発行順 | `grace_runtime.md` | リンクで参照 |
+
+> ⚠️ **重複は必ず片方だけ腐る。** 2026-09-14 の統合前、`grace_core_flow.md` §B.1 の
+> 構成図は `grace_core.md` §2 とバイト単位で一致していた（＝一方を直しても他方は取り残される）。
+> 新しい表や図を足すときは、まずこの表の「正本」欄に該当するものが無いか確認する。
+
+### 2.7 重複の検出
+
+同じ Mermaid ブロックが 2 箇所に無いかを確認する（リポジトリ直下で実行）。
+
+```bash
+python3 - <<'EOF'
+import re, pathlib, collections
+blocks = collections.defaultdict(list)
+for md in sorted(pathlib.Path('grace/docs').glob('*.md')):
+    for b in re.findall(r'```mermaid\n(.*?)```', md.read_text(encoding='utf-8'), re.S):
+        blocks[b.strip()].append(md.name)
+for b, files in blocks.items():
+    if len(files) > 1:
+        print(f"重複 {len(b.splitlines())}行: {files}")
+EOF
+```
 
 ---
 
@@ -302,6 +352,7 @@ grep -rhoE '`[a-z0-9_]+(/[a-z0-9_]+)+\.(py|sh)`' grace/docs/*.md backend/docs/*.
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 1.5 | **横断文書 4 本を WHY/WHAT/HOW の 3 本へ統合**（2026-09-14・問題 #13）。`grace.md` / `grace_core.md` / `grace_core_flow.md` は**同じ表と同じ図を重複して持って**いた（構成図 Mermaid 68 行と依存関係テーブルは `grace_core.md` と `grace_core_flow.md` で**バイト単位で一致**、11 行役割サマリー表は `grace.md` と `grace_core_flow.md` で一致、5 段階設計の ASCII 図・使用例コードも重複）。正本を 1 箇所ずつ決め、**`grace.md`＝5 段階設計の定義（WHY）／ `grace_core.md`＝構成図・依存関係・役割サマリー §3.0・最小実行サンプル §7（WHAT）／ `grace_runtime.md`（旧 `grace_core_flow.md` から改称）＝プロンプトと API 発行部（HOW）** に整理した。重複禁止ルールを §2.6、検出スクリプトを §2.7 として明文化。あわせて §2.1〜§2.3 の行数・Ver を `wc -l` と Version ヘッダーで**実測し直した**（問題 #14。`planner.md` 1139→1183 等がずれていた）。外部からのリンク（`backend/docs/agent_support_example.md` / `agent_support_verticals.md` / `backend/docs/README.md` / `docs/doc_modernization_todo.md`）も張り替えた |
 | 1.4 | **文書一覧を A/B/C の 3 区分へ再編**（2026-09-14）。従来は「モジュール単位 / 横断」の 2 区分で、コア（A）と基盤層（B）の別が読み取れなかった。`grace_core.md` の依存関係図に合わせ **A. コアモジュール 8 / B. 基盤層 3 / C. 横断 4** とし、線引きの根拠を §2.4 に**実測**で載せた（`grace/*.py` を AST 解析。B は依存ゼロ・被依存 6/4/4、`tools.py` は config / llm_compat に依存する側なので A）。あわせて **A を「実行順 1〜8」で並べない**理由を明記——`memory` は planner が読み executor が書く両端モジュール、`calibration` は confidence の後処理、`executor` は `planner` に依存しない（逆に `replan` が依存する）ため。`benchmark.md` は `grace/step_trace/docs/` へ移動（§2.5・問題 #11）。`grace.md` に Version ヘッダーを追加し残タスク #3 を解消 |
 | 1.3 | **GRACE-Support 3 点を `backend/docs/` へ移設**（2026-09-04）。実装が `backend/app/core/support_agent.py` にあるため。`grace/docs/` は `grace/` パッケージの文書だけを持つ状態になった。あわせて、前版でヘッダーの版数だけ 1.1 のまま置き忘れていたのを是正 |
 | 1.2 | **モジュール文書 8 件の未記載シンボル 31 件を解消**（2026-09-04）。全 11 モジュールで AST 網羅 **100%** に到達。§3 を「日付比較」から「AST 網羅＋内容でズレていた 4 件」の記録へ書き換えた。⚠️ 本リポジトリの履歴は途中でまとめてインポートされており（`2f93674` が calibration / intervention / replan を新規追加）、**「コードの日付 > 文書の日付」は追随遅れの証拠にならない**ことが分かったので、その注意も §3.2 に明記 |

@@ -92,7 +92,7 @@
 | `agent_support_verticals.md` | 業界特化（gov / saas / ec）の `VerticalProfile` 設計 | 392 | 2.0 | ★★ |
 
 > 📝 **移設にあたって相対リンクを張り替えた。**
-> 3 件どうしのリンクは `./` のまま有効。`grace/docs/` 側（`grace_core.md` / `grace_core_flow.md`）
+> 3 件どうしのリンクは `./` のまま有効。`grace/docs/` 側（`grace_core.md` / `grace_runtime.md`。後者は 2026-09-14 に `grace_core_flow.md` から改称）
 > へは `../../grace/docs/` へ、`grace/step_trace/` からこの 3 件へのリンクは
 > `../../backend/docs/` / `../../../backend/docs/` へ直した。**リンク切れ 0 を確認済み。**
 

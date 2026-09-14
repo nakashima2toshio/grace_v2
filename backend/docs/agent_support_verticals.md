@@ -20,7 +20,8 @@
 > **参考ドキュメント**
 > - [`backend/docs/agent_support_example.md`](./agent_support_example.md) — GRACE-Support 本体の設計書（v1〜v3）
 > - `docs/migration_and_update.md`（**本リポジトリには無い**） — 需要分析・全体ロードマップ
-> - [`grace/docs/grace_core_flow.md`](../../grace/docs/grace_core_flow.md) — 5 段階設計・8 コアモジュール
+> - [`grace/docs/grace.md`](../../grace/docs/grace.md) — 5 段階設計の定義と設計思想
+> - [`grace/docs/grace_core.md`](../../grace/docs/grace_core.md) — コア 8 モジュールの横断アーキテクチャ
 
 ---
 
