@@ -1,6 +1,6 @@
 # grace/docs 棚卸し
 
-**Version 1.3** | 最終更新: 2026-09-04
+**Version 1.4** | 最終更新: 2026-09-14
 
 `grace/` パッケージのドキュメント一覧と、実装への追随状況・残タスク・検証手順をまとめる。
 新しく文書を書く／直す前に、まずここを見る。
@@ -16,6 +16,11 @@
 
 - [1. 現在わかっている問題](#1-現在わかっている問題)
 - [2. 文書一覧](#2-文書一覧)
+  - [2.1 A. コアモジュール（8）](#21-a-コアモジュール8-1-周を回す能力)
+  - [2.2 B. 基盤層（3）](#22-b-基盤層3-a-が共通に依存する土台)
+  - [2.3 C. 横断・アーキテクチャ文書（4）](#23-c-横断アーキテクチャ文書4)
+  - [2.4 A / B の線引きの根拠](#24-a--b-の線引きの根拠実測2026-09-14)
+  - [2.5 このディレクトリに置かない文書](#25-このディレクトリに置かない文書)
 - [3. 実装追随状況](#3-実装追随状況)
 - [4. 検証手順](#4-検証手順)
 - [5. 残タスク](#5-残タスク)
@@ -38,38 +43,95 @@
 | 8 | `web_search.md`（1123 行）が `tools.py` 内のクラス 1 個だけの単独文書になっている | ✅ 解消（`tools.md` v3.0 へ統合し削除） |
 | 9 | `agent_example_core8.md`（385 行）— `agent_example_core8.py` は git 全履歴に存在しない | ✅ 解消（ユーザー承認のうえ削除。参照元 `agent_support_example.md` も是正） |
 | 10 | モジュール文書に未記載の公開シンボルが 31 件あった | ✅ 解消（**全 11 モジュールで AST 網羅 100%**。§3） |
+| 11 | `benchmark.md` が `grace/docs/` にあるが対象は `grace/step_trace/benchmark.py`（CLAUDE.md §9.1 違反。#3 では本文の所在表記を直しただけでファイルは動かしていなかった） | ✅ 解消（2026-09-14 に `grace/step_trace/docs/` へ `git mv`。§2.5） |
+| 12 | 文書一覧が「モジュール / 横断」の 2 区分で、A（コア）と B（基盤層）の別が読み取れない | ✅ 解消（2026-09-14 に A/B/C の 3 区分へ再編。線引きの根拠は §2.4 に実測で明示） |
 
 ---
 
 ## 2. 文書一覧
 
-### 2.1 モジュール単位（IPO 形式・`a_class_method_md_format.md` に準拠）
+`grace/docs/` は **`grace/*.py`（11 モジュール）の文書と、パッケージ横断の設計文書だけ**を持つ。
+サブパッケージ（`grace/step_trace/`）の文書はそのパッケージ配下に置く（CLAUDE.md §9.1）。
+
+区分は `grace_core.md` の依存関係図に合わせて **A（コア）/ B（基盤層）/ C（横断）** の 3 つ。
+A と B の線引きは思いつきではなく、**実測した依存の向き**に基づく（§2.4）。
+
+### 2.1 A. コアモジュール（8）— 1 周を回す能力
+
+IPO 形式・`a_class_method_md_format.md` 準拠。**実行順ではなく役割**で束ねている
+（理由は §2.4 の注記を参照）。
+
+| 役割 | 文書 | 対象 | 行数 | Ver | 重要度 |
+|---|---|---|---:|---|---|
+| 計画 | `planner.md` | `grace/planner.py` | 1139 | 3.4 | ★★★ |
+| 実行 | `executor.md` | `grace/executor.py` | 2015 | 4.1 | ★★★ |
+| 実行 | `tools.md` | `grace/tools.py`（`WebSearchTool` を含む全ツール） | 1296 | 3.0 | ★★★ |
+| 評価 | `confidence.md` | `grace/confidence.py` | 1587 | 2.2 | ★★★ |
+| 評価 | `calibration.md` | `grace/calibration.py` | 763 | 1.0 | ★★ |
+| 制御 | `intervention.md` | `grace/intervention.py` | 1514 | 1.2 | ★★ |
+| 制御 | `replan.md` | `grace/replan.py` | 1064 | 1.5 | ★★ |
+| 学習 | `memory.md` | `grace/memory.py` | 546 | 1.0 | ★★ |
+
+### 2.2 B. 基盤層（3）— A が共通に依存する土台
+
+いずれも **`grace` 内への依存がゼロ**で、被依存が多い。
 
 | 文書 | 対象 | 行数 | Ver | 重要度 |
 |---|---|---:|---|---|
-| `planner.md` | `grace/planner.py` | 1139 | 3.4 | ★★★ |
-| `executor.md` | `grace/executor.py` | 2015 | 4.1 | ★★★ |
-| `confidence.md` | `grace/confidence.py` | 1587 | 2.2 | ★★★ |
-| `tools.md` | `grace/tools.py`（`WebSearchTool` を含む全ツール） | 1296 | 3.0 | ★★★ |
-| `schemas.md` | `grace/schemas.py` | 1125 | 1.2 | ★★★ |
 | `config.md` | `grace/config.py` | 920 | 1.1 | ★★★ |
+| `schemas.md` | `grace/schemas.py` | 1125 | 1.2 | ★★★ |
 | `llm_compat.md` | `grace/llm_compat.py` | 806 | 1.1 | ★★★ |
-| `intervention.md` | `grace/intervention.py` | 1514 | 1.2 | ★★ |
-| `replan.md` | `grace/replan.py` | 1064 | 1.5 | ★★ |
-| `calibration.md` | `grace/calibration.py` | 763 | 1.0 | ★★ |
-| `memory.md` | `grace/memory.py` | 546 | 1.0 | ★★ |
-| `benchmark.md` | `grace/step_trace/benchmark.py` | 869 | 2.0 | ★ |
 
-> ✅ **`grace/*.py`（11 モジュール）はすべて対応する `.md` を持つ。** 欠落は無い。
+### 2.3 C. 横断・アーキテクチャ文書（4）
 
-### 2.2 横断・設計文書
+特定の 1 モジュールに紐づかない設計文書。
 
 | 文書 | 内容 | 行数 | Ver | 重要度 |
 |---|---|---:|---|---|
-| `grace.md` | GRACE 自律型エージェントの思想・ReAct との関係 | 340 | — | ★★★ |
+| `grace.md` | GRACE 自律型エージェントの思想・ReAct との関係 | 340 | 1.0 | ★★★ |
 | `grace_core.md` | コア 8 モジュールの横断アーキテクチャ（§4 に実行メモリの実例） | 948 | 2.0 | ★★★ |
 | `grace_core_flow.md` | 5 段階設計・モジュール連携・プロンプト/API 発行部 | 786 | 2.0 | ★★★ |
-| `confidence_calibration.md` | 信頼度と較正の関係 | 355 | 1.1 | ★★ |
+| `confidence_calibration.md` | `confidence.py` × `calibration.py` の処理順 | 355 | 1.1 | ★★ |
+
+> 本書（`README.md`）は文書そのものではなく**棚卸しのメタ文書**なので、A/B/C のどれにも入れない。
+
+### 2.4 A / B の線引きの根拠（実測・2026-09-14）
+
+`grace/*.py` を AST で解析した依存の向き。**B は「依存ゼロ・被依存多」**で、
+`tools.py` は config / llm_compat に**依存する側**なので基盤層ではなく A に入る。
+
+| モジュール | 区分 | grace 内依存 | 被依存 |
+|---|:--:|---|---:|
+| `config` | B | なし | **6** |
+| `schemas` | B | なし | 4 |
+| `llm_compat` | B | なし | 4 |
+| `confidence` | A | config, llm_compat | 2 |
+| `memory` | A | なし | 2 |
+| `tools` | A | config, llm_compat | 1 |
+| `calibration` | A | なし | 1 |
+| `intervention` | A | confidence, config, schemas | 1 |
+| `replan` | A | config, **planner**, schemas | 1 |
+| `planner` | A | config, llm_compat, memory, schemas | 1 |
+| `executor` | A | 上記 9 個すべて（`planner` を除く） | 0 |
+
+> ⚠️ **A を「実行順 1〜8」で並べないこと。** 実装と食い違う:
+> - `memory` は 1 周の**両端**にまたがる。`planner` が読み（コレクション事前分布）、
+>   `executor` が書く（`_record_memory`）。`grace_core.md` §4 の題も
+>   「planner → executor → memory」である。
+> - `calibration` は `confidence` の**後処理**であって独立ステップではない。
+> - `executor` は **`planner` に依存していない**（計画は引数で渡る）。逆に
+>   `replan` が `planner` に依存する。番号を振るとこの向きが見えなくなる。
+>
+> パイプラインとしての順序は `grace_core_flow.md`（5 段階設計）が受け持つ。
+> 本一覧は**文書の棚卸し**なので役割で束ねる。
+
+### 2.5 このディレクトリに置かない文書
+
+| 文書 | 所在 | 理由 |
+|---|---|---|
+| `benchmark.md` | `grace/step_trace/docs/benchmark.md` | 対象が `grace/step_trace/benchmark.py`。サブパッケージの文書はそのパッケージ配下（CLAUDE.md §9.1）。**2026-09-14 に `grace/docs/` から移動** |
+| `s0_arg.md`〜`s9_render.md` | `grace/step_trace/docs/` | 同上 |
+| GRACE-Support 設計 3 点 | `backend/docs/` | `backend/app/core/` の文書（2026-09-04 に移動済み・§5 タスク 4） |
 
 ---
 
@@ -207,7 +269,7 @@ grep -rhoE '`[a-z0-9_]+(/[a-z0-9_]+)+\.(py|sh)`' grace/docs/*.md backend/docs/*.
 |---|---|---|---|
 | 1 | ~~追随が遅れている 10 件の突き合わせ~~ | **完了**（2026-09-04）。全 11 モジュールで AST 網羅 100%。§3 参照 | ✅ |
 | 2 | ~~`tools.md` の未記載シンボル 10 件~~ | **完了**（2026-09-04）。`CodeExecuteTool` を §4.7 として新設し、37/37 を確認 | ✅ |
-| 3 | `grace.md` のバージョン欄 | この 1 件だけ `**Version X.X**` ヘッダーが無い。他と揃える | ⏳ |
+| 3 | ~~`grace.md` のバージョン欄~~ | **完了**（2026-09-14）。`**Version 1.0** \| 最終更新: 2026-09-14` を追加し、`grace/docs/` の全 15 文書でヘッダーが揃った | ✅ |
 | 4 | ~~GRACE-Support 3 点の所在~~ | **完了**（2026-09-04）。`backend/docs/` へ `git mv` し相対リンクを張り替えた。以後 `grace/docs/` は `grace/` パッケージの文書だけを持つ | ✅ |
 
 > ⚠️ **統合時の落とし穴（実例・2026-09-04）。** `web_search.md` は
@@ -240,6 +302,7 @@ grep -rhoE '`[a-z0-9_]+(/[a-z0-9_]+)+\.(py|sh)`' grace/docs/*.md backend/docs/*.
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 1.4 | **文書一覧を A/B/C の 3 区分へ再編**（2026-09-14）。従来は「モジュール単位 / 横断」の 2 区分で、コア（A）と基盤層（B）の別が読み取れなかった。`grace_core.md` の依存関係図に合わせ **A. コアモジュール 8 / B. 基盤層 3 / C. 横断 4** とし、線引きの根拠を §2.4 に**実測**で載せた（`grace/*.py` を AST 解析。B は依存ゼロ・被依存 6/4/4、`tools.py` は config / llm_compat に依存する側なので A）。あわせて **A を「実行順 1〜8」で並べない**理由を明記——`memory` は planner が読み executor が書く両端モジュール、`calibration` は confidence の後処理、`executor` は `planner` に依存しない（逆に `replan` が依存する）ため。`benchmark.md` は `grace/step_trace/docs/` へ移動（§2.5・問題 #11）。`grace.md` に Version ヘッダーを追加し残タスク #3 を解消 |
 | 1.3 | **GRACE-Support 3 点を `backend/docs/` へ移設**（2026-09-04）。実装が `backend/app/core/support_agent.py` にあるため。`grace/docs/` は `grace/` パッケージの文書だけを持つ状態になった。あわせて、前版でヘッダーの版数だけ 1.1 のまま置き忘れていたのを是正 |
 | 1.2 | **モジュール文書 8 件の未記載シンボル 31 件を解消**（2026-09-04）。全 11 モジュールで AST 網羅 **100%** に到達。§3 を「日付比較」から「AST 網羅＋内容でズレていた 4 件」の記録へ書き換えた。⚠️ 本リポジトリの履歴は途中でまとめてインポートされており（`2f93674` が calibration / intervention / replan を新規追加）、**「コードの日付 > 文書の日付」は追随遅れの証拠にならない**ことが分かったので、その注意も §3.2 に明記 |
 | 1.1 | `web_search.md` の `tools.md` への統合と `agent_example_core8.md` の削除を反映（問題 #8 / #9 を解消）。文書は 22 → 20 件。統合の副産物として、`tools.md` に **`CodeExecuteTool` クラスごと未記載**であること（AST 照合で 37 件中 10 件が未記載）が判明したため残タスクへ追加 |

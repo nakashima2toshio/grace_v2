@@ -54,6 +54,18 @@ class Q,PROF,CLS,RAG,GND,GATE,ANS,WEB,NOINFO,ACT,OUT default
 | S8 | `s8_action.py` | [s8_action.md](./s8_action.md) | `ACT` | ⑥ Action（本人確認→CONFIRM→実行） | なし（既定 dry-run。意図分類のみ鍵） |
 | S9 | `s9_render.py` | [s9_render.md](./s9_render.md) | `OUT` | ⑦ 応答整形（SupportResult） | なし |
 
+## ステップ以外のモジュール
+
+`s0`〜`s9` のほかに、パッケージ内の計測モジュールが 1 つある。
+
+| モジュール | ドキュメント | 役割 | 備考 |
+|---|---|---|---|
+| `benchmark.py` | [benchmark.md](./benchmark.md) | GRACE のベンチマーク計測（`BENCHMARK_QUERIES` / `BenchmarkRunner`） | **CLI は無い。** ライブラリとして `from grace.step_trace.benchmark import ...` で呼ぶ |
+
+> 📌 `benchmark.md` は 2026-09-14 に `grace/docs/` から移動した。
+> `grace/docs/` は `grace/*.py` の文書だけを持ち、サブパッケージの文書は
+> そのパッケージ配下に置く（CLAUDE.md §9.1）。
+
 ## 共通事項
 
 - 各スタブは**実コード（`grace` / `agent_support_example`）をそのまま呼ぶ**。`ANTHROPIC_API_KEY` /
@@ -82,5 +94,6 @@ class Q,PROF,CLS,RAG,GND,GATE,ANS,WEB,NOINFO,ACT,OUT default
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 1.2 | `benchmark.py` の文書を `grace/docs/` から本ディレクトリへ移動し、「ステップ以外のモジュール」節を新設して索引に載せた（2026-09-14） |
 | 1.1 | 全体フロー図（S0〜S9 の位置づけ）とステップ別の実行要件列を追加。S0/S7/S9 の改修（共通 CLI 書式への統一・S0 の IN/Process/OUT 表示と identity dict 化・S9 の業界別代表例）と S3 の失敗時ヒント表示を反映（2026-07-10） |
 | 1.0 | 初版。S0〜S9 の 10 モジュール doc と本索引を作成（2026-07-09） |
