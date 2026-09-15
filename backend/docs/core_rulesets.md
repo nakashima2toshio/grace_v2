@@ -1,6 +1,6 @@
 # core/rulesets.py - 文書レビューのルールセット定義 ドキュメント
 
-**Version 1.1** | 最終更新: 2026-09-04
+**Version 1.2** | 最終更新: 2026-09-15
 
 ---
 
@@ -263,6 +263,8 @@ RuleItem(
     severity_default: Severity = "medium",
     always_check: bool = False,
     web_check: bool = False,
+    evidence_query: str = "",
+    evidence_collections: List[str] = [],
 )
 ```
 
@@ -278,6 +280,8 @@ RuleItem(
 | `severity_default` | Severity | `"medium"` | 重大度の既定値 |
 | `always_check` | bool | `False` | `True` なら keywords 不問で第2段へ |
 | `web_check` | bool | `False` | `True` なら ⑥ Web 裏取りの対象 |
+| `evidence_query` | str | `""` | ② Retrieve の検索クエリの上書き。空なら `title + description`（`retrieval_query()`） |
+| `evidence_collections` | List[str] | `[]` | ② Retrieve の検索対象コレクションの上書き。空なら `RuleSet.collections` |
 
 | 項目 | 内容 |
 |------|------|
@@ -288,6 +292,17 @@ RuleItem(
 > **注意**: `always_check=True` のルールは `keywords` を持たせない。表記が「無い」ことの
 > 検出はキーワード一致では原理的に不可能であり、両方を指定すると意図が二重になる。
 > この排他は `backend/tests/test_rulesets.py` が固定している。
+
+> ⚠️ **`evidence_query` / `evidence_collections` は「ルール自身が根拠として引かれる」ルールの逃げ道。**
+> 条文コレクション（`ec_ad_rules_anthropic`）には**ルール自身が 1 行として入っている**ため、
+> 既定クエリ（`title + description`）はまず自分自身を引き当てる（＝クエリの投げ返し）。
+> 条文ルール（`tokusho-*`）はそれで実害が無い（引きたいのが条文そのものだから）が、
+> `policy-01` が引きたいのは**自社の実際の規程**であってルール文ではない。
+> 実測 2026-08-19 06:11 では自己一致が 0.9380 で居座り、本命の「返品規定（14日）」は 0.6647 で
+> 埋もれていた。そこで `policy-01` だけ、取引条件を表す語だけのクエリ
+> （`"返品 交換 キャンセル 解約 返金 送料 負担 期限 条件 手数料 …"`）と
+> 検索先 `["ec_policy_anthropic"]` を指定している。これで自己一致が候補から消え、
+> `evidence_top_ratio` は自社規程どうしの比較になる。
 
 #### メソッド: `citation`
 
@@ -341,6 +356,8 @@ RuleSet(
     critical_keywords: List[str] = [],
     notify_th: float = 0.85,
     confirm_th: float = 0.60,
+    evidence_min_score: float = 0.70,
+    evidence_top_ratio: float = 0.92,
     action_map: Dict[str, str] = {},
     prompt_addendum: str = "",
 )
@@ -355,6 +372,8 @@ RuleSet(
 | `critical_keywords` | List[str] | `[]` | 強制 high の候補語 |
 | `notify_th` | float | `DEFAULT_NOTIFY_TH`（0.85） | 指摘を自動確定するしきい値 |
 | `confirm_th` | float | `DEFAULT_CONFIRM_TH`（0.60） | 保留として残すしきい値 |
+| `evidence_min_score` | float | `DEFAULT_EVIDENCE_MIN_SCORE`（0.70） | ② Retrieve で規程を根拠に採用する**絶対**スコアの下限 |
+| `evidence_top_ratio` | float | `DEFAULT_EVIDENCE_TOP_RATIO`（0.92） | 同じく Top スコアに対する**相対**比の下限 |
 | `action_map` | Dict[str, str] | `{}` | 意図キーワード → `action_type` |
 | `prompt_addendum` | str | `""` | reasoning へ注入する方針 |
 
@@ -485,9 +504,41 @@ print(get_ruleset(None))           # None
 |------|-----|------|
 | `DEFAULT_NOTIFY_TH` | `0.85` | 指摘を `confirmed` にする支持率の下限 |
 | `DEFAULT_CONFIRM_TH` | `0.60` | `review_required` として残す支持率の下限 |
+| `DEFAULT_EVIDENCE_MIN_SCORE` | `0.70` | ② Retrieve で規程を根拠に採用する**絶対**スコアの下限 |
+| `DEFAULT_EVIDENCE_TOP_RATIO` | `0.92` | 同じく **Top スコアに対する相対比**の下限 |
 
 `ec_ad` は既定値をそのまま採用している。Support の `gov`（`notify_th=0.8`）より**厳しい**のは、
 法令チェックは誤指摘のコストが高いため。
+
+#### 根拠の足切り（`evidence_min_score` × `evidence_top_ratio`）
+
+② Retrieve は検索結果をそのまま根拠にせず、**2 段で足切りする**
+（実装は `review_agent.py` の規程検索。`min_score` → `cutoff` の順に評価する）。
+
+| 段 | 条件 | 落ちたものの扱い |
+|---|---|---|
+| 絶対 | `score < evidence_min_score` | `[retrieve] 関連度が低い規程を根拠にしません（< 0.70）` として `on_drop` へ |
+| 相対 | `score < max(scores) × evidence_top_ratio` | `[retrieve] 最上位より離れた規程を根拠にしません（< …）` として `on_drop` へ |
+
+両方を通った規程が 1 件も無ければ `([], [])` を返し、呼び出し側は
+`RuleItem.description`（条文フォールバック）を使う。
+
+> ⚠️ **絶対値だけでは足りない理由。** 条文コレクションの中身は「互いに似た条文が並ぶ集合」に
+> なるため、どのルールで検索しても**他ルールの条文が 0.70 を超えて付いてくる**。
+> 実測 2026-08-18 22:38 では `tokusho-01` の根拠 5 件中 4 件が別ルールの条文で、
+> ③ Detect の【規程】に他ルールの主題が混ざり**指摘文が越境**していた
+> （`tokusho-02` の指摘文が `tokusho-03` の主題まで書き、同じ事実が 2 回数えられた）。
+>
+> ⚠️ **固定値ではなく「比」にしてある理由。** コレクションを差し替えればスコアの絶対水準は
+> まとめて動くが、「本来の条文 vs 無関係な条文」の**比**は残る。実測（全 7 ルール）では
+> 本来の条文が 0.8496〜0.9380、他ルールの条文が 0.7057〜0.7569 で谷ができており、
+> `0.92 × 最小の Top（0.8496）= 0.7816` がその谷のほぼ中央に入る。
+>
+> ⚠️ **`score` を持たない検索経路の結果は、どちらの足切りも通さずに採用される**
+> （実装が `score is not None` のときだけ判定するため）。
+
+> 📝 `on_drop` は Python の logger ではなく `emit` 経由の実行ログ（UI・SSE）へ出す。
+> 「なぜ根拠が条文フォールバックになったのか」を画面から追えるようにするため。
 
 ### 5.2 `ec_ad` の設定値
 
@@ -495,8 +546,8 @@ print(get_ruleset(None))           # None
 |------|-----|
 | `id` / `name` | `ec_ad` / `EC広告表示` |
 | `collections` | `ec_ad_rules_anthropic`, `ec_policy_anthropic` |
-| ルール数 | 21（景表法 12 / 薬機法 3 / 特商法 6） |
-| `always_check` | 6（特商法のみ） |
+| ルール数 | 23（景表法 12 / 薬機法 4 / 特商法 6 / 社内規程 1） |
+| `always_check` | 7（特商法 6 ＋ `policy-01`） |
 | `web_check` | 5（`keihyo-03` / `keihyo-04` / `keihyo-05` / `yakki-01` / `tokusho-06`） |
 | `notify_th` / `confirm_th` | `0.85` / `0.60` |
 | `action_map` | `{"修正": "create_ticket", "差し戻し": "send_reply"}` |
@@ -512,7 +563,7 @@ print(get_ruleset(None))           # None
 一致しただけでは強制しない。⑤ の第2段（言及種別の分類）で `negation` / `quotation` と
 判定されれば強制 high にしない（「当社は No.1 という表現を使いません」は方針表明であり違反ではない）。
 
-### 5.4 ルール一覧（21 件）
+### 5.4 ルール一覧（23 件）
 
 | ルール ID | タイトル | 法令 | 既定 severity | 判定方式 |
 |---|---|---|:---:|---|
@@ -531,12 +582,18 @@ print(get_ruleset(None))           # None
 | `yakki-01` | 食品の医薬品的効能標榜 | 医薬品医療機器等法 | high | keywords ＋ web_check |
 | `yakki-02` | 化粧品の効能範囲逸脱 | 医薬品医療機器等法 | high | keywords |
 | `yakki-03` | 医療機器的性能の標榜 | 医薬品医療機器等法 | medium | keywords |
+| `yakki-04` | 安全性の保証表現 | 医薬品医療機器等法 | high | keywords |
 | `tokusho-01` | 販売価格・送料の明示 | 特定商取引法 | high | always_check |
 | `tokusho-02` | 代金の支払時期・方法 | 特定商取引法 | medium | always_check |
 | `tokusho-03` | 商品の引渡時期 | 特定商取引法 | medium | always_check |
 | `tokusho-04` | 返品特約の表示 | 特定商取引法 | high | always_check |
 | `tokusho-05` | 事業者名・住所・連絡先 | 特定商取引法 | high | always_check |
 | `tokusho-06` | 定期購入の条件明示 | 特定商取引法 | high | always_check ＋ web_check |
+| `policy-01` | 表示内容と社内規程の不一致 | 社内規程 | medium | always_check |
+
+> 📝 `policy-01` だけは**法令違反ではなく社内整合性**の指摘で、`law` が `社内規程`・`article` が `—` になる。
+> ② Retrieve も既定と違い、`evidence_query` と `evidence_collections`（`ec_policy_anthropic`）で
+> 上書きしている（理由は §4.1 の注記）。
 
 ---
 
@@ -616,6 +673,8 @@ RULESETS[FIN_AD.id] = FIN_AD
 
 | バージョン | 日付 | 変更内容 |
 |-----------|------|---------|
+| 1.2 | 2026-09-15 | **根拠の足切り機構がまるごと未記載だったのを解消**。`RuleSet.evidence_min_score` / `evidence_top_ratio` と `RuleItem.evidence_query` / `evidence_collections` の 4 フィールド、および `DEFAULT_EVIDENCE_MIN_SCORE`（0.70）/ `DEFAULT_EVIDENCE_TOP_RATIO`（0.92）の 2 定数が**フィールド表・定数表のどちらにも無く**、② Retrieve が「関連度の低い規程を根拠として採用しない」ことを本書から読み取れなかった。§5.1 に絶対×相対の 2 段足切りを実装（`review_agent.py` の規程検索）から書き起こし、`policy-01` が検索クエリと検索先を上書きしている理由（ルール自身の自己一致が 0.9380 で居座る）も §4.1 に注記した。あわせて **§5.4 のルール一覧が 21 件のまま**で `yakki-04`（安全性の保証表現）と `policy-01`（表示内容と社内規程の不一致）が抜けていたのを是正（v1.1 で他の箇所は 23 に直したが、この表だけ取り残されていた）。§5.2 の `always_check` も 6 → 7 へ |
+| 1.1 | 2026-09-13 | `ec_ad` のルール数を 21 → 23 に更新（`41e634d`）。`RuleItem.retrieval_query()` を追記（`4e4607d`） |
 | 1.0 | 2026-07-29 | 初版作成（GRACE-Review STEP1・PR #37 に対応） |
 
 ---
