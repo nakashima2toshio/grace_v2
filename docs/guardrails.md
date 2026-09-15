@@ -126,7 +126,7 @@ style S5 fill:#1a1a1a,stroke:#fff,color:#fff
 
 ## 2. ガードレール一覧（機構 → 実装 → 失敗時の既定）
 
-| ID | 機構 | 実装（ファイル:行） | 概要 | 判定不能・失敗時 |
+| ID | 機構 | 実装（ファイル・シンボル） | 概要 | 判定不能・失敗時 |
 |---|---|---|---|---|
 | GA | 複数質問の検知・選択（0-(A)） | `backend/app/core/gates.py` `looks_like_multi_question` / `create_question_analyzer` / `analyze_questions` / `reconstruct_query` / `deferred_main_questions`、`support_agent.py` の `analyze` ステップ | 1 入力に複数の主質問があるとき、答える 1 つを利用者に選ばせ、採用クラスタを 1 文へ再構成する。採用しなかった主質問は `deferred_questions` で必ず提示する。第 2 段の応答が形式に従わないときは**1 回だけ厳格に再要求**し、**元の問い合わせに由来しない行は出力ごと捨てる**（`_derives_from_query`。散文が主質問になるのを防ぐ）。⚠️ **クラスタ分解と担当範囲の判定（GA'）は 1 回の LLM 呼び出しにまとめてある**（`create_question_analyzer` が `IN:` / `OUT:` 接頭辞つきで返す）。ラベルの無い行が 1 つでもあれば判定を**全部捨てる**（部分解釈をしない） | **単一質問とみなす**（＝現行動作を維持）。選択がタイムアウト・拒否でも原文のまま 1 周し、escalate にはしない |
 | GA' | 担当範囲の判定（0-(A)） | `gates.py` `create_scope_classifier` / `split_by_scope`、`verticals.VerticalProfile.scope_description` / `out_of_scope_guidance` | 主質問ごとに業界の担当範囲内かを判定。**範囲外は選択肢に出さず**、`out_of_scope_questions` として断り＋窓口案内で返す。範囲内が 1 つだけなら選択そのものを出さない。**検索クエリからは外すが質問文は生成側へ渡し、同じ回答の中で断らせる**（1 回のやり取りで両方に対応する）。指示は `llm.prompt_closing` として**【回答の構成ルール（最重要）】より後ろ**へ置く（業務方針に混ぜていたときは構成ルールに負けて断りが落ちた。実測 2 回連続）。指示に従わないモデルのために `ensure_out_of_scope_notice` が回答本文へ追記して担保する（ゲートの後なので判定は動かさない）。案内先は `VerticalProfile.out_of_scope_links` の URL を literal で渡す（記憶から URL を書かせない）。**モデルが自分で断った場合も、書かれていない URL だけは補う**（`_append_missing_links`） | **全件を範囲内とみなす**（判定不能・分類器なし・全件 OUT のいずれも）。誤って断って答えられる質問を落とすほうが害が大きく、範囲外なら生成側の `SCOPE_POLICY` が二重に守る |

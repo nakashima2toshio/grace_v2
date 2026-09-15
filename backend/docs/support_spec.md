@@ -1,6 +1,6 @@
 # GRACE-Support 設計書（設計判断の記録）
 
-**Version 1.1** | 最終更新: 2026-09-15 | ステータス: **実装済み**
+**Version 1.2** | 最終更新: 2026-09-15 | ステータス: **実装済み**
 
 > 📌 **本書は設計書（WHY）**——なぜこのゲート・しきい値・二段判定・HITL ポリシーなのか、
 > という**判断の記録**である。
@@ -806,19 +806,13 @@ profile = PROFILES.get(vertical) if vertical else None
 ```
 
 以降はすべて `profile is not None` で分岐するため、基本版では**プロファイル由来の機構が
-まとめて「無し」側に倒れる**。
+まとめて「無し」側に倒れる**（検索スコープ・しきい値・業務方針・断りの指示・担当範囲の判定・
+強制エスカレ・本人確認・Web 優先ドメインの 8 項目 ＋ 0-(B) ステップのスキップ）。
 
-| 項目 | 基本版（`vertical=None`） | GRACE-Support（`vertical` 指定） |
-|---|---|---|
-| 0-(B) `profile` ステップ | **スキップ**（`step_skipped`） | 実行 |
-| 検索スコープ | `allowed_collections = []`（**全コレクション**が対象） | `profile.collections` に限定 |
-| しきい値 | グローバル既定（`confidence.thresholds`） | プロファイル上書き（`gov` は 0.8 / 0.5） |
-| 業務方針の注入 | `prompt_addendum = ""` | `profile.build_prompt_addendum()` |
-| 断りの指示 | `prompt_closing = ""` | `profile.build_closing_instruction()` |
-| 担当範囲の判定（§5.5） | **行わない**（全質問が範囲内） | `scope_description` で切り分け、窓口案内で断る |
-| 強制エスカレ（§1） | `escalate_keywords` が無いので発火しない | プロファイルのキーワードで発火 |
-| 本人確認（§3.2） | 行わない | `require_identity=True` の `ec` で実行 |
-| Web 優先ドメイン | 無し | `profile.preferred_domains`（加点のみ） |
+> 📌 **項目ごとの対照表は [`../../docs/pipelines.md` §3](../../docs/pipelines.md) が正本**
+> （3 モードを見比べるハブなので、隣の §2 ステップ対照表・§4 ガードレール有効表と同じ場所に置く）。
+> 本書は**同じ表を持たない** — 同じ表を 2 箇所に持つと必ず片方が腐るため
+> （`backend/docs/README.md` §1 問題 #8）。本節が持つのは下の**設計意図**だけである。
 
 ### 7.1 設計意図：なぜ「薄いモード」を残すのか
 
@@ -926,6 +920,7 @@ groundedness 検証・⑤ 再検証・haiku 判定 2 種）。
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 1.2 | **§7 の対照表を `docs/pipelines.md` §3 へのリンクへ置換**（2026-09-15）。v1.1 で追加した 9 行の表は `pipelines.md` §3 と**同じ内容の言い換え**になっており（`profile.build_closing_instruction()` の表記だけが違う状態）、片方だけが腐る形だった。3 モードを見比べるハブである `pipelines.md` を正本とし、本節は**設計意図（§7.1）と「専用文書を作らない理由」（§7.2）だけ**を持つ形にした |
 | 1.1 | **§7「基本版タブ（`vertical` = None）」を新設**（2026-09-15）。基本版と GRACE-Support の差（プロファイル由来の機構が「無し」側に倒れる 9 項目）は `docs/pipelines.md` §3 にしか無く、Support の設計書からは辿れなかった。設計意図（素のパイプラインの基準線を UI から引けるようにする）と、**専用文書を作らない理由**（実装が同一なので複製すると片方だけ腐る）も明記。旧 §7〜§9 は §8〜§10 へ繰り下げ |
 | 1.0 | **3 文書の設計判断部分を統合して新設**（2026-09-15）。`agent_support_example.md`（996 行・v1.3）／`agent_support_verticals.md`（389 行・v2.0）／`multi_question_handling.md` §0・§13（981 行・v3.0）から**設計判断（WHY）だけ**を抜き出して 1 本にまとめ、3 文書が重複して持っていた関数 IPO は `core_gates.md` / `core_support_agent.md` / `core_verticals.md` へのリンクへ置換した。統合にあたって次の**実装との食い違いを是正**した — ① `ActionTool`（`grace/tools.py` へ追加する案）は**存在しない**ため、`support_actions.ActionBackend` による実現として §3.2 に書き直した ② dataclass のフィールド表は 0-(A) の 7 フィールド追加に追随できていなかったため削除しリンク化した ③ `SupportResult` の追加フィールド数「5」を実測値の「7」へ是正した ④ 担当範囲外の指示の注入先を `build_prompt_addendum()` から `build_closing_instruction()` へ是正した（同一文書内で前半と後半が矛盾していた）。採用しなかった案は `archive/multi_question_handling.md` に残した |
 

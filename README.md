@@ -45,6 +45,10 @@
 | [`docs/guardrails.md`](docs/guardrails.md) | **判定（ガードレール）**。GA〜G9 の中身、失敗時にどちらへ倒すか、閾値 |
 | [`docs/reasoning_flow.md`](docs/reasoning_flow.md) | **生成**。Support の `reasoning` と Review の `detect`、プロンプト構造 |
 
+> 📌 直下 `docs/` の全体像と**どこに何を置くかの境界**は [`docs/README.md`](docs/README.md)。
+> 領域別の棚卸しは [`backend/docs/README.md`](backend/docs/README.md) /
+> [`grace/docs/README.md`](grace/docs/README.md) / [`frontend/docs/README.md`](frontend/docs/README.md)。
+
 | 軸 | 実装 | 状態 | 詳細 |
 |---|---|---|---|
 | 計画→実行→検証→ゲート | planner / executor / confidence / gates | ✅ | [pipelines](docs/pipelines.md) §2 ステップ対照表／[guardrails](docs/guardrails.md) §1 全体図／[reasoning_flow](docs/reasoning_flow.md) §1 ② の中身 |

@@ -1,5 +1,10 @@
 # 「② Q/A 作成」タブ 移植 TODO（grace_v2_local → grace_v2）
 
+> 🗄️ **アーカイブ（2026-09-15）**: V1〜V6 は 2026-09-12 に実装済みで、本書は
+> **着手時の調査記録**として残す。現在の設計は
+> [`backend/docs/data_pipeline.md`](../../backend/docs/data_pipeline.md) が正本。
+
+
 **目的**: `./run_dev.sh` の「データ管理」タブに **② Q/A 作成** サブタブを追加し、
 チャンク化 → Q/A 生成 → Qdrant 登録の 3 工程を**画面から通しで実行できる**ようにする。
 
@@ -11,7 +16,7 @@
 
 > **✅ 2026-09-12 に V1〜V6 を実装済み。** 本書は着手時の調査記録として残す。
 > §3 の 3 点は推奨（A / 直接起動コマンド / 素の入力・`claude-sonnet-4-6`）どおりに実装した。
-> 現在の設計は [`backend/docs/data_pipeline.md`](../backend/docs/data_pipeline.md)（v1.2 以降）を参照。
+> 現在の設計は [`backend/docs/data_pipeline.md`](../../backend/docs/data_pipeline.md)（v1.2 以降）を参照。
 >
 > **本書の記述は TODO と調査結果のみ。**
 > 記載した差分は 2026-09-12 に両リポジトリの実ファイルを `diff -u` して確認したもの。
