@@ -1,6 +1,6 @@
 # backend/docs 棚卸し
 
-**Version 1.10** | 最終更新: 2026-09-15
+**Version 1.11** | 最終更新: 2026-09-15
 
 `backend/`（FastAPI + パイプライン中核）のドキュメント一覧と、実装への追随状況・
 欠落・残タスク・検証手順をまとめる。
@@ -282,7 +282,7 @@ grep -A 12 'STEP_IDS = (' backend/app/core/support_agent.py \
 | 2 | ~~GRACE-Support 3 点の移設~~ | **完了**（2026-09-04）。`git mv` で移設し相対リンクを張り替えた（§2.3）。`grace_v2_local` と同じ構成になった | ✅ |
 | 3 | ~~追随が遅れている 14 件の突き合わせ~~ | **完了**（2026-09-04）。AST 照合で 24 件の未記載を発見し、すべて解消。17 モジュールで 100%（§4） | ✅ |
 | 4 | ~~`review_rules_collection.md` のヘッダー~~ | **完了**（2026-09-15。v1.0 を付与したのち、`data_pipeline.md` 付録A へ統合） | ✅ |
-| 5 | リポジトリ直下 `docs/` との重複 | `docs/pipelines.md` / `guardrails.md` / `reasoning_flow.md` が `support_flow.md` / `core_gates.md` と一部重なる。今回の統合は `backend/docs/` に閉じたので**別タスク** | ⏳ |
+| 5 | ~~リポジトリ直下 `docs/` との重複~~ | **完了**（2026-09-15）。実測した結果、`guardrails.md` / `reasoning_flow.md` / `performance_levers.md` は**複数領域にまたがる横断文書で重複ではなかった**（`core_gates.md` は 1 ファイルの IPO、`guardrails.md` は GA〜G9 の横断ビュー＋失敗時の既定）。実際の重複は `pipelines.md` §3 ↔ `support_spec.md` §7 の 1 件だけで、`pipelines.md` を正本にしてリンクへ置換した。再発防止として [`docs/README.md`](../../docs/README.md) を新設し、配置の境界・重複禁止ルール・全 docs 横断の検出スクリプトを明文化 | ✅ |
 
 ---
 
@@ -304,6 +304,7 @@ grep -A 12 'STEP_IDS = (' backend/app/core/support_agent.py \
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 1.11 | **直下 `docs/` との重複を解消**（2026-09-15・残タスク #5）。実測の結果、重複していたのは `pipelines.md` §3 ↔ `support_spec.md` §7 の対照表 1 件だけで（v1.9 で本書が足した表が `pipelines.md` の言い換えになっていた）、`pipelines.md` を正本にして `support_spec.md` 側をリンクへ置換した。`guardrails.md` / `reasoning_flow.md` / `performance_levers.md` は複数領域にまたがる横断文書で、`core_*.md`（1 ファイルの IPO）とは軸が違うため**重複ではない**と確認。再発防止に `docs/README.md` を新設 |
 | 1.10 | **`api_*.md` / `core_*.md` の 15 文書へ `### N.1 使用例` を新設**（2026-09-15・問題 #13）。ドキュメント規約 §6.1 が必須としている「IPO 詳細セクション冒頭の代表ワークフロー」が 15 文書すべてで欠落しており、長い IPO 詳細へ入る前に「このモジュールをどう呼ぶか」が分からない状態だった。各文書に 1〜3 本ずつ（計 31 本）追加し、**外部依存（実 API キー・Qdrant）が要らない例はすべて実行して出力例に実測値を書いた**。要る 2 例（`run_support_agent_core` / `POST /api/support/query` の一連）は**その旨を明記**して未実行であることを隠していない（CLAUDE.md「やっていない検証をやったと書かない」）。既存の小見出しは N.2 以降へ繰り下げ、目次・内部参照（`core_rulesets` / `core_support_agent` / `core_verticals` の 3 件）も追随させた |
 | 1.9 | **画面の 4 タブ ↔ 文書の対応を明示**（2026-09-15）。統合後に「基本版タブとデータ管理タブはどの文書を見ればよいか」が辿れなかったため、(1) `webapp_flow.md` に **§0「タブ ↔ 文書の対応」**を新設（4 タブの画面コンポーネント・コア関数・WHY / WHAT の対応表）、(2) `support_spec.md` に **§7「基本版タブ（`vertical` = None）」**を新設（プロファイル由来の機構が「無し」側に倒れる 9 項目。従来 `docs/pipelines.md` §3 にしか無く Support の設計書から辿れなかった）、(3) 本書 §2.3 に同じ対応表を掲載。あわせて**「基本版に専用文書を作らない」「データ管理を 2 本に分けない」理由**を 3 箇所すべてに明記した（実装が同一・設計判断の量が足りない） |
 | 1.8 | **フロー・設計文書 13 件を 8 件＋アーカイブ 2 件へ統合**（2026-09-15・問題 #10 / #11 / #12）。(1) エージェントごとに **`<agent>_spec.md`（WHY）／`<agent>_flow.md`（WHAT）** の 2 本立てへ揃えた（Review 側が既にこの形だったので Support 側を合わせた）。`agent_support_example.md` / `agent_support_verticals.md` / `multi_question_handling.md` §0・§13 → **`support_spec.md`**（新設）、`backend_flow.md` ＋ `confidence_flow_grace_vs_backend.md` ＋ `agent_support_example_flow.md` ＋ CLI 仕様 → **`support_flow.md`**。(2) **関数 IPO の 3〜4 重管理を解消** — `agent_support_example.md` §7.6 は「実コードと突合済み」と書きながら実体を持たない CLI ラッパーを対象にしており、記述された関数は `core/gates.py` / `core/verticals.py` にあった。フロー文書・設計書から IPO を外し、`core_*.md` へのリンクに置換した（問題 #8 と同じ処方箋）。(3) **ステップ番号を `CLAUDE.md` §1 の体系へ統一**し、`backend_flow.md` が落としていた **0-(A) `analyze`** を `support_flow.md` §4.0 として新規に書き起こした。(4) `react_processing_flow.md` → **`webapp_flow.md`**（`React`/`ReAct` の取り違えを解消）、`review_agent_spec.md` → **`review_spec.md`**、`review_rules_collection.md` → `data_pipeline.md` 付録A、`main.md` §6.1 の起動手順 → `install_and_setup.md` §6 へ一本化。(5) 完了済みの記録 2 件を **`archive/`** へ `git mv`（削除はしていない）。(6) 統合中に判明した**実装との食い違い 4 件**（存在しない `ActionTool`、追随できていない dataclass フィールド表、「5 フィールド」→ 実測 7、`build_prompt_addendum` → `build_closing_instruction`）を是正。被参照 41 ファイル（ソースコメント・テスト・フロント・`grace/` 側文書）のパスと節番号を張り替え、**リンク切れ 0** を確認 |
