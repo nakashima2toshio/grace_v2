@@ -516,7 +516,7 @@ def _web_source_texts(web_output: list) -> List[str]:
 
 
 # =============================================================================
-# 複数質問クエリ（docs/multi_question_handling.md §13）
+# 複数質問クエリ（backend/docs/multi_question_handling.md §13）
 # =============================================================================
 #
 # 1 つの入力に複数の質問が含まれるとき、主質問を 1 つ選んで答え、採用しなかった
@@ -532,7 +532,7 @@ def _web_source_texts(web_output: list) -> List[str]:
 #   | **複数質問検知**            | **「単一とみなす」**（＝現行動作を維持） |
 #
 # 誤って分解する方が害が大きいため。単一質問クエリの挙動は 1 ミリも変えない
-# （docs/multi_question_handling.md §6・§13.6）。
+# （backend/docs/multi_question_handling.md §6・§13.6）。
 
 # 第 1 段（候補検出）で見る接続表現。ここに一致しなければ LLM は呼ばない。
 MULTI_QUESTION_MARKERS = (
@@ -952,7 +952,7 @@ def reconstruct_query(
 ) -> str:
     """採用クラスタ（主質問 ＋ 関連質問）を、自然言語の 1 文へ再構成する。
 
-    設計: `docs/multi_question_handling.md` §13.3。
+    設計: `backend/docs/multi_question_handling.md` §13.3。
 
     ## なぜ再構成するのか
 
@@ -1038,7 +1038,7 @@ def deferred_main_questions(
     🔴 **この戻り値は必ず利用者へ提示すること。**
     提示しないと「片方の質問が無言で落ち、しかも `support_rate` が高いため
     高信頼として提示される」という、本設計が最も危険とした事故
-    （`docs/multi_question_handling.md` §概要）と区別がつかなくなる。
+    （`backend/docs/multi_question_handling.md` §概要）と区別がつかなくなる。
 
     関連質問は主質問に従属しており、主質問を保留すれば一緒に保留される。
     そのため主質問だけを列挙すれば足りる。

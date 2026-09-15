@@ -228,7 +228,7 @@ reasoning ステップの入力を組み立てる、回答品質を左右する�
 
 > ⚠️ `prompt_addendum` / `prompt_closing` は `support_agent` が**グローバル可変シングルトンへ
 > 書き込む**方式で設定される。並行リクエスト間で汚染し得る既知の課題があり、詳細と改善方針は
-> `docs/multi_question_handling.md` を参照。
+> `backend/docs/multi_question_handling.md` を参照。
 
 ---
 
@@ -291,7 +291,7 @@ print(result.confidence_factors)   # {'has_sources': True, 'source_count': 1, ..
 
 | 制約 | 内容 | 状態 |
 |---|---|---|
-| ~~複数質問に弱い~~ | プロンプトに「各サブ質問に漏れなく答えよ」という制約が無く、出典が片方に偏ると答えられる質問だけ答えていた | **解消済み**。0-(A) が主質問を切り分けて 1 問へ再構成し、範囲外は `prompt_closing` で断らせる（`docs/multi_question_handling.md`） |
+| ~~複数質問に弱い~~ | プロンプトに「各サブ質問に漏れなく答えよ」という制約が無く、出典が片方に偏ると答えられる質問だけ答えていた | **解消済み**。0-(A) が主質問を切り分けて 1 問へ再構成し、範囲外は `prompt_closing` で断らせる（`backend/docs/multi_question_handling.md`） |
 | `prompt_addendum` / `prompt_closing` の共有状態 | グローバル可変 config 経由で設定され、並行リクエストで汚染し得る | **未対応** |
 | `content` の切り詰め | 参照情報の `content` は 1000 文字で打ち切り | 未対応（長文ソースでは要約前処理の検討余地） |
 | Review の指摘文が定型に寄る | `detect` が失敗すると全件が同じ定型文になり、区別が付かない | 失敗時は `review_required` 止まりにして誤認を防ぐところまで対応済み（§3.1） |
@@ -308,7 +308,7 @@ print(result.confidence_factors)   # {'has_sources': True, 'source_count': 1, ..
 | `backend/docs/core_review_agent.md` / `core_review_gates.md` | Review コアとゲートの IPO |
 | `backend/docs/core_gates.md` | ④ 回答ゲート・④' 情報なし検知 |
 | `grace/docs/executor.md` / `grace/docs/tools.md` / `grace/docs/llm_compat.md` | 実行エンジン・ツール・互換層の IPO |
-| `docs/multi_question_handling.md` | 複数質問（0-(A)）の設計 |
+| `backend/docs/multi_question_handling.md` | 複数質問（0-(A)）の設計 |
 
 ---
 

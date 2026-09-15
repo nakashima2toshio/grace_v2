@@ -5,8 +5,8 @@
 
 > **✅ §0 の 4 項目はすべて解消済み。本書は調査記録として残す。**
 > （`docs/qa_tab_port_todo.md` と同じ扱い。2026-09-12 に完了表記を追加）
-> 現在の Review の設計は [`backend/docs/review_agent_spec.md`](../backend/docs/review_agent_spec.md) と
-> [`backend/docs/core_review_gates.md`](../backend/docs/core_review_gates.md) を参照。
+> 現在の Review の設計は [`backend/docs/review_agent_spec.md`](./review_agent_spec.md) と
+> [`backend/docs/core_review_gates.md`](./core_review_gates.md) を参照。
 
 ---
 

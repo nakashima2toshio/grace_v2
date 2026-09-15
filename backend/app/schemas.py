@@ -68,7 +68,7 @@ class ActionRequestModel(BaseModel):
 class QuestionClusterModel(BaseModel):
     """1 つの主質問と、それに従属する関連質問のまとまり（複数質問クエリの採用単位）。
 
-    設計: `docs/multi_question_handling.md` §13.3。
+    設計: `backend/docs/multi_question_handling.md` §13.3。
     実体は `backend/app/core/support_agent.py::QuestionCluster`。
     """
 
@@ -98,7 +98,7 @@ class SupportResultModel(BaseModel):
     no_info_detected: bool = False
     web_reused: bool = False
 
-    # --- 複数質問クエリ（docs/multi_question_handling.md §13.5）---------------
+    # --- 複数質問クエリ（backend/docs/multi_question_handling.md §13.5）---------------
     # ⚠️ すべて optional。単一質問では既定値のままで、旧クライアントは壊れない。
     is_multi_question: bool = False
     question_clusters: List[QuestionClusterModel] = Field(default_factory=list)
