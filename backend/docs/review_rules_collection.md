@@ -1,5 +1,7 @@
 # 規程コレクションの準備（`ec_ad_rules_anthropic`）
 
+**Version 1.0** | 最終更新: 2026-09-15
+
 GRACE-Review が「条文つきの指摘」を出すために必要な Qdrant コレクションの作り方。
 
 ---
@@ -75,7 +77,7 @@ _retrieve_evidence(tool_registry, f"{rule.title} {rule.description}", rs, ...)
 
 ```bash
 PYTHONPATH=. python3 scripts/export_ruleset_to_csv.py --ruleset ec_ad
-# → qa_output/ec_ad_rules.csv（22 行）
+# → qa_output/ec_ad_rules.csv（23 行＝ec_ad の全ルール）
 ```
 
 出力例:
@@ -243,3 +245,11 @@ doc/tokusho-01: 文書全体で判定 / 規程 5 件
 | 登録 CLI | `qa_qdrant/register_to_qdrant.py` |
 | 雛形の書き出し | `scripts/export_ruleset_to_csv.py` |
 | パイプライン全体 | `backend/docs/data_pipeline.md` |
+
+---
+
+## 変更履歴
+
+| バージョン | 日付 | 変更内容 |
+|-----------|------|---------|
+| 1.0 | 2026-09-15 | Version ヘッダーを追加（`backend/docs/README.md` の問題 #3。`backend/docs/` で唯一ヘッダーが無かった）。あわせて §3-1 の CSV 行数を **22 行 → 23 行**へ是正——`scripts/export_ruleset_to_csv.py::build_rows()` は `ruleset.rules` をフィルタせず回すので、行数は `ec_ad` のルール数そのものになる |

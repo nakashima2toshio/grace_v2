@@ -1,6 +1,6 @@
 # core/rulesets.py - 文書レビューのルールセット定義 ドキュメント
 
-**Version 1.2** | 最終更新: 2026-09-15
+**Version 1.3** | 最終更新: 2026-09-15
 
 ---
 
@@ -398,7 +398,7 @@ def rule_by_id(self, rule_id: str) -> Optional[RuleItem]
 | 項目 | 内容 |
 |------|------|
 | **Input** | `rule_id: str` |
-| **Process** | `rules` を線形探索する（21 件程度のため索引は持たない） |
+| **Process** | `rules` を線形探索する（23 件のため索引は持たない） |
 | **Output** | `Optional[RuleItem]`: 見つからなければ `None` |
 
 **戻り値例**:
@@ -673,6 +673,7 @@ RULESETS[FIN_AD.id] = FIN_AD
 
 | バージョン | 日付 | 変更内容 |
 |-----------|------|---------|
+| 1.3 | 2026-09-15 | §4.2 `rule_by_id` の Process にあった「21 件程度」を **23 件**へ是正。v1.2 で §5.4 の表は 23 件に直したが、**件数を書いている箇所を全部 grep していなかった**ため 1 行取り残していた |
 | 1.2 | 2026-09-15 | **根拠の足切り機構がまるごと未記載だったのを解消**。`RuleSet.evidence_min_score` / `evidence_top_ratio` と `RuleItem.evidence_query` / `evidence_collections` の 4 フィールド、および `DEFAULT_EVIDENCE_MIN_SCORE`（0.70）/ `DEFAULT_EVIDENCE_TOP_RATIO`（0.92）の 2 定数が**フィールド表・定数表のどちらにも無く**、② Retrieve が「関連度の低い規程を根拠として採用しない」ことを本書から読み取れなかった。§5.1 に絶対×相対の 2 段足切りを実装（`review_agent.py` の規程検索）から書き起こし、`policy-01` が検索クエリと検索先を上書きしている理由（ルール自身の自己一致が 0.9380 で居座る）も §4.1 に注記した。あわせて **§5.4 のルール一覧が 21 件のまま**で `yakki-04`（安全性の保証表現）と `policy-01`（表示内容と社内規程の不一致）が抜けていたのを是正（v1.1 で他の箇所は 23 に直したが、この表だけ取り残されていた）。§5.2 の `always_check` も 6 → 7 へ |
 | 1.1 | 2026-09-13 | `ec_ad` のルール数を 21 → 23 に更新（`41e634d`）。`RuleItem.retrieval_query()` を追記（`4e4607d`） |
 | 1.0 | 2026-07-29 | 初版作成（GRACE-Review STEP1・PR #37 に対応） |

@@ -159,14 +159,32 @@ CLI と同じ関数（`QAPipeline` など）を呼ぶので挙動は同一。
 > `--resume` つきの大規模バッチは引き続き CLI の方が適している。
 
 ### 検証（CI と同じゲート）
+
+**初回のみ**、テスト用の依存を入れる（`[project] dependencies` の 221 行は**入れない**。
+テストはスタブベースで実行時依存を必要としない）:
+
 ```bash
-uv run ruff check . --no-cache          # lint
-uv run pytest backend/tests -q          # backend テスト
+uv venv
+uv pip install -r requirements-test.txt   # CI と共有する唯一の正本（18 パッケージ）
+```
+
+```bash
+uv run ruff check . --no-cache             # lint
+uv run --no-sync pytest backend/tests -q -rs   # backend テスト
 python -m compileall -q -x '\.venv|/\.git/|/logs/' .   # 構文ゲート
 cd frontend && npm run lint && npm test && npm run build   # frontend
 ```
 
-> `pyproject.toml` に `pythonpath` 指定は無い。CI は `PYTHONPATH=.` を env で与えている。
+> ⚠️ **`--no-sync` を付ける。** 付けないと `uv run` が `pyproject.toml` の
+> `[project] dependencies`（221 行・spacy/matplotlib 等を含む）で環境を同期し直し、
+> `requirements-test.txt` で作った軽い環境が上書きされる。
+>
+> ⚠️ **`backend/tests` が import するパッケージを足したら `requirements-test.txt` に追記する。**
+> CI（`.github/workflows/ci.yml`）はこのファイルを読むので、YAML 側を直す必要は無い。
+> 理由と過去の事故例（`openai` が `tqdm` を落として無関係な PR が落ちた）は同ファイルの冒頭に書いてある。
+
+> `pyproject.toml` に `pythonpath` 指定は無い。CI は素の `pytest` を使うので
+> `PYTHONPATH=.` を env で与えている（`uv run` 経由ならプロジェクトルートが通るので不要）。
 > `python backend/tests/x.py` を直接叩くと `ModuleNotFoundError: No module named 'backend'`
 > になる → `uv run python -m backend.tests.x` を使う。
 
