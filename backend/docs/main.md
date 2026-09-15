@@ -1,6 +1,6 @@
 # main.py - GRACE-Support Web API 起動モジュール ドキュメント
 
-**Version 1.2** | 最終更新: 2026-07-29
+**Version 1.3** | 最終更新: 2026-09-15
 
 ---
 
@@ -426,37 +426,16 @@ allow_origins = [
 
 ## 6. 使用例
 
-### 6.1 基本的な起動ワークフロー
+### 6.1 起動ワークフロー
 
-#### 最短（推奨・1 コマンドで起動）
-
-```bash
-# 1. Qdrant を起動（ベクトルDB・別実行）
-docker-compose -f docker-compose/docker-compose.yml up -d
-
-# 2. backend + frontend を一括起動（依存の用意も自動。リポジトリルートで）
-./run_dev.sh
-#   → backend:  http://localhost:8000（/docs）
-#   → frontend: http://localhost:5173  ← ブラウザで開くのはこちら
-#   停止は Ctrl+C（両方まとめて停止）
-```
-
-#### 手動（プロセスを分けて起動）
+> 📎 **起動手順の正本は [`install_and_setup.md` §6](./install_and_setup.md#6-起動手順)**。
+> 以前は本書がその手順を複製していたが、`install_and_setup.md` §6・`CLAUDE.md` §2 と
+> 3 重管理になっていたため 2026-09-15 にリンクへ置き換えた
+> （本書は `main.py` のモジュールドキュメントであり、手順書ではない）。
 
 ```bash
-# 1. Qdrant を起動（ベクトルDB）
-docker-compose -f docker-compose/docker-compose.yml up -d
-
-# 2. 依存を同期し、バックエンドを起動（リポジトリルートで）
-uv sync --extra dev
-uv run uvicorn backend.app.main:app --reload --port 8000
-#   → API: http://localhost:8000 、自動ドキュメント: http://localhost:8000/docs
-
-# 3. フロントエンド（別ターミナル）
-cd frontend
-npm install
-npm run dev
-#   → UI: http://localhost:5173（/api は Vite proxy で http://127.0.0.1:8000 へ中継）
+docker-compose -f docker-compose/docker-compose.yml up -d   # Qdrant
+./run_dev.sh                                                # backend:8000 + frontend:5173
 ```
 
 ### 6.2 応用: テストクライアントでの起動確認
@@ -497,6 +476,7 @@ app  # FastAPI インスタンス（uvicorn backend.app.main:app で参照）
 | バージョン | 変更内容 |
 |-----------|---------|
 | 1.0 | 初版作成（FastAPI 起動・CORS・ルーター結線のモジュールドキュメント） |
+| 1.3 | **§6.1 の起動手順をリンクへ置換**（2026-09-15）。`install_and_setup.md` §6・`CLAUDE.md` §2 と 3 重管理になっていたため、正本を `install_and_setup.md` §6 に一本化した。本書は `main.py` のモジュールドキュメント（IPO）に純化 |
 | 1.2 | GRACE-Review の追加に追随（PR #41）: `review.router` の結線、`title` を "GRACE API"・`version` を 1.1.0 へ、2 エージェント構成の説明を追記 |
 | 1.1 | 実コードとの再突合による改善: 誤字修正（Gemili→Gemini）、アーキテクチャ構成図にコア層（core.jobs / core.support_agent / core.verticals）を追加、外部依存バージョンを pyproject.toml に整合（fastapi >=0.116.0 / python-dotenv ==1.1.1 / uvicorn ==0.34.0）、起動ワークフローに `./run_dev.sh`（1 コマンド起動）を追記、`/api/verticals` の戻り値例を実 PROFILES（gov / saas / ec）に修正 |
 

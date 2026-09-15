@@ -1,8 +1,9 @@
 # review_flow.md - GRACE-Review 処理フロー ステップ詳細（S1・①〜⑦）ドキュメント
 
-**Version 1.0** | 最終更新: 2026-08-01
+**Version 1.1** | 最終更新: 2026-09-15
 
-> 📌 GRACE-**Support** 側の対応ドキュメントは [`backend_flow.md`](./backend_flow.md)（(0)〜(8)）。
+> 📌 GRACE-**Support** 側の対応ドキュメントは [`support_flow.md`](./support_flow.md)（0-(A)〜⑥）。
+> 本書の設計書（WHY）は [`review_spec.md`](./review_spec.md)。
 
 ---
 
@@ -613,7 +614,8 @@ review_result_to_dict, split_segments, run_review_agent_core
 
 | バージョン | 変更内容 |
 |-----------|---------|
-| 1.0 | 初版作成。GRACE-Review パイプライン（S1・①〜⑦）を実コードからステップ別に詳細化。実行順が番号順と一致しない点（⑥ Web が ⑤ Severity より先）、②〜④' が単一の二重ループである点、組合せ爆発ガード（`MAX_LLM_CALLS`）、Web は判定を変えない裏取り専用である点、`escalate_to_human` が承認不要である点を明記。Support 版 [`backend_flow.md`](./backend_flow.md) と対になる構成 |
+| 1.1 | 参照先の更新（2026-09-15）。`backend_flow.md` → [`support_flow.md`](./support_flow.md)、`review_agent_spec.md` → [`review_spec.md`](./review_spec.md)、規程コレクションの作成手順は [`data_pipeline.md` 付録A](./data_pipeline.md) へ移設。**本文の記述内容は変更していない** |
+| 1.0 | 初版作成。GRACE-Review パイプライン（S1・①〜⑦）を実コードからステップ別に詳細化。実行順が番号順と一致しない点（⑥ Web が ⑤ Severity より先）、②〜④' が単一の二重ループである点、組合せ爆発ガード（`MAX_LLM_CALLS`）、Web は判定を変えない裏取り専用である点、`escalate_to_human` が承認不要である点を明記。Support 版 `backend_flow.md`（現 [`support_flow.md`](./support_flow.md)）と対になる構成 |
 
 ---
 

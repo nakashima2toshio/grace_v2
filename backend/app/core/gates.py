@@ -516,7 +516,7 @@ def _web_source_texts(web_output: list) -> List[str]:
 
 
 # =============================================================================
-# 複数質問クエリ（backend/docs/multi_question_handling.md §13）
+# 複数質問クエリ（backend/docs/support_spec.md §5）
 # =============================================================================
 #
 # 1 つの入力に複数の質問が含まれるとき、主質問を 1 つ選んで答え、採用しなかった
@@ -532,7 +532,7 @@ def _web_source_texts(web_output: list) -> List[str]:
 #   | **複数質問検知**            | **「単一とみなす」**（＝現行動作を維持） |
 #
 # 誤って分解する方が害が大きいため。単一質問クエリの挙動は 1 ミリも変えない
-# （backend/docs/multi_question_handling.md §6・§13.6）。
+# （backend/docs/support_spec.md §5.2・§5.6）。
 
 # 第 1 段（候補検出）で見る接続表現。ここに一致しなければ LLM は呼ばない。
 MULTI_QUESTION_MARKERS = (
@@ -664,11 +664,11 @@ def _parse_cluster_output(text: str, query: str) -> Optional[List[Tuple[str, Lis
     if len(clusters) == 1 and not clusters[0][1]:
         return None
     if len(clusters) > MAX_QUESTION_CLUSTERS:
-        # 過剰分解。信用せず単一へ倒す（§13.6）
+        # 過剰分解。信用せず単一へ倒す（§5.2）
         return None
     # ⚠️ **元の問い合わせに由来しない行が 1 つでもあれば、出力全体を捨てる。**
     # 部分採用は「散文の一部が主質問になる」最悪の形。1 行でも怪しければ
-    # 単一質問として現行フローへ倒すほうが安全側（§13.6）。
+    # 単一質問として現行フローへ倒すほうが安全側（§5.2）。
     for main, related in clusters:
         if not all(_derives_from_query(part, query) for part in [main, *related]):
             return None
@@ -738,7 +738,7 @@ def create_question_analyzer(
     このファイルの他の判定器（`create_no_info_judge` 等）が「判定不能なら
     escalate」に倒すのとは**向きが逆**である。誤って質問を分解すると、
     利用者が聞いていない質問に答えたり、不要な選択を求めたりするため、
-    「何もしない」方が安全側になる（§13.6）。
+    「何もしない」方が安全側になる（§5.2）。
 
     ⚠️ **`config` が None のときは LLM を呼ばず常に None を返す**（＝第 1 段の
     キーワード判定のみで動く）。テストの config スタブや、LLM を使わせたくない
@@ -899,7 +899,7 @@ def detect_question_clusters(
 
     Returns:
         クラスタのリスト。**空リストなら「単一質問として現行どおり処理せよ」**の意。
-        要素が 1 つでも、関連質問を持つ場合は再構成の対象になる（§13.3）。
+        要素が 1 つでも、関連質問を持つ場合は再構成の対象になる（§5.9）。
     """
     if not looks_like_multi_question(query):
         return []
@@ -952,7 +952,7 @@ def reconstruct_query(
 ) -> str:
     """採用クラスタ（主質問 ＋ 関連質問）を、自然言語の 1 文へ再構成する。
 
-    設計: `backend/docs/multi_question_handling.md` §13.3。
+    設計: `backend/docs/support_spec.md` §5.9。
 
     ## なぜ再構成するのか
 
@@ -979,7 +979,7 @@ def reconstruct_query(
 
     Returns:
         再構成後の質問文。**呼び出し側は原文とは別に保持すること**
-        （再構成は LLM 依存で誤りうるため、利用者が検証できる必要がある。§13.5）。
+        （再構成は LLM 依存で誤りうるため、利用者が検証できる必要がある。§5.4）。
     """
     main = (main or "").strip()
     parts = [p.strip() for p in (related or []) if p and p.strip()]
@@ -1038,7 +1038,7 @@ def deferred_main_questions(
     🔴 **この戻り値は必ず利用者へ提示すること。**
     提示しないと「片方の質問が無言で落ち、しかも `support_rate` が高いため
     高信頼として提示される」という、本設計が最も危険とした事故
-    （`backend/docs/multi_question_handling.md` §概要）と区別がつかなくなる。
+    （`backend/docs/support_spec.md` §概要）と区別がつかなくなる。
 
     関連質問は主質問に従属しており、主質問を保留すれば一緒に保留される。
     そのため主質問だけを列挙すれば足りる。

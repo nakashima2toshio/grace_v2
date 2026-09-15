@@ -36,7 +36,7 @@ function Citation({ text }: { text: string }) {
  *
  * 🔴 **保留した質問は必ず出す。** 出さないと「片方の質問が黙って落ちたのに、
  * 支持率が高いので高信頼として提示される」という、複数質問対応が最も危険とした
- * 事故（backend/docs/multi_question_handling.md §概要）と区別がつかない。
+ * 事故（backend/docs/support_spec.md §5）と区別がつかない。
  * 再構成後クエリも併記して、何を質問として解釈したかを検証できるようにする。
  */
 function MultiQuestionNotice({ result }: { result: SupportResult }) {

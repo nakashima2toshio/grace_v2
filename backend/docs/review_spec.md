@@ -1,6 +1,6 @@
 # GRACE-Review 設計書 — 業界特化・文書レビューエージェント
 
-**Version 1.3** | 最終更新: 2026-08-01 | ステータス: **実装済み（STEP1〜7 完了・master マージ済み）**
+**Version 1.4** | 最終更新: 2026-09-15 | ステータス: **実装済み（STEP1〜7 完了・master マージ済み）**
 
 > 📌 本書は**設計書**（意図と判断の記録）。実装後の各モジュール仕様は IPO 形式の
 > モジュールドキュメントを正とする — [`core_rulesets.md`](./core_rulesets.md) /
@@ -8,6 +8,14 @@
 > [`api_review.md`](./api_review.md)、フロントは
 > [`../../frontend/docs/review_ui.md`](../../frontend/docs/review_ui.md)。
 > 設計と実装が食い違う場合は**実装とモジュールドキュメントが正**。
+> ステップの実行順と入出力（WHAT）は [`review_flow.md`](./review_flow.md)。
+> Support 側の対になる 2 文書は [`support_spec.md`](./support_spec.md) / [`support_flow.md`](./support_flow.md)。
+
+> 📝 **改称について（2026-09-15）**: `review_agent_spec.md` → `review_spec.md`。
+> Support 側を `support_spec.md` / `support_flow.md` に統合したのに合わせ、
+> `<agent>_spec.md` / `<agent>_flow.md` で命名を対称にした。内容は変更していない。
+> 規程コレクション（`ec_ad_rules_anthropic`）の作成手順は
+> [`data_pipeline.md` 付録A](./data_pipeline.md#付録a-規程コレクションの準備ec_ad_rules_anthropic) へ移した。
 
 ---
 

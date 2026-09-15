@@ -11,7 +11,7 @@ CLI 版と同一で、変えたのは「入出力の経路」だけ:
   （CLI は自動承認 `AUTO_PROCEED`、Web は `InterventionBridge` の承認待ち。
   Web 側に自動承認を持ち込まないこと＝受け入れ条件 §5-2）
 
-設計書: grace/doc/agent_support_example.md ／ 業界特化: grace/doc/agent_support_verticals.md
+設計書: grace/doc/support_spec.md ／ 業界特化: grace/doc/support_spec.md
 """
 from __future__ import annotations
 
@@ -126,7 +126,7 @@ class QuestionCluster:
     複数質問クエリの採用単位。**主質問だけを採用単位にしてはいけない。**
     関連質問は主質問に従属しており（例:「住民票の取り方は？ **その手数料は？**」の
     「その手数料」）、切り離すと主質問の回答自体が不完全になる。
-    設計: backend/docs/multi_question_handling.md §13.3
+    設計: backend/docs/support_spec.md §5.9
     """
 
     main: str                                        # 主質問（独立したトピック）
@@ -156,7 +156,7 @@ class SupportResult:
     no_info_detected: bool = False            # 「情報なし回答」検知で escalate に倒したか
     web_reused: bool = False                  # ⑤ で executor の Web 結果を再利用したか（重複推論の省略）
 
-    # --- 複数質問クエリ（backend/docs/multi_question_handling.md §13.5）---------------
+    # --- 複数質問クエリ（backend/docs/support_spec.md §5.4）---------------
     # ⚠️ すべて optional。単一質問では既定値のままで、旧フロント・既存 API
     #    クライアントの挙動は変わらない。
     is_multi_question: bool = False                   # 複数質問と判定されたか
@@ -164,7 +164,7 @@ class SupportResult:
     adopted_cluster_index: Optional[int] = None       # 採用したクラスタの位置
     # 再構成後の質問文。**原文とは別に保持する。**
     # 再構成は LLM が行うため誤りうる。利用者が「何を質問として解釈されたか」を
-    # 検証できるよう、UI へ出す前提で原文を潰さずに持つ（§13.5）。
+    # 検証できるよう、UI へ出す前提で原文を潰さずに持つ（§5.4）。
     reconstructed_query: Optional[str] = None
     # 🔴 採用しなかった主質問。**必ず返すこと。**
     #    これを返さないと「片方が無言で落ち、しかも support_rate が高いため
@@ -374,7 +374,7 @@ def run_support_agent_core(
     # 0-(A) 入力・質問分析（複数質問の検知 → 主質問の選択 → 再構成）
     # =========================================================================
     #
-    # 設計: backend/docs/multi_question_handling.md §13（絞り込み方式）。
+    # 設計: backend/docs/support_spec.md §5（絞り込み方式）。
     #
     # ここは**前処理**であり、パイプライン本体（planner/executor/gates）の判定
     # ロジックは一切変えない。再構成後の文を `query` として渡すため、planner から
@@ -445,7 +445,7 @@ def run_support_agent_core(
             # 範囲内が 1 つだけ（関連質問の有無を問わず）→ 選ぶ余地が無い。
             adopted_cluster_index = in_scope_idx[0]
         else:
-            # 範囲内の主質問が複数 → 利用者に選ばせる（自動選定はしない・§13.1）。
+            # 範囲内の主質問が複数 → 利用者に選ばせる（自動選定はしない・§5.8）。
             # CLI（confirm 未指定）は AUTO_PROCEED が selected_option を持たない
             # ため、後段のフォールバックで先頭クラスタが採用される。
             options = [clusters[i][0] for i in in_scope_idx]
@@ -458,7 +458,7 @@ def run_support_agent_core(
                 timeout_seconds=config.intervention.default_timeout,
             ))
             if not selection.should_continue:
-                # 拒否・タイムアウト → **現行どおり単一質問として処理する**（§13.8-7）。
+                # 拒否・タイムアウト → **現行どおり単一質問として処理する**（§5.6）。
                 # ここで escalate に倒さないのは、分析は前処理でありゲートではないため。
                 # 選択できなかったことを理由に回答自体を諦めるのは過剰。
                 reason = "タイムアウト" if selection.timeout_reached else "選択なし"
@@ -876,7 +876,7 @@ def run_support_agent_core(
     support.adopted_cluster_index = adopted_cluster_index
     # 🔴 再構成後クエリと保留質問は、複数質問だったときは必ず載せる。
     #    利用者が「何を質問として解釈され、何が保留されたか」を検証できないと、
-    #    片方の質問が黙って落ちた状態と区別できない（§13.5）。
+    #    片方の質問が黙って落ちた状態と区別できない（§5.4）。
     support.reconstructed_query = (
         reconstructed_query if reconstructed_query != original_query else None
     )

@@ -1,6 +1,6 @@
 # GRACE-Support インストール・環境設定ガイド
 
-**Version 1.1** | 最終更新: 2026-07-15
+**Version 1.2** | 最終更新: 2026-09-15
 
 GRACE-Support Web アプリ（**FastAPI バックエンド ＋ Vite + React フロントエンド**）を
 ローカルで動かすための、インストールと環境設定の手順。認証なし・ローカル開発専用。
@@ -184,6 +184,9 @@ docker-compose -f docker-compose/docker-compose.yml up -d qdrant
 
 ## 6. 起動手順
 
+> 📌 **起動手順はここが正本。** `main.md` / `CLAUDE.md` §2 から参照される
+> （2026-09-15 に 3 重管理を解消した）。
+
 ### 6.1 最短（推奨・1 コマンド）
 
 リポジトリルートの `run_dev.sh` が、依存の用意（`uv sync --extra dev`／frontend の
@@ -283,3 +286,4 @@ npm run build   # tsc --noEmit + vite build
 |-----------|---------|
 | 1.0 | 初版作成（前提ソフト・uv/npm 依存・.env・Qdrant・起動・動作確認・テスト・トラブルシュート） |
 | 1.1 | §6 に「6.1 最短（1 コマンド `./run_dev.sh`）」を追加（backend + frontend の一括起動） |
+| 1.2 | **起動手順の正本であることを明記**（2026-09-15）。`main.md` §6.1 が同じ手順を複製していたため、そちらを本書へのリンクに置き換えた（`CLAUDE.md` §2 とあわせて 3 重管理だった） |
