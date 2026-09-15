@@ -1,6 +1,6 @@
 # backend/docs 棚卸し
 
-**Version 1.5** | 最終更新: 2026-09-15
+**Version 1.6** | 最終更新: 2026-09-15
 
 `backend/`（FastAPI + パイプライン中核）のドキュメント一覧と、実装への追随状況・
 欠落・残タスク・検証手順をまとめる。
@@ -32,7 +32,7 @@
 | # | 問題 | 状態 |
 |---|---|---|
 | 1 | `backend/app/api/data.py` / `api/qdrant.py` / `core/data_jobs.py` / `core/job_logs.py` に対応する文書が無い | ✅ 解消（4 件を新規作成。§3） |
-| 2 | GRACE-Support の設計 3 点（`agent_support_example.md` / `_flow.md` / `_verticals.md`）が `grace/docs/` に置かれたまま。実装は `backend/app/core/support_agent.py` にある | ✅ 解消（`backend/docs/` へ移設。§2.3） |
+| 2 | GRACE-Support の設計 3 点（`agent_support_example.md` / `_flow.md` / `_verticals.md`）が `grace/docs/` に置かれたまま。実装は `backend/app/core/support_agent.py` にある | ✅ 解消（`backend/docs/` へ移設。§2.4） |
 | 3 | `review_rules_collection.md` にバージョンヘッダーが無い | ⏳ 未対応（§6 の #4） |
 | 4 | 文書に未記載の公開シンボルが 24 件あった | ✅ 解消（2026-09-04）。ただし**当時の「100%」は不正確**だった → #6 |
 | 5 | `confidence_flow_grace_vs_backend.md` の単数形パス `grace/doc/` | ✅ 解消済み（残る 1 件は「訂正した」旨の**変更履歴の記述**であり違反ではない） |
@@ -84,8 +84,16 @@
 | `confidence_flow_grace_vs_backend.md` | `grace/` 側と backend 側の信頼度フロー比較 | 239 | 1.1 | ★★ |
 | `data_pipeline.md` | チャンク化・Q/A 生成・Qdrant 登録 | 563 | 1.2 | ★★ |
 | `install_and_setup.md` | 環境構築 | 285 | 1.1 | ★★ |
+| `multi_question_handling.md` | 0-(A) 複数質問クエリの設計（`core/gates.py` / `core/support_agent.py`） | 981 | 3.0 | ★★ |
+| `review_false_positive_todo.md` | GRACE-Review 誤検出の調査記録（`core/rulesets.py` / `core/review_gates.py`） | 431 | — | ★ |
 
-### 2.3 GRACE-Support の設計書（2026-09-04 に `grace/docs/` から移設）
+> 📝 下 2 件は **2026-09-15 にリポジトリ直下 `docs/` から移設**した。対象が
+> `backend/app/core/` に閉じており、CLAUDE.md §9.1 の「backend は `backend/docs/`」に該当するため。
+> 直下 `docs/` に残した 7 件（`guardrails.md` / `pipelines.md` / `reasoning_flow.md` /
+> `performance_levers.md` / `qa_tab_port_todo.md` / `doc_modernization_todo.md` /
+> `agent_parallel_search.md`）は **frontend や `grace/` にもまたがる横断文書**なので動かしていない。
+
+### 2.4 GRACE-Support の設計書（2026-09-04 に `grace/docs/` から移設）
 
 実装が `backend/app/core/support_agent.py` にあるため、`grace/docs/` から移してきた。
 
@@ -268,9 +276,10 @@ grep -A 12 'STEP_IDS = (' backend/app/core/support_agent.py \
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 1.6 | **backend 固有の設計文書 2 件をリポジトリ直下 `docs/` から移設**（2026-09-15）。`multi_question_handling.md`（0-(A) 複数質問・`core/gates.py` / `core/support_agent.py`）と `review_false_positive_todo.md`（Review 誤検出の調査記録・`core/rulesets.py` / `core/review_gates.py`）。いずれも対象が `backend/app/core/` に閉じており、CLAUDE.md §9.1 の「backend は `backend/docs/`」に該当する。被参照 18 ファイル（ソースコメント・テスト・フロント含む）のパスを張り替えた。横断文書 7 件は frontend や `grace/` にもまたがるため直下 `docs/` に残した。あわせて **`### 2.3` が 2 つあった採番ミス**を是正（GRACE-Support の設計書を §2.4 へ） |
 | 1.5 | **未記載シンボル 12 件と内容の誤り 1 件を解消し、§4.1 を実測で作り直した**（2026-09-15・問題 #6 / #7）。前版の「17 モジュールすべてで 100%」は**書かれた時点で不正確**で、当時の監査コミット（`4e4607d`）へ戻して同じスクリプトを流しても `core_gates.md` は 49 件中 7 件未記載だった（記録のシンボル数 40 も実際の 49 と食い違い）。`core_gates.md` 7 件（複数質問検知・担当範囲外の判定の閾値）/ `core_review_agent.md` 3 件（① Segment の分割正規表現）/ `core_rulesets.md` 2 件（② Retrieve の根拠足切り。`RuleSet.evidence_min_score` / `evidence_top_ratio` と `RuleItem.evidence_collections` も**フィールドごと**未記載だった）を実装から書き起こして追加。あわせて AST では捕まらない内容の誤り——`core_rulesets.md` §5.4 のルール一覧が 21 件のままで `yakki-04` / `policy-01` が抜けていた——も是正した。§3 の AST 列も実測へ揃え、§5.3 に アンカー解決の検査を追加 |
 | 1.4 | **目次のアンカー 1 件を見出しへ是正**（2026-09-14）。§3 の見出しが `## 3. 実装カバレッジ` へ変わった際（v1.1 で「欠落一覧」→「カバレッジ表」に書き換え）、**目次だけが旧題のまま**残り `#3-実装カバレッジ欠落している文書` が解決しなくなっていた |
-| 1.3 | **GRACE-Support 3 点を `grace/docs/` から移設**（2026-09-04）。実装が `backend/app/core/support_agent.py` にあるため。§2.3 を新設し、相対リンクの張り替え方針も記録。これで `grace_v2_local` と同じ構成になった |
+| 1.3 | **GRACE-Support 3 点を `grace/docs/` から移設**（2026-09-04）。実装が `backend/app/core/support_agent.py` にあるため。§2.4（当時は §2.3）を新設し、相対リンクの張り替え方針も記録。これで `grace_v2_local` と同じ構成になった |
 | 1.2 | **未記載シンボル 24 件を解消**（2026-09-04）。17 モジュールすべてで AST 網羅 **100%** に到達。最大は `schemas.md` の 11 件で、**データ準備のスキーマがまるごと未記載**だった（API は既にあるのに型の説明が無い状態）。§4 を「日付比較」から「AST 網羅」の記録へ書き換え、日付比較が追随遅れの証拠にならない理由も明記 |
 | 1.1 | **欠落していた 4 件を新規作成**（2026-09-04）: `api_data.md` / `api_qdrant.md` / `core_data_jobs.md` / `core_job_logs.md`。これで `backend/app/**.py` の 17 モジュールすべてが文書を持つ。§3 を「欠落一覧」から「カバレッジ表」へ書き換えた |
 | 1.0 | 初版作成。文書 21 件＋本書の一覧、`backend/app/**.py` との機械的照合（**4 件の欠落**を検出）、コード最終コミット日との追随比較（14 件が遅れ）、検証手順 4 種（AST シンボル網羅・CI 4 ゲート・Mermaid/リンク・パイプライン段の網羅）、残タスク 4 件、grep の落とし穴 6 件を整備 |

@@ -467,8 +467,8 @@ gov / saas / ec のコレクションが 1 つも無ければ、検索スコー�
 | `docs/guardrails.md` | 判定（ゲート）の一覧・閾値・第 2 段 LLM 判定 |
 | `docs/reasoning_flow.md` | 生成（`reasoning` / `detect`）とプロンプト構造 |
 | `docs/agent_parallel_search.md` | 並列検索基盤（P-03b で再利用可能） |
-| `docs/multi_question_handling.md` | 複数質問（0-(A)）の設計 |
-| `docs/review_false_positive_todo.md` | Review の誤検知対応 TODO（§6 の関連） |
+| `backend/docs/multi_question_handling.md` | 複数質問（0-(A)）の設計 |
+| `backend/docs/review_false_positive_todo.md` | Review の誤検知対応 TODO（§6 の関連） |
 | `backend/docs/core_gates.md` | `_answer_gate` 等の判定純関数（P-07 の対象） |
 | `backend/docs/core_review_agent.md` | Review コア（§6 の対象） |
 

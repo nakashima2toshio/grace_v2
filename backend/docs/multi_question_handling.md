@@ -533,7 +533,7 @@ config = copy.deepcopy(get_config())
 | 20 | `backend/app/core/gates.py` | 改修 | `_should_force_escalate` / `_decide_action` を**サブ質問ごとに評価**（Q1 は自動回答・Q2 のみ有人） |
 | 21 | `frontend/src/components/AnswerCard.tsx` | 改修 | サブ質問ごとの節・出典・「この件は有人対応」「対応範囲外」バッジを表示 |
 | 22 | `grace/planner.py` | 改修 | 分解が曖昧なときは `ask_user`（聞き返し）へフォールバック |
-| 23 | `docs/multi_question_handling.md`（本書） | 改修 | 実装完了時にステータスを更新し、確定したしきい値・運用を反映 |
+| 23 | `backend/docs/multi_question_handling.md`（本書） | 改修 | 実装完了時にステータスを更新し、確定したしきい値・運用を反映 |
 
 ---
 

@@ -246,7 +246,7 @@ Support の「回答せず escalate」と同じ考え方（誤って人に届け
 ⚠️ **GA（複数質問の構造解析）には専用フラグ `judges.multi_question` がある。**
 他の補助判定は切ってもキーワード判定という同等の代替に倒れるが、GA には代替が無く、
 切ると複数質問の片方が**無言で落ちたまま高信頼として提示される**
-（`docs/multi_question_handling.md`）。そのため向こうでも既定 `true` にしてある。
+（`backend/docs/multi_question_handling.md`）。そのため向こうでも既定 `true` にしてある。
 
 ---
 

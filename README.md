@@ -55,7 +55,7 @@
 | 実行メモリ | memory.py（JSONL、コレクション優先度の事前分布） | ✅ | — （3 文書とも未記載） |
 | 信頼度較正 | calibration.py（温度スケーリング、ECE） | ✅ | [guardrails](docs/guardrails.md) §3.1 モジュール一覧／§4 閾値・設定値（重み） |
 | タスク型の抽象化 | Support（問い→答え）／ Review（文書→指摘）の同型 | | [pipelines](docs/pipelines.md) §1・§2（別コアであること）／[guardrails](docs/guardrails.md) §3.2（判定の対応表）／[reasoning_flow](docs/reasoning_flow.md) §4（生成の対比） |
-| 複数質問の対話選定 | 0-(A) `analyze` ステップ。主質問を利用者に選ばせて再構成し、保留分を明示 | ✅ | [guardrails](docs/guardrails.md) §2 **GA**／[pipelines](docs/pipelines.md) §4 モード別の有効・無効／[docs/multi_question_handling.md](docs/multi_question_handling.md) |
+| 複数質問の対話選定 | 0-(A) `analyze` ステップ。主質問を利用者に選ばせて再構成し、保留分を明示 | ✅ | [guardrails](docs/guardrails.md) §2 **GA**／[pipelines](docs/pipelines.md) §4 モード別の有効・無効／[backend/docs/multi_question_handling.md](backend/docs/multi_question_handling.md) |
 | 担当範囲の判定 | 業界プロファイルの `scope_description` / `out_of_scope_links` で断り＋窓口案内 | ✅ | [guardrails](docs/guardrails.md) §2 **GA'**／[reasoning_flow](docs/reasoning_flow.md) §2 ブロック 8（`prompt_closing` の位置が結果を変える） |
 
 > ⚠️ **基本版では業界プロファイル由来のガードレール（GA'・G3 のキーワード・G8）がすべて無効になる。**
