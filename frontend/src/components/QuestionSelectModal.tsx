@@ -2,11 +2,11 @@
 //
 // ⚠️ **自動では選ばない。** 勝手に 1 つ選ぶと、選ばれなかった質問が黙って落ちた
 // のか、そもそも検知されなかったのかを利用者が区別できない
-// （backend/docs/multi_question_handling.md §13.1）。選ばれなかった主質問は
+// （backend/docs/support_spec.md §5.8）。選ばれなかった主質問は
 // 「保留」として結果カードにも必ず出す。
 //
 // 「後で選ぶ（このまま実行）」は拒否に相当し、バックエンドは**原文のまま
-// 単一質問として**処理する（escalate には倒さない。§13.8-7）。
+// 単一質問として**処理する（escalate には倒さない。§5.6）。
 import { useState } from 'react';
 
 import type { InterventionInfo } from '../types';

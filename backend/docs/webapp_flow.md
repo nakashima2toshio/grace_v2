@@ -1,6 +1,20 @@
-# react_processing_flow - GRACE-Support React 処理フロー（run_dev.sh 起点）ドキュメント
+# webapp_flow.md - GRACE-Support Web アプリ処理フロー（`run_dev.sh` 起点）ドキュメント
 
-**Version 1.0** | 最終更新: 2026-07-21
+**Version 2.0** | 最終更新: 2026-09-15
+
+> ⚠️ **`React`（フロントエンドのライブラリ）の話であって、`ReAct`（推論と行動を反復する
+> エージェントパターン）の解説書ではない。** 旧ファイル名 `react_processing_flow.md` は
+> この 2 つを取り違えさせ、`backend/docs/README.md` も本書を「ReAct の処理フロー」と
+> 説明していた（2026-09-15 に改称・是正）。ReAct を含むエージェントパターンの対応は §5。
+
+> 📌 本書は **`run_dev.sh` 起点の end-to-end**（ブラウザ → FastAPI → コア → 描画）。
+>
+> | 知りたいこと | 正本 |
+> |---|---|
+> | コアパイプラインのステップ詳細 | [`support_flow.md`](./support_flow.md) |
+> | 設計判断（WHY） | [`support_spec.md`](./support_spec.md) |
+> | 環境構築・起動手順 | [`install_and_setup.md`](./install_and_setup.md) |
+> | 3 モード（基本版 / Support / Review）の対照 | [`../../docs/pipelines.md`](../../docs/pipelines.md) |
 
 ---
 
@@ -475,6 +489,10 @@ style CORE fill:#1a1a1a,stroke:#fff,color:#fff
 
 ## 5. エージェントパターン対応
 
+> 📎 3 モード（基本版 / GRACE-Support / GRACE-Review）の対照は
+> [`../../docs/pipelines.md`](../../docs/pipelines.md) を参照。本節は Support の
+> パイプラインが**どのパターンをどのモジュールで実現しているか**の対応表。
+
 本パイプラインは複数のエージェント設計パターンの組み合わせで構成される。
 
 | パターン | 本システムでの実現 | 該当ステップ / モジュール |
@@ -598,6 +616,7 @@ sequenceDiagram
 | バージョン | 変更内容 |
 |-----------|---------|
 | 1.0 | 初版作成（run_dev.sh 起点の React 処理フロー：起動〜フロント初期化〜ジョブ〜コア①〜⑥〜描画〜HITL、エージェントパターン対応を追加） |
+| 2.0 | **`react_processing_flow.md` → `webapp_flow.md` へ改称**（2026-09-15）。`React`（フロントエンド）と `ReAct`（エージェントパターン）の取り違えを誘発しており、`backend/docs/README.md` も本書を「ReAct の処理フロー」と誤って説明していた。内容は変更せず、冒頭に位置づけ（end-to-end フロー）と正本リンクを追加した。§5「エージェントパターン対応」は本書に残し、[`../../docs/pipelines.md`](../../docs/pipelines.md) と相互リンクした |
 
 ---
 

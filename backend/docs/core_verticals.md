@@ -233,7 +233,7 @@ request = ActionRequest(profile.action_map[matched], {"query": query, "matched":
 ### 4.2 VerticalProfile クラス
 
 **概要**: 業界プロファイル（差し替えの共通枠）。しきい値・エスカレ語・アクション対応・
-本人確認をまとめる。設計: `agent_support_verticals.md` §1/§6。
+本人確認をまとめる。設計: `support_spec.md` §1/§6。
 
 ```python
 VerticalProfile(

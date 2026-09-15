@@ -30,7 +30,7 @@
 | 子 | なし |
 | 主な依存 | `../types`（`InterventionInfo`）、`react`（`useState`） |
 | 対応バックエンド | `backend/app/core/support_agent.py`（0-(A) の `analyze` ステップ）、`intervention_bridge.py`（`selected_option`） |
-| 設計 | `backend/docs/multi_question_handling.md` §0 |
+| 設計 | `backend/docs/support_spec.md` §0 |
 
 ### 主な責務
 

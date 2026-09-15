@@ -28,7 +28,7 @@ export interface ActionRequestInfo {
 
 /**
  * 1 つの主質問と、それに従属する関連質問のまとまり（複数質問クエリの採用単位）。
- * 設計: backend/docs/multi_question_handling.md §13.3
+ * 設計: backend/docs/support_spec.md §5.9
  */
 export interface QuestionCluster {
   main: string;
@@ -56,7 +56,7 @@ export interface SupportResult {
   no_info_detected: boolean;
   web_reused: boolean;
 
-  // --- 複数質問クエリ（backend/docs/multi_question_handling.md §13.5）---------------
+  // --- 複数質問クエリ（backend/docs/support_spec.md §5.4）---------------
   // ⚠️ すべて optional。単一質問では既定値のまま返るため、これらを参照しない
   //    既存コンポーネントの挙動は変わらない。
   is_multi_question: boolean;
@@ -64,7 +64,7 @@ export interface SupportResult {
   adopted_cluster_index: number | null;
   /** 再構成後の質問文。原文とは別に保持され、利用者が解釈を検証できる。 */
   reconstructed_query: string | null;
-  /** 採用しなかった主質問。UI に必ず表示すること（§13.5）。 */
+  /** 採用しなかった主質問。UI に必ず表示すること（§5.4）。 */
   deferred_questions: string[];
   /**
    * 担当範囲外と判定した主質問。**`deferred_questions` と混ぜない。**

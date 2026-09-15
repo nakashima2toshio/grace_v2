@@ -1,16 +1,16 @@
 # backend/tests/test_multi_question.py
 """複数質問クエリの検知・構造解析・再構成（`backend/app/core/gates.py`）。
 
-設計: `backend/docs/multi_question_handling.md` §13。
+設計: `backend/docs/support_spec.md` §5。
 
 ⚠️ **このテストが最も重視するのは「単一質問の挙動が変わらないこと」である。**
 複数質問対応は既存フローの手前に足す前処理であり、単一質問クエリの判定結果が
-1 ミリでも変わってはならない（§13.8 の受け入れ基準 #1）。
+1 ミリでも変わってはならない（§5.6 の挙動一覧「単一質問」行）。
 
 ⚠️ **安全側の向きが他の判定器と逆である。** `_detect_no_info_answer` 等が
 「判定できないなら escalate」に倒すのに対し、複数質問検知は
 「判定できないなら**単一とみなす**」に倒す。誤って質問を分解する方が害が
-大きいため（§13.6）。
+大きいため（§5.2）。
 """
 from __future__ import annotations
 
@@ -120,7 +120,7 @@ class TestParseClusterOutput:
         assert _parse_cluster_output("住民票の取り方は？", self.RELATED) is None
 
     def test_主質問1つでも関連質問があればクラスタになる(self):
-        """選択は不要だが、再構成の対象になる（§13.3）。"""
+        """選択は不要だが、再構成の対象になる（§5.9）。"""
         out = _parse_cluster_output("Aは？ | Bは？", "Aは？ Bは？")
         assert out == [("Aは？", ["Bは？"])]
 
@@ -129,7 +129,7 @@ class TestParseClusterOutput:
         assert _parse_cluster_output("   \n  ", "q") is None
 
     def test_過剰分解はNoneへ倒す(self):
-        """`MAX_QUESTION_CLUSTERS` 超過は信用しない（§13.6）。"""
+        """`MAX_QUESTION_CLUSTERS` 超過は信用しない（§5.2）。"""
         text = "\n".join(f"質問{i}は？" for i in range(MAX_QUESTION_CLUSTERS + 1))
         assert _parse_cluster_output(text, "q") is None
 
@@ -181,7 +181,7 @@ class TestReconstructQuery:
         assert analyzer("Aは？ また、Bは？") is None
 
     def test_フォールバックは単語の羅列にしない(self):
-        """`planner.py` が自然言語の文脈維持を求めるため（§13.3）。"""
+        """`planner.py` が自然言語の文脈維持を求めるため（§5.9）。"""
         got = fallback_reconstruct("住民票の取り方は？", ["その手数料は？"])
         assert "住民票の取り方は？" in got
         assert "その手数料は？" in got

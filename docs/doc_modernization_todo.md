@@ -69,7 +69,7 @@ CLAUDE.md が間違っていると、以後の修正がすべて間違った基�
 - 実装: `backend/app/core/support_agent.py:86` に `"analyze",  # 0-(A) 入力・質問分析（複数質問の検知 → 選択 → 再構成）`、
   同 `:374` 以降に実処理（`looks_like_multi_question` → `analyze_questions` → `QuestionSelectModal`）。
 - 他文書: `README.md`（複数質問の対話選定 ✅）、`docs/guardrails.md` の **GA**、
-  `backend/docs/multi_question_handling.md` はいずれも 0-(A) を記述済み。
+  `backend/docs/support_spec.md` はいずれも 0-(A) を記述済み。
 - 姉妹リポジトリ `grace_v2_local/CLAUDE.md` は 0-(A) / 0-(B) を含む正しい記述を持つ。
 - **grace_v2 の CLAUDE.md だけが `S1 業界プロファイル適用 → ①Plan` から始まっている。**
 
@@ -356,7 +356,7 @@ Q/A 生成は CLAUDE.md §3 で **Anthropic 必須**の用途。T6-2 と同じ�
 | 文書 | 状態 |
 |---|---|
 | `docs/qa_tab_port_todo.md` | 冒頭に「✅ 2026-09-12 に V1〜V6 を実装済み。調査記録として残す」と明記済み → **そのままでよい**（手本） |
-| `backend/docs/review_false_positive_todo.md` | §0 で 4 項目すべて「解消」。**完了表記が冒頭に無い** → 同じ形式の但し書きを足す |
+| `backend/docs/archive/review_false_positive_todo.md` | §0 で 4 項目すべて「解消」。**完了表記が冒頭に無い** → 同じ形式の但し書きを足す |
 
 ### T7-2 `grace/docs` の横断文書 — ✅ 修正不要
 
