@@ -1,6 +1,6 @@
 # backend/docs 棚卸し
 
-**Version 1.6** | 最終更新: 2026-09-15
+**Version 1.7** | 最終更新: 2026-09-15
 
 `backend/`（FastAPI + パイプライン中核）のドキュメント一覧と、実装への追随状況・
 欠落・残タスク・検証手順をまとめる。
@@ -33,11 +33,13 @@
 |---|---|---|
 | 1 | `backend/app/api/data.py` / `api/qdrant.py` / `core/data_jobs.py` / `core/job_logs.py` に対応する文書が無い | ✅ 解消（4 件を新規作成。§3） |
 | 2 | GRACE-Support の設計 3 点（`agent_support_example.md` / `_flow.md` / `_verticals.md`）が `grace/docs/` に置かれたまま。実装は `backend/app/core/support_agent.py` にある | ✅ 解消（`backend/docs/` へ移設。§2.4） |
-| 3 | `review_rules_collection.md` にバージョンヘッダーが無い | ⏳ 未対応（§6 の #4） |
+| 3 | `review_rules_collection.md` にバージョンヘッダーが無い | ✅ 解消（2026-09-15。v1.0 を付与。`backend/docs/` の全 31 文書でヘッダーが揃った） |
 | 4 | 文書に未記載の公開シンボルが 24 件あった | ✅ 解消（2026-09-04）。ただし**当時の「100%」は不正確**だった → #6 |
 | 5 | `confidence_flow_grace_vs_backend.md` の単数形パス `grace/doc/` | ✅ 解消済み（残る 1 件は「訂正した」旨の**変更履歴の記述**であり違反ではない） |
 | 6 | §4.1 が「17 モジュールすべてで 100%」と記録していたが、**実際には 12 件の未記載**があった。当時の監査コミットへ戻して同じスクリプトを流しても同数で、記録が書かれた時点で不正確だった（シンボル数も `core_gates.md` 40 と実際の 49 が食い違い） | ✅ 解消（2026-09-15。12 件を実装から書き起こして追加し、§4.1 を実測値で作り直した） |
 | 7 | `core_rulesets.md` §5.4「ルール一覧」が 21 件のままで `yakki-04` / `policy-01` が抜けていた（`41e634d` で他の箇所は 23 に直したが、この表だけ取り残された）。**AST 照合では捕まらない内容の誤り** | ✅ 解消（2026-09-15。23 件へ是正し `always_check` も 6 → 7 へ） |
+| 8 | `review_agent_spec.md` §5.3 が `rulesets.py` のキーワード表を複製しており、**キーワードを持つ 15 ルール全部**で語が欠落していた（`yakki-02` は実装 15 語に対し文書 4 語）。`yakki-04` は文書に一度も出てこず、見出しも「21 件」のままだった | ✅ 解消（2026-09-15。**表を削除して正本へのリンクに置換**。同じ表を 2 箇所に持つ限り腐るため） |
+| 9 | ローカルで `pytest` が回らない（`google-genai` 等が未導入で 50 件が collection error）。CI は依存を YAML にインライン列挙しており、同じセットをローカルに作る手順が無かった | ✅ 解消（2026-09-15。`requirements-test.txt` を新設して CI と共有する正本にし、手順を CLAUDE.md §2 へ記載。**978 passed, 1 skipped** を実測） |
 
 ---
 
@@ -68,7 +70,7 @@
 | `core_intervention_bridge.md` | `core/intervention_bridge.py` — HITL の橋渡し | 407 | 1.0 | ★★ |
 | `core_review_agent.md` | `core/review_agent.py` | 796 | 1.2 | ★★ |
 | `core_review_gates.md` | `core/review_gates.py` | 833 | 1.1 | ★★ |
-| `core_rulesets.md` | `core/rulesets.py` | 704 | 1.2 | ★★ |
+| `core_rulesets.md` | `core/rulesets.py` | 705 | 1.3 | ★★ |
 | `core_data_jobs.md` | `core/data_jobs.py` — 3 種の runner・ステップ定義・CONFIRM の要否 | 444 | 1.2 | ★★ |
 | `core_job_logs.md` | `core/job_logs.py` — 既存パッケージの `logging` を進捗イベントへ転送 | 298 | 1.0 | ★★ |
 
@@ -77,9 +79,9 @@
 | 文書 | 内容 | 行数 | Ver | 重要度 |
 |---|---|---:|---|---|
 | `backend_flow.md` | backend 全体の処理フロー | 920 | 1.1 | ★★★ |
-| `review_agent_spec.md` | GRACE-Review の仕様 | 1082 | 1.1 | ★★ |
+| `review_agent_spec.md` | GRACE-Review の仕様 | 1072 | 1.3 | ★★ |
 | `review_flow.md` | GRACE-Review の処理フロー | 661 | 1.0 | ★★ |
-| `review_rules_collection.md` | レビュー規則の収集 | 245 | — | ★ |
+| `review_rules_collection.md` | レビュー規則の収集 | 255 | 1.0 | ★ |
 | `react_processing_flow.md` | ReAct の処理フロー | 656 | 1.0 | ★★ |
 | `confidence_flow_grace_vs_backend.md` | `grace/` 側と backend 側の信頼度フロー比較 | 239 | 1.1 | ★★ |
 | `data_pipeline.md` | チャンク化・Q/A 生成・Qdrant 登録 | 563 | 1.2 | ★★ |
@@ -276,6 +278,7 @@ grep -A 12 'STEP_IDS = (' backend/app/core/support_agent.py \
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 1.7 | **設計・フロー文書の未修正 4 件を解消し、ローカルで pytest が回るようにした**（2026-09-15・問題 #3 / #8 / #9）。(1) `review_agent_spec.md` §5.3 の**キーワード表を削除して正本へのリンクに置換**——15 ルール全部で語が腐り `yakki-04` が丸ごと欠落していた。同じ表を 2 箇所に持つ限り必ず腐るため、本書は法令別の件数と判定方式の要約だけを持つ形にした。(2) `core_rulesets.md` §4.2 の「21 件程度」を 23 件へ（v1.2 で表は直したが grep しきれず取り残していた）。(3) `review_rules_collection.md` の CSV 行数を 22 → **23 行**へ（`build_rows()` はフィルタせず `ruleset.rules` を回す）。(4) 同ファイルに Version ヘッダーを付与（問題 #3）。(5) **`requirements-test.txt` を新設**し CI（`pytest (backend)` ジョブ）と共有する唯一の正本にした。従来は CI の YAML にインライン列挙しており、ローカルに同じ環境を作る手順が無かった |
 | 1.6 | **backend 固有の設計文書 2 件をリポジトリ直下 `docs/` から移設**（2026-09-15）。`multi_question_handling.md`（0-(A) 複数質問・`core/gates.py` / `core/support_agent.py`）と `review_false_positive_todo.md`（Review 誤検出の調査記録・`core/rulesets.py` / `core/review_gates.py`）。いずれも対象が `backend/app/core/` に閉じており、CLAUDE.md §9.1 の「backend は `backend/docs/`」に該当する。被参照 18 ファイル（ソースコメント・テスト・フロント含む）のパスを張り替えた。横断文書 7 件は frontend や `grace/` にもまたがるため直下 `docs/` に残した。あわせて **`### 2.3` が 2 つあった採番ミス**を是正（GRACE-Support の設計書を §2.4 へ） |
 | 1.5 | **未記載シンボル 12 件と内容の誤り 1 件を解消し、§4.1 を実測で作り直した**（2026-09-15・問題 #6 / #7）。前版の「17 モジュールすべてで 100%」は**書かれた時点で不正確**で、当時の監査コミット（`4e4607d`）へ戻して同じスクリプトを流しても `core_gates.md` は 49 件中 7 件未記載だった（記録のシンボル数 40 も実際の 49 と食い違い）。`core_gates.md` 7 件（複数質問検知・担当範囲外の判定の閾値）/ `core_review_agent.md` 3 件（① Segment の分割正規表現）/ `core_rulesets.md` 2 件（② Retrieve の根拠足切り。`RuleSet.evidence_min_score` / `evidence_top_ratio` と `RuleItem.evidence_collections` も**フィールドごと**未記載だった）を実装から書き起こして追加。あわせて AST では捕まらない内容の誤り——`core_rulesets.md` §5.4 のルール一覧が 21 件のままで `yakki-04` / `policy-01` が抜けていた——も是正した。§3 の AST 列も実測へ揃え、§5.3 に アンカー解決の検査を追加 |
 | 1.4 | **目次のアンカー 1 件を見出しへ是正**（2026-09-14）。§3 の見出しが `## 3. 実装カバレッジ` へ変わった際（v1.1 で「欠落一覧」→「カバレッジ表」に書き換え）、**目次だけが旧題のまま**残り `#3-実装カバレッジ欠落している文書` が解決しなくなっていた |

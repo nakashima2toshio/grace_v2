@@ -1,0 +1,43 @@
+# backend/tests を実 API キー・Qdrant 無しで通すための最小依存セット。
+#
+# ⚠️ **CI（.github/workflows/ci.yml の `pytest (backend)` ジョブ）と共有する
+# 唯一の正本である。** 以前は CI の YAML にインラインで列挙しており、
+# ローカルに同じセットを作る手順が無かった（＝ローカルで pytest が回らない）。
+#
+# ⚠️ **推移的に入っている依存を当てにしない。** ここは「明示列挙」が方針である。
+# 明示していない依存が他パッケージ経由で入っていると、その上流が依存を落とした日に
+# **無関係な PR が落ちる**。
+# 実例 2026-08-18: openai が tqdm を落とし、`test_chunking_happy_path` が
+# `ModuleNotFoundError: No module named 'tqdm'` で失敗した
+# （tqdm は chunking/ の実依存で pyproject.toml にも requirements.txt にも宣言済み。
+#  CI のリストにだけ載っていなかった）。
+#
+# backend/tests が import するパッケージを足したら、**このファイルに追記する**。
+# CI 側の YAML を直す必要はもう無い。
+#
+# 使い方（ローカル）:
+#   uv venv
+#   uv pip install -r requirements-test.txt
+#   uv run --no-sync pytest backend/tests -q -rs
+#
+# ⚠️ 実行時の全依存（`pyproject.toml` の `[project] dependencies`・221 行）は
+# **入れない**。テストはスタブベースで、重い実行時依存を必要としない。
+
+pydantic
+python-dotenv
+pyyaml
+numpy
+pandas
+openai
+anthropic
+google-genai
+qdrant-client>=1.15
+tiktoken
+fastapi
+uvicorn[standard]
+httpx
+celery
+redis
+scikit-learn
+tqdm
+pytest

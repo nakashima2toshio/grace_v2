@@ -88,25 +88,15 @@ jobs:
         with:
           python-version: "3.11"
 
-      # ⚠️ **推移的に入っている依存を当てにしない。**
-      # ここは「実 API キー・Qdrant 無しで backend/tests を通す最小セット」を
-      # 明示列挙する方針だが、明示していない依存が他パッケージ経由で入っていると、
-      # その上流が依存を落とした日に**無関係な PR が落ちる**。
-      # 実例 2026-08-18: openai が tqdm を落とし、`test_chunking_happy_path` が
-      # `ModuleNotFoundError: No module named 'tqdm'` で失敗した
-      # （tqdm は chunking/ の実依存で pyproject.toml にも requirements.txt にも
-      # 宣言済み。CI のこのリストにだけ載っていなかった）。
-      # backend/tests が import するパッケージを足したら、ここにも追記すること。
+      # 依存は `requirements-test.txt` が正本。**ここに列挙し直さないこと。**
+      # 以前はこの YAML にインラインで書いていたため、ローカルに同じセットを
+      # 作る手順が無く、開発者は pytest をローカルで回せなかった。
+      # 明示列挙の方針とその理由（推移的依存を当てにしない）は同ファイルの
+      # 冒頭コメントに移してある。
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install \
-            pydantic python-dotenv pyyaml numpy pandas \
-            openai anthropic "google-genai" "qdrant-client>=1.15" tiktoken \
-            fastapi "uvicorn[standard]" httpx \
-            celery redis scikit-learn \
-            tqdm \
-            pytest
+          pip install -r requirements-test.txt
 
       - name: Run backend tests
         env:
