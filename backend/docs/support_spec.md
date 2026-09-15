@@ -1,6 +1,6 @@
 # GRACE-Support 設計書（設計判断の記録）
 
-**Version 1.0** | 最終更新: 2026-09-15 | ステータス: **実装済み**
+**Version 1.1** | 最終更新: 2026-09-15 | ステータス: **実装済み**
 
 > 📌 **本書は設計書（WHY）**——なぜこのゲート・しきい値・二段判定・HITL ポリシーなのか、
 > という**判断の記録**である。
@@ -40,9 +40,10 @@
 - [4. 処理シーケンス（設計レベル）](#4-処理シーケンス設計レベル)
 - [5. 0-(A) 複数質問クエリと担当範囲外](#5-0-a-複数質問クエリと担当範囲外)
 - [6. 業界特化（gov / saas / ec）](#6-業界特化gov--saas--ec)
-- [7. 評価指標（KPI）と現状](#7-評価指標kpiと現状)
-- [8. 実装ロードマップ](#8-実装ロードマップ)
-- [9. 変更履歴](#9-変更履歴)
+- [7. 基本版タブ（`vertical` = None）](#7-基本版タブvertical--none)
+- [8. 評価指標（KPI）と現状](#8-評価指標kpiと現状)
+- [9. 実装ロードマップ](#9-実装ロードマップ)
+- [10. 変更履歴](#10-変更履歴)
 
 ---
 
@@ -772,7 +773,7 @@ style PROF fill:#1a1a1a,stroke:#fff,color:#fff
 **CLI**: `uv run python agent_support_example.py --vertical gov "住民票の取り方は？"`（プロファイルを選択）。**実装済み**。
 実行例は [`support_flow.md` 付録A](./support_flow.md#付録a-cli-仕様と実行例) を参照。
 
-**実装状況**: `VerticalProfile` 導入と gov/saas/ec の 3 プロファイルは実装済み（PR #106）。設計時の実装順（自治体 → SaaS → EC）どおり 3 業界を同時に組み込み済みで、上表のとおり全項目が配線済み。残件は §7.2 を参照。
+**実装状況**: `VerticalProfile` 導入と gov/saas/ec の 3 プロファイルは実装済み（PR #106）。設計時の実装順（自治体 → SaaS → EC）どおり 3 業界を同時に組み込み済みで、上表のとおり全項目が配線済み。残件は §8.3 を参照。
 
 ---
 
@@ -791,9 +792,64 @@ style PROF fill:#1a1a1a,stroke:#fff,color:#fff
 実行: `uv run pytest backend/tests -q`（実 API キー・実 Qdrant は不要）。
 ---
 
-## 7. 評価指標（KPI）と現状
+---
 
-### 7.1 KPI の定義
+## 7. 基本版タブ（`vertical` = None）
+
+画面の「基本版」タブは **GRACE-Support と別実装ではない**。
+`frontend/src/App.tsx` は同じ `SupportPanel` に `variant="basic"` を渡すだけで、
+バックエンドも同じ `run_support_agent_core` を **`vertical=None`** で呼ぶ。
+
+```python
+# support_agent.py — プロファイル解決はこの 1 行だけ
+profile = PROFILES.get(vertical) if vertical else None
+```
+
+以降はすべて `profile is not None` で分岐するため、基本版では**プロファイル由来の機構が
+まとめて「無し」側に倒れる**。
+
+| 項目 | 基本版（`vertical=None`） | GRACE-Support（`vertical` 指定） |
+|---|---|---|
+| 0-(B) `profile` ステップ | **スキップ**（`step_skipped`） | 実行 |
+| 検索スコープ | `allowed_collections = []`（**全コレクション**が対象） | `profile.collections` に限定 |
+| しきい値 | グローバル既定（`confidence.thresholds`） | プロファイル上書き（`gov` は 0.8 / 0.5） |
+| 業務方針の注入 | `prompt_addendum = ""` | `profile.build_prompt_addendum()` |
+| 断りの指示 | `prompt_closing = ""` | `profile.build_closing_instruction()` |
+| 担当範囲の判定（§5.5） | **行わない**（全質問が範囲内） | `scope_description` で切り分け、窓口案内で断る |
+| 強制エスカレ（§1） | `escalate_keywords` が無いので発火しない | プロファイルのキーワードで発火 |
+| 本人確認（§3.2） | 行わない | `require_identity=True` の `ec` で実行 |
+| Web 優先ドメイン | 無し | `profile.preferred_domains`（加点のみ） |
+
+### 7.1 設計意図：なぜ「薄いモード」を残すのか
+
+基本版は**素のパイプラインの挙動を確かめるためのモード**である。
+業界プロファイルを当てると、ある回答が「パイプラインの実力」なのか
+「プロファイルのチューニング」なのか切り分けられなくなるため、
+**プロファイル無しの基準線**を UI から常に引けるようにしてある。
+
+> ⚠️ **基本版はガードレールが薄い。** 0-(A) の複数質問分析と
+> ③〜④'（根拠検証・回答ゲート・情報なし検知）は効くが、
+> **業界プロファイル由来のガードレールはすべて無効**になる。
+> 担当範囲外の質問にもそのまま答えようとするので、
+> 業務で使うなら GRACE-Support を選ぶこと。
+
+### 7.2 専用のドキュメントを作らない
+
+**基本版に `basic_spec.md` / `basic_flow.md` を作らない。**
+実装が同一である以上、内容は本書と `support_flow.md` の複製になり、
+**片方だけが腐る**（`backend/docs/README.md` §1 問題 #8・#10 と同じ事故の形）。
+基本版に固有なのは上表の「無し」側の一覧だけなので、それを本節に置く。
+
+| 知りたいこと | 参照先 |
+|---|---|
+| タブ ↔ 文書の対応（4 タブ分） | [`webapp_flow.md` §0](./webapp_flow.md#0-タブ--文書の対応) |
+| 3 モード（基本版 / Support / Review）の対照 | [`../../docs/pipelines.md`](../../docs/pipelines.md) §3・§4 |
+| モード別に効くガードレールの一覧 | [`../../docs/guardrails.md`](../../docs/guardrails.md) §2 |
+| 画面側の `variant` の扱い | [`../../frontend/docs/SupportPanel.md`](../../frontend/docs/SupportPanel.md) |
+
+## 8. 評価指標（KPI）と現状
+
+### 8.1 KPI の定義
 
 需要（サポート業務）に直結する指標をそのまま評価に使う。
 
@@ -807,7 +863,7 @@ style PROF fill:#1a1a1a,stroke:#fff,color:#fff
 
 ---
 
-### 7.2 実行コストの目安
+### 8.2 実行コストの目安
 
 1 質問あたりの Anthropic 呼び出しは約 7〜10 回（reasoning・ステップ毎の確信度評価・`evaluate_final`・
 groundedness 検証・⑤ 再検証・haiku 判定 2 種）。
@@ -822,7 +878,7 @@ groundedness 検証・⑤ 再検証・haiku 判定 2 種）。
 
 ---
 
-### 7.3 残タスク（次工程候補）
+### 8.3 残タスク（次工程候補）
 
 `VerticalProfile`（`--vertical`）は実装済み（PR #106）。その後の進捗は次のとおり。
 
@@ -853,7 +909,7 @@ groundedness 検証・⑤ 再検証・haiku 判定 2 種）。
 ---
 ---
 
-## 8. 実装ロードマップ
+## 9. 実装ロードマップ
 
 | 版 | 機能 | 追加実装 | 状態 |
 |----|------|---------|------|
@@ -866,10 +922,11 @@ groundedness 検証・⑤ 再検証・haiku 判定 2 種）。
 ---
 ---
 
-## 9. 変更履歴
+## 10. 変更履歴
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 1.1 | **§7「基本版タブ（`vertical` = None）」を新設**（2026-09-15）。基本版と GRACE-Support の差（プロファイル由来の機構が「無し」側に倒れる 9 項目）は `docs/pipelines.md` §3 にしか無く、Support の設計書からは辿れなかった。設計意図（素のパイプラインの基準線を UI から引けるようにする）と、**専用文書を作らない理由**（実装が同一なので複製すると片方だけ腐る）も明記。旧 §7〜§9 は §8〜§10 へ繰り下げ |
 | 1.0 | **3 文書の設計判断部分を統合して新設**（2026-09-15）。`agent_support_example.md`（996 行・v1.3）／`agent_support_verticals.md`（389 行・v2.0）／`multi_question_handling.md` §0・§13（981 行・v3.0）から**設計判断（WHY）だけ**を抜き出して 1 本にまとめ、3 文書が重複して持っていた関数 IPO は `core_gates.md` / `core_support_agent.md` / `core_verticals.md` へのリンクへ置換した。統合にあたって次の**実装との食い違いを是正**した — ① `ActionTool`（`grace/tools.py` へ追加する案）は**存在しない**ため、`support_actions.ActionBackend` による実現として §3.2 に書き直した ② dataclass のフィールド表は 0-(A) の 7 フィールド追加に追随できていなかったため削除しリンク化した ③ `SupportResult` の追加フィールド数「5」を実測値の「7」へ是正した ④ 担当範囲外の指示の注入先を `build_prompt_addendum()` から `build_closing_instruction()` へ是正した（同一文書内で前半と後半が矛盾していた）。採用しなかった案は `archive/multi_question_handling.md` に残した |
 
 > 統合前の 3 文書の変更履歴（v0.1〜v1.3 / v0.1〜v2.0 / v1.0〜v3.0）は git 履歴で追える
