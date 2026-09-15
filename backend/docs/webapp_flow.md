@@ -1,6 +1,6 @@
 # webapp_flow.md - GRACE-Support Web アプリ処理フロー（`run_dev.sh` 起点）ドキュメント
 
-**Version 2.0** | 最終更新: 2026-09-15
+**Version 2.1** | 最終更新: 2026-09-15
 
 > ⚠️ **`React`（フロントエンドのライブラリ）の話であって、`ReAct`（推論と行動を反復する
 > エージェントパターン）の解説書ではない。** 旧ファイル名 `react_processing_flow.md` は
@@ -15,20 +15,23 @@
 > | 設計判断（WHY） | [`support_spec.md`](./support_spec.md) |
 > | 環境構築・起動手順 | [`install_and_setup.md`](./install_and_setup.md) |
 > | 3 モード（基本版 / Support / Review）の対照 | [`../../docs/pipelines.md`](../../docs/pipelines.md) |
+>
+> **4 つのタブがそれぞれどの文書に対応するかは [§0 タブ ↔ 文書の対応](#0-タブ--文書の対応)。**
 
 ---
 
 ## 目次
 
 1. [概要](#概要)
-2. [アーキテクチャ構成図](#1-アーキテクチャ構成図)
-3. [モジュール構成図](#2-モジュール構成図)
-4. [処理ステップ一覧表](#3-処理ステップ一覧表)
-5. [処理ステップ IPO詳細](#4-処理ステップ-ipo詳細)
-6. [エージェントパターン対応](#5-エージェントパターン対応)
-7. [リクエストライフサイクル（シーケンス図）](#6-リクエストライフサイクルシーケンス図)
-8. [変更履歴](#7-変更履歴)
-9. [付録: 依存関係図](#付録-依存関係図)
+2. [タブ ↔ 文書の対応](#0-タブ--文書の対応)
+3. [アーキテクチャ構成図](#1-アーキテクチャ構成図)
+4. [モジュール構成図](#2-モジュール構成図)
+5. [処理ステップ一覧表](#3-処理ステップ一覧表)
+6. [処理ステップ IPO詳細](#4-処理ステップ-ipo詳細)
+7. [エージェントパターン対応](#5-エージェントパターン対応)
+8. [リクエストライフサイクル（シーケンス図）](#6-リクエストライフサイクルシーケンス図)
+9. [変更履歴](#7-変更履歴)
+10. [付録: 依存関係図](#付録-依存関係図)
 
 ---
 
@@ -92,6 +95,43 @@ LLM は **Anthropic Claude**（既定 `claude-sonnet-4-6` / 軽量 `claude-haiku
 | ⑥ | Action（本人確認→HITL→実行） | `core/support_agent.py` | アクション決定・承認・実行/エスカレ |
 | E-1 | 状態還元・描画 | `state/jobReducer.ts` | SSE を状態に還元し進捗/回答/承認を描画 |
 | F-1 | 承認応答注入 | `core/intervention_bridge.py` | 承認/拒否をワーカーへ注入し承認待ちを解除 |
+
+---
+
+---
+
+## 0. タブ ↔ 文書の対応
+
+`frontend/src/App.tsx` の `TABS` が定義する 4 タブと、それぞれの設計書・フロー文書の対応。
+
+| タブ id | ラベル | 画面コンポーネント | コア | WHY（設計判断） | WHAT（フロー） |
+|---|---|---|---|---|---|
+| `basic` | 基本版 | `SupportPanel variant="basic"` | `run_support_agent_core(vertical=None)` | [`support_spec.md`](./support_spec.md)（§7 基本版タブ） | [`support_flow.md`](./support_flow.md)（0-(B) はスキップ） |
+| `support` | GRACE-Support | `SupportPanel variant="vertical"` | `run_support_agent_core(vertical=...)` | [`support_spec.md`](./support_spec.md) | [`support_flow.md`](./support_flow.md) |
+| `review` | GRACE-Review | `ReviewPanel` | `run_review_agent_core` | [`review_spec.md`](./review_spec.md) | [`review_flow.md`](./review_flow.md) |
+| `data` | データ管理 | `DataPanel` | `core/data_jobs.py` の 4 runner | [`data_pipeline.md`](./data_pipeline.md) §概要 | [`data_pipeline.md`](./data_pipeline.md) §1〜§4 |
+| （4 タブ共通） | — | `App.tsx` | — | — | **本書** |
+
+### なぜ「基本版」に専用の文書が無いのか
+
+`basic` と `support` は**同じ `SupportPanel`** に `variant` を渡しているだけで、
+バックエンドも**同じ `run_support_agent_core`** を `vertical=None` で呼ぶ。
+別実装ではないため、専用の spec / flow を作ると `support_spec.md` の複製になり、
+片方だけが腐る（`backend/docs/README.md` §1 問題 #8・#10 と同じ事故）。
+モード差は `vertical` の有無だけで、その一覧は
+[`support_spec.md` §7](./support_spec.md#7-基本版タブvertical--none) と
+[`../../docs/pipelines.md` §3](../../docs/pipelines.md) にある。
+
+### なぜ「データ管理」は 1 本なのか
+
+`data_pipeline.md` が WHY（§概要「既存パッケージは 1 行も変更していない」・
+「破壊的操作の承認」）と WHAT（§1〜§4 のアーキ図・IPO）を既に両方持っている。
+Support / Review を 2 本に分けたのは設計判断の量が多く（ゲート・しきい値・二段判定・救済）
+フローと混ぜると読めなくなったためで、データ管理はその量に達していない。
+
+> ⚠️ **本書の §1 以降が扱うのは `basic` / `support` タブの経路だけ**である
+> （`run_dev.sh` 起動 → プロファイル取得 → ジョブ → コア → 描画）。
+> `review` / `data` タブの経路は上表の各文書を参照すること。
 
 ---
 
@@ -616,6 +656,7 @@ sequenceDiagram
 | バージョン | 変更内容 |
 |-----------|---------|
 | 1.0 | 初版作成（run_dev.sh 起点の React 処理フロー：起動〜フロント初期化〜ジョブ〜コア①〜⑥〜描画〜HITL、エージェントパターン対応を追加） |
+| 2.1 | **§0「タブ ↔ 文書の対応」を追加**（2026-09-15）。4 タブ（基本版 / GRACE-Support / GRACE-Review / データ管理）それぞれの画面コンポーネント・コア関数・WHY / WHAT 文書の対応表を新設し、「基本版に専用文書を作らない理由」「データ管理を 1 本にしている理由」を明記した。本書の §1 以降が `basic` / `support` タブの経路だけを扱う旨も追記 |
 | 2.0 | **`react_processing_flow.md` → `webapp_flow.md` へ改称**（2026-09-15）。`React`（フロントエンド）と `ReAct`（エージェントパターン）の取り違えを誘発しており、`backend/docs/README.md` も本書を「ReAct の処理フロー」と誤って説明していた。内容は変更せず、冒頭に位置づけ（end-to-end フロー）と正本リンクを追加した。§5「エージェントパターン対応」は本書に残し、[`../../docs/pipelines.md`](../../docs/pipelines.md) と相互リンクした |
 
 ---

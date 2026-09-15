@@ -1,6 +1,6 @@
 # backend/docs 棚卸し
 
-**Version 1.8** | 最終更新: 2026-09-15
+**Version 1.9** | 最終更新: 2026-09-15
 
 `backend/`（FastAPI + パイプライン中核）のドキュメント一覧と、実装への追随状況・
 欠落・残タスク・検証手順をまとめる。
@@ -85,13 +85,27 @@
 **`<agent>_flow.md`（WHAT・ステップと入出力）** の 2 本立てにし、
 **関数の IPO は `core_*.md` / `api_*.md` だけが持つ**（同じ表を 2 箇所に持つと必ず腐るため。§1 問題 #8）。
 
+#### 画面の 4 タブ ↔ 文書（正本は [`webapp_flow.md` §0](./webapp_flow.md#0-タブ--文書の対応)）
+
+| タブ id | ラベル | コア | WHY | WHAT |
+|---|---|---|---|---|
+| `basic` | 基本版 | `run_support_agent_core(vertical=None)` | `support_spec.md` §7 | `support_flow.md`（0-(B) はスキップ） |
+| `support` | GRACE-Support | `run_support_agent_core(vertical=...)` | `support_spec.md` | `support_flow.md` |
+| `review` | GRACE-Review | `run_review_agent_core` | `review_spec.md` | `review_flow.md` |
+| `data` | データ管理 | `core/data_jobs.py` の 4 runner | `data_pipeline.md` §概要 | `data_pipeline.md` §1〜§4 |
+
+> ⚠️ **`basic` に専用文書を作らない。** `support` と同じコンポーネント・同じコア関数で、
+> 差は `vertical` の有無だけ。複製すると片方だけが腐る（§1 問題 #8・#10 と同じ形）。
+> **`data` を 2 本に分けない。** `data_pipeline.md` が WHY と WHAT を既に両方持っており、
+> Support / Review ほど設計判断の量が無い。
+
 | 文書 | 内容 | 行数 | Ver | 重要度 |
 |---|---|---:|---|---|
-| `support_spec.md` | GRACE-Support の設計判断（回答ポリシー・HITL・データ契約・0-(A) 複数質問・業界特化・KPI） | 877 | 1.0 | ★★★ |
+| `support_spec.md` | GRACE-Support の設計判断（回答ポリシー・HITL・データ契約・0-(A) 複数質問・業界特化・基本版タブ・KPI） | 934 | 1.1 | ★★★ |
 | `support_flow.md` | GRACE-Support の処理フロー（0-(A)〜⑥・信頼度フロー比較・付録A CLI・付録B 実行トレース） | 1622 | 2.0 | ★★★ |
 | `review_spec.md` | GRACE-Review の設計判断 | 1080 | 1.4 | ★★ |
 | `review_flow.md` | GRACE-Review の処理フロー（S1・①〜⑦） | 663 | 1.1 | ★★ |
-| `webapp_flow.md` | `run_dev.sh` 起点の end-to-end（ブラウザ → FastAPI → コア → 描画） | 675 | 2.0 | ★★ |
+| `webapp_flow.md` | `run_dev.sh` 起点の end-to-end（ブラウザ → FastAPI → コア → 描画）。**§0 に 4 タブ ↔ 文書の対応表** | 716 | 2.1 | ★★ |
 | `data_pipeline.md` | チャンク化・Q/A 生成・Qdrant 登録（付録A: 規程コレクションの準備） | 805 | 1.3 | ★★ |
 | `install_and_setup.md` | 環境構築・**起動手順の正本** | 289 | 1.2 | ★★ |
 
@@ -289,6 +303,7 @@ grep -A 12 'STEP_IDS = (' backend/app/core/support_agent.py \
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 1.9 | **画面の 4 タブ ↔ 文書の対応を明示**（2026-09-15）。統合後に「基本版タブとデータ管理タブはどの文書を見ればよいか」が辿れなかったため、(1) `webapp_flow.md` に **§0「タブ ↔ 文書の対応」**を新設（4 タブの画面コンポーネント・コア関数・WHY / WHAT の対応表）、(2) `support_spec.md` に **§7「基本版タブ（`vertical` = None）」**を新設（プロファイル由来の機構が「無し」側に倒れる 9 項目。従来 `docs/pipelines.md` §3 にしか無く Support の設計書から辿れなかった）、(3) 本書 §2.3 に同じ対応表を掲載。あわせて**「基本版に専用文書を作らない」「データ管理を 2 本に分けない」理由**を 3 箇所すべてに明記した（実装が同一・設計判断の量が足りない） |
 | 1.8 | **フロー・設計文書 13 件を 8 件＋アーカイブ 2 件へ統合**（2026-09-15・問題 #10 / #11 / #12）。(1) エージェントごとに **`<agent>_spec.md`（WHY）／`<agent>_flow.md`（WHAT）** の 2 本立てへ揃えた（Review 側が既にこの形だったので Support 側を合わせた）。`agent_support_example.md` / `agent_support_verticals.md` / `multi_question_handling.md` §0・§13 → **`support_spec.md`**（新設）、`backend_flow.md` ＋ `confidence_flow_grace_vs_backend.md` ＋ `agent_support_example_flow.md` ＋ CLI 仕様 → **`support_flow.md`**。(2) **関数 IPO の 3〜4 重管理を解消** — `agent_support_example.md` §7.6 は「実コードと突合済み」と書きながら実体を持たない CLI ラッパーを対象にしており、記述された関数は `core/gates.py` / `core/verticals.py` にあった。フロー文書・設計書から IPO を外し、`core_*.md` へのリンクに置換した（問題 #8 と同じ処方箋）。(3) **ステップ番号を `CLAUDE.md` §1 の体系へ統一**し、`backend_flow.md` が落としていた **0-(A) `analyze`** を `support_flow.md` §4.0 として新規に書き起こした。(4) `react_processing_flow.md` → **`webapp_flow.md`**（`React`/`ReAct` の取り違えを解消）、`review_agent_spec.md` → **`review_spec.md`**、`review_rules_collection.md` → `data_pipeline.md` 付録A、`main.md` §6.1 の起動手順 → `install_and_setup.md` §6 へ一本化。(5) 完了済みの記録 2 件を **`archive/`** へ `git mv`（削除はしていない）。(6) 統合中に判明した**実装との食い違い 4 件**（存在しない `ActionTool`、追随できていない dataclass フィールド表、「5 フィールド」→ 実測 7、`build_prompt_addendum` → `build_closing_instruction`）を是正。被参照 41 ファイル（ソースコメント・テスト・フロント・`grace/` 側文書）のパスと節番号を張り替え、**リンク切れ 0** を確認 |
 | 1.7 | **設計・フロー文書の未修正 4 件を解消し、ローカルで pytest が回るようにした**（2026-09-15・問題 #3 / #8 / #9）。(1) `review_agent_spec.md` §5.3 の**キーワード表を削除して正本へのリンクに置換**——15 ルール全部で語が腐り `yakki-04` が丸ごと欠落していた。同じ表を 2 箇所に持つ限り必ず腐るため、本書は法令別の件数と判定方式の要約だけを持つ形にした。(2) `core_rulesets.md` §4.2 の「21 件程度」を 23 件へ（v1.2 で表は直したが grep しきれず取り残していた）。(3) `review_rules_collection.md` の CSV 行数を 22 → **23 行**へ（`build_rows()` はフィルタせず `ruleset.rules` を回す）。(4) 同ファイルに Version ヘッダーを付与（問題 #3）。(5) **`requirements-test.txt` を新設**し CI（`pytest (backend)` ジョブ）と共有する唯一の正本にした。従来は CI の YAML にインライン列挙しており、ローカルに同じ環境を作る手順が無かった |
 | 1.6 | **backend 固有の設計文書 2 件をリポジトリ直下 `docs/` から移設**（2026-09-15）。`multi_question_handling.md`（0-(A) 複数質問・`core/gates.py` / `core/support_agent.py`）と `review_false_positive_todo.md`（Review 誤検出の調査記録・`core/rulesets.py` / `core/review_gates.py`）。いずれも対象が `backend/app/core/` に閉じており、CLAUDE.md §9.1 の「backend は `backend/docs/`」に該当する。被参照 18 ファイル（ソースコメント・テスト・フロント含む）のパスを張り替えた。横断文書 7 件は frontend や `grace/` にもまたがるため直下 `docs/` に残した。あわせて **`### 2.3` が 2 つあった採番ミス**を是正（GRACE-Support の設計書を §2.4 へ） |
