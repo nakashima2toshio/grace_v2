@@ -1,6 +1,6 @@
 # core/verticals.py - 業界プロファイル定義 ドキュメント
 
-**Version 1.2** | 最終更新: 2026-09-04
+**Version 1.3** | 最終更新: 2026-09-04
 
 ---
 
@@ -11,6 +11,7 @@
 3. [モジュール構成図](#2-モジュール構成図)
 4. [クラス・関数一覧表](#3-クラス関数一覧表)
 5. [クラス・関数 IPO詳細](#4-クラス関数-ipo詳細)
+   - [使用例](#41-使用例)
 6. [設定・定数](#5-設定定数)
 7. [使用例](#6-使用例)
 8. [エクスポート](#7-エクスポート)
@@ -190,13 +191,76 @@ style PROFILES fill:#1a1a1a,stroke:#fff,color:#fff
 ### 3.2 関数一覧
 
 モジュールレベルの関数定義はない（データクラス・メソッド・定数のみ）。
-メソッドは `VerticalProfile.build_prompt_addendum()` と `_out_of_scope_instruction()`（§4.2）。
+メソッドは `VerticalProfile.build_prompt_addendum()` と `_out_of_scope_instruction()`（§4.3）。
 
 ---
 
 ## 4. クラス・関数 IPO詳細
 
-### 4.1 ActionRequest クラス
+### 4.1 使用例
+
+#### 4.1.1 基本的なワークフロー（プロファイルの解決と参照）
+
+```python
+from backend.app.core.verticals import PROFILES
+
+# 1. 業界 ID からプロファイルを引く（未指定・未知の ID なら None = 基本版）
+profile = PROFILES.get("ec")
+
+# 2. パイプラインが参照するのはこの 3 種
+print(f"{profile.name} collections={profile.collections} identity={profile.require_identity}")
+print(f"th: notify={profile.notify_th} confirm={profile.confirm_th}")
+
+# 出力例:
+# EC collections=['ec_policy_anthropic', 'ec_faq_anthropic'] identity=True
+# th: notify=None confirm=None       ← None は「config 既定を使う」の意味
+```
+
+> ⚠️ **`notify_th` / `confirm_th` が `None` なのは未設定ではなく「既定を使う」**である
+> （上書きするのは `gov` の 0.8 / 0.5 だけ）。`support_agent.py` 側が
+> `profile.notify_th if profile.notify_th is not None else th.notify` で解決する。
+
+#### 4.1.2 3 プロファイルの差を一覧する
+
+```python
+from backend.app.core.verticals import PROFILES
+
+for key, p in PROFILES.items():
+    print(f"{key}: {p.name} / escalate={len(p.escalate_keywords)}語 "
+          f"/ action={len(p.action_map)}語 / identity={p.require_identity}")
+
+# 出力例:
+# gov: 自治体 / escalate=6語 / action=3語 / identity=False
+# saas: SaaS / escalate=7語 / action=3語 / identity=False
+# ec: EC / escalate=5語 / action=4語 / identity=True
+```
+
+#### 4.1.3 プロンプトへ注入される 2 種類の文字列
+
+業務方針（参照情報の**手前**）と、担当範囲外の断り（【回答の構成ルール】の**後ろ**）は
+**別のメソッドで、別の位置へ**注入される。位置が結果を変えるため混ぜない。
+
+```python
+from backend.app.core.verticals import PROFILES
+
+gov = PROFILES["gov"]
+
+# 1. 業務方針 — reasoning のシステム指示直後へ（config.llm.prompt_addendum）
+print(gov.build_prompt_addendum().splitlines()[0])
+
+# 2. 担当範囲外の断り — 構成ルールの後ろへ（config.llm.prompt_closing）
+print(gov.build_closing_instruction(["明日の東京の天気は？"]).splitlines()[0])
+
+# 出力例:
+# 条例・公式案内に基づき、断定を避け、該当ページ・担当課を明示。個人情報は尋ねない。
+# 【この問い合わせに含まれる担当範囲外の質問】
+```
+
+> 📎 なぜ位置を分けるのかは [`support_spec.md` §5.5](./support_spec.md#55-担当範囲外の質問断って窓口案内する)
+> を参照（業務方針側に混ぜると、後段の【回答の構成ルール】に負けてモデルが断りを落とす）。
+
+
+### 4.2 ActionRequest クラス
 
 **概要**: 副作用のある操作の要求（v3・擬似）。
 
@@ -230,7 +294,7 @@ ActionRequest("create_ticket", {"query": "返品したい", "matched": "返品"}
 request = ActionRequest(profile.action_map[matched], {"query": query, "matched": matched})
 ```
 
-### 4.2 VerticalProfile クラス
+### 4.3 VerticalProfile クラス
 
 **概要**: 業界プロファイル（差し替えの共通枠）。しきい値・エスカレ語・アクション対応・
 本人確認をまとめる。設計: `support_spec.md` §1/§6。
@@ -289,7 +353,7 @@ profile = PROFILES.get("ec")
 config.qdrant.allowed_collections = list(profile.collections)
 ```
 
-#### 4.2.1 VerticalProfile.build_prompt_addendum()
+#### 4.3.1 VerticalProfile.build_prompt_addendum()
 
 **概要**: reasoning へ実際に注入する業務方針を組み立てる。業界固有の方針
 （`prompt_addendum`）に共通の `SCOPE_POLICY` を足したもの。
@@ -488,6 +552,7 @@ ActionRequest, VerticalProfile, PROFILES
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 1.3 | **§4.1「使用例」を新設**（2026-09-15）。ドキュメント規約 `a_class_method_md_format.md` §6.1 が IPO 詳細セクションの冒頭に必須としている代表ワークフローが欠落していた。プロファイルの解決と参照、3 プロファイルの差の一覧、注入される 2 種類の文字列の 3 本を追加し、**実行して出力を確認した**（外部依存が要る例はその旨を明記）。旧 §4.1〜§4.2 は §4.2〜§4.3 へ繰り下げ |
 | 1.0 | 初版作成（ActionRequest / VerticalProfile / PROFILES と型エイリアスの IPO ドキュメント） |
 | 1.1 | 実コード再読による最新化: `SCOPE_POLICY`（W-2・担当範囲外の断り方）と背景・必須の最終文を §5.2 に追加。`VerticalProfile.preferred_domains`（W-1・**除外ではなく加点**）をパラメータ表へ追加。`build_prompt_addendum()` の IPO を §4.2.1 として新設し、生フィールドとの使い分け（`/api/verticals` は生値を返す）を明記。§6.1 の使用例を合成メソッド呼び出しへ修正 |
 

@@ -1,6 +1,6 @@
 # api/review.py - 文書レビュー API ドキュメント
 
-**Version 1.0** | 最終更新: 2026-07-29
+**Version 1.1** | 最終更新: 2026-07-29
 
 ---
 
@@ -11,6 +11,7 @@
 3. [モジュール構成図](#2-モジュール構成図)
 4. [クラス・関数一覧表](#3-クラス関数一覧表)
 5. [クラス・関数 IPO詳細](#4-クラス関数-ipo詳細)
+   - [使用例](#41-使用例)
 6. [使用例](#5-使用例)
 7. [エクスポート](#6-エクスポート)
 8. [変更履歴](#7-変更履歴)
@@ -240,7 +241,65 @@ style CORE fill:#1a1a1a,stroke:#fff,color:#fff
 
 ## 4. クラス・関数 IPO詳細
 
-### 4.1 エンドポイント関数
+### 4.1 使用例
+
+#### 4.1.1 基本的なワークフロー（文書を投げて指摘を受け取る）
+
+> 📌 **`TestClient` を使うとサーバを起動せずに試せる**（実 API キー・Qdrant 不要の範囲）。
+> 実サーバへ投げるなら `./run_dev.sh` の後に `curl http://localhost:8000/...`。
+
+```python
+from fastapi.testclient import TestClient
+from backend.app.main import app
+
+c = TestClient(app)
+
+# 1. 文書とルールセットを指定してジョブを起動する（202）
+r = c.post("/api/review/submit", json={
+    "document": "業界最高の保湿力を実現しました。",
+    "ruleset": "ec_ad",
+})
+job_id = r.json()["job_id"]
+
+# 2. 進捗を SSE で購読する（S1・①〜⑦ の 9 ステップ）
+with c.stream("GET", f"/api/review/stream/{job_id}") as s:
+    for line in s.iter_lines():
+        ...
+
+# 3. 最終結果（指摘一覧とサマリ）
+result = c.get(f"/api/review/result/{job_id}").json()["result"]
+print(result["summary"], len(result["findings"]))
+```
+
+> ⚠️ **上のコードだけは実行して出力を確認していない**（実 API キーと Qdrant を要するため）。
+> 以下 4.1.2 は外部依存なしで動き、出力例は実測値である。
+
+#### 4.1.2 ルールセット一覧とエラー応答
+
+```python
+from fastapi.testclient import TestClient
+from backend.app.main import app
+
+c = TestClient(app)
+
+# 1. 画面のセレクタが読むメタ（提供は api/meta.py）
+print(sorted(c.get("/api/rulesets").json()[0]))
+
+# 2. エラー応答
+print(c.post("/api/review/submit", json={}).status_code)     # document 必須
+print(c.get("/api/review/stream/unknown-id").status_code)
+print(c.get("/api/review/result/unknown").status_code)
+
+# 出力例:
+# ['action_map', 'always_check_count', 'collections', 'confirm_th', 'critical_keywords',
+#  'id', 'laws', 'name', 'notify_th', 'prompt_addendum', 'rule_count']
+# 422
+# 404
+# 404
+```
+
+
+### 4.2 エンドポイント関数
 
 #### `submit_document`
 
@@ -466,6 +525,7 @@ const unsubscribe = subscribeStream(
 
 | バージョン | 日付 | 変更内容 |
 |-----------|------|---------|
+| 1.1 | 2026-09-15 | **§4.1「使用例」を新設**（2026-09-15）。ドキュメント規約 `a_class_method_md_format.md` §6.1 が IPO 詳細セクションの冒頭に必須としている代表ワークフローが欠落していた。文書投入 → SSE → 結果取得、ルールセット一覧とエラー応答の 2 本を追加し、**実行して出力を確認した**（外部依存が要る例はその旨を明記）。旧 §4.1 は §4.2 へ繰り下げ |
 | 1.0 | 2026-07-29 | 初版作成（GRACE-Review STEP5・PR #41 に対応） |
 
 ---

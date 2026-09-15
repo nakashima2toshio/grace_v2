@@ -1,6 +1,6 @@
 # core/review_agent.py - GRACE-Review コアパイプライン ドキュメント
 
-**Version 1.2** | 最終更新: 2026-09-15
+**Version 1.3** | 最終更新: 2026-09-15
 
 ---
 
@@ -11,6 +11,7 @@
 3. [モジュール構成図](#2-モジュール構成図)
 4. [クラス・関数一覧表](#3-クラス関数一覧表)
 5. [クラス・関数 IPO詳細](#4-クラス関数-ipo詳細)
+   - [使用例](#41-使用例)
 6. [設定・定数](#5-設定定数)
    - [ステップ ID](#51-ステップ-id)
    - [① Segment の分割パターン](#52--segment-の分割パターン)
@@ -370,7 +371,60 @@ style REG fill:#1a1a1a,stroke:#fff,color:#fff
 
 ## 4. クラス・関数 IPO詳細
 
-### 4.1 ① 文書分割
+### 4.1 使用例
+
+#### 4.1.1 基本的なワークフロー（① 文書分割）
+
+`split_segments()` は **LLM を呼ばない決定的な純関数**なので、単体で試せる。
+`run_review_agent_core()` 全体は Qdrant と API キーを要するため、
+挙動確認は `backend/tests/test_review_agent_core.py` か `./run_dev.sh` で行う。
+
+```python
+from backend.app.core.review_agent import split_segments
+
+doc = """春の新商品LP
+
+業界最高の保湿力を実現しました。
+- 使用するだけでシミが消えます
+- 返品は7日以内に限ります
+"""
+
+# 1. 文書を検査単位へ分割する（オフセットは原文に対して取る）
+segments, truncated = split_segments(doc)
+
+# 2. 各セグメントは原文の [start:end] を保持している（UI のハイライトに使う）
+print(f"{len(segments)} セグメント / truncated={truncated}")
+for s in segments:
+    print(f"  [{s.start}:{s.end}] {s.text}")
+
+# 出力例:
+# 4 セグメント / truncated=False
+#   [0:7] 春の新商品LP
+#   [9:25] 業界最高の保湿力を実現しました。
+#   [26:42] - 使用するだけでシミが消えます
+#   [43:57] - 返品は7日以内に限ります
+```
+
+> ⚠️ **見出し・箇条書きは 1 行 1 セグメント**になる（段落としてまとめない）。
+> 指摘の位置を行単位で示せるようにするためで、`max_chars` を超える段落は文末で再分割される。
+
+#### 4.1.2 ステップ ID と UI タイムラインの対応
+
+```python
+from backend.app.core.review_agent import REVIEW_STEP_IDS
+
+print(REVIEW_STEP_IDS)
+
+# 出力例:
+# ('ruleset', 'segment', 'retrieve', 'detect', 'ground', 'suppress', 'web', 'severity', 'action')
+```
+
+> ⚠️ **番号（S1・①〜⑦）は Support との対応を示す呼称で、実行順とは一致しない。**
+> 上のタプルが実行順であり、**⑥ `web` が ⑤ `severity` より先**に来る。
+> UI のタイムラインもこの並びで描画される（[`review_flow.md`](./review_flow.md) §概要）。
+
+
+### 4.2 ① 文書分割
 
 #### `split_segments`
 
@@ -426,7 +480,7 @@ for s in segments:
 
 ---
 
-### 4.2 パイプライン本体
+### 4.3 パイプライン本体
 
 #### `run_review_agent_core`
 
@@ -525,7 +579,7 @@ CLI 経路では `confirm` が `None` になる。そのまま `InterventionHand
 
 ---
 
-### 4.3 ヘルパ関数（抜粋）
+### 4.4 ヘルパ関数（抜粋）
 
 #### `_build_finding`
 
@@ -757,6 +811,7 @@ else:
 
 | バージョン | 日付 | 変更内容 |
 |-----------|------|---------|
+| 1.3 | 2026-09-15 | **§4.1「使用例」を新設**（2026-09-15）。ドキュメント規約 `a_class_method_md_format.md` §6.1 が IPO 詳細セクションの冒頭に必須としている代表ワークフローが欠落していた。① 文書分割（LLM 不要・決定的）、ステップ ID と実行順の 2 本を追加し、**実行して出力を確認した**（外部依存が要る例はその旨を明記）。旧 §4.1〜§4.3 は §4.2〜§4.4 へ繰り下げ |
 | 1.2 | 2026-09-15 | **① Segment の分割パターン 3 件（`_LIST_RE` / `_HEADING_RE` / `_SENTENCE_END_RE`）を §5.2 として追加**。`split_segments()` が「LLM 不使用・決定的・原文オフセット保持」であることは書かれていたが、**行の種別を実際に決めている正規表現が未記載**で、どの記号を箇条書き・見出しとみなすかを本書から読み取れなかった。全角（`＊` / `０-９` / `．` / `）` / `！？`）を明示的に含めている点も注記。旧 §5.2 は §5.3 へ繰り下げ |
 | 1.1 | 2026-09-04 | AST 照合で未記載だった `_document_segment` / `_is_too_broad` を追加（`4e4607d`） |
 | 1.0 | 2026-07-29 | 初版作成（GRACE-Review STEP4・PR #40 に対応） |

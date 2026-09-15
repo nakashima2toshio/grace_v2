@@ -1,6 +1,6 @@
 # api/meta.py - メタ情報 API ドキュメント
 
-**Version 1.1** | 最終更新: 2026-07-29
+**Version 1.2** | 最終更新: 2026-07-29
 
 ---
 
@@ -11,6 +11,7 @@
 3. [モジュール構成図](#2-モジュール構成図)
 4. [クラス・関数一覧表](#3-クラス関数一覧表)
 5. [クラス・関数 IPO詳細](#4-クラス関数-ipo詳細)
+   - [使用例](#41-使用例)
 6. [使用例](#5-使用例)
 7. [エクスポート](#6-エクスポート)
 8. [変更履歴](#7-変更履歴)
@@ -170,7 +171,57 @@ style DEPS fill:#1a1a1a,stroke:#fff,color:#fff
 
 ## 4. クラス・関数 IPO詳細
 
-### 4.1 エンドポイント関数
+### 4.1 使用例
+
+#### 4.1.1 基本的なワークフロー（起動確認とメタ取得）
+
+> 📌 **`TestClient` を使うとサーバを起動せずに試せる**（実 API キー・Qdrant 不要の範囲）。
+> 実サーバへ投げるなら `./run_dev.sh` の後に `curl http://localhost:8000/...`。
+
+```python
+from fastapi.testclient import TestClient
+from backend.app.main import app
+
+c = TestClient(app)
+
+# 1. ヘルスチェック（API キー設定の有無が分かる。キーの値は返さない）
+print(c.get("/api/health").json())
+
+# 2. 業界プロファイル一覧（基本版タブ以外のセレクタが読む）
+print([v["id"] for v in c.get("/api/verticals").json()])
+
+# 3. ルールセット一覧（GRACE-Review のセレクタが読む）
+print([r["id"] for r in c.get("/api/rulesets").json()])
+
+# 出力例（.env 未設定の環境で実測）:
+# {'status': 'ok', 'anthropic_api_key': False, 'google_api_key': False}
+# ['gov', 'saas', 'ec']
+# ['ec_ad']
+```
+
+> ⚠️ **`status` は API キーが無くても `ok`** である。キーの有無は `anthropic_api_key` /
+> `google_api_key` の真偽値で示す（起動の可否とキーの有無は別問題なので分けている）。
+
+#### 4.1.2 プロファイル 1 件に含まれるフィールド
+
+```python
+from fastapi.testclient import TestClient
+from backend.app.main import app
+
+v = TestClient(app).get("/api/verticals").json()[0]
+print(sorted(v))
+
+# 出力例:
+# ['action_map', 'collections', 'confirm_th', 'escalate_keywords', 'id', 'name',
+#  'notify_th', 'prompt_addendum', 'require_identity']
+```
+
+> `prompt_addendum` は**業界固有の方針だけ**を返す（共通の `SCOPE_POLICY` は含まない）。
+> 実際に注入されるのは `build_prompt_addendum()` が合成した文字列
+> （[`core_verticals.md` §4.1.3](./core_verticals.md#41-使用例)）。
+
+
+### 4.2 エンドポイント関数
 
 #### `list_verticals`
 
@@ -325,6 +376,7 @@ router  # APIRouter(prefix="/api", tags=["meta"])
 
 | バージョン | 日付 | 変更内容 |
 |-----------|------|---------|
+| 1.2 | 2026-09-15 | **§4.1「使用例」を新設**（2026-09-15）。ドキュメント規約 `a_class_method_md_format.md` §6.1 が IPO 詳細セクションの冒頭に必須としている代表ワークフローが欠落していた。起動確認（health / verticals / rulesets）とプロファイル 1 件のフィールド確認の 2 本を追加し、**実行して出力を確認した**（外部依存が要る例はその旨を明記）。旧 §4.1 は §4.2 へ繰り下げ |
 | 1.0 | 2026-07-15 | 初版作成（GET /verticals・GET /health の IPO ドキュメント） |
 | 1.1 | 2026-07-29 | `GET /api/rulesets` を追加（PR #41）。既存 2 エンドポイントは無変更 |
 

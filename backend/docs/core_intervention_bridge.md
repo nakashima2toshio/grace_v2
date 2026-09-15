@@ -1,6 +1,6 @@
 # core/intervention_bridge.py - HITL 非同期ブリッジ ドキュメント
 
-**Version 1.0** | 最終更新: 2026-07-15
+**Version 1.1** | 最終更新: 2026-07-15
 
 ---
 
@@ -11,6 +11,7 @@
 3. [モジュール構成図](#2-モジュール構成図)
 4. [クラス・関数一覧表](#3-クラス関数一覧表)
 5. [クラス・関数 IPO詳細](#4-クラス関数-ipo詳細)
+   - [使用例](#41-使用例)
 6. [設定・定数](#5-設定定数)
 7. [使用例](#6-使用例)
 8. [エクスポート](#7-エクスポート)
@@ -180,7 +181,61 @@ style BRIDGE fill:#1a1a1a,stroke:#fff,color:#fff
 
 ## 4. クラス・関数 IPO詳細
 
-### 4.1 PendingIntervention クラス
+### 4.1 使用例
+
+#### 4.1.1 基本的なワークフロー（承認待ちと注入）
+
+ワーカースレッドは `resolver` で**同期的にブロック**し、API 側は `resolve()` で
+応答を注入する。この非同期⇔同期の変換が本モジュールの仕事。
+
+```python
+import threading, time
+from backend.app.core.intervention_bridge import InterventionBridge
+from grace import InterventionRequest
+from grace.confidence import InterventionLevel
+
+events = []
+bridge = InterventionBridge(emit=events.append, timeout_seconds=5.0)
+
+# 1. ワーカー側: resolver が応答（または timeout）までブロックする
+def worker():
+    req = InterventionRequest(level=InterventionLevel.CONFIRM,
+                              message="チケットを起票しますか？")
+    resp = bridge.resolver(req)
+    print(f"worker: approved={resp.action}")
+
+t = threading.Thread(target=worker); t.start()
+time.sleep(0.3)
+
+# 2. API 側: 待機中の介入を見て、承認を注入する
+p = bridge.pending
+print(f"pending: {p.request.message}")
+print(f"resolve: {bridge.resolve(p.intervention_id, approve=True)}")
+t.join()
+
+# 3. emit は「承認待ち」と「解決済み」の 2 回発火する
+print(f"emit された type: {[e.type for e in events]}")
+
+# 出力例:
+# pending: チケットを起票しますか？
+# resolve: True
+# worker: approved=InterventionAction.PROCEED
+# emit された type: ['intervention', 'intervention']
+```
+
+#### 4.1.2 タイムアウト時は安全側へ倒れる
+
+`timeout_seconds` を過ぎると `resolver` は**拒否相当**（`CANCEL`）を返して抜ける。
+承認が得られないまま副作用を実行しないための既定であり、
+API 側から `resolve()` が来なくてもワーカーは必ず終了する。
+
+```python
+bridge = InterventionBridge(emit=lambda e: None, timeout_seconds=0.5)
+# resolve() を呼ばずに放置すると、0.5 秒後に resolver が戻る
+```
+
+
+### 4.2 PendingIntervention クラス
 
 **概要**: フロントエンドの応答待ちの CONFIRM/ESCALATE を表す dataclass。
 
@@ -216,7 +271,7 @@ PendingIntervention(intervention_id="9f8e7d6c5b4a", request=<InterventionRequest
 pending = PendingIntervention(intervention_id=uuid.uuid4().hex[:12], request=request)
 ```
 
-### 4.2 InterventionBridge クラス
+### 4.3 InterventionBridge クラス
 
 1 ジョブ分の HITL 承認待ちを仲介する。ワーカー側は `resolver` を handler に渡し、API 側は
 `resolve()` で応答を注入する。
@@ -365,6 +420,7 @@ PendingIntervention, InterventionBridge, DEFAULT_CONFIRM_TIMEOUT
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 1.1 | **§4.1「使用例」を新設**（2026-09-15）。ドキュメント規約 `a_class_method_md_format.md` §6.1 が IPO 詳細セクションの冒頭に必須としている代表ワークフローが欠落していた。ワーカーの承認待ちと API からの注入、タイムアウト時に安全側へ倒れることの 2 本を追加し、**実行して出力を確認した**（外部依存が要る例はその旨を明記）。旧 §4.1〜§4.2 は §4.2〜§4.3 へ繰り下げ |
 | 1.0 | 初版作成（PendingIntervention / InterventionBridge の IPO ドキュメント） |
 
 ---

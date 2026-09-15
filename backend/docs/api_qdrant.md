@@ -1,6 +1,6 @@
 # api/qdrant.py - Qdrant 参照 API ドキュメント
 
-**Version 1.0** | 最終更新: 2026-09-04
+**Version 1.1** | 最終更新: 2026-09-04
 
 > **参考ドキュメント**
 > - [`backend/docs/api_data.md`](./api_data.md) — 登録・削除（副作用のある系）のジョブ API
@@ -14,6 +14,7 @@
 - [1. アーキテクチャ構成図](#1-アーキテクチャ構成図)
 - [2. エンドポイント一覧](#2-エンドポイント一覧)
 - [3. 関数 IPO 詳細](#3-関数-ipo-詳細)
+  - [使用例](#31-使用例)
 - [4. Qdrant 未起動時の扱い](#4-qdrant-未起動時の扱い)
 - [5. 使用例](#5-使用例)
 - [6. 変更履歴](#6-変更履歴)
@@ -131,7 +132,61 @@ style EXT fill:#1a1a1a,stroke:#fff,color:#fff
 
 ## 3. 関数 IPO 詳細
 
-### 3.1 `_get_client`
+### 3.1 使用例
+
+#### 3.1.1 基本的なワークフロー（Qdrant の状態を見る）
+
+本モジュールは**読み取り専用**。Qdrant が落ちていても 500 にせず、
+「使えない」ことを返す（画面を白くしないため）。
+
+> 📌 **`TestClient` を使うとサーバを起動せずに試せる**（実 API キー・Qdrant 不要の範囲）。
+> 実サーバへ投げるなら `./run_dev.sh` の後に `curl http://localhost:8000/...`。
+
+```python
+from fastapi.testclient import TestClient
+from backend.app.main import app
+
+c = TestClient(app)
+
+# 1. まず疎通を見る（未起動でも 200 で available=False が返る）
+h = c.get("/api/qdrant/health")
+print(h.status_code, h.json()["available"], h.json()["message"])
+
+# 2. コレクション一覧（未起動なら空配列。例外を投げない）
+r = c.get("/api/qdrant/collections")
+print(r.status_code, r.json())
+
+# 出力例（Qdrant 未起動の環境で実測）:
+# 200 False Connection refused (port closed)
+# 200 []
+```
+
+> ⚠️ **未起動と「コレクションが 0 件」は区別できない。** 先に `/api/qdrant/health` を見ること。
+> 画面もこの順で呼び、`available=False` ならバナーを出す。
+
+#### 3.1.2 コレクションの中身をのぞく
+
+```python
+from fastapi.testclient import TestClient
+from backend.app.main import app
+
+c = TestClient(app)
+
+# 1. 詳細（件数・次元・距離）
+c.get("/api/qdrant/collections/gov_faq_anthropic")
+
+# 2. ポイントのプレビュー（ページング付き）
+c.get("/api/qdrant/collections/gov_faq_anthropic/points", params={"limit": 5})
+
+# 3. 存在しないコレクションは 404
+print(c.get("/api/qdrant/collections/nope").status_code)
+
+# 出力例:
+# 404
+```
+
+
+### 3.2 `_get_client`
 
 ```python
 def _get_client()
@@ -147,7 +202,7 @@ def _get_client()
 > 実際にリクエストを送るまで失敗が分からないため、呼び出し側で例外を捕まえて 503 に変換している。
 > 503 の本文には起動コマンド（`docker-compose -f docker-compose/docker-compose.yml up -d`）を載せる。
 
-### 3.2 `qdrant_health`
+### 3.3 `qdrant_health`
 
 ```python
 @router.get("/qdrant/health", response_model=QdrantHealth)
@@ -164,7 +219,7 @@ def qdrant_health() -> QdrantHealth
 > 503 にすると画面側で「エラーバナー」と「Qdrant を起動してください」という案内を
 > **出し分けられない**ため。稼働の有無は本文の `available` で判定させる。
 
-### 3.3 `list_collections`
+### 3.4 `list_collections`
 
 ```python
 @router.get("/qdrant/collections", response_model=List[CollectionInfo])
@@ -177,7 +232,7 @@ def list_collections() -> List[CollectionInfo]
 | **Process** | `_get_client()` → `get_all_collections(client)`。例外は **503** |
 | **Output** | `List[CollectionInfo]`（`name` / `points_count` / `status`） |
 
-### 3.4 `get_collection`
+### 3.5 `get_collection`
 
 ```python
 @router.get("/qdrant/collections/{name}", response_model=CollectionDetail)
@@ -194,7 +249,7 @@ def get_collection(name: str) -> CollectionDetail
 > そのまま拾って `CollectionDetail.error` に載せる。`fetch_collection_info` が
 > エラーを返した時点で早期 return し、`sources` は取りに行かない。
 
-### 3.5 `get_collection_points`
+### 3.6 `get_collection_points`
 
 ```python
 @router.get("/qdrant/collections/{name}/points", response_model=CollectionPoints)
@@ -211,7 +266,7 @@ def get_collection_points(name: str, limit: int = Query(default=50, ge=1, le=500
 > 画面はこの順で列を並べる。長い文字列は `fetch_collection_points` 側で
 > **200 文字に切り詰められている。**
 
-### 3.6 `list_files`
+### 3.7 `list_files`
 
 ```python
 @router.get("/files", response_model=InputFileListResponse)
@@ -266,4 +321,5 @@ curl 'http://localhost:8000/api/files?dir=OUTPUT'
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 1.1 | **§3.1「使用例」を新設**（2026-09-15）。ドキュメント規約 `a_class_method_md_format.md` §6.1 が IPO 詳細セクションの冒頭に必須としている代表ワークフローが欠落していた。疎通確認 → コレクション一覧（未起動でも 200 が返ること）、コレクションの中身をのぞく 2 本を追加し、**実行して出力を確認した**（外部依存が要る例はその旨を明記）。旧 §3.1〜§3.6 は §3.2〜§3.7 へ繰り下げ |
 | 1.0 | 初版作成。`backend/app/api/qdrant.py`（200 行）の 6 関数を IPO 形式で記述。「health だけ 200 を返す」設計理由、`get_qdrant_client()` が生成時に接続確認をしないため 503 変換が要ること、`fetch_*` が例外ではなく `{"error": ...}` を返すこと、`columns` を別に返す理由、許可ディレクトリのホワイトリストを実コードのコメントから起こして記載 |

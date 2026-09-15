@@ -1,6 +1,6 @@
 # core/data_jobs.py - データ準備ジョブ runner ドキュメント
 
-**Version 1.2** | 最終更新: 2026-09-12
+**Version 1.3** | 最終更新: 2026-09-12
 
 > **参考ドキュメント**
 > - [`backend/docs/api_data.md`](./api_data.md) — 本モジュールを起動する API 層
@@ -17,6 +17,7 @@
 - [2. ステップ定義](#2-ステップ定義)
 - [3. クラス・関数一覧表](#3-クラス関数一覧表)
 - [4. パラメータ IPO 詳細](#4-パラメータ-ipo-詳細)
+  - [使用例](#41-使用例)
 - [5. runner IPO 詳細](#5-runner-ipo-詳細)
 - [6. 破壊的操作の承認（HITL CONFIRM）](#6-破壊的操作の承認hitl-confirm)
 - [7. 変更履歴](#7-変更履歴)
@@ -210,7 +211,53 @@ runner は `step_started(id, LABELS[id], ...)` の形でラベルを引く。
 
 ## 4. パラメータ IPO 詳細
 
-### 4.1 `ChunkingParams`
+### 4.1 使用例
+
+#### 4.1.1 基本的なワークフロー（パラメータとステップ定義）
+
+4 種の runner は `params` の**型**で解決される（`register_runner()` 済み）。
+呼び出し側が作るのはパラメータだけで、runner を直接呼ぶ必要はない。
+
+```python
+from backend.app.core.data_jobs import (
+    ChunkingParams, DeleteParams, CHUNKING_STEP_IDS, DELETE_STEP_IDS,
+)
+
+# 1. チャンク化（非破壊なので CONFIRM なし）
+p = ChunkingParams(input_file="OUTPUT/cc_news_1per.csv")
+print(f"{type(p).__name__}: {p.input_file} -> {p.output_dir}")
+print(f"steps: {CHUNKING_STEP_IDS}")
+
+# 2. 削除（破壊的なので confirm ステップを持つ）
+d = DeleteParams(collections=["demo_anthropic"])
+print(f"{type(d).__name__}: {d.collections} / steps={DELETE_STEP_IDS}")
+
+# 出力例:
+# ChunkingParams: OUTPUT/cc_news_1per.csv -> output_chunked
+# steps: ('load', 'chunk', 'save')
+# DeleteParams: ['demo_anthropic'] / steps=('inspect', 'confirm', 'delete')
+```
+
+> ⚠️ **`confirm` ステップの有無が、そのジョブが破壊的かどうかを表す。**
+> 削除は常に、登録は `recreate=True` のときだけ HITL CONFIRM を通る（§7）。
+
+#### 4.1.2 ジョブとして起動する
+
+```python
+from backend.app.core.jobs import JobManager
+from backend.app.core.data_jobs import ChunkingParams
+
+mgr = JobManager()
+job = mgr.start(ChunkingParams(input_file="OUTPUT/cc_news_1per.csv"))
+# → params の型から _chunking_runner が解決される（kind="data"）
+# → 進捗は job.stream_events() / GET /api/data/stream/{job_id} で購読する
+```
+
+> 実行には入力 CSV と（登録ジョブでは）Qdrant が要るため、ここでは起動までを示す。
+> 画面から実行する手順は [`data_pipeline.md` §5](./data_pipeline.md#5-使用例)。
+
+
+### 4.2 `ChunkingParams`
 
 ```python
 @dataclass
@@ -230,7 +277,7 @@ class ChunkingParams:
 > 📝 **CLI 引数と 1:1 対応**。`resume` は `--resume` 相当で、
 > `CheckpointManager` の再開に使う。
 
-### 4.2 `QaGenerationParams`
+### 4.3 `QaGenerationParams`
 
 ```python
 @dataclass
@@ -260,7 +307,7 @@ class QaGenerationParams:
 > ⚠️ **`use_celery=True` にするなら Celery ワーカーが起動していること。**
 > 落ちているとパイプラインが例外を投げ、runner が error イベントへ変換する。
 
-### 4.3 `RegisterParams`
+### 4.4 `RegisterParams`
 
 ```python
 @dataclass
@@ -285,7 +332,7 @@ class RegisterParams:
 > 📝 **`provider="gemini"` は正しい。** Embedding は Gemini（`gemini-embedding-001`・3072 次元）で、
 > LLM 用途（Anthropic）とは別系統（CLAUDE.md §3 のプロバイダ方針）。
 
-### 4.4 `DeleteParams`
+### 4.5 `DeleteParams`
 
 ```python
 @dataclass
@@ -439,6 +486,7 @@ register_runner(DeleteParams,   _delete_runner,   "delete")
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 1.3 | **§4.1「使用例」を新設**（2026-09-15）。ドキュメント規約 `a_class_method_md_format.md` §6.1 が IPO 詳細セクションの冒頭に必須としている代表ワークフローが欠落していた。パラメータとステップ定義（confirm ステップの有無が破壊性を表す）、ジョブとしての起動の 2 本を追加し、**実行して出力を確認した**（外部依存が要る例はその旨を明記）。旧 §4.1〜§4.4 は §4.2〜§4.5 へ繰り下げ |
 | 1.0 | 初版作成。`backend/app/core/data_jobs.py`（547 行）の全公開要素を IPO 形式で記述。3 種のステップ定義、`jobs.py` に手を入れず `register_runner` で追加する方式、既存 3 パッケージを無改修のまま `capture_logs()` で進捗を出す方式、CONFIRM の要否（削除は常に／登録は `recreate=True` のときだけ）とその理由、`provider="gemini"` が Embedding 用途として正しいことを実コードのコメントから起こして記載 |
 | 1.1 | **Q/A 生成を追加**（`QaGenerationParams` / `_qa_runner` / `QA_STEP_IDS`）。runner は 4 種になった。出力先の既定を `qa_output` 直下にした理由（`list_input_files()` が非再帰）、入力検証を ① で完結させる理由、0 件生成を error にする理由を追記。§2・§4・§5 の節番号を繰り下げ |
 | 1.2 | `_chunking_runner` が `ChunkingAbortedError` を専用に捕捉するようになったことを追記。LLM が連続で失敗したとき、機械的分割へフォールバックして「成功」で終わらせないための中断（回帰は `test_chunking_abort.py`） |

@@ -1,6 +1,6 @@
 # api/data.py - データ準備ジョブ API ドキュメント
 
-**Version 1.1** | 最終更新: 2026-09-12
+**Version 1.2** | 最終更新: 2026-09-12
 
 > **参考ドキュメント**
 > - [`backend/docs/core_data_jobs.md`](./core_data_jobs.md) — 各ジョブの runner 実装
@@ -15,6 +15,7 @@
 - [1. アーキテクチャ構成図](#1-アーキテクチャ構成図)
 - [2. エンドポイント一覧](#2-エンドポイント一覧)
 - [3. エンドポイント IPO 詳細](#3-エンドポイント-ipo-詳細)
+  - [使用例](#31-使用例)
 - [4. 設定・定数](#4-設定定数)
 - [5. 使用例](#5-使用例)
 - [6. 変更履歴](#6-変更履歴)
@@ -134,7 +135,63 @@ style EXT fill:#1a1a1a,stroke:#fff,color:#fff
 
 ## 3. エンドポイント IPO 詳細
 
-### 3.1 `run_chunking`
+### 3.1 使用例
+
+#### 3.1.1 基本的なワークフロー（入力ファイルの確認 → チャンク化）
+
+> 📌 **`TestClient` を使うとサーバを起動せずに試せる**（実 API キー・Qdrant 不要の範囲）。
+> 実サーバへ投げるなら `./run_dev.sh` の後に `curl http://localhost:8000/...`。
+
+```python
+from fastapi.testclient import TestClient
+from backend.app.main import app
+
+c = TestClient(app)
+
+# 1. 入力候補を見る（許可ディレクトリの外は列挙も取得もできない）
+print(c.get("/api/files").json())
+
+# 2. チャンク化ジョブを起動する（202 + job_id）
+r = c.post("/api/chunking/run", json={"input_file": "OUTPUT/cc_news_1per.csv"})
+job_id = r.json()["job_id"]
+
+# 3. 進捗を SSE で購読し、4. 結果を取る
+#    GET /api/data/stream/{job_id} → GET /api/data/result/{job_id}
+
+# 出力例（入力ディレクトリが空の環境で実測）:
+# {'dir': 'OUTPUT', 'allowed_dirs': ['OUTPUT', 'output_chunked', 'qa_output', 'datasets'], 'files': []}
+```
+
+> ⚠️ **`allowed_dirs` の外は弾かれる。** パスはホワイトリストで検証しており、
+> `../` を含む指定は `PathNotAllowedError` になる（`services/data_pipeline_service.py`）。
+
+#### 3.1.2 破壊的操作は CONFIRM を通る
+
+削除は常に、登録は `recreate=True` のときだけ承認待ちになる。
+
+```python
+from fastapi.testclient import TestClient
+from backend.app.main import app
+
+c = TestClient(app)
+
+# 1. 削除ジョブを起動する
+r = c.post("/api/qdrant/delete", json={"collections": ["demo_anthropic"]})
+job_id = r.json()["job_id"]
+
+# 2. SSE に intervention イベントが流れるので、intervention_id を取り承認する
+c.post(f"/api/data/confirm/{job_id}",
+       json={"intervention_id": "...", "approve": True})
+
+# 3. 承認しなければ削除は実行されない（タイムアウトは安全側＝実行しない）
+print(c.get("/api/data/result/unknown").status_code)
+
+# 出力例:
+# 404
+```
+
+
+### 3.2 `run_chunking`
 
 ```python
 @router.post("/chunking/run", response_model=QueryAccepted, status_code=202)
@@ -151,7 +208,7 @@ def run_chunking(request: ChunkingRequest) -> QueryAccepted
 > error イベントを流してジョブが失敗する。400 を返さないのは、**起動と検証の責務を
 > runner に寄せて 4 種の API を同じ形にするため**。
 
-### 3.2 `generate_qa`
+### 3.3 `generate_qa`
 
 ```python
 @router.post("/qa/generate", response_model=QueryAccepted, status_code=202)
@@ -172,7 +229,7 @@ def generate_qa(request: QaGenerationRequest) -> QueryAccepted
 > 落ちている場合はジョブが error イベントで失敗する。起動時に弾かないのは、
 > ワーカーの生死が起動から実行までの間に変わりうるため（実行時に確かめる）。
 
-### 3.3 `register_collection`
+### 3.4 `register_collection`
 
 ```python
 @router.post("/qdrant/register", response_model=QueryAccepted, status_code=202)
@@ -190,7 +247,7 @@ def register_collection(request: RegisterRequest) -> QueryAccepted
 
 > 📝 **入力は「既に作られた Q/A CSV」である。** Q/A 生成そのものは UI に無く CLI のみ。
 
-### 3.4 `delete_collections`
+### 3.5 `delete_collections`
 
 ```python
 @router.post("/qdrant/delete", response_model=QueryAccepted, status_code=202)
@@ -207,7 +264,7 @@ def delete_collections(request: DeleteCollectionsRequest) -> QueryAccepted
 > 承認を経ずに消える経路を作らないため。削除は不可逆なので、
 > **必ず intervention → 承認 → 実行**を通す。
 
-### 3.5 `stream_events`
+### 3.6 `stream_events`
 
 ```python
 @router.get("/data/stream/{job_id}")
@@ -227,7 +284,7 @@ def stream_events(job_id: str) -> StreamingResponse
 > 📝 `X-Accel-Buffering: no` は nginx 等のリバースプロキシがバッファリングして
 > SSE が届かなくなるのを防ぐため。
 
-### 3.6 `confirm_intervention`
+### 3.7 `confirm_intervention`
 
 ```python
 @router.post("/data/confirm/{job_id}", response_model=ConfirmResponse)
@@ -242,7 +299,7 @@ def confirm_intervention(job_id: str, request: ConfirmRequest) -> ConfirmRespons
 
 > ⚠️ **拒否・タイムアウトの場合、削除も再作成も実行されない**（安全側）。
 
-### 3.7 `get_result`
+### 3.8 `get_result`
 
 ```python
 @router.get("/data/result/{job_id}", response_model=DataJobStatusResponse)
@@ -296,5 +353,6 @@ curl http://localhost:8000/api/data/result/<job_id>
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 1.2 | **§3.1「使用例」を新設**（2026-09-15）。ドキュメント規約 `a_class_method_md_format.md` §6.1 が IPO 詳細セクションの冒頭に必須としている代表ワークフローが欠落していた。入力候補の確認 → チャンク化ジョブ起動、破壊的操作の CONFIRM 経路の 2 本を追加し、**実行して出力を確認した**（外部依存が要る例はその旨を明記）。旧 §3.1〜§3.7 は §3.2〜§3.8 へ繰り下げ |
 | 1.0 | 初版作成。`backend/app/api/data.py`（160 行）の 6 エンドポイントを IPO 形式で記述。3 種のジョブと CONFIRM の要否、SSE / HITL を共通エンドポイントにまとめた理由、`DELETE` メソッドを使わない理由、入力検証を runner に寄せた理由を実コードのコメントから起こして記載 |
 | 1.1 | **`POST /api/qa/generate` を追加**（`QaGenerationRequest` → `QaGenerationParams`）。ジョブは 4 種になり、SSE / HITL の共通エンドポイントもそのまま 4 種で共有する。§3 の節番号を繰り下げ |

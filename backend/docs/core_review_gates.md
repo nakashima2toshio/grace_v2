@@ -1,6 +1,6 @@
 # core/review_gates.py - 文書レビューの判定・抑止ロジック ドキュメント
 
-**Version 1.1** | 最終更新: 2026-09-04
+**Version 1.2** | 最終更新: 2026-09-04
 
 ---
 
@@ -11,6 +11,7 @@
 3. [モジュール構成図](#2-モジュール構成図)
 4. [クラス・関数一覧表](#3-クラス関数一覧表)
 5. [クラス・関数 IPO詳細](#4-クラス関数-ipo詳細)
+   - [使用例](#41-使用例)
 6. [設定・定数](#5-設定定数)
 7. [使用例](#6-使用例)
 8. [エクスポート](#7-エクスポート)
@@ -270,7 +271,75 @@ style PUREFN fill:#1a1a1a,stroke:#fff,color:#fff
 
 ## 4. クラス・関数 IPO詳細
 
-### 4.1 第1段（候補選択）
+### 4.1 使用例
+
+#### 4.1.1 基本的なワークフロー（指摘ゲート）
+
+`gates._answer_gate` と**同型**だが、値域が違う（`confirmed` / `review_required` / `suppressed`）。
+Support は判定できなければ escalate に倒すが、**Review は指摘を消さない**方針なので
+未検証・根拠ゼロは `review_required` になる。
+
+```python
+from backend.app.core.review_gates import decide_finding_status
+from backend.app.core.rulesets import get_ruleset
+
+rs = get_ruleset("ec_ad")   # notify_th=0.85 / confirm_th=0.6
+
+for rate in (0.92, 0.70, 0.30):
+    print(f"support_rate={rate} -> "
+          f"{decide_finding_status(rate, True, 2, rs.notify_th, rs.confirm_th)}")
+
+# 未検証・根拠ゼロは suppressed にしない
+print(f"未検証: {decide_finding_status(0.0, False, 0, rs.notify_th, rs.confirm_th)}")
+
+# 出力例:
+# support_rate=0.92 -> confirmed
+# support_rate=0.7 -> review_required
+# support_rate=0.3 -> suppressed
+# 未検証: review_required
+```
+
+#### 4.1.2 重大度の調整（根拠が弱い指摘を 1 段下げる）
+
+```python
+from backend.app.core.review_gates import adjust_severity
+from backend.app.core.rulesets import get_ruleset
+
+rs = get_ruleset("ec_ad")
+print(f"th: notify={rs.notify_th} confirm={rs.confirm_th}")
+print(adjust_severity("high", 0.92, rs.notify_th, rs.confirm_th))   # 根拠が強い → 据え置き
+print(adjust_severity("high", 0.70, rs.notify_th, rs.confirm_th))   # 中程度 → 1 段下げる
+
+# 出力例:
+# th: notify=0.85 confirm=0.6
+# high
+# medium
+```
+
+> ⚠️ **`confirm_th` 未満では下げない。** そこは ④' で `suppressed` / 救済の対象になるため、
+> 重大度をいじる段ではない。
+
+#### 4.1.3 誤検知抑止からの救済
+
+```python
+from backend.app.core.review_gates import should_rescue_finding
+
+# 矛盾なし・根拠あり・実質的な指摘 → 救済する
+print(should_rescue_finding("suppressed", False, 2, "最上級表現の根拠が示されていません"))
+
+# 規程と矛盾している → 誤指摘の可能性が高いので救済しない
+print(should_rescue_finding("suppressed", True, 2, "最上級表現の根拠が示されていません"))
+
+# 出力例:
+# True
+# False
+```
+
+> 第 2 段の LLM 判定（`judge`）を渡さない場合は、定型句の照合だけで
+> 「実質的な指摘か」を判断する（`detect_vacuous_finding` の第 1 段）。
+
+
+### 4.2 第1段（候補選択）
 
 #### `select_candidate_rules`
 
@@ -366,7 +435,7 @@ def _brief(exc: Exception, limit: int = 200) -> str
 
 ---
 
-### 4.2 第2段（LLM 判定）
+### 4.3 第2段（LLM 判定）
 
 #### `create_violation_detector`
 
@@ -428,7 +497,7 @@ elif verdict.violates:
 
 ---
 
-### 4.3 重大リスク語の二段判定
+### 4.4 重大リスク語の二段判定
 
 #### `create_mention_classifier`
 
@@ -484,7 +553,7 @@ print(forced, keyword, mention)   # True No.1 claim
 
 ---
 
-### 4.4 誤検知の抑止
+### 4.5 誤検知の抑止
 
 #### `create_vacuous_judge`
 
@@ -535,7 +604,7 @@ def detect_vacuous_finding(
 
 ---
 
-### 4.5 指摘ゲートと救済（純関数）
+### 4.6 指摘ゲートと救済（純関数）
 
 #### `decide_finding_status`
 
@@ -623,7 +692,7 @@ False   # 矛盾あり（誤指摘の可能性が高い）
 
 ---
 
-### 4.6 重大度の確定（純関数）
+### 4.7 重大度の確定（純関数）
 
 #### `adjust_severity`
 
@@ -803,6 +872,7 @@ from backend.app.core.review_gates import (
 
 | バージョン | 日付 | 変更内容 |
 |-----------|------|---------|
+| 1.2 | 2026-09-15 | **§4.1「使用例」を新設**（2026-09-15）。ドキュメント規約 `a_class_method_md_format.md` §6.1 が IPO 詳細セクションの冒頭に必須としている代表ワークフローが欠落していた。指摘ゲート・重大度の調整・誤検知抑止からの救済の 3 本を追加し、**実行して出力を確認した**（外部依存が要る例はその旨を明記）。旧 §4.1〜§4.6 は §4.2〜§4.7 へ繰り下げ |
 | 1.0 | 2026-07-29 | 初版作成（GRACE-Review STEP2・PR #38 に対応） |
 
 ---

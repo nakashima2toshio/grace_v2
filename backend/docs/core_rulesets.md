@@ -1,6 +1,6 @@
 # core/rulesets.py - 文書レビューのルールセット定義 ドキュメント
 
-**Version 1.3** | 最終更新: 2026-09-15
+**Version 1.4** | 最終更新: 2026-09-15
 
 ---
 
@@ -11,6 +11,7 @@
 3. [モジュール構成図](#2-モジュール構成図)
 4. [クラス・関数一覧表](#3-クラス関数一覧表)
 5. [クラス・関数 IPO詳細](#4-クラス関数-ipo詳細)
+   - [使用例](#41-使用例)
 6. [設定・定数](#5-設定定数)
 7. [使用例](#6-使用例)
 8. [エクスポート](#7-エクスポート)
@@ -242,7 +243,69 @@ style REG fill:#1a1a1a,stroke:#fff,color:#fff
 
 ## 4. クラス・関数 IPO詳細
 
-### 4.1 RuleItem クラス
+### 4.1 使用例
+
+#### 4.1.1 基本的なワークフロー（ルールセットの解決）
+
+```python
+from backend.app.core.rulesets import get_ruleset
+
+# 1. ruleset ID から解決する（未知の ID は None。S1 はそれを「適用なし」として扱う）
+rs = get_ruleset("ec_ad")
+
+# 2. S1 が読むのはこの 3 種（ルール本体・検索スコープ・常時チェックの本数）
+print(f"{rs.name}: {len(rs.rules)} ルール / 常時チェック {len(rs.always_check_rules)} 件")
+print(f"検索スコープ: {rs.collections}")
+print(f"未知の ID: {get_ruleset('unknown')}")
+
+# 出力例:
+# EC広告表示: 23 ルール / 常時チェック 7 件
+# 検索スコープ: ['ec_ad_rules_anthropic', 'ec_policy_anthropic']
+# 未知の ID: None
+```
+
+#### 4.1.2 法令別の内訳を数える
+
+```python
+import collections
+from backend.app.core.rulesets import get_ruleset
+
+rs = get_ruleset("ec_ad")
+for law, n in collections.Counter(r.law for r in rs.rules).items():
+    print(f"{law}: {n} 件")
+
+# 出力例:
+# 景品表示法: 12 件
+# 医薬品医療機器等法: 4 件
+# 特定商取引法: 6 件
+# 社内規程: 1 件
+```
+
+> ⚠️ **件数を文書へ書くときは、この方法で数える。** 過去に `RuleSet` へルールを足した際、
+> 本書 §5.4 の一覧と `review_spec.md` の表が 21 件のまま取り残された
+> （`backend/docs/README.md` §1 問題 #7・#8）。
+
+#### 4.1.3 1 ルールが ②〜④ へ供給するもの
+
+```python
+from backend.app.core.rulesets import get_ruleset
+
+rule = get_ruleset("ec_ad").rule_by_id("keihyo-01")
+
+print(f"{rule.rule_id} [{rule.severity_default}] {rule.title}（{rule.law} {rule.article}）")
+print(f"第1段の語: {rule.keywords[:5]}")           # ③ Detect の候補検出
+print(f"② の検索クエリ: {rule.retrieval_query()[:24]}…")   # ② Retrieve
+print(f"④ の根拠フォールバック: {rule.citation()[:24]}…")   # ④ Ground（規程未登録時）
+
+# 出力例:
+# keihyo-01 [high] 優良誤認表示（景品表示法 第5条第1号）
+# 第1段の語: ['最高', '最強', '世界初', '日本初', '唯一']
+# ② の検索クエリ: 優良誤認表示 商品・サービスの品質、規格その他の…
+# ④ の根拠フォールバック: [規程] 景品表示法 第5条第1号（優良誤認表示…
+```
+
+
+### 4.2 RuleItem クラス
 
 検査ルール 1 件。条文の要点（`description`）を自己完結的に持つのは、規程コレクションが
 未登録でも ④ Ground の根拠として使えるようにするため。
@@ -338,7 +401,7 @@ print(rule.citation())
 
 ---
 
-### 4.2 RuleSet クラス
+### 4.3 RuleSet クラス
 
 ルールセット。`review_agent.py` の S1 でこの内容が config へ注入され、以降のステップは
 すべてこの範囲で動く。
@@ -456,7 +519,7 @@ def keyword_rules(self) -> List[RuleItem]
 
 ---
 
-### 4.3 解決関数
+### 4.4 解決関数
 
 #### `get_ruleset`
 
@@ -593,7 +656,7 @@ print(get_ruleset(None))           # None
 
 > 📝 `policy-01` だけは**法令違反ではなく社内整合性**の指摘で、`law` が `社内規程`・`article` が `—` になる。
 > ② Retrieve も既定と違い、`evidence_query` と `evidence_collections`（`ec_policy_anthropic`）で
-> 上書きしている（理由は §4.1 の注記）。
+> 上書きしている（理由は §4.2 の注記）。
 
 ---
 
@@ -673,6 +736,7 @@ RULESETS[FIN_AD.id] = FIN_AD
 
 | バージョン | 日付 | 変更内容 |
 |-----------|------|---------|
+| 1.4 | 2026-09-15 | **§4.1「使用例」を新設**（2026-09-15）。ドキュメント規約 `a_class_method_md_format.md` §6.1 が IPO 詳細セクションの冒頭に必須としている代表ワークフローが欠落していた。ルールセットの解決、法令別の件数の数え方、1 ルールが ②〜④ へ供給するものの 3 本を追加し、**実行して出力を確認した**（外部依存が要る例はその旨を明記）。旧 §4.1〜§4.3 は §4.2〜§4.4 へ繰り下げ |
 | 1.3 | 2026-09-15 | §4.2 `rule_by_id` の Process にあった「21 件程度」を **23 件**へ是正。v1.2 で §5.4 の表は 23 件に直したが、**件数を書いている箇所を全部 grep していなかった**ため 1 行取り残していた |
 | 1.2 | 2026-09-15 | **根拠の足切り機構がまるごと未記載だったのを解消**。`RuleSet.evidence_min_score` / `evidence_top_ratio` と `RuleItem.evidence_query` / `evidence_collections` の 4 フィールド、および `DEFAULT_EVIDENCE_MIN_SCORE`（0.70）/ `DEFAULT_EVIDENCE_TOP_RATIO`（0.92）の 2 定数が**フィールド表・定数表のどちらにも無く**、② Retrieve が「関連度の低い規程を根拠として採用しない」ことを本書から読み取れなかった。§5.1 に絶対×相対の 2 段足切りを実装（`review_agent.py` の規程検索）から書き起こし、`policy-01` が検索クエリと検索先を上書きしている理由（ルール自身の自己一致が 0.9380 で居座る）も §4.1 に注記した。あわせて **§5.4 のルール一覧が 21 件のまま**で `yakki-04`（安全性の保証表現）と `policy-01`（表示内容と社内規程の不一致）が抜けていたのを是正（v1.1 で他の箇所は 23 に直したが、この表だけ取り残されていた）。§5.2 の `always_check` も 6 → 7 へ |
 | 1.1 | 2026-09-13 | `ec_ad` のルール数を 21 → 23 に更新（`41e634d`）。`RuleItem.retrieval_query()` を追記（`4e4607d`） |
