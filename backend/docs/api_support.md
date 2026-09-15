@@ -1,6 +1,6 @@
 # api/support.py - サポート問い合わせ API ドキュメント
 
-**Version 1.1** | 最終更新: 2026-08-01
+**Version 1.2** | 最終更新: 2026-08-01
 
 ---
 
@@ -11,6 +11,7 @@
 3. [モジュール構成図](#2-モジュール構成図)
 4. [クラス・関数一覧表](#3-クラス関数一覧表)
 5. [クラス・関数 IPO詳細](#4-クラス関数-ipo詳細)
+   - [使用例](#41-使用例)
 6. [使用例](#5-使用例)
 7. [エクスポート](#6-エクスポート)
 8. [変更履歴](#7-変更履歴)
@@ -174,7 +175,67 @@ style DEPS fill:#1a1a1a,stroke:#fff,color:#fff
 
 ## 4. クラス・関数 IPO詳細
 
-### 4.1 エンドポイント関数
+### 4.1 使用例
+
+#### 4.1.1 基本的なワークフロー（起動 → SSE 購読 → 承認）
+
+> 📌 **`TestClient` を使うとサーバを起動せずに試せる**（実 API キー・Qdrant 不要の範囲）。
+> 実サーバへ投げるなら `./run_dev.sh` の後に `curl http://localhost:8000/...`。
+
+```python
+from fastapi.testclient import TestClient
+from backend.app.main import app
+
+c = TestClient(app)
+
+# 1. ジョブを起動する（202 + job_id / stream_url が返る。結果は返らない）
+r = c.post("/api/support/query", json={"query": "住民票の写しの取り方は？",
+                                        "vertical": "gov"})
+job_id = r.json()["job_id"]
+
+# 2. 進捗を SSE で購読する（seq 0 から全件リプレイされる）
+with c.stream("GET", f"/api/support/stream/{job_id}") as s:
+    for line in s.iter_lines():
+        ...
+
+# 3. intervention イベントが来たら承認を注入する
+c.post(f"/api/support/confirm/{job_id}",
+       json={"intervention_id": "...", "approve": True})
+
+# 4. 最終結果を取る
+print(c.get(f"/api/support/result/{job_id}").json()["result"]["decision"])
+```
+
+> ⚠️ **上のコードだけは実行して出力を確認していない**（実 API キーと Qdrant を要するため）。
+> 以下 4.1.2 は外部依存なしで動き、出力例は実測値である。
+
+#### 4.1.2 エラー応答の確かめ方
+
+```python
+from fastapi.testclient import TestClient
+from backend.app.main import app
+
+c = TestClient(app)
+
+print(c.post("/api/support/query", json={}).status_code)          # query 必須
+print(c.get("/api/support/stream/unknown-id").status_code)          # 未知のジョブ
+print(c.get("/api/support/result/unknown").status_code)
+print(c.post("/api/support/confirm/unknown",
+             json={"intervention_id": "x", "approve": True}).status_code)
+
+# 出力例:
+# 422
+# 404
+# 404
+# 404
+```
+
+> ⚠️ **404 は「ジョブが消えた」ことも意味する。** `JobManager` はインメモリで、
+> 完了したジョブを GC する。フロントは再購読の前に `result` で存在を確かめる
+> （[`core_jobs.md` §4.1.2](./core_jobs.md#41-使用例)）。
+
+
+### 4.2 エンドポイント関数
 
 #### `start_query`
 
@@ -347,6 +408,7 @@ router  # APIRouter(prefix="/api/support", tags=["support"])
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 1.2 | **§4.1「使用例」を新設**（2026-09-15）。ドキュメント規約 `a_class_method_md_format.md` §6.1 が IPO 詳細セクションの冒頭に必須としている代表ワークフローが欠落していた。ジョブ起動 → SSE 購読 → 承認 → 結果取得、エラー応答（422 / 404）の 2 本を追加し、**実行して出力を確認した**（外部依存が要る例はその旨を明記）。旧 §4.1 は §4.2 へ繰り下げ |
 | 1.0 | 初版作成（4 エンドポイント: query / stream(SSE) / confirm / result の IPO ドキュメント） |
 | 1.1 | 2026-08-01 | `start_query` の受け取るフィールドに `identity`（`--identity` 相当）を追加 |
 

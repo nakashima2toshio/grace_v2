@@ -1,6 +1,6 @@
 # core/job_logs.py - ジョブ進捗へのログ転送 ドキュメント
 
-**Version 1.0** | 最終更新: 2026-09-04
+**Version 1.1** | 最終更新: 2026-09-04
 
 > **参考ドキュメント**
 > - [`backend/docs/core_data_jobs.md`](./core_data_jobs.md) — 本モジュールの唯一の利用者
@@ -14,6 +14,7 @@
 - [1. アーキテクチャ構成図](#1-アーキテクチャ構成図)
 - [2. クラス・関数一覧表](#2-クラス関数一覧表)
 - [3. クラス・関数 IPO 詳細](#3-クラス関数-ipo-詳細)
+  - [使用例](#31-使用例)
 - [4. 設定・定数](#4-設定定数)
 - [5. 落とし穴](#5-落とし穴)
 - [6. 使用例](#6-使用例)
@@ -140,7 +141,41 @@ style OUT fill:#1a1a1a,stroke:#fff,color:#fff
 
 ## 3. クラス・関数 IPO 詳細
 
-### 3.1 `JobLogHandler.__init__`
+### 3.1 使用例
+
+#### 3.1.1 基本的なワークフロー（既存パッケージのログを SSE へ流す）
+
+`chunking/` などの既存パッケージは**無改修**のまま、`logging` の出力だけを
+ジョブの進捗イベントへ転送する。これが本モジュールの唯一の役割。
+
+```python
+import logging
+from backend.app.core.job_logs import capture_logs
+
+events = []
+logger = logging.getLogger("chunking.demo")
+
+# 1. with の中だけ、指定した logger 配下の出力が emit へ転送される
+with capture_logs(events.append, logger_names=["chunking"], step="chunk"):
+    logger.info("チャンク化を開始します")
+    logger.warning("入力が空の行をスキップしました")
+
+# 2. with を抜ければ元の logging に戻る（ハンドラは必ず外れる）
+logger.info("この行は捕捉されない")
+
+for e in events:
+    print(f"{e.type} step={e.step} {e.message}")
+
+# 出力例:
+# log step=chunk チャンク化を開始します
+# log step=chunk 入力が空の行をスキップしました
+```
+
+> ⚠️ **`step` を渡すと、その間のログが UI のどの段に属するかが決まる。**
+> runner はステップの切り替わりで `set_step()` を呼び、ログ行を正しい段へ寄せる。
+
+
+### 3.2 `JobLogHandler.__init__`
 
 ```python
 def __init__(self, emit_fn: EmitFn, step: Optional[str] = None,
@@ -157,7 +192,7 @@ def __init__(self, emit_fn: EmitFn, step: Optional[str] = None,
 > `logging.Handler.emit(record)` を実装するのが本体なので、
 > **メソッド名 `emit` と衝突する**。
 
-### 3.2 `JobLogHandler.emit`
+### 3.3 `JobLogHandler.emit`
 
 ```python
 def emit(self, record: logging.LogRecord) -> None
@@ -172,7 +207,7 @@ def emit(self, record: logging.LogRecord) -> None
 > ⚠️ **転送中の例外は握りつぶす。** `logging` の慣行どおり `handleError()` に委ね、
 > **ログ出力の失敗で本処理を落とさない。** 購読者側の失敗も同様に波及させない。
 
-### 3.3 `JobLogHandler.set_step`
+### 3.4 `JobLogHandler.set_step`
 
 ```python
 def set_step(self, step: Optional[str]) -> None
@@ -181,7 +216,7 @@ def set_step(self, step: Optional[str]) -> None
 同じジョブ内で段階が進んだときに、転送先のステップ ID を切り替える。
 `capture_logs()` が `yield` するハンドラに対して呼ぶ。
 
-### 3.4 `_acquire_level` / `_release_level`
+### 3.5 `_acquire_level` / `_release_level`
 
 ```python
 def _acquire_level(logger: logging.Logger, level: int) -> None
@@ -196,7 +231,7 @@ def _release_level(logger: logging.Logger) -> None
 
 > ⚠️ **どちらも `_level_lock` の中で呼ぶ。** `capture_logs()` が `with _level_lock:` で囲っている。
 
-### 3.5 `capture_logs`
+### 3.6 `capture_logs`
 
 ```python
 @contextmanager
@@ -295,4 +330,5 @@ with capture_logs(emit, step="embed") as handler:
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 1.1 | **§3.1「使用例」を新設**（2026-09-15）。ドキュメント規約 `a_class_method_md_format.md` §6.1 が IPO 詳細セクションの冒頭に必須としている代表ワークフローが欠落していた。既存パッケージの logging を進捗イベントへ転送する 1 本を追加し、**実行して出力を確認した**（外部依存が要る例はその旨を明記）。旧 §3.1〜§3.5 は §3.2〜§3.6 へ繰り下げ |
 | 1.0 | 初版作成。`backend/app/core/job_logs.py`（193 行）の全公開要素を IPO 形式で記述。既存 3 パッケージを無改修のまま進捗を SSE へ流すという設計意図、スレッドで絞らないと同時実行ジョブのログが混ざること、level の復元に参照カウントが要る理由（素朴な実装では全ジョブ終了後もロガーが INFO のまま残る）を実コードのコメントから起こして記載 |

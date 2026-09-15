@@ -1,6 +1,6 @@
 # core/gates.py - 回答ゲート・判定ロジック ドキュメント
 
-**Version 1.3** | 最終更新: 2026-09-15
+**Version 1.4** | 最終更新: 2026-09-15
 
 ---
 
@@ -11,6 +11,7 @@
 3. [モジュール構成図](#2-モジュール構成図)
 4. [クラス・関数一覧表](#3-クラス関数一覧表)
 5. [クラス・関数 IPO詳細](#4-クラス関数-ipo詳細)
+   - [使用例](#41-使用例)
 6. [設定・定数](#5-設定定数)
    - [NO_INFO_MARKERS](#51-no_info_markers)
    - [判定できなかったときの種別](#52-判定できなかったときの種別)
@@ -266,7 +267,83 @@ style CITE fill:#1a1a1a,stroke:#fff,color:#fff
 
 ## 4. クラス・関数 IPO詳細
 
-### 4.1 ファクトリ関数
+### 4.1 使用例
+
+#### 4.1.1 基本的なワークフロー（回答ゲート）
+
+```python
+from backend.app.core.gates import _answer_gate
+from backend.app.core.verticals import PROFILES
+
+# 1. 業界プロファイルからしきい値を取る（gov は既定より厳しい 0.8 / 0.5）
+profile = PROFILES["gov"]
+
+# 2. ③ Groundedness の結果（支持率・検証成立・出典数）をゲートへ通す
+decision, warning = _answer_gate(
+    support_rate=0.72, verified=True, citation_count=2,
+    notify_th=profile.notify_th, confirm_th=profile.confirm_th,
+)
+print(f"decision={decision} warning={warning}")
+
+# 3. 同じ入力でも、しきい値が既定（0.7 / 0.4）なら「高信頼」になる
+decision, warning = _answer_gate(0.72, True, 2, 0.7, 0.4)
+print(f"decision={decision} warning={warning}")
+
+# 出力例:
+# decision=answer warning=True     ← gov: 0.5 <= 0.72 < 0.8 なので未確認の注意つき
+# decision=answer warning=False    ← 既定: 0.72 >= 0.7 なので高信頼
+```
+
+#### 4.1.2 二段判定の第 1 段だけを使う（LLM を呼ばない）
+
+複数質問の検知（0-(A)）とエスカレ語の候補検出（④）は、**第 1 段が純関数**で
+LLM を呼ばない。判定の当たり方を確かめるだけならこれだけで足りる。
+
+```python
+from backend.app.core.gates import looks_like_multi_question, _match_keyword
+from backend.app.core.verticals import PROFILES
+
+# 1. 複数質問の候補検出（接続表現 or 疑問符 2 個以上）
+print(looks_like_multi_question("住民票の写しの取り方は？"))
+print(looks_like_multi_question("住民票の写しの取り方は？ また、手数料はいくらですか？"))
+
+# 2. エスカレ語の候補検出（最初に一致した語を返す）
+print(_match_keyword("固定資産税の減免を個別に判断してほしい", PROFILES["gov"].escalate_keywords))
+print(_match_keyword("住民票の取り方を教えてください", PROFILES["gov"].escalate_keywords))
+
+# 出力例:
+# False
+# True
+# 減免
+# None
+```
+
+> ⚠️ 第 1 段が一致しても**確定ではない**。`_should_force_escalate()` は第 2 段の
+> 意図分類（`question` なら誤検知とみなす）まで通して判断する（§4.3）。
+
+#### 4.1.3 出典の整形
+
+```python
+from types import SimpleNamespace
+from backend.app.core.gates import _collect_citations
+
+# executor が返す step_results（.sources を持つオブジェクト）を想定
+step_results = [
+    SimpleNamespace(sources=["gov_faq_anthropic: 住民票の交付",
+                             "gov_faq_anthropic: 住民票の交付"]),  # 重複
+    SimpleNamespace(sources=["https://www.example.go.jp/juminhyo"]),
+]
+
+for c in _collect_citations(step_results):
+    print(c)
+
+# 出力例:
+# [社内] gov_faq_anthropic: 住民票の交付
+# [Web] https://www.example.go.jp/juminhyo
+```
+
+
+### 4.2 ファクトリ関数
 
 #### `create_intent_classifier`
 
@@ -334,7 +411,7 @@ judge = create_no_info_judge(config)
 verdict = judge(query, answer)  # None は escalate に倒す
 ```
 
-### 4.2 判定（純関数）
+### 4.3 判定（純関数）
 
 #### `_answer_gate`
 
@@ -663,7 +740,7 @@ def _char_bigrams(text: str) -> set
 
 ---
 
-### 4.3 出典整形
+### 4.4 出典整形
 
 #### `_collect_citations`
 
@@ -885,6 +962,7 @@ NO_INFO_MARKERS
 | バージョン | 変更内容 |
 |-----------|---------|
 | 1.0 | 初版作成（回答ゲート・二段判定・救済・出典整形の純関数群と 2 ファクトリの IPO ドキュメント） |
+| 1.4 | **§4.1「使用例」を新設**（2026-09-15）。ドキュメント規約 `a_class_method_md_format.md` §6.1 が IPO 詳細セクション冒頭に必須としている代表ワークフローが欠落していた。回答ゲート（プロファイル別しきい値）・二段判定の第 1 段（LLM 不要）・出典整形の 3 本を追加し、**実行して出力を確認した**。旧 §4.1〜§4.3 は §4.2〜§4.4 へ繰り下げ |
 | 1.3 | **未記載だったモジュール定数 7 件を追加**（2026-09-15）。`JUDGE_UNEXPECTED_OUTPUT` / `JUDGE_EXCEPTION`（§5.2）、`MULTI_QUESTION_MARKERS` / `MULTI_QUESTION_MIN_MARKS` / `MAX_QUESTION_CLUSTERS`（§5.3）、`_SCOPE_PREFIX_RE` / `OUT_OF_SCOPE_ANSWER_MARKERS`（§5.4）。**動作の説明（0-(A) 複数質問検知・担当範囲外の断り）は既にあったが、それを決める定数名と値が書かれていなかった**ため、閾値を調べるのに実装を読む必要があった。あわせて「過剰分解は単一とみなす側へ倒す」「ラベルが 1 行でも欠けたら判定を捨てる」「断りの語は緩く拾ってよい（拾えなくても `ensure_out_of_scope_notice` が追記するので情報は欠けない）」という**安全側の倒し方**を注記した。§5.5 に `INTENT_MODEL` を直接使わない旨（CLAUDE.md §3.1）も追記 |
 | 1.2 | AST 照合で未記載だった 5 件を追加（`judge_model` / `_contradicted_claims` / `_abbreviate_reason` / `_count_question_marks` / `_char_bigrams`）（2026-09-04・`4e4607d`） |
 | 1.1 | 実コード再読による最新化: 未記載だった `_collect_source_texts()`（P-01・groundedness 検証へ出典**本文**を渡す）の IPO を §4.3 に追加し、識別子のみを渡すと全主張が neutral 化して支持率の分母が 0 になる理由を明記。関数一覧・責務表・主要機能一覧・モジュール構成図・エクスポートに反映（純関数 14 → 15） |

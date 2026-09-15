@@ -1,6 +1,6 @@
 # core/jobs.py - ジョブ管理（インメモリ）ドキュメント
 
-**Version 1.3** | 最終更新: 2026-09-12
+**Version 1.4** | 最終更新: 2026-09-12
 
 ---
 
@@ -11,6 +11,7 @@
 3. [モジュール構成図](#2-モジュール構成図)
 4. [クラス・関数一覧表](#3-クラス関数一覧表)
 5. [クラス・関数 IPO詳細](#4-クラス関数-ipo詳細)
+   - [使用例](#41-使用例)
 6. [設定・定数](#5-設定定数)
 7. [使用例](#6-使用例)
 8. [エクスポート](#7-エクスポート)
@@ -294,7 +295,75 @@ def done_event(job: "Job") -> Dict[str, Any]
 
 ## 4. クラス・関数 IPO詳細
 
-### 4.1 JobParams クラス
+### 4.1 使用例
+
+#### 4.1.1 基本的なワークフロー（独自 runner を登録して実行する）
+
+ジョブ基盤は Support / Review / データ準備で共用する。`params` の**型**から runner を
+解決するので、新しいジョブ種別は `register_runner()` 1 回で足りる。
+
+```python
+from dataclasses import dataclass
+from backend.app.core.jobs import JobManager, register_runner
+from backend.app.core.support_agent import SupportEvent
+
+# 1. パラメータ型を定義する（dataclass であること）
+@dataclass
+class EchoParams:
+    text: str = ""
+
+# 2. runner は (params, emit, confirm) -> 結果 dict の関数
+def echo_runner(params, emit, confirm):
+    emit(SupportEvent(type="step", step="echo", status="started", title="エコー"))
+    emit(SupportEvent(type="step", step="echo", status="finished",
+                      data={"len": len(params.text)}))
+    return {"echoed": params.text}
+
+# 3. params の型と runner を結びつける
+register_runner(EchoParams, echo_runner, kind="echo")
+
+# 4. 起動すると別スレッドで走る
+mgr = JobManager()
+job = mgr.start(EchoParams(text="hello"))
+print(f"kind={job.kind} status={job.status}")
+
+# 5. SSE と同じイベント列を購読する（先頭からリプレイされる）
+for ev in job.stream_events():
+    if ev is None:
+        continue
+    print(ev.get("type"), ev.get("step"), ev.get("status"))
+    if ev.get("type") == "done":
+        break
+
+print("result:", mgr.get(job.job_id).result)
+
+# 出力例:
+# kind=echo status=running
+# step echo started
+# step echo finished
+# result: {'echoed': 'hello'}
+```
+
+> ⚠️ **`emit` へ渡すのは `SupportEvent`（dataclass）であって dict ではない。**
+> `Job.emit()` が `asdict()` を通すため、dict を渡すと `TypeError` になる。
+
+#### 4.1.2 イベントの再購読（タブ離脱後の復元）
+
+`stream_events()` は**先頭からリプレイする**ので、購読が途切れても進捗を失わない。
+フロントの再接続（`GET /api/*/stream/{job_id}` の貼り直し）はこの性質に依存している。
+
+```python
+from backend.app.core.jobs import JobManager
+
+mgr = JobManager()
+job = mgr.get(job_id)          # 消えていれば None（API は 404 を返す）
+if job is not None:
+    for ev in job.stream_events():   # seq 0 から全件流れてくる
+        ...
+```
+
+
+### 4.2 JobParams クラス
 
 **概要**: `POST /api/support/query` のパラメータ（CLI 引数と 1:1）。
 
@@ -341,7 +410,7 @@ JobParams(query="返品したい", vertical="ec", dry_run=True)
 job = job_manager.start(JobParams(query="返品したい", vertical="ec"))
 ```
 
-### 4.2 SupportJob クラス
+### 4.3 SupportJob クラス
 
 実行中/完了のジョブ。イベント列と最終結果を保持し、`threading.Condition` で購読者を通知する。
 
@@ -460,7 +529,7 @@ False  # running
 if job.done: ...
 ```
 
-### 4.3 JobManager クラス
+### 4.4 JobManager クラス
 
 ジョブの生成・参照・HITL 応答の注入を担う（インメモリ・スレッドセーフ）。
 
@@ -655,6 +724,7 @@ register_runner, done_event, job_manager, MAX_FINISHED_JOBS
 
 | バージョン | 日付 | 変更内容 |
 |-----------|------|---------|
+| 1.4 | 2026-09-15 | **§4.1「使用例」を新設**（2026-09-15）。ドキュメント規約 `a_class_method_md_format.md` §6.1 が IPO 詳細セクションの冒頭に必須としている代表ワークフローが欠落していた。独自 runner の登録と実行（`register_runner` → `start` → `stream_events`）、再購読の 2 本を追加し、**実行して出力を確認した**（外部依存が要る例はその旨を明記）。旧 §4.1〜§4.3 は §4.2〜§4.4 へ繰り下げ |
 | 1.0 | 2026-07-15 | 初版作成（JobParams / SupportJob / JobManager / job_manager の IPO ドキュメント） |
 | 1.1 | 2026-07-29 | runner 注入方式へ汎用化（PR #39）。`SupportJob` → `Job` へ改名し後方互換エイリアスを追加。`register_runner` / `_resolve_runner` / `_support_runner` / `JobRunner` を追記 |
 | 1.2 | 2026-08-01 | `JobParams` に `identity` を追加し、`_support_runner` の `identity=None` 直書きを `params.identity` の素通しへ変更。画面から本人確認の識別子を渡せるようにしたもので、回帰は `test_jobs_generic.py::test_identity_is_passed_through_to_core` で固定 |

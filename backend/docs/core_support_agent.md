@@ -1,6 +1,6 @@
 # core/support_agent.py - GRACE-Support コアサービス ドキュメント
 
-**Version 1.2** | 最終更新: 2026-09-04
+**Version 1.3** | 最終更新: 2026-09-04
 
 ---
 
@@ -11,6 +11,7 @@
 3. [モジュール構成図](#2-モジュール構成図)
 4. [クラス・関数一覧表](#3-クラス関数一覧表)
 5. [クラス・関数 IPO詳細](#4-クラス関数-ipo詳細)
+   - [使用例](#41-使用例)
 6. [設定・定数](#5-設定定数)
 7. [使用例](#6-使用例)
 8. [エクスポート](#7-エクスポート)
@@ -237,7 +238,72 @@ class QuestionCluster:
 
 ## 4. クラス・関数 IPO詳細
 
-### 4.1 SupportEvent クラス
+### 4.1 使用例
+
+#### 4.1.1 基本的なワークフロー（パイプラインの実行）
+
+`run_support_agent_core()` は **Web API と CLI が共用する唯一の入口**。
+`emit` / `confirm` を渡さなければ通知なし・自動承認で動く（既定 `dry_run=True` なので安全）。
+
+```python
+from backend.app.core.support_agent import run_support_agent_core
+
+# 1. 最小の呼び出し（emit / confirm 省略 = 通知なし・自動承認）
+result = run_support_agent_core("住民票の写しの取り方は？", vertical="gov")
+
+# 2. 結果は SupportResult 1 個に集約される
+print(result.decision, result.groundedness, result.vertical)
+print(result.citations)
+
+# 出力例（実行には ANTHROPIC_API_KEY / GOOGLE_API_KEY と Qdrant が要る）:
+# answer 0.83 gov
+# ['[社内] gov_faq_anthropic: 住民票の交付']
+```
+
+> ⚠️ **上のコードだけは実行して出力を確認していない**（実 API キーと Qdrant を要するため）。
+> 以下 4.1.2 / 4.1.3 は外部依存なしで動き、出力例は実測値である。
+
+#### 4.1.2 ステップ ID と実行順
+
+```python
+from backend.app.core.support_agent import STEP_IDS
+
+print(STEP_IDS)
+
+# 出力例:
+# ('analyze', 'profile', 'plan', 'execute', 'confidence', 'gate', 'web', 'no_info', 'action')
+```
+
+> ⚠️ **このタプルが実行順である。** 呼称（0-(A) / ①〜⑥ / ④'）とは並びが違い、
+> **④' `no_info` は ⑤ `web` の後**に来る（[`support_flow.md` §4](./support_flow.md) の対応表）。
+
+#### 4.1.3 結果の JSON 化（API レスポンス・`result` イベント）
+
+```python
+from backend.app.core.support_agent import SupportResult, result_to_dict
+
+r = SupportResult(
+    answer="住民票の写しは窓口かコンビニ交付で取得できます。",
+    citations=["[社内] gov_faq_anthropic: 住民票の交付"],
+    groundedness=0.83, groundedness_decided=6,
+    decision="answer", vertical="gov",
+)
+d = result_to_dict(r)
+
+print(f"decision={d['decision']} groundedness={d['groundedness']} vertical={d['vertical']}")
+print(f"multi-question 既定: is_multi_question={d['is_multi_question']} "
+      f"deferred={d['deferred_questions']}")
+
+# 出力例:
+# decision=answer groundedness=0.83 vertical=gov
+# multi-question 既定: is_multi_question=False deferred=[]
+```
+
+> 0-(A) 由来の 7 フィールドは**すべて optional**で、単一質問では既定値のまま返る。
+> 既存のフロント・API クライアントの挙動は変わらない（[`support_spec.md` §5.4](./support_spec.md#54-返すものsupportresult)）。
+
+
+### 4.2 SupportEvent クラス
 
 パイプラインの進捗イベント。`emit` 経由で呼び出し側（CLI=print / Web=SSE）へ渡る。
 
@@ -281,7 +347,7 @@ SupportEvent(type="step", step="plan", status="started", title="① Plan（plann
 emit(SupportEvent(type="log", step="gate", message="[gate] answer（未確認注記）"))
 ```
 
-### 4.2 SupportResult クラス
+### 4.3 SupportResult クラス
 
 サポート回答の結果。API レスポンス（`SupportResultModel`）へ JSON 化される。
 
@@ -356,7 +422,7 @@ print(result.decision, result.groundedness)
 # answer 0.83
 ```
 
-### 4.3 パイプライン関数
+### 4.4 パイプライン関数
 
 #### `run_support_agent_core`
 
@@ -414,7 +480,7 @@ result = run_support_agent_core(
 )
 ```
 
-#### 4.3.1 リクエスト単位の設定分離とプロファイル配線（S1 の内部）
+#### 4.4.1 リクエスト単位の設定分離とプロファイル配線（S1 の内部）
 
 `run_support_agent_core` が**冒頭で必ず行う**設定の扱い。ここを誤ると並行実行時に
 リクエスト同士が干渉するため、パイプライン本体より先に押さえる必要がある。
@@ -459,9 +525,9 @@ verify_sources = internal_source_texts or [_citation_text(c) for c in internal_c
 
 識別子（ファイル名）だけを渡すとどの主張も裏付けられず全 neutral になり、
 `support_rate = supported / (supported + contradicted)` の**分母が 0** になる
-（詳細は [`core_gates.md`](./core_gates.md) §4.3 `_collect_source_texts`）。
+（詳細は [`core_gates.md`](./core_gates.md) §4.4 `_collect_source_texts`）。
 
-### 4.4 アクション関数
+### 4.5 アクション関数
 
 #### `_perform_action`
 
@@ -602,6 +668,7 @@ ConfirmFn     # type alias: Callable[[InterventionRequest], InterventionResponse
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 1.3 | **§4.1「使用例」を新設**（2026-09-15）。ドキュメント規約 `a_class_method_md_format.md` §6.1 が IPO 詳細セクションの冒頭に必須としている代表ワークフローが欠落していた。パイプラインの実行、ステップ ID と実行順、結果の JSON 化の 3 本を追加し、**実行して出力を確認した**（外部依存が要る例はその旨を明記）。旧 §4.1〜§4.4 は §4.2〜§4.5 へ繰り下げ |
 | 1.0 | 初版作成（イベント発行型コアパイプライン・SupportEvent/SupportResult・_perform_action の IPO ドキュメント） |
 | 1.1 | 実コード再読による最新化: §4.3.1「リクエスト単位の設定分離とプロファイル配線」を新設し、P-08（`copy.deepcopy(get_config())` による並行実行時の相互汚染防止）・W-2（`build_prompt_addendum()` で `SCOPE_POLICY` を reasoning へ注入）・W-1（`preferred_domains` は除外ではなく加点）・P-01（groundedness へ出典**本文**を渡す／識別子のみだと全 neutral 化して支持率の分母が 0 になる）を追記。`run_support_agent_core` の Process 欄と責務表・主な責務に反映 |
 
