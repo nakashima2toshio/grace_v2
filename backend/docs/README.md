@@ -1,6 +1,6 @@
 # backend/docs 棚卸し
 
-**Version 1.4** | 最終更新: 2026-09-14
+**Version 1.5** | 最終更新: 2026-09-15
 
 `backend/`（FastAPI + パイプライン中核）のドキュメント一覧と、実装への追随状況・
 欠落・残タスク・検証手順をまとめる。
@@ -34,8 +34,10 @@
 | 1 | `backend/app/api/data.py` / `api/qdrant.py` / `core/data_jobs.py` / `core/job_logs.py` に対応する文書が無い | ✅ 解消（4 件を新規作成。§3） |
 | 2 | GRACE-Support の設計 3 点（`agent_support_example.md` / `_flow.md` / `_verticals.md`）が `grace/docs/` に置かれたまま。実装は `backend/app/core/support_agent.py` にある | ✅ 解消（`backend/docs/` へ移設。§2.3） |
 | 3 | `review_rules_collection.md` にバージョンヘッダーが無い | ⏳ 未対応（§6 の #4） |
-| 4 | 文書に未記載の公開シンボルが 24 件あった | ✅ 解消（**17 モジュールすべてで AST 網羅 100%**。§4） |
+| 4 | 文書に未記載の公開シンボルが 24 件あった | ✅ 解消（2026-09-04）。ただし**当時の「100%」は不正確**だった → #6 |
 | 5 | `confidence_flow_grace_vs_backend.md` の単数形パス `grace/doc/` | ✅ 解消済み（残る 1 件は「訂正した」旨の**変更履歴の記述**であり違反ではない） |
+| 6 | §4.1 が「17 モジュールすべてで 100%」と記録していたが、**実際には 12 件の未記載**があった。当時の監査コミットへ戻して同じスクリプトを流しても同数で、記録が書かれた時点で不正確だった（シンボル数も `core_gates.md` 40 と実際の 49 が食い違い） | ✅ 解消（2026-09-15。12 件を実装から書き起こして追加し、§4.1 を実測値で作り直した） |
+| 7 | `core_rulesets.md` §5.4「ルール一覧」が 21 件のままで `yakki-04` / `policy-01` が抜けていた（`41e634d` で他の箇所は 23 に直したが、この表だけ取り残された）。**AST 照合では捕まらない内容の誤り** | ✅ 解消（2026-09-15。23 件へ是正し `always_check` も 6 → 7 へ） |
 
 ---
 
@@ -43,29 +45,31 @@
 
 ### 2.1 API 層（`backend/app/api/`）
 
+> 行数・Ver は 2026-09-15 の実測値（`wc -l` と各文書の Version ヘッダー）。
+
 | 文書 | 対象 | 行数 | Ver | 重要度 |
 |---|---|---:|---|---|
-| `api_support.md` | `api/support.py` — 質問応答（SSE でステップ進捗を配信） | 376 | 1.1 | ★★★ |
-| `api_review.md` | `api/review.py` — GRACE-Review | 494 | 1.0 | ★★ |
+| `api_support.md` | `api/support.py` — 質問応答（SSE でステップ進捗を配信） | 382 | 1.1 | ★★★ |
+| `api_review.md` | `api/review.py` — GRACE-Review | 500 | 1.0 | ★★ |
 | `api_meta.md` | `api/meta.py` — メタ情報・ヘルスチェック | 364 | 1.1 | ★★ |
 | `main.md` | `backend/app/main.py` — アプリ組み立て・ルーター登録 | 541 | 1.2 | ★★ |
-| `schemas.md` | `backend/app/schemas.py` — API スキーマ | 818 | 1.2 | ★★★ |
-| `api_data.md` | `api/data.py` — データ準備ジョブ（チャンク化 / 登録 / 削除）の起動・SSE・HITL | 283 | 1.0 | ★★ |
+| `schemas.md` | `backend/app/schemas.py` — API スキーマ | 1054 | 1.5 | ★★★ |
+| `api_data.md` | `api/data.py` — データ準備ジョブ（チャンク化 / 登録 / 削除）の起動・SSE・HITL | 300 | 1.1 | ★★ |
 | `api_qdrant.md` | `api/qdrant.py` — Qdrant 参照 API（読み取り専用） | 269 | 1.0 | ★★ |
 
 ### 2.2 パイプライン中核（`backend/app/core/`）
 
 | 文書 | 対象 | 行数 | Ver | 重要度 |
 |---|---|---:|---|---|
-| `core_support_agent.md` | `core/support_agent.py` — `run_support_agent_core`（Web/CLI 共通の 1 関数） | 637 | 1.1 | ★★★ |
-| `core_gates.md` | `core/gates.py` — 質問分析・回答ゲート・④' 判定 | 786 | 1.1 | ★★★ |
-| `core_verticals.md` | `core/verticals.py` — `VerticalProfile`（gov / saas / ec） | 485 | 1.1 | ★★ |
-| `core_jobs.md` | `core/jobs.py` — ジョブ管理 | 668 | 1.2 | ★★ |
+| `core_support_agent.md` | `core/support_agent.py` — `run_support_agent_core`（Web/CLI 共通の 1 関数） | 653 | 1.2 | ★★★ |
+| `core_gates.md` | `core/gates.py` — 質問分析・回答ゲート・④' 判定 | 921 | 1.3 | ★★★ |
+| `core_verticals.md` | `core/verticals.py` — `VerticalProfile`（gov / saas / ec） | 523 | 1.2 | ★★ |
+| `core_jobs.md` | `core/jobs.py` — ジョブ管理 | 705 | 1.3 | ★★ |
 | `core_intervention_bridge.md` | `core/intervention_bridge.py` — HITL の橋渡し | 407 | 1.0 | ★★ |
-| `core_review_agent.md` | `core/review_agent.py` | 738 | 1.0 | ★★ |
-| `core_review_gates.md` | `core/review_gates.py` | 781 | 1.0 | ★★ |
-| `core_rulesets.md` | `core/rulesets.py` | 644 | 1.0 | ★★ |
-| `core_data_jobs.md` | `core/data_jobs.py` — 3 種の runner・ステップ定義・CONFIRM の要否 | 362 | 1.0 | ★★ |
+| `core_review_agent.md` | `core/review_agent.py` | 796 | 1.2 | ★★ |
+| `core_review_gates.md` | `core/review_gates.py` | 833 | 1.1 | ★★ |
+| `core_rulesets.md` | `core/rulesets.py` | 704 | 1.2 | ★★ |
+| `core_data_jobs.md` | `core/data_jobs.py` — 3 種の runner・ステップ定義・CONFIRM の要否 | 444 | 1.2 | ★★ |
 | `core_job_logs.md` | `core/job_logs.py` — 既存パッケージの `logging` を進捗イベントへ転送 | 298 | 1.0 | ★★ |
 
 ### 2.3 フロー・設計文書
@@ -73,12 +77,12 @@
 | 文書 | 内容 | 行数 | Ver | 重要度 |
 |---|---|---:|---|---|
 | `backend_flow.md` | backend 全体の処理フロー | 920 | 1.1 | ★★★ |
-| `review_agent_spec.md` | GRACE-Review の仕様 | 1081 | 1.1 | ★★ |
+| `review_agent_spec.md` | GRACE-Review の仕様 | 1082 | 1.1 | ★★ |
 | `review_flow.md` | GRACE-Review の処理フロー | 661 | 1.0 | ★★ |
 | `review_rules_collection.md` | レビュー規則の収集 | 245 | — | ★ |
 | `react_processing_flow.md` | ReAct の処理フロー | 656 | 1.0 | ★★ |
 | `confidence_flow_grace_vs_backend.md` | `grace/` 側と backend 側の信頼度フロー比較 | 239 | 1.1 | ★★ |
-| `data_pipeline.md` | チャンク化・Q/A 生成・Qdrant 登録 | 523 | 1.1 | ★★ |
+| `data_pipeline.md` | チャンク化・Q/A 生成・Qdrant 登録 | 563 | 1.2 | ★★ |
 | `install_and_setup.md` | 環境構築 | 285 | 1.1 | ★★ |
 
 ### 2.3 GRACE-Support の設計書（2026-09-04 に `grace/docs/` から移設）
@@ -87,9 +91,9 @@
 
 | 文書 | 内容 | 行数 | Ver | 重要度 |
 |---|---|---:|---|---|
-| `agent_support_example.md` | GRACE-Support 本体の設計書（v1〜v3 ＋ 業界特化） | 993 | 1.2 | ★★★ |
+| `agent_support_example.md` | GRACE-Support 本体の設計書（v1〜v3 ＋ 業界特化） | 996 | 1.3 | ★★★ |
 | `agent_support_example_flow.md` | 1 コマンドの実行トレース（`--vertical gov` の IN/OUT データフロー） | 455 | 1.2 | ★★ |
-| `agent_support_verticals.md` | 業界特化（gov / saas / ec）の `VerticalProfile` 設計 | 392 | 2.0 | ★★ |
+| `agent_support_verticals.md` | 業界特化（gov / saas / ec）の `VerticalProfile` 設計 | 389 | 2.0 | ★★ |
 
 > 📝 **移設にあたって相対リンクを張り替えた。**
 > 3 件どうしのリンクは `./` のまま有効。`grace/docs/` 側（`grace_core.md` / `grace_runtime.md`。後者は 2026-09-14 に `grace_core_flow.md` から改称）
@@ -103,13 +107,14 @@
 `backend/app/**.py` に対して、対応する文書があるかを機械的に照合した結果。
 
 **2026-09-04 に欠落 4 件を新規作成し、17 モジュールすべてが文書を持つ状態になった。**
+AST 列は 2026-09-15 の実測値（全 17 モジュールの網羅は §4.1）。
 
 | 実装 | 文書 | AST 網羅 |
 |---|---|---|
-| `api/data.py` | `api_data.md`（新規） | 7/7 |
+| `api/data.py` | `api_data.md`（新規） | 8/8 |
 | `api/qdrant.py` | `api_qdrant.md`（新規） | 6/6 |
-| `core/data_jobs.py` | `core_data_jobs.md`（新規） | 14/14 |
-| `core/job_logs.py` | `core_job_logs.md`（新規） | 9/9 |
+| `core/data_jobs.py` | `core_data_jobs.md`（新規） | 10/10 |
+| `core/job_logs.py` | `core_job_logs.md`（新規） | 7/7 |
 | `api/meta.py` / `api/review.py` / `api/support.py` | `api_meta.md` / `api_review.md` / `api_support.md` | — |
 | `core/gates.py` / `core/jobs.py` / `core/intervention_bridge.py` | `core_gates.md` / `core_jobs.md` / `core_intervention_bridge.md` | — |
 | `core/review_agent.py` / `core/review_gates.py` / `core/rulesets.py` | `core_review_agent.md` / `core_review_gates.md` / `core_rulesets.md` | — |
@@ -125,29 +130,50 @@
 
 ## 4. 実装追随状況
 
-### 4.1 公開シンボルの網羅（AST 照合・2026-09-04）
+### 4.1 公開シンボルの網羅（AST 照合・2026-09-15 実測）
 
-**17 モジュールすべてで 100%。**
+**17 モジュールすべてで 100%。** 下表は `grace/docs/README.md` §4.1 のスクリプトを
+全 17 ペアに流した**実測値**である（件数を記憶で書かないこと）。
 
 | 文書 | 公開シンボル | 未記載 |
 |---|---:|---:|
-| `api_data.md` | 6 | 0 |
+| `api_data.md` | 8 | 0 |
 | `api_meta.md` | 3 | 0 |
 | `api_qdrant.md` | 6 | 0 |
 | `api_review.md` | 4 | 0 |
 | `api_support.md` | 4 | 0 |
-| `core_data_jobs.md` | 8 | 0 |
-| `core_gates.md` | 40 | 0 |
-| `core_intervention_bridge.md` | 5 | 0 |
-| `core_job_logs.md` | 6 | 0 |
-| `core_jobs.md` | 15 | 0 |
-| `core_review_agent.md` | 21 | 0 |
-| `core_review_gates.md` | 15 | 0 |
-| `core_rulesets.md` | 8 | 0 |
-| `core_support_agent.md` | 6 | 0 |
-| `core_verticals.md` | 6 | 0 |
+| `core_data_jobs.md` | 10 | 0 |
+| `core_gates.md` | 49 | 0 |
+| `core_intervention_bridge.md` | 7 | 0 |
+| `core_job_logs.md` | 7 | 0 |
+| `core_jobs.md` | 18 | 0 |
+| `core_review_agent.md` | 32 | 0 |
+| `core_review_gates.md` | 16 | 0 |
+| `core_rulesets.md` | 13 | 0 |
+| `core_support_agent.md` | 8 | 0 |
+| `core_verticals.md` | 9 | 0 |
 | `main.md` | 0 | 0 |
-| `schemas.md` | 27 | 0 |
+| `schemas.md` | 29 | 0 |
+
+> ⚠️ **前版（2026-09-04）の表は「100%」と書いていたが、実際には 12 件の未記載が残っていた。**
+> 当時の監査コミット（`4e4607d`）へチェックアウトして同じスクリプトを流しても
+> `core_gates.md` は **49 件中 7 件未記載**で、`gates.py` はその前（2026-08-30）から
+> 変更されていない。つまりこれは**その後のドリフトではなく、記録が書かれた時点で不正確**
+> だった（シンボル数も 40 と実際の 49 が食い違っていた）。
+> **表を更新するときは必ずスクリプトを流し、出力を貼ること。** 前版の数字を引き写さない。
+
+2026-09-15 の点検で解消した **12 件**:
+
+| 文書 | 件数 | 内容 |
+|---|---:|---|
+| `core_gates.md` | 7 | `JUDGE_UNEXPECTED_OUTPUT` / `JUDGE_EXCEPTION`、`MULTI_QUESTION_MARKERS` / `MULTI_QUESTION_MIN_MARKS` / `MAX_QUESTION_CLUSTERS`（0-(A) 複数質問検知の閾値）、`_SCOPE_PREFIX_RE` / `OUT_OF_SCOPE_ANSWER_MARKERS`（担当範囲外の判定）。**動作の説明はあったが、それを決める値が書かれていなかった** |
+| `core_review_agent.md` | 3 | `_LIST_RE` / `_HEADING_RE` / `_SENTENCE_END_RE` — ① Segment が行の種別を決めている正規表現そのもの |
+| `core_rulesets.md` | 2 | `DEFAULT_EVIDENCE_MIN_SCORE` / `DEFAULT_EVIDENCE_TOP_RATIO`。**`RuleSet.evidence_min_score` / `evidence_top_ratio` と `RuleItem.evidence_collections` もフィールドごと未記載**で、② Retrieve の根拠足切りが機構ごと本書から抜けていた |
+
+> 📝 あわせて、AST では捕まらない**内容の誤り**も 1 件見つかった。`core_rulesets.md` §5.4
+> 「ルール一覧」が **21 件のまま**で `yakki-04`（安全性の保証表現）と `policy-01`（表示内容と
+> 社内規程の不一致）が抜けていた。`41e634d` で他の箇所は 21 → 23 に直したが、この表だけ
+> 取り残されていた。**件数を直すときは、件数を書いている箇所を全部 grep すること。**
 
 2026-09-04 の点検で **24 件の未記載**が見つかり、すべて実装から書き起こして追加した。
 
@@ -190,9 +216,12 @@ cd frontend && npm run lint && npm test && npm run build
 
 > ⚠️ **frontend ゲートを忘れない。** API スキーマを変えたら `frontend/src/types.ts` も追随させる。
 
-### 5.3 Mermaid 規約・リンク存在確認
+### 5.3 Mermaid 規約・リンク存在・アンカー解決
 
-`grace/docs/README.md` §4.2 / §4.3 と同じ（対象を `backend/docs` に読み替える）。
+`grace/docs/README.md` §4.2（Mermaid 規約）/ §4.3（リンク存在）/ **§4.5（見出しアンカーの解決）** と同じ。
+対象を `backend/docs` に読み替えて流す。§4.5 は「節番号を繰り下げた／見出しを言い換えたのに
+目次が追随していない」を捕まえる検査で、**リンク存在チェックでは検出できない**
+（ファイルは実在し、壊れているのは `#` 以降だけ）。
 
 ### 5.4 パイプライン段の網羅
 
@@ -229,7 +258,7 @@ grep -A 12 'STEP_IDS = (' backend/app/core/support_agent.py \
 | **プロバイダ grep の誤検出** | 「Anthropic」「Gemini」で引くと、A/B 比較や Embedding 用途の**正当な記述**も引っかかる。件数を数えず、行を読む |
 | **Mermaid grep のスペース** | `classDef default fill: #000`（コロンの後にスペース）は Mermaid としては正しいが §7.6 の grep に引っかからない。`fill: ?#000` で書く |
 | **`grace/doc/` の誤検出** | 「`grace/doc/` → `grace/docs/` に訂正」という**変更履歴の記述**は違反ではない |
-| **本 README 自体が Mermaid チェックで NG になる** | §7 の凡例に `classDef default fill: #000` という**文字列**が出てくるため、`fc=0 / cd=1` と判定される。図は 1 枚も無いので問題ない |
+| **本 README 自体が Mermaid チェックで NG になる** | §7 の凡例に `classDef default fill: #000` という**文字列**が 2 箇所出てくるため、`fc=0 / cd=2` と判定される（実測 2026-09-15）。図は 1 枚も無いので問題ない |
 | **grep で見つかる誤りは軽い方** | 深刻なのは**実装を読まないと気づかない**もの: 修正前のコードのままの記述、存在しない実行基盤の「実測値」、丸ごと抜けたパイプライン段、`/api/health` が文書より少ないフィールドしか返さない、といった類 |
 | **Web API と CLI は同じ関数を通る** | `uvicorn backend.app.main:app` も `agent_support_example.py` も `run_support_agent_core` を呼ぶ。「Web だけ / CLI だけ」の分岐は無いので、片方で確かめた挙動は他方にも当てはまる |
 
@@ -239,6 +268,7 @@ grep -A 12 'STEP_IDS = (' backend/app/core/support_agent.py \
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 1.5 | **未記載シンボル 12 件と内容の誤り 1 件を解消し、§4.1 を実測で作り直した**（2026-09-15・問題 #6 / #7）。前版の「17 モジュールすべてで 100%」は**書かれた時点で不正確**で、当時の監査コミット（`4e4607d`）へ戻して同じスクリプトを流しても `core_gates.md` は 49 件中 7 件未記載だった（記録のシンボル数 40 も実際の 49 と食い違い）。`core_gates.md` 7 件（複数質問検知・担当範囲外の判定の閾値）/ `core_review_agent.md` 3 件（① Segment の分割正規表現）/ `core_rulesets.md` 2 件（② Retrieve の根拠足切り。`RuleSet.evidence_min_score` / `evidence_top_ratio` と `RuleItem.evidence_collections` も**フィールドごと**未記載だった）を実装から書き起こして追加。あわせて AST では捕まらない内容の誤り——`core_rulesets.md` §5.4 のルール一覧が 21 件のままで `yakki-04` / `policy-01` が抜けていた——も是正した。§3 の AST 列も実測へ揃え、§5.3 に アンカー解決の検査を追加 |
 | 1.4 | **目次のアンカー 1 件を見出しへ是正**（2026-09-14）。§3 の見出しが `## 3. 実装カバレッジ` へ変わった際（v1.1 で「欠落一覧」→「カバレッジ表」に書き換え）、**目次だけが旧題のまま**残り `#3-実装カバレッジ欠落している文書` が解決しなくなっていた |
 | 1.3 | **GRACE-Support 3 点を `grace/docs/` から移設**（2026-09-04）。実装が `backend/app/core/support_agent.py` にあるため。§2.3 を新設し、相対リンクの張り替え方針も記録。これで `grace_v2_local` と同じ構成になった |
 | 1.2 | **未記載シンボル 24 件を解消**（2026-09-04）。17 モジュールすべてで AST 網羅 **100%** に到達。最大は `schemas.md` の 11 件で、**データ準備のスキーマがまるごと未記載**だった（API は既にあるのに型の説明が無い状態）。§4 を「日付比較」から「AST 網羅」の記録へ書き換え、日付比較が追随遅れの証拠にならない理由も明記 |
