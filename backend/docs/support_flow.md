@@ -1087,7 +1087,7 @@ class Q,CLS,RAG,GND,GATE,ANS,WARN,WEB,ESC,ACT,HITL,DO,OUT default
 > ⚠️ **フィールド表を本書に置かない。** 以前は本書の前身（`agent_support_example.md` §3）が
 > dataclass 定義を丸ごと複製していたが、`SupportResult` に 0-(A) の 7 フィールドが
 > 追加された際に取り残された。同じ表を 2 箇所に持つ限り必ず腐る
-> （`backend/docs/README.md` §1 問題 #8 と同じ処方箋）。
+> （[`docs_audit.md` §1](./docs_audit.md) 問題 #8 と同じ処方箋）。
 
 **設計上の決定事項**（実装が変わっても意味が変わらない部分）:
 
@@ -1493,7 +1493,7 @@ profile = PROFILES.get(vertical) if vertical else None
 > 📌 **項目ごとの対照表は [`../../docs/pipelines.md` §3](../../docs/pipelines.md) が正本**
 > （3 モードを見比べるハブなので、隣の §2 ステップ対照表・§4 ガードレール有効表と同じ場所に置く）。
 > 本書は**同じ表を持たない** — 同じ表を 2 箇所に持つと必ず片方が腐るため
-> （`backend/docs/README.md` §1 問題 #8）。本節が持つのは下の**設計意図**だけである。
+> （[`docs_audit.md` §1](./docs_audit.md) 問題 #8）。本節が持つのは下の**設計意図**だけである。
 
 ### 7.1 設計意図：なぜ「薄いモード」を残すのか
 
@@ -1512,7 +1512,7 @@ profile = PROFILES.get(vertical) if vertical else None
 
 **基本版に `basic_spec.md` / `basic_flow.md` を作らない。**
 実装が同一である以上、内容は本書と `support_flow.md` の複製になり、
-**片方だけが腐る**（`backend/docs/README.md` §1 問題 #8・#10 と同じ事故の形）。
+**片方だけが腐る**（[`docs_audit.md` §1](./docs_audit.md) 問題 #8・#10 と同じ事故の形）。
 基本版に固有なのは上表の「無し」側の一覧だけなので、それを本節に置く。
 
 | 知りたいこと | 参照先 |

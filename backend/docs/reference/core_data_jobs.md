@@ -1,6 +1,16 @@
 # core/data_jobs.py - データ準備ジョブ runner ドキュメント
 
-**Version 1.3** | 最終更新: 2026-09-12
+**Version 1.4** | 最終更新: 2026-09-16
+
+> **本書の位置づけ**: `backend/app/core/data_jobs.py`（データ準備 4 ジョブの runner）の **IPO リファレンス**。
+> 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。
+>
+> | 知りたいこと | 参照先 |
+> |---|---|
+> | パイプラインの中身 | [`data_pipeline.md`](../data_pipeline.md) |
+> | ジョブ基盤・runner 注入 | [`job_runtime.md` §3](../job_runtime.md) |
+> | LLM と Embedding のプロバイダ分離 | [`config_and_providers.md`](../config_and_providers.md) |
+> | 文書全体の地図 | [`README.md`](../README.md) |
 
 > **参考ドキュメント**
 > - [`backend/docs/reference/api_data.md`](./api_data.md) — 本モジュールを起動する API 層
@@ -486,6 +496,7 @@ register_runner(DeleteParams,   _delete_runner,   "delete")
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 1.4 | 2026-09-16 | 3 階建て再編（`reference/` へ移設）に伴い、冒頭へ**位置づけと上位文書への導線**を追加した |
 | 1.3 | **§4.1「使用例」を新設**（2026-09-15）。ドキュメント規約 `a_class_method_md_format.md` §6.1 が IPO 詳細セクションの冒頭に必須としている代表ワークフローが欠落していた。パラメータとステップ定義（confirm ステップの有無が破壊性を表す）、ジョブとしての起動の 2 本を追加し、**実行して出力を確認した**（外部依存が要る例はその旨を明記）。旧 §4.1〜§4.4 は §4.2〜§4.5 へ繰り下げ |
 | 1.0 | 初版作成。`backend/app/core/data_jobs.py`（547 行）の全公開要素を IPO 形式で記述。3 種のステップ定義、`jobs.py` に手を入れず `register_runner` で追加する方式、既存 3 パッケージを無改修のまま `capture_logs()` で進捗を出す方式、CONFIRM の要否（削除は常に／登録は `recreate=True` のときだけ）とその理由、`provider="gemini"` が Embedding 用途として正しいことを実コードのコメントから起こして記載 |
 | 1.1 | **Q/A 生成を追加**（`QaGenerationParams` / `_qa_runner` / `QA_STEP_IDS`）。runner は 4 種になった。出力先の既定を `qa_output` 直下にした理由（`list_input_files()` が非再帰）、入力検証を ① で完結させる理由、0 件生成を error にする理由を追記。§2・§4・§5 の節番号を繰り下げ |

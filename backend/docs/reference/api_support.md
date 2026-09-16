@@ -1,6 +1,16 @@
 # api/support.py - サポート問い合わせ API ドキュメント
 
-**Version 1.2** | 最終更新: 2026-08-01
+**Version 1.3** | 最終更新: 2026-09-16
+
+> **本書の位置づけ**: `backend/app/api/support.py`（Support のジョブ起動 / SSE / HITL / 結果取得）の **IPO リファレンス**。
+> 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。
+>
+> | 知りたいこと | 参照先 |
+> |---|---|
+> | エンドポイントと SSE の契約 | [`api_contract.md` §1.1](../api_contract.md) |
+> | ジョブ・SSE・HITL の機構 | [`job_runtime.md`](../job_runtime.md) |
+> | パイプラインの中身（0-(A)〜⑥） | [`support_flow.md`](../support_flow.md) |
+> | 文書全体の地図 | [`README.md`](../README.md) |
 
 ---
 
@@ -408,6 +418,7 @@ router  # APIRouter(prefix="/api/support", tags=["support"])
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 1.3 | 2026-09-16 | 3 階建て再編（`reference/` へ移設）に伴い、冒頭へ**位置づけと上位文書への導線**を追加した |
 | 1.2 | **§4.1「使用例」を新設**（2026-09-15）。ドキュメント規約 `a_class_method_md_format.md` §6.1 が IPO 詳細セクションの冒頭に必須としている代表ワークフローが欠落していた。ジョブ起動 → SSE 購読 → 承認 → 結果取得、エラー応答（422 / 404）の 2 本を追加し、**実行して出力を確認した**（外部依存が要る例はその旨を明記）。旧 §4.1 は §4.2 へ繰り下げ |
 | 1.0 | 初版作成（4 エンドポイント: query / stream(SSE) / confirm / result の IPO ドキュメント） |
 | 1.1 | 2026-08-01 | `start_query` の受け取るフィールドに `identity`（`--identity` 相当）を追加 |

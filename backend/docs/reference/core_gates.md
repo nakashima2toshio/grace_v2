@@ -1,6 +1,16 @@
 # core/gates.py - 回答ゲート・判定ロジック ドキュメント
 
-**Version 1.4** | 最終更新: 2026-09-15
+**Version 1.5** | 最終更新: 2026-09-16
+
+> **本書の位置づけ**: `backend/app/core/gates.py`（Support の判定ロジック（質問分析・回答ゲート・救済・情報なし検知））の **IPO リファレンス**。
+> 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。
+>
+> | 知りたいこと | 参照先 |
+> |---|---|
+> | 各段のどこで呼ばれるか | [`support_flow.md` §4](../support_flow.md) |
+> | なぜこの判定・しきい値なのか | [`support_flow.md` §5・§6](../support_flow.md) |
+> | モデル解決（`judge_model`） | [`config_and_providers.md` §2](../config_and_providers.md) |
+> | 文書全体の地図 | [`README.md`](../README.md) |
 
 ---
 
@@ -962,6 +972,7 @@ NO_INFO_MARKERS
 | バージョン | 変更内容 |
 |-----------|---------|
 | 1.0 | 初版作成（回答ゲート・二段判定・救済・出典整形の純関数群と 2 ファクトリの IPO ドキュメント） |
+| 1.5 | 2026-09-16 | 3 階建て再編（`reference/` へ移設）に伴い、冒頭へ**位置づけと上位文書への導線**を追加した |
 | 1.4 | **§4.1「使用例」を新設**（2026-09-15）。ドキュメント規約 `a_class_method_md_format.md` §6.1 が IPO 詳細セクション冒頭に必須としている代表ワークフローが欠落していた。回答ゲート（プロファイル別しきい値）・二段判定の第 1 段（LLM 不要）・出典整形の 3 本を追加し、**実行して出力を確認した**。旧 §4.1〜§4.3 は §4.2〜§4.4 へ繰り下げ |
 | 1.3 | **未記載だったモジュール定数 7 件を追加**（2026-09-15）。`JUDGE_UNEXPECTED_OUTPUT` / `JUDGE_EXCEPTION`（§5.2）、`MULTI_QUESTION_MARKERS` / `MULTI_QUESTION_MIN_MARKS` / `MAX_QUESTION_CLUSTERS`（§5.3）、`_SCOPE_PREFIX_RE` / `OUT_OF_SCOPE_ANSWER_MARKERS`（§5.4）。**動作の説明（0-(A) 複数質問検知・担当範囲外の断り）は既にあったが、それを決める定数名と値が書かれていなかった**ため、閾値を調べるのに実装を読む必要があった。あわせて「過剰分解は単一とみなす側へ倒す」「ラベルが 1 行でも欠けたら判定を捨てる」「断りの語は緩く拾ってよい（拾えなくても `ensure_out_of_scope_notice` が追記するので情報は欠けない）」という**安全側の倒し方**を注記した。§5.5 に `INTENT_MODEL` を直接使わない旨（CLAUDE.md §3.1）も追記 |
 | 1.2 | AST 照合で未記載だった 5 件を追加（`judge_model` / `_contradicted_claims` / `_abbreviate_reason` / `_count_question_marks` / `_char_bigrams`）（2026-09-04・`4e4607d`） |

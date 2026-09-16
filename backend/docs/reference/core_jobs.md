@@ -1,6 +1,16 @@
 # core/jobs.py - ジョブ管理（インメモリ）ドキュメント
 
-**Version 1.4** | 最終更新: 2026-09-12
+**Version 1.5** | 最終更新: 2026-09-16
+
+> **本書の位置づけ**: `backend/app/core/jobs.py`（ジョブ管理・runner 注入・イベント蓄積）の **IPO リファレンス**。
+> 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。
+>
+> | 知りたいこと | 参照先 |
+> |---|---|
+> | **共有基盤の正本**（ライフサイクル・リプレイ・runner 注入） | [`job_runtime.md`](../job_runtime.md) |
+> | 依存の向き（`jobs.py` が Review を知らない理由） | [`architecture.md` §5](../architecture.md) |
+> | SSE のワイヤ形式 | [`api_contract.md` §3](../api_contract.md) |
+> | 文書全体の地図 | [`README.md`](../README.md) |
 
 ---
 
@@ -724,6 +734,7 @@ register_runner, done_event, job_manager, MAX_FINISHED_JOBS
 
 | バージョン | 日付 | 変更内容 |
 |-----------|------|---------|
+| 1.5 | 2026-09-16 | 3 階建て再編（`reference/` へ移設）に伴い、冒頭へ**位置づけと上位文書への導線**を追加した |
 | 1.4 | 2026-09-15 | **§4.1「使用例」を新設**（2026-09-15）。ドキュメント規約 `a_class_method_md_format.md` §6.1 が IPO 詳細セクションの冒頭に必須としている代表ワークフローが欠落していた。独自 runner の登録と実行（`register_runner` → `start` → `stream_events`）、再購読の 2 本を追加し、**実行して出力を確認した**（外部依存が要る例はその旨を明記）。旧 §4.1〜§4.3 は §4.2〜§4.4 へ繰り下げ |
 | 1.0 | 2026-07-15 | 初版作成（JobParams / SupportJob / JobManager / job_manager の IPO ドキュメント） |
 | 1.1 | 2026-07-29 | runner 注入方式へ汎用化（PR #39）。`SupportJob` → `Job` へ改名し後方互換エイリアスを追加。`register_runner` / `_resolve_runner` / `_support_runner` / `JobRunner` を追記 |

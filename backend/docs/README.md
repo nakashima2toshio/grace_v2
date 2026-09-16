@@ -1,6 +1,6 @@
 # backend/docs — 文書の地図
 
-**Version 2.1** | 最終更新: 2026-09-16
+**Version 2.2** | 最終更新: 2026-09-16
 
 `backend/`（FastAPI + パイプライン中核）の**入口**。どの文書に何が書いてあるか、
 どの順に読むかだけを示す。
@@ -55,6 +55,9 @@ reference/*.md             引く（通読しない）
 | [`webapp_flow.md`](./webapp_flow.md) | `run_dev.sh` 起点の end-to-end（ブラウザ → FastAPI → コア → 描画） |
 
 ### 2.3 モジュール参照（`reference/`）— 引く用
+
+各文書の冒頭に**位置づけと上位文書への導線**がある（どの設計文書が「なぜ」の正本かを示す）。
+公開シンボルの網羅は AST で検証済み（**223 シンボル / 未記載 0**・実測 2026-09-16）。
 
 | 対象 | 文書 |
 |---|---|
@@ -114,6 +117,7 @@ reference/*.md             引く（通読しない）
 
 | Version | 日付 | 変更内容 |
 |---|---|---|
+| 2.2 | 2026-09-16 | **Phase 3 を反映**。`reference/` の 17 文書に位置づけヘッダーが付いたことを §2.3 に明記した（圧縮は実測の結果不要と判断。[`migration_plan.md` §4](./migration_plan.md)） |
 | 2.1 | 2026-09-16 | **Phase 2 を反映**。`support_spec.md` / `review_spec.md` を各 `*_flow.md` へ統合し、`verticals_and_rulesets.md` と `testing.md` を新設した（[`migration_plan.md` §3](./migration_plan.md)） |
 | 2.0 | 2026-09-16 | 棚卸し内容を `docs_audit.md` へ分離し、README を**地図**に作り替えた。モジュール文書 17 本を `reference/` へ移動し、横断文書 5 本を新設した |
 | 1.11 以前 | 〜2026-09-15 | [`docs_audit.md`](./docs_audit.md) の変更履歴を参照 |

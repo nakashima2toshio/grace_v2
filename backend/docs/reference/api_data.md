@@ -1,6 +1,16 @@
 # api/data.py - データ準備ジョブ API ドキュメント
 
-**Version 1.2** | 最終更新: 2026-09-12
+**Version 1.3** | 最終更新: 2026-09-16
+
+> **本書の位置づけ**: `backend/app/api/data.py`（データ準備 4 ジョブの起動と共通 SSE / HITL）の **IPO リファレンス**。
+> 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。
+>
+> | 知りたいこと | 参照先 |
+> |---|---|
+> | エンドポイント一覧と CONFIRM の要否 | [`api_contract.md` §1.3](../api_contract.md) |
+> | パイプラインの中身 | [`data_pipeline.md`](../data_pipeline.md) |
+> | ジョブ基盤 | [`job_runtime.md`](../job_runtime.md) |
+> | 文書全体の地図 | [`README.md`](../README.md) |
 
 > **参考ドキュメント**
 > - [`backend/docs/reference/core_data_jobs.md`](./core_data_jobs.md) — 各ジョブの runner 実装
@@ -353,6 +363,7 @@ curl http://localhost:8000/api/data/result/<job_id>
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 1.3 | 2026-09-16 | 3 階建て再編（`reference/` へ移設）に伴い、冒頭へ**位置づけと上位文書への導線**を追加した |
 | 1.2 | **§3.1「使用例」を新設**（2026-09-15）。ドキュメント規約 `a_class_method_md_format.md` §6.1 が IPO 詳細セクションの冒頭に必須としている代表ワークフローが欠落していた。入力候補の確認 → チャンク化ジョブ起動、破壊的操作の CONFIRM 経路の 2 本を追加し、**実行して出力を確認した**（外部依存が要る例はその旨を明記）。旧 §3.1〜§3.7 は §3.2〜§3.8 へ繰り下げ |
 | 1.0 | 初版作成。`backend/app/api/data.py`（160 行）の 6 エンドポイントを IPO 形式で記述。3 種のジョブと CONFIRM の要否、SSE / HITL を共通エンドポイントにまとめた理由、`DELETE` メソッドを使わない理由、入力検証を runner に寄せた理由を実コードのコメントから起こして記載 |
 | 1.1 | **`POST /api/qa/generate` を追加**（`QaGenerationRequest` → `QaGenerationParams`）。ジョブは 4 種になり、SSE / HITL の共通エンドポイントもそのまま 4 種で共有する。§3 の節番号を繰り下げ |

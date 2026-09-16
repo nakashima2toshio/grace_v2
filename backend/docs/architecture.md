@@ -262,6 +262,10 @@ sequenceDiagram
     JM-->>FE: SSE done (番兵)
 ```
 
+> 📎 上図は **backend の中だけ**を描いている。ブラウザの描画まで含めた end-to-end は
+> [`webapp_flow.md` §6](./webapp_flow.md#6-リクエストライフサイクルシーケンス図) にある
+> （同じ流れを、フロントと `grace/` を加えた粒度で示したもの）。
+
 **ポイント**: HTTP 応答は 202 で即返り、実体はワーカースレッドで走る。
 HITL は「SSE で聞き、別の POST で答える」という**2 本の HTTP を跨ぐ**やり取りになる。
 この橋渡しが `InterventionBridge` である（[`job_runtime.md` §4](./job_runtime.md)）。
