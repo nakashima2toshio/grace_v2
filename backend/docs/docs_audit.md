@@ -1,6 +1,6 @@
 # backend/docs 棚卸し・監査記録 ドキュメント
 
-**Version 1.12** | 最終更新: 2026-09-16
+**Version 1.13** | 最終更新: 2026-09-16
 
 > ⚠️ **本書は「監査記録」であって入口ではない。** 文書の地図と読む順路は
 > [`README.md`](./README.md) にある。ここには実装追随の照合結果・過去に見つかった
@@ -9,8 +9,12 @@
 > **2026-09-16 の再編**: モジュール文書 17 本を `reference/` へ移し、横断文書
 > （`architecture.md` / `job_runtime.md` / `api_contract.md` /
 > `config_and_providers.md` / `pitfalls.md`）を新設した。以降の再編計画は
-> [`migration_plan.md`](./migration_plan.md)。本書の §2 の文書一覧は再編前の
-> 構成のままなので、**現在の構成は `README.md` を見ること。**
+> [`migration_plan.md`](./migration_plan.md)。
+>
+> **2026-09-16 の再編 Phase 2**: `support_spec.md` を `support_flow.md` v3.0 へ、
+> `review_spec.md` を `review_flow.md` v2.0 へ統合し、`verticals_and_rulesets.md` と
+> `testing.md` を新設した。本書の §2 の文書一覧は**再編前の構成のまま**なので、
+> **現在の構成は [`README.md`](./README.md) を見ること。**
 
 `backend/`（FastAPI + パイプライン中核）のドキュメント一覧と、実装への追随状況・
 欠落・残タスク・検証手順をまとめる。

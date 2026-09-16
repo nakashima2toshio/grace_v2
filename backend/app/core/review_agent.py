@@ -1,7 +1,7 @@
 # backend/app/core/review_agent.py
 """GRACE-Review コアサービス（文書レビュー・イベント発行型）。
 
-設計: backend/docs/review_spec.md §3。
+設計: `backend/docs/review_flow.md` §4。
 
 Support（`support_agent.py`）が「問い合わせ → 回答」なのに対し、本モジュールは
 **「文書 → 指摘」**と情報の流れが逆になる。それでも中核部品は無改造で機能する:
@@ -85,7 +85,7 @@ REVIEW_STEP_IDS = (
     "action",     # ⑦ レポート → HITL → 実行
 )
 
-# --- 組合せ爆発ガード（設計書 §7.3）------------------------------------------
+# --- 組合せ爆発ガード（`backend/docs/review_flow.md` §5.4）------------------------------------------
 # 200 セグメント × 23 ルールを無条件に第2段へ流すと 4,600 回の LLM 呼び出しになる。
 # 第1段のキーワードフィルタで実際はこの 1〜2 割だが、上限は必ず置く。
 MAX_SEGMENTS = 200
@@ -240,7 +240,7 @@ def split_segments(
 ) -> Tuple[List[Segment], bool]:
     """文書を検査単位へ分割する。
 
-    分割規則（設計書 §3.3 ①）:
+    分割規則（`backend/docs/review_flow.md` §4.2）:
       - 空行で段落へ一次分割
       - 行頭が箇条書き・見出しなら 1 行 1 セグメント
       - `max_chars` を超える段落は文末で再分割
@@ -1089,5 +1089,5 @@ def _review_runner(
 
 
 # import 時に自己登録する。`ReviewParams` を構築するには本モジュールの import が
-# 必要なため、登録漏れは構造的に起きない（設計書 §6.3）。
+# 必要なため、登録漏れは構造的に起きない（`backend/docs/job_runtime.md` §3）。
 register_runner(ReviewParams, _review_runner, "review")

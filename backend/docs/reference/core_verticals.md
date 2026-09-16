@@ -256,7 +256,7 @@ print(gov.build_closing_instruction(["明日の東京の天気は？"]).splitlin
 # 【この問い合わせに含まれる担当範囲外の質問】
 ```
 
-> 📎 なぜ位置を分けるのかは [`support_spec.md` §5.5](../support_spec.md#55-担当範囲外の質問断って窓口案内する)
+> 📎 なぜ位置を分けるのかは [`support_flow.md` §5.5](../support_flow.md#65-担当範囲外の質問断って窓口案内する)
 > を参照（業務方針側に混ぜると、後段の【回答の構成ルール】に負けてモデルが断りを落とす）。
 
 
@@ -297,7 +297,7 @@ request = ActionRequest(profile.action_map[matched], {"query": query, "matched":
 ### 4.3 VerticalProfile クラス
 
 **概要**: 業界プロファイル（差し替えの共通枠）。しきい値・エスカレ語・アクション対応・
-本人確認をまとめる。設計: `support_spec.md` §1/§6。
+本人確認をまとめる。設計: `support_flow.md` §5 / `verticals_and_rulesets.md` §1。
 
 ```python
 VerticalProfile(

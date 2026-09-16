@@ -33,5 +33,5 @@ uv run python grace/step_trace/s8_action.py  --vertical ec  "返品したい"
 uv run python grace/step_trace/s9_render.py
 ```
 
-> 参照: 設計書 [`backend/docs/support_spec.md`](../../backend/docs/support_spec.md) ／
+> 参照: 設計書 [`backend/docs/support_flow.md`](../../backend/docs/support_flow.md) ／
 > 実行トレース [`backend/docs/support_flow.md`](../../backend/docs/support_flow.md)

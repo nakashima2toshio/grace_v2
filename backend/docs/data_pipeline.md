@@ -529,7 +529,7 @@ CHUNKING_STEP_LABELS, QA_STEP_LABELS, REGISTER_STEP_LABELS, DELETE_STEP_LABELS
 > 📝 旧 `review_rules_collection.md`（255 行・v1.0）を統合した付録。
 > GRACE-Review が「条文つきの指摘」を出すために必要な Qdrant コレクションの作り方であり、
 > 本書のパイプライン（CSV → チャンク → 登録）の**具体的な適用例**にあたる。
-> ルールセットの設計は [`review_spec.md`](./review_spec.md)、
+> ルールセットの設計は [`review_flow.md`](./review_flow.md)、
 > 実行フローは [`review_flow.md`](./review_flow.md) を参照。
 
 ### A.1 なぜ必要か
