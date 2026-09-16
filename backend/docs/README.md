@@ -1,6 +1,6 @@
 # backend/docs — 文書の地図
 
-**Version 2.0** | 最終更新: 2026-09-16
+**Version 2.1** | 最終更新: 2026-09-16
 
 `backend/`（FastAPI + パイプライン中核）の**入口**。どの文書に何が書いてあるか、
 どの順に読むかだけを示す。
@@ -48,15 +48,11 @@ reference/*.md             引く（通読しない）
 
 | 文書 | 対象 |
 |---|---|
-| [`support_flow.md`](./support_flow.md) | GRACE-Support の処理フロー（0-(A)〜⑥） |
-| [`support_spec.md`](./support_spec.md) | GRACE-Support の設計判断（回答ポリシー・HITL・業界特化・KPI） |
-| [`review_flow.md`](./review_flow.md) | GRACE-Review の処理フロー（S1・①〜⑦） |
-| [`review_spec.md`](./review_spec.md) | GRACE-Review の設計判断 |
+| [`support_flow.md`](./support_flow.md) | GRACE-Support の処理フロー（0-(A)〜⑥）と設計判断。**WHY と HOW が 1 本**（v3.0 で `support_spec.md` を統合） |
+| [`review_flow.md`](./review_flow.md) | GRACE-Review の処理フロー（S1・①〜⑦）と設計判断（v2.0 で `review_spec.md` を統合） |
+| [`verticals_and_rulesets.md`](./verticals_and_rulesets.md) | 業界プロファイル（gov / saas / ec）とルールセット（ec_ad）の**カタログ**・増やし方 |
 | [`data_pipeline.md`](./data_pipeline.md) | チャンク化 → Q/A 生成 → Qdrant 登録（付録A: 規程コレクションの準備） |
 | [`webapp_flow.md`](./webapp_flow.md) | `run_dev.sh` 起点の end-to-end（ブラウザ → FastAPI → コア → 描画） |
-
-> `*_spec.md` と `*_flow.md` の 2 本立ては[再編の途中](./migration_plan.md)である。
-> Phase 2 で系統ごとに 1 本へ統合する予定。
 
 ### 2.3 モジュール参照（`reference/`）— 引く用
 
@@ -74,6 +70,7 @@ reference/*.md             引く（通読しない）
 | 文書 | 内容 |
 |---|---|
 | [`install_and_setup.md`](./install_and_setup.md) | 環境構築・**起動手順の正本** |
+| [`testing.md`](./testing.md) | `backend/tests` の地図・どこを触ったらどれを流すか・CI の 4 ゲート |
 | [`migration_plan.md`](./migration_plan.md) | 文書再編の計画（Phase 1 完了 / Phase 2・3 の予定） |
 | [`docs_audit.md`](./docs_audit.md) | 棚卸し・実装追随の照合結果・検証スクリプト・残タスク |
 | [`archive/`](./archive/) | 記録としては残すが実装の正ではない文書 |
@@ -90,7 +87,8 @@ reference/*.md             引く（通読しない）
 | 新しいジョブ種別を足す | `job_runtime.md` §3・§8 → `reference/core_data_jobs.md` |
 | 回答が escalate に倒れる理由を追う | `support_flow.md` → `reference/core_gates.md` |
 | 指摘が出ない / 誤検知する理由を追う | `review_flow.md` → `reference/core_review_gates.md` |
-| 業界プロファイル / ルールセットを増やす | `reference/core_verticals.md` / `reference/core_rulesets.md` |
+| 業界プロファイル / ルールセットを増やす | `verticals_and_rulesets.md` §3 |
+| テストを足す・どれを流すか調べる | `testing.md` |
 | 既定モデルを変える | `config_and_providers.md` §6 |
 | 起動できない・キーが無い | `install_and_setup.md` → `config_and_providers.md` §4 |
 | 触る前に地雷を確認する | `pitfalls.md` |
@@ -116,5 +114,6 @@ reference/*.md             引く（通読しない）
 
 | Version | 日付 | 変更内容 |
 |---|---|---|
+| 2.1 | 2026-09-16 | **Phase 2 を反映**。`support_spec.md` / `review_spec.md` を各 `*_flow.md` へ統合し、`verticals_and_rulesets.md` と `testing.md` を新設した（[`migration_plan.md` §3](./migration_plan.md)） |
 | 2.0 | 2026-09-16 | 棚卸し内容を `docs_audit.md` へ分離し、README を**地図**に作り替えた。モジュール文書 17 本を `reference/` へ移動し、横断文書 5 本を新設した |
 | 1.11 以前 | 〜2026-09-15 | [`docs_audit.md`](./docs_audit.md) の変更履歴を参照 |

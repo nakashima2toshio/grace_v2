@@ -86,9 +86,9 @@ class Q,PROF,CLS,RAG,GND,GATE,ANS,WEB,NOINFO,ACT,OUT default
 
 ## 関連ドキュメント
 
-- 設計書: [`backend/docs/support_spec.md`](../../../backend/docs/support_spec.md)
+- 設計書: [`backend/docs/support_flow.md`](../../../backend/docs/support_flow.md)
 - 1 コマンド実行トレース: [`backend/docs/support_flow.md`](../../../backend/docs/support_flow.md)
-- 業界特化の全体設計: [`backend/docs/support_spec.md`](../../../backend/docs/support_spec.md)
+- 業界特化の全体設計: [`backend/docs/support_flow.md`](../../../backend/docs/support_flow.md)
 
 ## 変更履歴
 

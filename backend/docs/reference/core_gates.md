@@ -227,7 +227,7 @@ style CITE fill:#1a1a1a,stroke:#fff,color:#fff
 
 ⚠️ **安全側の向きが上の判定群と逆である。** 判定できないときは「単一質問とみなす」
 （＝現行動作の維持）に倒す。誤って質問を分解する方が害が大きいため。
-設計: `backend/docs/support_spec.md` §0。
+設計: `backend/docs/support_flow.md` §6。
 
 | 関数名 | 概要 |
 |-------|------|

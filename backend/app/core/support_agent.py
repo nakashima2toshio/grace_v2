@@ -11,7 +11,7 @@ CLI 版と同一で、変えたのは「入出力の経路」だけ:
   （CLI は自動承認 `AUTO_PROCEED`、Web は `InterventionBridge` の承認待ち。
   Web 側に自動承認を持ち込まないこと＝受け入れ条件 §5-2）
 
-設計書: grace/doc/support_spec.md ／ 業界特化: grace/doc/support_spec.md
+設計書: backend/docs/support_flow.md ／ 業界特化: backend/docs/support_flow.md
 """
 from __future__ import annotations
 
@@ -126,7 +126,7 @@ class QuestionCluster:
     複数質問クエリの採用単位。**主質問だけを採用単位にしてはいけない。**
     関連質問は主質問に従属しており（例:「住民票の取り方は？ **その手数料は？**」の
     「その手数料」）、切り離すと主質問の回答自体が不完全になる。
-    設計: backend/docs/support_spec.md §5.9
+    設計: `backend/docs/support_flow.md` §6.9
     """
 
     main: str                                        # 主質問（独立したトピック）
@@ -156,7 +156,7 @@ class SupportResult:
     no_info_detected: bool = False            # 「情報なし回答」検知で escalate に倒したか
     web_reused: bool = False                  # ⑤ で executor の Web 結果を再利用したか（重複推論の省略）
 
-    # --- 複数質問クエリ（backend/docs/support_spec.md §5.4）---------------
+    # --- 複数質問クエリ（`backend/docs/support_flow.md` §6.4）---------------
     # ⚠️ すべて optional。単一質問では既定値のままで、旧フロント・既存 API
     #    クライアントの挙動は変わらない。
     is_multi_question: bool = False                   # 複数質問と判定されたか
@@ -374,7 +374,7 @@ def run_support_agent_core(
     # 0-(A) 入力・質問分析（複数質問の検知 → 主質問の選択 → 再構成）
     # =========================================================================
     #
-    # 設計: backend/docs/support_spec.md §5（絞り込み方式）。
+    # 設計: `backend/docs/support_flow.md` §6（絞り込み方式）。
     #
     # ここは**前処理**であり、パイプライン本体（planner/executor/gates）の判定
     # ロジックは一切変えない。再構成後の文を `query` として渡すため、planner から

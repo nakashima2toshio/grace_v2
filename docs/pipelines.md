@@ -147,7 +147,7 @@ style REV fill:#1a1a1a,stroke:#fff,color:#fff
 | モードの違い・ステップの対応 | **本書** |
 | なぜ escalate したか／どの閾値が効いたか | `docs/guardrails.md` |
 | 回答（と指摘）がどう生成されるか・プロンプトの中身 | `docs/reasoning_flow.md` |
-| 複数質問（0-(A)）の設計 | `backend/docs/support_spec.md` |
+| 複数質問（0-(A)）の設計 | `backend/docs/support_flow.md` §6 |
 | Support コアの IPO | `backend/docs/reference/core_support_agent.md` |
 | Review コアの IPO | `backend/docs/reference/core_review_agent.md` / `backend/docs/reference/core_review_gates.md` |
 | ゲート純関数の IPO | `backend/docs/reference/core_gates.md` |

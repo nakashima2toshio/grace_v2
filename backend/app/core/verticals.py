@@ -3,7 +3,7 @@
 
 `agent_support_example.py` から移設（React マイグレーション）。CLI・API の
 双方から参照される。後方互換のため `agent_support_example` が再エクスポートする。
-設計: backend/docs/support_spec.md §6.1/§6.6。
+設計: `backend/docs/verticals_and_rulesets.md` §1.1/§1.6。
 """
 from __future__ import annotations
 
@@ -56,7 +56,7 @@ class ActionRequest:
 
 @dataclass
 class VerticalProfile:
-    """業界プロファイル（差し替えの共通枠）。設計: backend/docs/support_spec.md §6.1/§6.6。"""
+    """業界プロファイル（差し替えの共通枠）。設計: `backend/docs/verticals_and_rulesets.md` §1.1/§1.6。"""
 
     name: str
     collections: List[str] = field(default_factory=list)   # 検索スコープ（実 Qdrant コレクション名）

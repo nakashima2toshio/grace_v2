@@ -112,7 +112,7 @@ S1 ruleset   RuleSet 適用（検索スコープ・しきい値・重大リス�
 ```
 Review の新規実装は **Segment / Detect / Severity の 3 つだけ**で、
 Retrieve・Ground・誤検知抑止・Action は Support と同じ機構の再利用である。
-設計は `backend/docs/review_spec.md`。
+設計は `backend/docs/review_flow.md`。
 
 > **⚠️ Web API と CLI は同じコア関数を通る（Support のみ）。**
 > `uvicorn backend.app.main:app` も `agent_support_example.py` も

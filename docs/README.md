@@ -123,7 +123,7 @@ CLAUDE.md §9.1 の表を、判断に使える形へ具体化したもの。
 | 資産 | 正本 | 他の文書での扱い |
 |---|---|---|
 | 3 モードのステップ対照表・実行順フロー図 | `pipelines.md` §2 / §2.1 | リンクで参照 |
-| **基本版と GRACE-Support の差（9 項目）** | `pipelines.md` §3 | リンクで参照（`backend/docs/support_spec.md` §7 は設計意図のみを持つ） |
+| **基本版と GRACE-Support の差（9 項目）** | `pipelines.md` §3 | リンクで参照（`backend/docs/support_flow.md` §7 は設計意図のみを持つ） |
 | モード別に効くガードレールの有効表 | `pipelines.md` §4 | リンクで参照 |
 | ガードレール GA〜G9 の機構・実装・失敗時の既定 | `guardrails.md` §2 | リンクで参照 |
 | reasoning / detect のプロンプト構造 | `reasoning_flow.md` §2 / §3 | リンクで参照 |

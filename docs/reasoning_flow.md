@@ -228,7 +228,7 @@ reasoning ステップの入力を組み立てる、回答品質を左右する�
 
 > ⚠️ `prompt_addendum` / `prompt_closing` は `support_agent` が**グローバル可変シングルトンへ
 > 書き込む**方式で設定される。並行リクエスト間で汚染し得る既知の課題があり、詳細と改善方針は
-> `backend/docs/support_spec.md` を参照。
+> `backend/docs/support_flow.md` を参照。
 
 ---
 
@@ -308,7 +308,7 @@ print(result.confidence_factors)   # {'has_sources': True, 'source_count': 1, ..
 | `backend/docs/reference/core_review_agent.md` / `core_review_gates.md` | Review コアとゲートの IPO |
 | `backend/docs/reference/core_gates.md` | ④ 回答ゲート・④' 情報なし検知 |
 | `grace/docs/executor.md` / `grace/docs/tools.md` / `grace/docs/llm_compat.md` | 実行エンジン・ツール・互換層の IPO |
-| `backend/docs/support_spec.md` | 複数質問（0-(A)）の設計 |
+| `backend/docs/support_flow.md` | 複数質問（0-(A)）の設計（§6） |
 
 ---
 

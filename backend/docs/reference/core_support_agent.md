@@ -300,7 +300,7 @@ print(f"multi-question 既定: is_multi_question={d['is_multi_question']} "
 ```
 
 > 0-(A) 由来の 7 フィールドは**すべて optional**で、単一質問では既定値のまま返る。
-> 既存のフロント・API クライアントの挙動は変わらない（[`support_spec.md` §5.4](../support_spec.md#54-返すものsupportresult)）。
+> 既存のフロント・API クライアントの挙動は変わらない（[`support_flow.md` §5.4](../support_flow.md#64-返すものsupportresult)）。
 
 
 ### 4.2 SupportEvent クラス
