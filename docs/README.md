@@ -7,7 +7,7 @@
 [`grace/docs/README.md`](../grace/docs/README.md) /
 [`frontend/docs/README.md`](../frontend/docs/README.md) にある。
 
-> ⚠️ **本リポジトリは Anthropic 版。** LLM は `claude-sonnet-4-6`（軽量 `claude-haiku-4-5-20251001`）で
+> ⚠️ **本リポジトリは Anthropic 版。** LLM は `claude-sonnet-5`（軽量 `claude-haiku-4-5-20251001`）で
 > `ANTHROPIC_API_KEY` が必須、Embedding のみ Gemini `gemini-embedding-001`（3072 次元・`GOOGLE_API_KEY`）。
 > 姉妹リポジトリ `grace_v2_local` は Ollama 版で**表記が逆**（CLAUDE.md §3・§5）。
 

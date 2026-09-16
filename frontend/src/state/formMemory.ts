@@ -32,6 +32,8 @@
 export interface QueryFormMemory {
   query: string;
   vertical: string;
+  /** 選んだモデル。空文字 = 未選択（サーバーの既定値）。 */
+  model: string;
   dryRun: boolean;
   verbose: boolean;
   useWeb: boolean;
@@ -44,6 +46,7 @@ export interface QueryFormMemory {
 export const DEFAULT_QUERY_FORM: QueryFormMemory = {
   query: '',
   vertical: '',
+  model: '',
   dryRun: true,
   verbose: false,
   useWeb: true,
@@ -78,6 +81,8 @@ export interface ReviewFormMemory {
   document: string;
   title: string;
   ruleset: string;
+  /** 選んだモデル。空文字 = 未選択（サーバーの既定値）。 */
+  model: string;
   useWeb: boolean;
   dryRun: boolean;
   verbose: boolean;
@@ -88,6 +93,7 @@ export const DEFAULT_REVIEW_FORM: ReviewFormMemory = {
   document: '',
   title: '',
   ruleset: 'ec_ad',
+  model: '',
   // Web 裏取りの既定は OFF（条文が一次情報であり、速度・コストに見合わない）
   useWeb: false,
   dryRun: true,

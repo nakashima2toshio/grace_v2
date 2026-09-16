@@ -731,7 +731,7 @@ def test_qa_runner_emits_four_steps(monkeypatch, tmp_path):
     finished = dict(events.steps("finished"))
     assert set(finished) == {"load", "generate", "coverage", "save"}
     # 既定モデルがそのままパイプラインへ届いている
-    assert calls["model"] == "claude-sonnet-4-6"
+    assert calls["model"] == "claude-sonnet-5"
 
 
 def test_qa_runner_never_asks_for_confirmation(monkeypatch, tmp_path):

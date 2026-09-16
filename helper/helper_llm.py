@@ -51,8 +51,11 @@ logger = logging.getLogger(__name__)
 # --- LLM モデル設定 --- #
 # 本プロジェクトの LLM は Anthropic（Claude）。Gemini は後方互換のため残置。
 LLM_MODELS = [
-    "claude-sonnet-4-6",          # デフォルト（GRACE 本体・推論）
+    "claude-sonnet-5",            # デフォルト（GRACE 本体・推論）
+    "claude-opus-5",              # 上位（難しい推論・レビュー）
+    "claude-haiku-4-5",           # 軽量（日付なしエイリアス）
     "claude-haiku-4-5-20251001",  # 文字列処理・eval ジャッジ向け
+    "claude-sonnet-4-6",          # 旧既定（後方互換）
     "gemini-2.5-flash",
     "gemini-2.5-flash-preview",
     "gemini-2.0-flash",
@@ -62,8 +65,11 @@ LLM_MODELS = [
 
 # 価格は 1K トークンあたりの USD（概算）
 LLM_PRICING = {
-    "claude-sonnet-4-6"          : {"input": 0.003, "output": 0.015},
+    "claude-sonnet-5"            : {"input": 0.002, "output": 0.010},
+    "claude-opus-5"              : {"input": 0.005, "output": 0.025},
+    "claude-haiku-4-5"           : {"input": 0.001, "output": 0.005},
     "claude-haiku-4-5-20251001"  : {"input": 0.001, "output": 0.005},
+    "claude-sonnet-4-6"          : {"input": 0.003, "output": 0.015},
     "gemini-2.5-flash"        : {"input": 0.0001, "output": 0.0004},  # Estimated
     "gemini-2.5-flash-preview": {"input": 0.00015, "output": 0.0035},
     "gemini-2.0-flash"        : {"input": 0.0001, "output": 0.0004},
@@ -72,8 +78,11 @@ LLM_PRICING = {
 }
 
 LLM_LIMITS = {
+    "claude-sonnet-5"            : {"max_tokens": 1000000, "max_output": 128000},
+    "claude-opus-5"              : {"max_tokens": 1000000, "max_output": 128000},
+    "claude-haiku-4-5"           : {"max_tokens": 200000, "max_output": 64000},
+    "claude-haiku-4-5-20251001"  : {"max_tokens": 200000, "max_output": 64000},
     "claude-sonnet-4-6"          : {"max_tokens": 200000, "max_output": 8192},
-    "claude-haiku-4-5-20251001"  : {"max_tokens": 200000, "max_output": 8192},
     "gemini-2.5-flash"        : {"max_tokens": 1000000, "max_output": 8192},
     "gemini-2.5-flash-preview": {"max_tokens": 1000000, "max_output": 64000},
     "gemini-2.0-flash"        : {"max_tokens": 1000000, "max_output": 8192},
@@ -251,7 +260,7 @@ class AnthropicClient(LLMClient):
     API キー・ベース URL は環境変数（ANTHROPIC_API_KEY / ANTHROPIC_BASE_URL）から解決。
     """
 
-    def __init__(self, api_key: Optional[str] = None, default_model: str = "claude-sonnet-4-6"):
+    def __init__(self, api_key: Optional[str] = None, default_model: str = "claude-sonnet-5"):
         # 遅延初期化: SDK import / クライアント生成は最初の API 呼び出し時まで遅延する。
         # （GeminiClient と異なり anthropic.Anthropic() は API キー必須のため、
         #   構築だけで失敗しないよう副作用を持たせない。テスト容易性のためにも重要。）

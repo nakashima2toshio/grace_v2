@@ -1,6 +1,6 @@
 # 設定・モデル・プロバイダの解決経路 ドキュメント
 
-**Version 1.0** | 最終更新: 2026-09-16
+**Version 1.1** | 最終更新: 2026-09-16
 
 > **本書の位置づけ**: 「**どのモデルが、どこで決まるのか**」を backend 視点で 1 枚にする。
 > 既定モデルを変える・API キーの前提を確認する・プロバイダを取り違えていないか
@@ -18,6 +18,7 @@
 - [1. プロバイダ方針（恒久ルール）](#1-プロバイダ方針恒久ルール)
 - [2. モデル名の解決経路](#2-モデル名の解決経路)
 - [3. backend の各所が使うモデル](#3-backend-の各所が使うモデル)
+- [3.1 UI から選ぶ（リクエスト単位の上書き）](#31-ui-から選ぶリクエスト単位の上書き)
 - [4. API キーと起動ガード](#4-api-キーと起動ガード)
 - [5. 設定の読み込み順](#5-設定の読み込み順)
 - [6. 既定モデルを変えるときの手順](#6-既定モデルを変えるときの手順)
@@ -30,7 +31,7 @@
 | 用途 | プロバイダ | 既定 | API キー |
 |---|---|---|---|
 | **Embedding（検索）のみ** | **Gemini** | `gemini-embedding-001`（3072 次元） | `GOOGLE_API_KEY` |
-| **それ以外の全 LLM 用途** | **Anthropic** | `claude-sonnet-4-6`（軽量 `claude-haiku-4-5-20251001`） | `ANTHROPIC_API_KEY` |
+| **それ以外の全 LLM 用途** | **Anthropic** | `claude-sonnet-5`（軽量 `claude-haiku-4-5-20251001`） | `ANTHROPIC_API_KEY` |
 
 - **LLM 用途**: Plan / Execute / Reasoning / Confidence / Replan / ReAct、意図分類・
   情報なし判定・違反検出、Q/A 生成、チャンク化
@@ -87,17 +88,91 @@ def detect_model(config) -> str:
 
 | 使う場所 | 解決 | 既定 |
 |---|---|---|
-| planner / executor / reasoning / groundedness（`grace/`） | 経路 1 | `llm.model` = `claude-sonnet-4-6` |
+| planner / executor / reasoning / groundedness（`grace/`） | 経路 1 | `llm.model` = `claude-sonnet-5` |
 | 意図分類・情報なし判定（`gates.py`） | `judge_model()` | `llm.light_model` = `claude-haiku-4-5-20251001` |
 | 言及分類・空疎判定（`review_gates.py`） | `judge_model()` | 同上 |
 | ③ Detect 第2段（`review_gates.py`） | `detect_model()` | `llm.model` |
 | チャンク化（`ChunkingParams.model`） | 経路 3 相当のリクエスト既定 | `claude-haiku-4-5` |
-| Q/A 生成（`QaGenerationParams.model`） | 同上 | `claude-sonnet-4-6` |
+| Q/A 生成（`QaGenerationParams.model`） | 同上 | `claude-sonnet-5` |
 | Qdrant 登録の Embedding（`RegisterParams.provider`） | リクエスト既定 | `gemini` |
 
 > ⚠️ **`claude-haiku-4-5`（日付なし）はエイリアスであって書き損じではない。**
 > チャンク化の既定値として意図的に使っている。`claude-haiku-4-5-20251001` へ
 > 「統一」しないこと（`CLAUDE.md` §3.2）。
+
+---
+
+## 3.1 UI から選ぶ（リクエスト単位の上書き）
+
+上の既定は「何も選ばなかったとき」の値である。画面（4 タブすべて）には
+モデルセレクタがあり、**リクエストごとに**上書きできる。
+
+### 選択肢は 1 箇所で決まる
+
+```python
+# config.py
+ModelConfig.SELECTABLE_MODELS = [
+    "claude-sonnet-5",   # 既定
+    "claude-opus-5",     # 上位
+    "claude-haiku-4-5",  # 軽量
+]
+
+def get_selectable_models() -> List[str]: ...
+```
+
+| 読む側 | 何に使うか |
+|---|---|
+| `GET /api/models` | セレクタの選択肢（単価・上限つき） |
+| `backend/app/schemas.py::_validate_model_choice` / `_require_model_choice` | 受付時の検証（範囲外は **422**） |
+| `run_support_agent_core` / `run_review_agent_core` | コア側の再検証（スキーマを通らない CLI 経路のため） |
+
+> ⚠️ **`AVAILABLE_MODELS` と混同しない。** あちらは「単価・上限を知っている
+> モデル」の一覧で、旧既定（`claude-sonnet-4-6`）と日付指定エイリアス
+> （`claude-haiku-4-5-20251001`）も含む。どちらも実在する有効なモデル名なので
+> 消さない（`CLAUDE.md` R1）。**選択肢に出さないだけ**である
+> （同じモデルが 2 行並ぶのを避けるため）。
+
+### 上書きの範囲
+
+```python
+if model:
+    config.llm.model = model        # ← ここだけ
+```
+
+| フィールド | 上書きするか | 理由 |
+|---|---|---|
+| `llm.model` | **する** | 生成・推論・根拠検証・③ Detect が読む |
+| `llm.light_model` | **しない** | 判定系（意図分類・情報なし判定・RAG 適合性）は 2 値しか返さない定型判定で、上位モデルでも精度は変わらず単価だけ上がる（haiku と opus で 5 倍） |
+| `llm.heavy_model` | しない | `""` のとき `model` へフォールバックするため、選んだモデルへ自動で揃う |
+
+回帰テストは `backend/tests/test_model_selection.py`（26 件）。
+
+### 「（既定値）」に出す名前は API から取る
+
+`GET /api/model` が**解決後**の値を返す。フロントに既定のモデル名を焼き付けると、
+`config/grace_config.yml` を変えたときに画面と実挙動がずれる。
+
+```json
+{
+  "model": "claude-sonnet-5",
+  "light_model": "claude-haiku-4-5-20251001",
+  "heavy_model": "",
+  "chunking_model": "claude-haiku-4-5",
+  "qa_model": "claude-sonnet-5"
+}
+```
+
+> ⚠️ **データ準備側の既定はエージェントの既定と別物。** チャンク化は軽量
+> モデルを使うので、データ管理タブの「（既定値: …）」に `model` を出すと
+> 実際に走るモデルと違う名前を表示してしまう。`chunking_model` / `qa_model`
+> は `ChunkingRequest` / `QaGenerationRequest` のスキーマ既定値から引いている。
+
+### Embedding は対象外
+
+セレクタにも上書き経路にも Embedding は出てこない。Gemini
+`gemini-embedding-001`（3072 次元）固定で、変えると既存 Qdrant コレクションと
+次元が合わず全件再登録になる。`backend/tests/test_model_selection.py` が
+「選択肢に embedding を含むモデル名が無い」ことを固定している。
 
 ---
 
@@ -155,8 +230,12 @@ class Yml,Env,Loader,Validated,Users,Dotenv,Runtime default
 2. `verticals.py::INTENT_MODEL` が同じ値のままで良いか確認する（フォールバック用）
 3. `config.py::ModelConfig.DEFAULT_MODEL` を確認する（チャンク化・Q/A 生成）
 4. `MODEL_PRICING` / `MODEL_LIMITS` に新しいモデルが登録されているか確認する
-5. **モデル名のマッピングは作らない**（`CLAUDE.md` R1）
-6. `judge_model()` / `detect_model()` を経由しない直接参照を新たに書いていないか grep する
+5. `ModelConfig.SELECTABLE_MODELS` に載っているか確認する（**既定は選択肢にも含める**。
+   含めないと「（既定値）」と同じモデルを明示的に選べない）
+6. **モデル名のマッピングは作らない**（`CLAUDE.md` R1）
+7. `judge_model()` / `detect_model()` を経由しない直接参照を新たに書いていないか grep する
+8. `backend/tests/test_model_selection.py` を通す（yml と `ModelConfig` の既定が
+   割れていないことをここが見ている）
 
 ---
 
@@ -164,4 +243,5 @@ class Yml,Env,Loader,Validated,Users,Dotenv,Runtime default
 
 | Version | 日付 | 変更内容 |
 |---|---|---|
+| 1.1 | 2026-09-16 | 既定を `claude-sonnet-5` へ変更。§3.1（UI からのモデル選択・上書き範囲・Embedding が対象外である理由）を追加 |
 | 1.0 | 2026-09-16 | 新規作成。3 本の解決経路・2 つの解決関数・キーのガード位置を実装から整理した |

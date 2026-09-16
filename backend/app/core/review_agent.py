@@ -68,6 +68,7 @@ from backend.app.core.support_agent import (
     _perform_action,
 )
 from backend.app.core.verticals import ActionRequest
+from config import get_selectable_models
 from grace import create_intervention_handler, create_tool_registry, get_config
 from grace.confidence import create_groundedness_verifier
 from support_actions import create_action_backend
@@ -112,6 +113,8 @@ class ReviewParams:
     document: str
     document_title: str = "無題"
     ruleset: Optional[str] = "ec_ad"
+    # 使用する LLM。None は「設定の既定値（config/grace_config.yml の llm.model）」。
+    model: Optional[str] = None
     # Web 裏取りの既定は OFF。条文が一次情報であり、Web は速度・コストに見合わない。
     use_web: bool = False
     do_action: bool = True
@@ -453,6 +456,7 @@ def run_review_agent_core(
     document: str,
     document_title: str = "無題",
     ruleset: Optional[str] = "ec_ad",
+    model: Optional[str] = None,
     use_web: bool = False,
     do_action: bool = True,
     dry_run: bool = True,
@@ -463,6 +467,9 @@ def run_review_agent_core(
     """文書レビューのパイプラインを実行する。
 
     Args:
+        model: 使用する LLM。None（既定）なら config/grace_config.yml の
+            llm.model のまま。③ Detect（`review_gates.py::detect_model`）と
+            ④ Ground がこの値を読む。
         emit: 進捗イベントのコールバック（None なら通知なし）
         confirm: HITL CONFIRM の解決コールバック。Web からは必ず
             `InterventionBridge.resolver` を渡すこと。
@@ -495,6 +502,23 @@ def run_review_agent_core(
     # Support のスコープを上書きする等）。support_agent.py と同じく、リクエスト
     # 単位のディープコピーを作り、以降の生成物はすべてこのコピーを参照させる。
     config = copy.deepcopy(get_config())
+
+    # UI（3タブ共通のモデルセレクタ）からの上書き。指定が無ければ設定の既定値。
+    #
+    # ⚠️ **`light_model` は上書きしない。** 判定系（意図分類・情報なし判定・
+    # RAG 適合性）は 2 値しか返さない定型判定で、上位モデルを当てても精度は
+    # 変わらず単価だけ上がる（haiku と opus で 5 倍）。設定の軽量モデルを
+    # そのまま使う（`gates.py::judge_model()` が読む経路）。
+    # heavy_model も触らない — ""（空）のときは model へフォールバックする
+    # 既存ロジックにより、選択したモデルへ自動で揃う。
+    if model:
+        if model not in get_selectable_models():
+            raise ValueError(
+                f"未対応のモデルです: {model}（選択可能: "
+                f"{', '.join(get_selectable_models())}）"
+            )
+        config.llm.model = model
+
     tool_registry = create_tool_registry(config)
     verifier = create_groundedness_verifier(config)
     detect = create_violation_detector(config)
@@ -1078,6 +1102,7 @@ def _review_runner(
         params.document,
         document_title=params.document_title,
         ruleset=params.ruleset,
+        model=params.model,
         use_web=params.use_web,
         do_action=params.do_action,
         dry_run=params.dry_run,

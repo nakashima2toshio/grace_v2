@@ -1,6 +1,6 @@
 # API 契約（エンドポイント・SSE・ステータス） ドキュメント
 
-**Version 1.0** | 最終更新: 2026-09-16
+**Version 1.1** | 最終更新: 2026-09-16
 
 > **本書の位置づけ**: backend が外へ約束している**契約**をまとめる。
 > エンドポイント一覧・SSE のワイヤ形式・HTTP ステータスの使い分け・
@@ -32,7 +32,7 @@
 
 ## 1. エンドポイント一覧
 
-全 23 エンドポイント。ベース URL は `http://localhost:8000`。**認証は無い。**
+全 25 エンドポイント。ベース URL は `http://localhost:8000`。**認証は無い。**
 
 ### 1.1 GRACE-Support（`api/support.py`）
 
@@ -80,9 +80,25 @@
 
 | Method | パス | 状態 | 説明 |
 |---|---|---:|---|
+| GET | `/api/models` | 200 | モデルセレクタの選択肢（3 件・単価と上限つき） |
+| GET | `/api/model` | 200 | サーバーの既定モデル（**解決後**の値。「（既定値: …）」表示用） |
 | GET | `/api/verticals` | 200 | 業界プロファイル一覧（gov / saas / ec） |
 | GET | `/api/rulesets` | 200 | ルールセット一覧（**ルール本文は返さない**・件数と法令のみ） |
 | GET | `/api/health` | 200 | 稼働確認と API キー設定の有無（**値は返さない**） |
+
+#### モデル選択の契約
+
+- 選択肢は `config.py::get_selectable_models()` の 1 箇所で決まる
+  （`claude-sonnet-5` / `claude-opus-5` / `claude-haiku-4-5`）
+- `QueryRequest.model` / `ReviewRequest.model` は**省略可**。`null` / 省略 =
+  「サーバーの既定値を使う」
+- `ChunkingRequest.model` / `QaGenerationRequest.model` は**必須（既定値つき）**。
+  未選択のときは**キーごと省略する**（空文字を送ると 422）
+- 選択肢に無いモデル名は **422**（ジョブ起動後の実行時エラーにしない）
+- ⚠️ **Embedding はこの契約の外。** `RegisterRequest.provider` は `gemini` 固定で、
+  `/api/models` にも出てこない（次元が変わると Qdrant 再作成が必要）
+
+詳細は [`config_and_providers.md` §3.1](./config_and_providers.md#31-ui-から選ぶリクエスト単位の上書き)。
 
 ---
 
@@ -174,7 +190,7 @@ SSE  → {"type":"intervention","status":"resolved","data":{"action":"proceed"}}
 | **202** | ジョブ起動（実処理はワーカースレッドへ委ねる） |
 | **400** | 許可ディレクトリ外の指定（`/api/files`） |
 | **404** | ジョブ ID が無い / コレクションが無い |
-| **422** | Pydantic のバリデーション違反（文書長超過など。FastAPI が自動で返す） |
+| **422** | Pydantic のバリデーション違反（文書長超過・**選択肢に無いモデル名**など。FastAPI が自動で返す） |
 | **503** | Qdrant へ接続できない（**参照系のみ**） |
 
 ### ⚠️ `/api/qdrant/health` だけは 200 固定
@@ -199,6 +215,7 @@ Qdrant が落ちていても 200 を返し、本文の `available: false` と理
 | `ReviewRequest` | `ReviewParams` | ReviewPanel |
 | `ReviewResultModel` / `ReviewFindingModel` / `SegmentModel` / `FindingSummaryModel` | `ReviewResult` / `ReviewFinding` / `Segment` / `FindingSummary` | ReviewPanel |
 | `RuleSetInfo` | `RuleSetInfo` | ReviewPanel（ルールセット選択） |
+| `ModelChoice` / `ModelInfo` | `ModelChoice` / `ModelInfo` | 全パネル（モデルセレクタ・ヘッダー表示） |
 | `QdrantHealth` / `CollectionInfo` / `CollectionDetail` / `CollectionPoints` | 同名 | DataPanel（コレクション管理） |
 | `InputFileInfo` / `InputFileListResponse` | 同名 | DataPanel（入力選択） |
 | `ChunkingRequest` / `QaGenerationRequest` / `RegisterRequest` | `ChunkingParams` / `QaParams` / `RegisterParams` | DataPanel |
@@ -211,4 +228,5 @@ Qdrant が落ちていても 200 を返し、本文の `available: false` と理
 
 | Version | 日付 | 変更内容 |
 |---|---|---|
+| 1.1 | 2026-09-16 | `GET /api/models` / `GET /api/model` を追加（23 → 25）。モデル選択の契約と 422 の条件を追記 |
 | 1.0 | 2026-09-16 | 新規作成。全 23 エンドポイント・SSE ワイヤ形式・ステータス方針・types.ts 対応を実装から書き起こした |

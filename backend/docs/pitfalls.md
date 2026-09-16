@@ -135,7 +135,7 @@ Python 側が全部緑でも通らない。対応表は
 | `api/review.py` が `api/support.py` とほぼ同じ | 意図的な対称性。共通化するとジョブ種別の差が読めなくなる |
 | `config.py::GeminiConfig.DEFAULT_MODEL`（`gemini-2.5-flash`） | **参照ゼロの死にコード**。調査済み・触らなくてよい（`CLAUDE.md` §3.3） |
 | `INTENT_MODEL` が残っている | `judge_model()` のフォールバック用（テストスタブ向け） |
-| モデル名（`claude-sonnet-4-6` 等） | すべて実在する。マッピングを作らない（`CLAUDE.md` R1） |
+| モデル名（`claude-sonnet-5` 等） | すべて実在する。マッピングを作らない（`CLAUDE.md` R1） |
 
 ---
 

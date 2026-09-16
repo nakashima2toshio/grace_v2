@@ -1,6 +1,6 @@
 # schemas.py - API スキーマ（Pydantic）ドキュメント
 
-**Version 1.6** | 最終更新: 2026-09-16
+**Version 1.7** | 最終更新: 2026-09-16
 
 > **本書の位置づけ**: `backend/app/schemas.py`（API のリクエスト / レスポンス / イベントの Pydantic スキーマ）の **IPO リファレンス**。
 > 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。
@@ -193,6 +193,8 @@ style DATA fill:#1a1a1a,stroke:#fff,color:#fff
 | `JobStatusResponse` | ジョブ状態＋結果 |
 | `SupportEventModel` | SSE 進捗イベント |
 | `VerticalInfo` | 業界プロファイル情報 |
+| `ModelChoice` | モデルセレクタの選択肢 1 件（単価・上限つき） |
+| `ModelInfo` | 既定モデルの解決結果（ヘッダー表示・「（既定値: …）」用） |
 | `QuestionClusterModel` | 0-(A) 質問分析のクラスタ（`main` ＋ `related`） |
 
 #### GRACE-Review 用（v1.1 で追加）
@@ -240,7 +242,16 @@ style DATA fill:#1a1a1a,stroke:#fff,color:#fff
 
 ### 3.2 関数一覧
 
-本モジュールに関数定義はない（スキーマクラスのみ）。
+| 関数 | 概要 |
+|------|------|
+| `_validate_model_choice(v)` | 省略可の `model` フィールド用。空文字・None は `None` へ正規化し、選択肢に無い値は 422 |
+| `_require_model_choice(v)` | 必須の `model` フィールド用（チャンク化 / Q/A 生成）。**空文字も弾く** |
+
+> ⚠️ **2 つある理由**: Support / Review の `model` は「未指定＝サーバーの既定値」で
+> `None` を許すが、データ準備側は**スキーマ既定値を持つ必須フィールド**である。
+> フロントは未選択なら `model` キーごと落として送る
+> （`frontend/src/state/dataParams.ts::modelOverride`）ので、空文字が届くのは
+> 送信側のバグ。既定値へ黙って倒さず 422 にする。
 
 ---
 
@@ -254,6 +265,7 @@ style DATA fill:#1a1a1a,stroke:#fff,color:#fff
 class QueryRequest(BaseModel):
     query: str = Field(min_length=1)
     vertical: Optional[Literal["gov", "saas", "ec"]] = None
+    model: Optional[str] = None      # GET /api/models の選択肢から 1 つ
     dry_run: bool = True
     use_web: bool = True
     do_action: bool = True
@@ -265,6 +277,7 @@ class QueryRequest(BaseModel):
 |------------|------|-----------|------|
 | `query` | str | -（必須, min_length=1） | 問い合わせ内容 |
 | `vertical` | Optional[Literal["gov","saas","ec"]] | None | 業界プロファイル |
+| `model` | Optional[str] | None | 使用する LLM。**None / 空文字＝サーバーの既定値**。選択肢外は 422（`_validate_model_choice`） |
 | `dry_run` | bool | True | アクションのドライラン |
 | `use_web` | bool | True | Web フォールバック有効 |
 | `do_action` | bool | True | アクション実行有効 |
@@ -273,7 +286,7 @@ class QueryRequest(BaseModel):
 
 | 項目 | 内容 |
 |------|------|
-| **Input** | `query`, `vertical`, `dry_run`, `use_web`, `do_action`, `verbose`, `identity` |
+| **Input** | `query`, `vertical`, `model`, `dry_run`, `use_web`, `do_action`, `verbose`, `identity` |
 | **Process** | Pydantic が型・`min_length`・`Literal` を検証 |
 | **Output** | 検証済み `QueryRequest`（不正時は 422 バリデーションエラー） |
 
@@ -604,6 +617,7 @@ class ReviewRequest(BaseModel):
     document: str = Field(min_length=1, max_length=MAX_DOCUMENT_CHARS)
     document_title: str = Field(default="無題")
     ruleset: Optional[Literal["ec_ad"]] = Field(default="ec_ad")
+    model: Optional[str] = Field(default=None)   # GET /api/models の選択肢から 1 つ
     use_web: bool = Field(default=False)
     do_action: bool = Field(default=True)
     dry_run: bool = Field(default=True)
@@ -615,6 +629,7 @@ class ReviewRequest(BaseModel):
 | `document` | str | - | 点検対象の文書（1〜50,000 文字） |
 | `document_title` | str | `"無題"` | 表示用タイトル |
 | `ruleset` | Optional[Literal["ec_ad"]] | `"ec_ad"` | 適用するルールセット |
+| `model` | Optional[str] | `None` | 使用する LLM（`QueryRequest.model` と同じ検証） |
 | `use_web` | bool | `False` | Web で法改正を裏取り |
 | `do_action` | bool | `True` | アクション実行 |
 | `dry_run` | bool | `True` | ドライラン |
@@ -797,6 +812,43 @@ class RuleSetInfo(BaseModel):
 
 ---
 
+### 4.12b ModelChoice / ModelInfo
+
+**概要**: `GET /api/models` の 1 要素と、`GET /api/model` のレスポンス。
+3タブ共通のモデルセレクタが読む。
+
+```python
+class ModelChoice(BaseModel):
+    id: str
+    input_price: float      # $/1K tokens
+    output_price: float
+    context_window: int     # = MODEL_LIMITS[...]["max_tokens"]
+    max_output: int
+
+
+class ModelInfo(BaseModel):
+    model: str              # 既定（生成・推論・根拠検証）
+    light_model: str        # 判定系（意図分類・情報なし判定・RAG 適合性）
+    heavy_model: str = ""   # 論理層。""＝model と同じ
+    chunking_model: str = ""  # データ準備の既定（ChunkingRequest.model）
+    qa_model: str = ""        # 同上（QaGenerationRequest.model）
+```
+
+| 項目 | 内容 |
+|------|------|
+| **Input** | `config.get_selectable_models()` / `ModelConfig` / `get_config().llm` / 各 Request のスキーマ既定値 |
+| **Process** | `api/meta.py` が単価・上限を引いて整形（`ModelInfo` はデータ準備側の既定も併せて返す） |
+| **Output** | `List[ModelChoice]` / `ModelInfo` |
+
+> ⚠️ **`chunking_model` / `qa_model` を `model` と混同しない。** チャンク化は軽量
+> モデルが既定なので、データ管理タブの「（既定値: …）」に `model` を出すと
+> 実際に走るモデルと違う名前を表示してしまう。
+>
+> ⚠️ **Embedding はここに出ない。** Gemini `gemini-embedding-001`（3072 次元）固定
+> （[`config_and_providers.md` §3.1](../config_and_providers.md)）。
+
+---
+
 ### 4.13 データ準備・リクエスト系
 
 #### `ChunkingRequest`
@@ -805,7 +857,7 @@ class RuleSetInfo(BaseModel):
 class ChunkingRequest(BaseModel):
     input_file: str          = Field(min_length=1)              # 'ディレクトリ名/ファイル名'
     output_dir: str          = Field(default="output_chunked")
-    model: str               = Field(default="claude-haiku-4-5")
+    model: str               = Field(default="claude-haiku-4-5")   # 選択肢外は 422
     workers: int             = Field(default=8, ge=1, le=32)
     block_size: int          = Field(default=1000, ge=100, le=8000)
     text_column: Optional[str] = None
@@ -824,7 +876,7 @@ class ChunkingRequest(BaseModel):
 class QaGenerationRequest(BaseModel):
     input_file: str            = Field(min_length=1)          # チャンク済み CSV
     output_dir: str            = Field(default="qa_output")
-    model: str                 = Field(default="claude-sonnet-4-6")
+    model: str                 = Field(default="claude-sonnet-5")  # 選択肢外は 422
     max_docs: Optional[int]    = Field(default=None, ge=1)
     use_celery: bool           = False   # ⚠️ True なら Celery ワーカーが要る
     concurrency: int           = Field(default=8, ge=1, le=32)
@@ -842,7 +894,7 @@ class QaGenerationRequest(BaseModel):
 > 生成した Q/A CSV が `RegisterRequest.input_file` の選択肢に出てこない。
 
 > 📝 **`model` の既定はチャンク化と違う。** Q/A 生成は文章生成の比重が大きいので、
-> CLI と `QAPipeline` の既定に合わせて `claude-sonnet-4-6` にしてある。
+> CLI と `QAPipeline` の既定に合わせて `claude-sonnet-5` にしてある。
 
 #### `RegisterRequest`
 
@@ -1032,6 +1084,7 @@ ReviewResultModel, ReviewJobStatusResponse, RuleSetInfo
 | 1.1 | 2026-07-29 | GRACE-Review のスキーマ 7 モデル＋`MAX_DOCUMENT_CHARS` を追加（PR #41）。Support 側のモデルは無変更 |
 | 1.2 | 2026-08-01 | `QueryRequest` に `identity`（本人確認の識別子・CLI の `--identity` 相当）を追加。実際に照合される条件（`ec` ＋ `dry_run=False` ＋ `SUPPORT_IDENTITY_FILE`）を注記 |
 | 1.4 | 2026-09-12 | `QaGenerationRequest` を追加（`POST /api/qa/generate`）。`DataJobStatusResponse` の `kind` が 4 種になったことを反映 |
+| 1.7 | 2026-09-16 | モデルセレクタ対応。`QueryRequest` / `ReviewRequest` に `model` を追加、`ModelChoice` / `ModelInfo` を新設、`model` 用バリデータ 2 本（§3.2）を追記。Q/A 生成の既定を `claude-sonnet-5` へ更新 |
 | 1.6 | 2026-09-16 | 3 階建て再編（`reference/` へ移設）に伴い、冒頭へ**位置づけと上位文書への導線**を追加した |
 | 1.5 | 2026-09-12 | 3 つの状態レスポンス（`JobStatusResponse` / `ReviewJobStatusResponse` / `DataJobStatusResponse`）に `created_at` / `finished_at`（サーバ時計・エポック秒）を追加。SSE を購読していない経路でも所要時間を出せるようにするもの |
 

@@ -26,13 +26,26 @@ class ModelConfig:
 
     # 利用可能なモデル一覧（テキスト生成）
     AVAILABLE_MODELS: List[str] = [
-        "claude-sonnet-4-6",            # デフォルト（推論・生成）
-        "claude-haiku-4-5-20251001",    # 高速・文字列処理向け（日付指定）
-        "claude-haiku-4-5",             # 同上のエイリアス。チャンキングの既定値
+        "claude-sonnet-5",              # デフォルト（推論・生成）
+        "claude-opus-5",                # 上位（難しい推論・レビュー）
+        "claude-haiku-4-5",             # 軽量。日付なしエイリアス。UI の選択肢
+        "claude-haiku-4-5-20251001",    # 同上の日付指定。light_model の既定値
+        "claude-sonnet-4-6",            # 旧既定（後方互換。既存設定の読み込み用）
+    ]
+
+    # UI（3タブ共通のモデルセレクタ）に出す選択肢。
+    #
+    # ⚠️ `AVAILABLE_MODELS` とは別物。あちらは「このコードが単価・上限を知っている
+    #    モデル」の一覧で、旧既定や日付指定エイリアスも含む。ユーザーに選ばせるのは
+    #    現行世代の 3 つだけにして、同じモデルが 2 行（日付あり／なし）出るのを防ぐ。
+    SELECTABLE_MODELS: List[str] = [
+        "claude-sonnet-5",
+        "claude-opus-5",
+        "claude-haiku-4-5",
     ]
 
     # デフォルトモデル
-    DEFAULT_MODEL: str = "claude-sonnet-4-6"
+    DEFAULT_MODEL: str = "claude-sonnet-5"
 
     # temperatureパラメータをサポートしないモデル（Claude は全モデルサポート）
     NO_TEMPERATURE_MODELS: List[str] = []
@@ -46,9 +59,11 @@ class ModelConfig:
     #    以前はこの行が無かったためコストと上限が既定値で計算されていた。
     #    **既定モデル名を変えるときは、この表と MODEL_LIMITS の両方に行を足すこと。**
     MODEL_PRICING: Dict[str, Dict[str, float]] = {
-        "claude-sonnet-4-6": {"input": 0.003, "output": 0.015},
-        "claude-haiku-4-5-20251001": {"input": 0.001, "output": 0.005},
+        "claude-sonnet-5": {"input": 0.002, "output": 0.010},
+        "claude-opus-5": {"input": 0.005, "output": 0.025},
         "claude-haiku-4-5": {"input": 0.001, "output": 0.005},
+        "claude-haiku-4-5-20251001": {"input": 0.001, "output": 0.005},
+        "claude-sonnet-4-6": {"input": 0.003, "output": 0.015},
 
         "gemini-3-pro-preview": {"input": 0.00125, "output": 0.010},
         "gemini-2.5-flash-preview": {"input": 0.00015, "output": 0.0035},
@@ -59,9 +74,12 @@ class ModelConfig:
 
     # モデル制限
     MODEL_LIMITS: Dict[str, Dict[str, int]] = {
+        # max_tokens = コンテキスト長 / max_output = 1 応答の出力上限
+        "claude-sonnet-5": {"max_tokens": 1000000, "max_output": 128000},
+        "claude-opus-5": {"max_tokens": 1000000, "max_output": 128000},
+        "claude-haiku-4-5": {"max_tokens": 200000, "max_output": 64000},
+        "claude-haiku-4-5-20251001": {"max_tokens": 200000, "max_output": 64000},
         "claude-sonnet-4-6": {"max_tokens": 200000, "max_output": 8192},
-        "claude-haiku-4-5-20251001": {"max_tokens": 200000, "max_output": 8192},
-        "claude-haiku-4-5": {"max_tokens": 200000, "max_output": 8192},
 
         "gemini-3-pro-preview": {"max_tokens": 1000000, "max_output": 64000},
         "gemini-2.5-flash-preview": {"max_tokens": 1000000, "max_output": 64000},
@@ -90,6 +108,20 @@ class ModelConfig:
         """max_completion_tokensを使用するモデルかどうか"""
         # Anthropic Claude は max_tokens（出力上限）を使用するため常に False
         return False
+
+
+def get_selectable_models() -> List[str]:
+    """UI（3タブ共通のモデルセレクタ）に出してよいモデル一覧を返す。
+
+    `ModelConfig.SELECTABLE_MODELS` をそのまま返す薄い関数だが、呼び出し側
+    （`backend/app/schemas.py` のバリデータ / `GET /api/models` / エージェント
+    コアの上書き）が**同じ 1 箇所**を見ることを保証するために置いている。
+
+    ⚠️ Embedding はここに含めない。Embedding は Gemini（`gemini-embedding-001`
+    3072 次元）固定で、モデルを変えると既存 Qdrant コレクションと次元が合わず
+    全件再登録になる（CLAUDE.md §3 プロバイダ方針）。
+    """
+    return list(ModelConfig.SELECTABLE_MODELS)
 
 
 # ===================================================================

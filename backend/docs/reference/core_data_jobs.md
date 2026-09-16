@@ -294,7 +294,7 @@ class ChunkingParams:
 class QaGenerationParams:
     input_file: str                      # 'ディレクトリ名/ファイル名' 形式
     output_dir: str = "qa_output"
-    model: str = "claude-sonnet-4-6"
+    model: str = "claude-sonnet-5"
     max_docs: Optional[int] = None
     use_celery: bool = False
     concurrency: int = 8
@@ -312,7 +312,7 @@ class QaGenerationParams:
 
 > 📝 **モデルの既定はチャンク化（`claude-haiku-4-5`）と違う。** Q/A 生成は
 > 文章生成の比重が大きいので、CLI（`make_qa_register_qdrant.py --model`）と
-> `QAPipeline` の既定に合わせて `claude-sonnet-4-6` にしてある。
+> `QAPipeline` の既定に合わせて `claude-sonnet-5` にしてある。
 
 > ⚠️ **`use_celery=True` にするなら Celery ワーカーが起動していること。**
 > 落ちているとパイプラインが例外を投げ、runner が error イベントへ変換する。

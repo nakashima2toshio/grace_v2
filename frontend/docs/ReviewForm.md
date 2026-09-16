@@ -1,6 +1,6 @@
 # ReviewForm.tsx - 文書レビュー入力フォーム ドキュメント
 
-**Version 1.1** | 最終更新: 2026-09-12
+**Version 1.2** | 最終更新: 2026-09-16
 
 ---
 
@@ -23,10 +23,10 @@
 
 | 項目 | 内容 |
 |---|---|
-| ファイル | `frontend/src/components/ReviewForm.tsx`（210 行） |
-| 種別 | **状態保持コンポーネント**（`useState` × 7） |
+| ファイル | `frontend/src/components/ReviewForm.tsx`（246 行） |
+| 種別 | **状態保持コンポーネント**（`useState` × 8） |
 | 親 | `ReviewPanel.tsx` |
-| 子 | なし |
+| 子 | `ModelSelect`（モデルセレクタ） |
 | 主な依存 | `../state/formMemory`（`recallReviewForm` / `rememberReviewForm`）/ `../state/documentLimit`（`documentLimit`） |
 | 対応バックエンド | `POST /api/review/submit`（`api/review.py`）/ `ReviewRequest`（`schemas.py`） |
 
@@ -87,6 +87,10 @@ style Pure fill:#1a1a1a,stroke:#fff,color:#fff
 ```typescript
 interface Props {
   rulesets: RuleSetInfo[];
+  /** モデルの選択肢（GET /api/models）。空なら「（既定値）」だけが出る。 */
+  models: ModelChoice[];
+  /** サーバーの既定モデル名（GET /api/model）。「（既定値）」に実名を出す。 */
+  defaultModel?: string;
   running: boolean;
   onSubmit: (params: ReviewParams) => void;
 }
@@ -95,6 +99,8 @@ interface Props {
 | Prop | 型 | 必須 | 既定値 | 説明 |
 |---|---|:---:|---|---|
 | `rulesets` | `RuleSetInfo[]` | ✅ | — | `/api/rulesets` の取得結果。セレクタの選択肢 |
+| `models` | `ModelChoice[]` | ✅ | — | `/api/models` の取得結果。モデルセレクタの選択肢 |
+| `defaultModel` | `string` | | `undefined` | `/api/model` の `model`。未選択項目を「（既定値: <名前>）」にする |
 | `running` | `boolean` | ✅ | — | 実行中フラグ。`true` の間は全入力を `disabled` |
 | `onSubmit` | `(params: ReviewParams) => void` | ✅ | — | 送信時に `ReviewParams` を親へ返す |
 
@@ -111,7 +117,7 @@ interface Props {
 
 ## 3. 状態管理
 
-### 3.1 ローカル state（`useState` × 7）
+### 3.1 ローカル state（`useState` × 8）
 
 | 変数 | 型 | 初期値 | 更新契機 | 説明 |
 |---|---|---|---|---|
@@ -119,6 +125,7 @@ interface Props {
 | `document` | `string` | `restored.document` | textarea の `onChange` / 例文チップ | 点検対象の本文 |
 | `title` | `string` | `restored.title` | テキスト入力 / 例文チップ | 文書タイトル。空なら送信時に `'無題'` |
 | `ruleset` | `string` | `restored.ruleset` | セレクタ変更 | 空文字は `null` として送る |
+| `model` | `string` | `restored.model` | `ModelSelect` | **空文字＝サーバーの既定値**。送信時に `null` へ倒す |
 | `useWeb` | `boolean` | `restored.useWeb` | チェックボックス | **既定 OFF**（条文が一次情報のため） |
 | `dryRun` | `boolean` | `restored.dryRun` | チェックボックス | **既定 ON**（起票せずログのみ） |
 | `verbose` | `boolean` | `restored.verbose` | チェックボックス | 詳細ログ |
@@ -324,8 +331,9 @@ onSubmit({
 | `src/components/ReviewForm.examples.test.ts` | **`EXAMPLES` の中身**（各例文が満たすべき条件） | 17 |
 | `src/state/formMemory.test.ts` | 入力の退避と復元 | 13 |
 | `src/state/documentLimit.test.ts` | 上限の境界・表示文言・**アナウンス文言の不変性** | 10 |
+| `src/state/modelLabel.test.ts` | モデル名の表示文字列（`ModelSelect` の「（既定値）」含む） | 9 |
 
-**2026-09-12 に `npm test` を実行した実測値**（フロント全体は 19 ファイル / 276 件）。
+**2026-09-16 に `npm test` を実行した実測値**（フロント全体は 20 ファイル / 288 件）。
 
 ### テスト方針
 
@@ -342,5 +350,6 @@ onSubmit({
 
 | 版 | 日付 | 変更内容 |
 |---|---|---|
+| 1.2 | 2026-09-16 | **モデルセレクタを追加**（`models` / `defaultModel` prop → `ModelSelect`）。`model` は空文字＝「サーバーの既定値」で、送信時に `null` へ倒す。`formMemory` にも `model` を追加した |
 | 1.1 | 2026-09-12 | **アクセシビリティを改善。** タイトルと文書に `.sr-only` のラベルを付け、上限超過を `aria-invalid` ＋ `aria-describedby` ＋ ライブ領域で伝えるようにした。判定・文言は `state/documentLimit.ts`（純関数・vitest 10 件）へ切り出し、**超過中のアナウンス文言を長さに依存させない**ことで再読み上げを防いでいる |
 | 1.0 | 2026-09-12 | 初版作成。実装は 2026-08-20 からあったが文書が無かった（`frontend/docs/README.md` の索引が無く欠落を検知できていなかった） |

@@ -5,7 +5,8 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { documentLimit } from '../state/documentLimit';
 import { recallReviewForm, rememberReviewForm } from '../state/formMemory';
-import type { ReviewParams, RuleSetInfo } from '../types';
+import type { ModelChoice, ReviewParams, RuleSetInfo } from '../types';
+import { ModelSelect } from './ModelSelect';
 
 // backend/app/schemas.py の MAX_DOCUMENT_CHARS と一致させる（超過は API が 422）。
 const MAX_DOCUMENT_CHARS = 50000;
@@ -74,23 +75,29 @@ export const EXAMPLES: Array<{ label: string; title: string; document: string }>
 
 interface Props {
   rulesets: RuleSetInfo[];
+  /** モデルの選択肢（GET /api/models）。空なら「（既定値）」だけが出る。 */
+  models: ModelChoice[];
+  /** サーバーの既定モデル名（GET /api/model）。「（既定値）」に実名を出す。 */
+  defaultModel?: string;
   running: boolean;
   onSubmit: (params: ReviewParams) => void;
 }
 
-export function ReviewForm({ rulesets, running, onSubmit }: Props) {
+export function ReviewForm({ rulesets, models, defaultModel, running, onSubmit }: Props) {
   // マウント時に 1 度だけ引く（毎レンダーで読み直すと入力中に上書きされる）。
   const [restored] = useState(() => recallReviewForm());
   const [document, setDocument] = useState(restored.document);
   const [title, setTitle] = useState(restored.title);
   const [ruleset, setRuleset] = useState<string>(restored.ruleset);
+  // 空文字 = 未選択 =「サーバーの既定値を使う」。
+  const [model, setModel] = useState<string>(restored.model);
   const [useWeb, setUseWeb] = useState(restored.useWeb);
   const [dryRun, setDryRun] = useState(restored.dryRun);
   const [verbose, setVerbose] = useState(restored.verbose);
 
   useEffect(() => {
-    rememberReviewForm({ document, title, ruleset, useWeb, dryRun, verbose });
-  }, [document, title, ruleset, useWeb, dryRun, verbose]);
+    rememberReviewForm({ document, title, ruleset, model, useWeb, dryRun, verbose });
+  }, [document, title, ruleset, model, useWeb, dryRun, verbose]);
 
   // 文字数の判定・表示文言・アナウンス文言は純関数へ出す（CLAUDE.md §6）。
   const limit = documentLimit(document, MAX_DOCUMENT_CHARS);
@@ -103,6 +110,7 @@ export function ReviewForm({ rulesets, running, onSubmit }: Props) {
       document,
       document_title: title.trim() || '無題',
       ruleset: ruleset || null,
+      model: model || null,
       use_web: useWeb,
       do_action: true,
       dry_run: dryRun,
@@ -174,6 +182,13 @@ export function ReviewForm({ rulesets, running, onSubmit }: Props) {
             ))}
           </select>
         </label>
+        <ModelSelect
+          models={models}
+          value={model}
+          onChange={setModel}
+          disabled={running}
+          defaultModel={defaultModel}
+        />
         <label>
           <input
             type="checkbox"

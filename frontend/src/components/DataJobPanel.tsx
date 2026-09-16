@@ -16,6 +16,8 @@ import {
   confirmDataIntervention,
   fetchDataJobStatus,
   fetchInputFiles,
+  fetchModelInfo,
+  fetchModels,
   startChunking,
   startQaGeneration,
   startRegister,
@@ -40,7 +42,8 @@ import {
 } from '../state/dataParams';
 import { useJobTiming } from '../state/useJobTiming';
 import { dataReducer, initialDataState, stepIdsFor, stepLabelsFor } from '../state/dataReducer';
-import type { DataJobKind, InputFileInfo } from '../types';
+import type { DataJobKind, InputFileInfo, ModelChoice, ModelInfo } from '../types';
+import { ModelSelect } from './ModelSelect';
 import { ConfirmModal } from './ConfirmModal';
 import { JobFinishLine, JobStartLine } from './JobClock';
 import { Timeline } from './Timeline';
@@ -64,7 +67,9 @@ export function DataJobPanel({ variant }: { variant: DataJobVariant }) {
 
   // --- チャンキング用 -------------------------------------------------------
   const [outputDir, setOutputDir] = useState('output_chunked');
-  const [model, setModel] = useState('claude-haiku-4-5');
+  // 空文字 = 未選択 =「サーバーの既定値を使う」（`backend/app/schemas.py` の
+  // `ChunkingRequest.model` の既定）。**フロントに既定のモデル名を持たせない。**
+  const [model, setModel] = useState('');
   const [workers, setWorkers] = useState(8);
   const [blockSize, setBlockSize] = useState(1000);
   const [textColumn, setTextColumn] = useState('');
@@ -74,8 +79,9 @@ export function DataJobPanel({ variant }: { variant: DataJobVariant }) {
   // --- Q/A 生成用 -----------------------------------------------------------
   // ⚠️ モデルの既定はチャンキングの軽量モデルではなく、CLI
   //    （make_qa_register_qdrant.py --model）と QAPipeline の既定に合わせる。
+  //    その既定は `QaGenerationRequest.model` が持つので、ここは空（未選択）。
   const [qaOutputDir, setQaOutputDir] = useState('qa_output');
-  const [qaModel, setQaModel] = useState('claude-sonnet-4-6');
+  const [qaModel, setQaModel] = useState('');
   const [useCelery, setUseCelery] = useState(false);
   const [concurrency, setConcurrency] = useState(8);
   const [batchChunks, setBatchChunks] = useState(3);
@@ -90,11 +96,24 @@ export function DataJobPanel({ variant }: { variant: DataJobVariant }) {
 
   const [verbose, setVerbose] = useState(false);
 
+  // --- モデルの選択肢 -------------------------------------------------------
+  // 3タブ共通のセレクタと同じ選択肢（GET /api/models）を使う。
+  // ⚠️ Embedding はここに出ない。③ Qdrant 登録の埋め込みは Gemini
+  //    （gemini-embedding-001 3072 次元）固定で、選択の対象外。
+  const [models, setModels] = useState<ModelChoice[]>([]);
+  const [modelInfo, setModelInfo] = useState<ModelInfo | null>(null);
+
   const [state, dispatch] = useReducer(dataReducer, kind, initialDataState);
   // 開始・完了時刻。完了の記録は phase の決着を見て自動で入る（useJobTiming）。
   const [timing, beginTiming, observeTiming] = useJobTiming(state.phase);
   const [confirming, setConfirming] = useState(false);
   const unsubscribeRef = useRef<(() => void) | null>(null);
+
+  // モデルの選択肢は登録タブでは使わないが、取得コストが小さいので分岐しない。
+  useEffect(() => {
+    void fetchModels().then(setModels).catch(() => setModels([]));
+    void fetchModelInfo().then(setModelInfo).catch(() => setModelInfo(null));
+  }, []);
 
   // ディレクトリを変えたらファイル一覧を取り直す。
   // 早期 return でも必ずクリーンアップを返す（SSE の解除漏れ防止）
@@ -312,14 +331,13 @@ export function DataJobPanel({ variant }: { variant: DataJobVariant }) {
                   disabled={running}
                 />
               </label>
-              <label>
-                モデル
-                <input
-                  value={model}
-                  onChange={(e) => setModel(e.target.value)}
-                  disabled={running}
-                />
-              </label>
+              <ModelSelect
+                models={models}
+                value={model}
+                onChange={setModel}
+                disabled={running}
+                defaultModel={modelInfo?.chunking_model ?? ''}
+              />
             </div>
             <div className="query-row">
               <label>
@@ -397,14 +415,13 @@ export function DataJobPanel({ variant }: { variant: DataJobVariant }) {
                   disabled={running}
                 />
               </label>
-              <label>
-                モデル
-                <input
-                  value={qaModel}
-                  onChange={(e) => setQaModel(e.target.value)}
-                  disabled={running}
-                />
-              </label>
+              <ModelSelect
+                models={models}
+                value={qaModel}
+                onChange={setQaModel}
+                disabled={running}
+                defaultModel={modelInfo?.qa_model ?? ''}
+              />
               <label>
                 1 回の生成で渡すチャンク数
                 <input

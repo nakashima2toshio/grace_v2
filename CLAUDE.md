@@ -195,7 +195,7 @@ cd frontend && npm run lint && npm test && npm run build   # frontend
 | 用途 | プロバイダ | 既定 | APIキー |
 |---|---|---|---|
 | **Embedding（検索）のみ** | **Gemini** | `gemini-embedding-001`（3072次元） | `GOOGLE_API_KEY` |
-| **それ以外の全 LLM 用途**（Q&A生成・Plan/Execute/Reasoning/Confidence/Replan/ReAct 等） | **Anthropic** | `claude-sonnet-4-6`（軽量 `claude-haiku-4-5-20251001`） | `ANTHROPIC_API_KEY` |
+| **それ以外の全 LLM 用途**（Q&A生成・Plan/Execute/Reasoning/Confidence/Replan/ReAct 等） | **Anthropic** | `claude-sonnet-5`（軽量 `claude-haiku-4-5-20251001`） | `ANTHROPIC_API_KEY` |
 
 - LLM クライアントは `helper.helper_llm.create_llm_client("anthropic")` /
   `grace.llm_compat.create_chat_client`。
@@ -205,16 +205,24 @@ cd frontend && npm run lint && npm test && npm run build   # frontend
   Gemini 系の **LLM** 既定は「設計上の意図」ではなく **移植漏れ（負債）**とみなす。
   発見次第 Anthropic へ是正する。「現存コード＝意図」と推論しないこと。
 
-### 3.1 ⚠️ モデル名の解決経路は 3 本ある
+### 3.1 ⚠️ モデル名の解決経路は 4 本ある
 
 「既定モデルを変える」ときに 1 箇所だけ直すと**取り残しが出る**。
-必ず 3 本とも確認すること。
+必ず 4 本とも確認すること。
 
 | # | 経路 | 実体 | 誰が読むか |
 |---|---|---|---|
 | 1 | **設定ファイル（正）** | `config/grace_config.yml` の `llm.model` / `llm.light_model` | `grace/config.py::ConfigLoader` 経由で planner / reasoning / groundedness / ReAct |
 | 2 | **モジュール定数** | `backend/app/core/verticals.py::INTENT_MODEL`（リテラル） | 判定系（意図分類・情報なし判定）。**yml を一切見ない** |
 | 3 | **Python 定数** | `config.py::ModelConfig.DEFAULT_MODEL` | 上記以外（チャンキング・Q&A 生成など CLI 側） |
+| 4 | **リクエスト単位の上書き** | UI のモデルセレクタ → `QueryRequest.model` / `ReviewRequest.model` → コアが `config.llm.model` を差し替え | その 1 リクエストの生成・推論・根拠検証・③ Detect |
+
+**経路 4 は経路 1 を「そのリクエストだけ」上書きする**（`copy.deepcopy(get_config())` の
+コピーに対して行うので、他のジョブへは漏れない）。選択肢は
+`config.py::ModelConfig.SELECTABLE_MODELS`（= `get_selectable_models()`）の 1 箇所で決まり、
+スキーマのバリデータ・`GET /api/models`・コアの再検証がすべてそこを読む。
+**`light_model` は上書きしない**（判定系は軽量モデルのまま。理由は
+`backend/docs/config_and_providers.md` §3.1）。
 
 **経路 1 が正。** 経路 2 は `backend/app/core/gates.py::judge_model()` が
 「config から解決できないときだけ `INTENT_MODEL` へフォールバックする」形に是正済みなので、
@@ -229,17 +237,24 @@ cd frontend && npm run lint && npm test && npm run build   # frontend
 
 ### 3.2 実在するモデル名（勝手に「修正」しない）
 
-`config.py::ModelConfig` が定義する 3 つはすべて実在し、**すべて正しい**。
+`config.py::ModelConfig` が定義する 5 つはすべて実在し、**すべて正しい**。
 
-| モデル名 | 用途 |
-|---|---|
-| `claude-sonnet-4-6` | 既定（推論・生成） |
-| `claude-haiku-4-5-20251001` | 軽量（日付指定）。`llm.light_model` / `INTENT_MODEL` の値 |
-| **`claude-haiku-4-5`** | 上記の**エイリアス（日付なし）。チャンキングの既定値** |
+| モデル名 | 用途 | UI の選択肢 |
+|---|---|:--:|
+| `claude-sonnet-5` | **既定**（推論・生成） | ✅ |
+| `claude-opus-5` | 上位（難しい推論・レビュー）。`llm.heavy_model` にも使える | ✅ |
+| **`claude-haiku-4-5`** | 軽量。**日付なしエイリアス**。チャンキングの既定値 | ✅ |
+| `claude-haiku-4-5-20251001` | 上記の日付指定。`llm.light_model` / `INTENT_MODEL` の値 | ❌ |
+| `claude-sonnet-4-6` | 旧既定（後方互換。既存設定の読み込み用） | ❌ |
 
 **`claude-haiku-4-5` を「日付が抜けている」と判断して書き換えないこと。**
-意図的なエイリアスであり、`MODEL_PRICING` / `MODEL_LIMITS` にも 3 つとも登録されている。
+意図的なエイリアスであり、`MODEL_PRICING` / `MODEL_LIMITS` にも 5 つとも登録されている。
 これは R1（モデル名のマッピングを作らない）と同種の事故である。
+
+> ⚠️ **「UI の選択肢 ❌」は「使えない」という意味ではない。** 下 2 つは有効な
+> モデル名で、設定ファイルからは指定できる。**同じモデルが 2 行（日付あり／なし）
+> 並ぶのを避けるため、セレクタに出していないだけ**である
+> （`ModelConfig.AVAILABLE_MODELS` ⊃ `SELECTABLE_MODELS`）。
 
 ### 3.3 調査済み・触らなくてよい残置コード
 
@@ -319,11 +334,14 @@ cd frontend && npm run lint && npm test && npm run build   # frontend
 | `state/metaFetch.ts` / `state/timelineAnnounce.ts` | ✅ | ❌ |
 | `components/MetaErrorBanner.tsx` | ✅ | ❌ |
 | `state/documentLimit.ts`（文字数上限の判定・アナウンス文言） | ✅ | ❌ |
-| `components/ModelSelect.tsx` / `state/modelLabel.ts` | ❌ | ✅ |
+| `components/ModelSelect.tsx` / `state/modelLabel.ts` | ✅（2026-09-16 に追加） | ✅ |
 | LLM プロバイダ | Anthropic | Ollama（ローカル） |
 
 > この表は「**local からコピーすると消えるもの**」の一覧である。
 > 実測日: 2026-09-13（`frontend/src/` を両リポジトリで突き合わせ）。
+> `ModelSelect.tsx` / `modelLabel.ts` は 2026-09-16 に**両方に存在**するようになったが、
+> **中身は別物**（こちらは Anthropic のモデル一覧・単価つきラベル、local は Ollama）。
+> 名前が同じでも**コピーで持ち込まない**こと。
 > こちらにしかないフロント資産を足したら、**この表にも 1 行足す**こと。
 
 **実例（2026-08-25）**: 基本版タブの複数行入力を local から移植する際、
@@ -376,12 +394,13 @@ React の型（`KeyboardEvent` 等）に直接依存させず、必要なフィ�
 |---|---|
 | `state/queryParams.ts` | 送信ペイロードの組み立て・基本版での vertical 固定・識別子の有無 |
 | `state/submitKey.ts` | textarea の送信キー（Ctrl+Enter / ⌘+Enter・**IME 変換中は送信しない**） |
-| `state/dataParams.ts` | データ準備フォームの入力 → API パラメータ組み立て（空欄・トリム・null 化） |
+| `state/dataParams.ts` | データ準備フォームの入力 → API パラメータ組み立て（空欄・トリム・null 化・未選択モデルのキー省略） |
 | `state/tabKeys.ts` | タブの矢印キー移動 |
-| `state/formMemory.ts` | タブ切替時の入力退避と復元 |
+| `state/formMemory.ts` | タブ切替時の入力退避と復元（選んだモデルを含む） |
 | `state/interventionKind.ts` | 承認待ちが action（⑥ 実行承認）か question（0-(A) 主質問の選択）か |
 | `state/documentLimit.ts` | 文字数上限の判定・表示文言・**アナウンス文言**（超過中は長さを含めず再読み上げを防ぐ） |
 | `state/metaFetch.ts` | メタ取得失敗を対処可能な文言へ（silent failure を出さない） |
+| `state/modelLabel.ts` | モデル名の表示文字列（ヘッダー・「（既定値: …）」・単価つき選択肢） |
 | `state/timelineAnnounce.ts` | 支援技術へ読み上げる 1 行の決定 |
 | `state/citations.ts` / `highlight.ts` / `elapsed.ts` / `activeJobs.ts` | 表示用の派生値 |
 | `state/jobReducer.ts` / `dataReducer.ts` / `reviewReducer.ts` | ジョブ状態の遷移 |
@@ -529,7 +548,7 @@ python -m chunking.csv_text_to_chunks_text_csv \
 | 用途 | ✅ 正しい表記 | ❌ 禁止表記 |
 |---|---|---|
 | LLM全般 | `Anthropic Claude` | `OpenAI GPT`, `Gemini`（LLM 用途） |
-| デフォルトモデル | `claude-sonnet-4-6`（軽量 `claude-haiku-4-5-20251001` / エイリアス `claude-haiku-4-5`） | `gpt-4o-mini`, `gemini-2.5-flash` |
+| デフォルトモデル | `claude-sonnet-5`（上位 `claude-opus-5` / 軽量 `claude-haiku-4-5`・日付指定 `claude-haiku-4-5-20251001`） | `gpt-4o-mini`, `gemini-2.5-flash` |
 | Embedding | `Gemini` `gemini-embedding-001`（3072次元） | `text-embedding-3-*`（本番 Embedding 用途） |
 | LLMクライアント | `create_llm_client("anthropic")` | `"openai"` / `"gemini"`（LLM 用途） |
 | LLM用APIキー | `ANTHROPIC_API_KEY` | `OPENAI_API_KEY` |
@@ -538,6 +557,9 @@ python -m chunking.csv_text_to_chunks_text_csv \
 
 > `claude-haiku-4-5`（日付なし）は**実在するエイリアスでチャンキングの既定値**。
 > 日付付きへ「統一」しないこと（§3.2）。
+>
+> `claude-sonnet-4-6` は**旧既定**。履歴・変更履歴の記述では当時の値として残す
+> （現在の既定を述べる箇所だけ `claude-sonnet-5` にする）。
 
 ### 9.4 参照してはいけない廃止ファイル
 grace_v2 に**存在しない**: `setup.py` / `server.py` / a-prefixed scripts
@@ -562,7 +584,7 @@ grace_v2 に**存在しない**: `setup.py` / `server.py` / a-prefixed scripts
 ## R1. モデル名のマッピングを絶対に作らない
 
 **以下はすべて実在する有効なモデル名:**
-- `claude-sonnet-4-6`, `claude-haiku-4-5-20251001`
+- `claude-sonnet-5`, `claude-opus-5`, `claude-haiku-4-5`, `claude-haiku-4-5-20251001`, `claude-sonnet-4-6`
 - `gpt-5-nano`, `gpt-5-mini`, `gpt-5` ← 実在する GPT-5 系
 - `gpt-4.1`, `gpt-4.1-mini` ← 実在する GPT-4.1 系
 - `o3`, `o3-mini`, `o4`, `o4-mini` ← 実在する O 系
@@ -626,5 +648,6 @@ response = client.responses.create(
       `ReviewPanel` 系）を壊していないか？ 共用部品（`GroundednessVerifier` /
       `InterventionBridge` / `support_actions.py`）を触ったなら
       `backend/tests/test_review_*.py`（18 本）も通したか？（§1）
-- [ ] モデル既定を変えたなら**3 本の解決経路すべて**を確認したか？（§3.1）
+- [ ] モデル既定を変えたなら**4 本の解決経路すべて**を確認したか？（§3.1）
+      新しい既定を `SELECTABLE_MODELS` と `MODEL_PRICING` / `MODEL_LIMITS` へ入れたか？
 - [ ] 確信が持てない → **ユーザーに聞く**

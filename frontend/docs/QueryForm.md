@@ -1,6 +1,6 @@
 # QueryForm.tsx - 問い合わせ入力フォーム ドキュメント
 
-**Version 1.2** | 最終更新: 2026-08-25
+**Version 1.3** | 最終更新: 2026-09-16
 
 ---
 
@@ -24,9 +24,9 @@
 | 項目 | 内容 |
 |---|---|
 | ファイル | `frontend/src/components/QueryForm.tsx` |
-| 種別 | **状態保持コンポーネント**（入力 8 項目 + 復元用の `useState`。API は呼ばない） |
+| 種別 | **状態保持コンポーネント**（入力 9 項目 + 復元用の `useState`。API は呼ばない） |
 | 親 | `SupportPanel.tsx` |
-| 子 | なし |
+| 子 | `ModelSelect`（モデルセレクタ） |
 | 主な依存 | `../state/queryParams`（`buildQueryParams` / `isIdentityActive` / `identityNote`）<br>`../state/formMemory`（`recallQueryForm` / `rememberQueryForm`）<br>`../state/submitKey`（`isSubmitKey`） |
 | 対応バックエンド | `backend/app/schemas.py`（`QueryRequest`）／ `support_actions.py`（`IDENTITY_FIELDS`） |
 
@@ -42,10 +42,11 @@ CLI で指定できる項目はすべてここから操作できる。
 | `--dry-run` / `--no-dry-run` | dry-run トグル |
 | `-v` / `--verbose` | 詳細ログ トグル |
 | `--identity KEY=VALUE` | 本人確認の識別子（`order_id` / `email`） |
+| （CLI 引数なし） | モデルセレクタ（`ModelSelect`。未選択＝サーバーの既定値） |
 
 > ⚠️ **判断の要るロジックは本ファイルに置かない。** 基本版での `vertical` 固定・
 > 識別子を送るかどうか・状態メッセージは `state/queryParams.ts` の純関数へ出してある
-> （vitest 19 件でテスト済み）。ここへ戻すと**テストできなくなる**。
+> （vitest 27 件でテスト済み）。ここへ戻すと**テストできなくなる**。
 
 ### 主な責務
 
@@ -65,6 +66,7 @@ CLI で指定できる項目はすべてここから操作できる。
 | 二重送信の防止 | `disabled={running \|\| !query.trim()}` | 送信ボタンの無効化 |
 | 複数行入力 | `multiline` prop → `<textarea>` | 基本版タブのみ。改行を含む問い合わせを入力できる |
 | 送信キー判定 | `isSubmitKey(event)` | 純関数へ委譲（Ctrl+Enter / ⌘+Enter・IME 変換中の除外） |
+| モデル選択 | `<ModelSelect>` | 選択肢は `GET /api/models`。未選択（空文字）は `buildQueryParams` が `null` 化 |
 
 ---
 
@@ -104,6 +106,10 @@ style Logic fill:#1a1a1a,stroke:#fff,color:#fff
 ```typescript
 interface Props {
   verticals: VerticalInfo[];
+  /** モデルの選択肢（GET /api/models）。空なら「（既定値）」だけが出る。 */
+  models: ModelChoice[];
+  /** サーバーの既定モデル名（GET /api/model）。「（既定値）」に実名を出す。 */
+  defaultModel?: string;
   running: boolean;
   onSubmit: (params: QueryParams) => void;
   /** 業界プロファイル セレクタを出すか。基本版タブでは false（vertical は常に null）。 */
@@ -121,6 +127,8 @@ interface Props {
 | Prop | 型 | 必須 | 既定値 | 説明 |
 |---|---|:---:|---|---|
 | `verticals` | `VerticalInfo[]` | ✅ | — | `/api/verticals` の取得結果。セレクタの選択肢。**基本版では空配列が渡る** |
+| `models` | `ModelChoice[]` | ✅ | — | `/api/models` の取得結果。**基本版でも渡る**（モデルは両タブで選べる） |
+| `defaultModel` | `string` | | `undefined` | `/api/model` の `model`。未選択項目を「（既定値: <名前>）」にする |
 | `running` | `boolean` | ✅ | — | 実行中フラグ。`true` の間は全入力を `disabled` |
 | `onSubmit` | `(params: QueryParams) => void` | ✅ | — | 送信時に親へ `QueryParams` を返す |
 | `showVertical` | `boolean` | | `true` | セレクタを出すか。`false` で基本版（`vertical` は常に `null`） |
@@ -156,6 +164,7 @@ interface Props {
 | `restored` | `QueryFormMemory` | `recallQueryForm(memoryKey)` | **マウント時のみ** | 前回の入力内容。以降の state 初期値になる |
 | `query` | `string` | `restored.query`（既定 `''`） | `input` の `onChange` | 問い合わせ内容 |
 | `vertical` | `string` | `restored.vertical`（既定 `''`） | セレクタ変更・例文チップ | 空文字は「プロファイルなし」 |
+| `model` | `string` | `restored.model`（既定 `''`） | `ModelSelect` | **空文字は「サーバーの既定値を使う」**。既定のモデル名をここに持たない |
 | `dryRun` | `boolean` | `restored.dryRun`（既定 **`true`**） | チェックボックス | 既定 ON（副作用のあるアクションを実行しない） |
 | `verbose` | `boolean` | `restored.verbose`（既定 `false`） | チェックボックス | 詳細ログ |
 | `useWeb` | `boolean` | `restored.useWeb`（既定 **`true`**） | チェックボックス | Web フォールバック |
@@ -170,7 +179,7 @@ interface Props {
 
 `App.tsx` はタブを**条件レンダリングで切り替える**＝離れたタブはアンマウントされる。
 これは `EventSource` を `useEffect` のクリーンアップで確実に閉じるための意図的な設計だが、
-そのままだと `useState` が 8 個すべて初期値へ戻る。
+そのままだと `useState` が 9 個すべて初期値へ戻る。
 **チェックを外した dry-run が勝手に ON へ復帰する**のは実行結果を変えてしまうため、
 入力内容だけを `state/formMemory.ts`（モジュールスコープのストア）へ退避する。
 
@@ -417,9 +426,10 @@ class S,Opt,Push,V,R,Build,Vert,Null,Sel,Act,Id,Send1,Send2 default
 
 | テストファイル | 対象 | 件数 | 実行 |
 |---|---|---:|---|
-| `src/state/queryParams.test.ts` | `buildQueryParams` / `isIdentityActive` / `identityNote` | 25 | `npm test` |
+| `src/state/queryParams.test.ts` | `buildQueryParams` / `isIdentityActive` / `identityNote` | 27 | `npm test` |
 | `src/state/formMemory.test.ts` | `recallQueryForm` / `rememberQueryForm` とその既定値 | 13 | `npm test` |
 | `src/state/submitKey.test.ts` | `isSubmitKey`（Ctrl/⌘+Enter・Shift+Enter・IME 変換中） | 10 | `npm test` |
+| `src/state/modelLabel.test.ts` | `formatModelLabel` / `defaultOptionLabel` / `modelOptionLabel` | 9 | `npm test` |
 
 ### テスト方針
 
@@ -459,4 +469,5 @@ class S,Opt,Push,V,R,Build,Vert,Null,Sel,Act,Id,Send1,Send2 default
 |---|---|---|
 | 1.0 | 2026-08-01 | 初版作成。CLI 引数との 1:1 対応、`showVertical` による基本版 / Support の出し分け、識別子欄が「効く条件」（`ec` ＋ dry-run OFF ＋ `SUPPORT_IDENTITY_FILE` の 1 経路のみ）、判断ロジックを `state/queryParams.ts` へ出してテストしている構成を記載 |
 | 1.1 | 2026-08-05 | **タブを切り替えると入力が既定値へ戻る不具合を修正。** タブ切替はアンマウントなので `useState` が全部リセットされていた（外した dry-run が ON へ復帰する＝実行結果が変わる）。入力内容を `state/formMemory.ts` へ退避し、再マウント時に復元する。記憶は基本版 / Support で分離 |
+| 1.3 | 2026-09-16 | **モデルセレクタを追加**（`models` / `defaultModel` prop → `ModelSelect`）。`model` state は空文字＝「サーバーの既定値」で、`buildQueryParams` が `null` 化する。既定のモデル名はフロントに持たず `GET /api/model` から取る。`formMemory` にも `model` を追加（タブ切替で選択が戻らないように） |
 | 1.2 | 2026-08-25 | **基本版タブの問い合わせ欄を複数行（`<textarea>`）に変更**（grace_v2_local と同等化）。`multiline` prop で分岐し、`showVertical` からは導出しない。`<textarea>` では Enter が改行になり HTML の暗黙送信が効かなくなるため、`Ctrl+Enter` / `⌘+Enter` を送信に割り当て、判定を `state/submitKey.ts` の純関数へ分離（**IME 変換中の Enter は送信しない**）。送信経路が 3 つになったので条件判定を `submitIfReady()` へ集約 |

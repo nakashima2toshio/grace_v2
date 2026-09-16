@@ -1,6 +1,6 @@
 # SupportPanel.tsx - 問い合わせ → 回答 パネル ドキュメント
 
-**Version 1.4** | 最終更新: 2026-09-12
+**Version 1.5** | 最終更新: 2026-09-16
 
 ---
 
@@ -80,11 +80,11 @@ flowchart TB
     end
     subgraph Container["コンテナ（状態の所有者）"]
         direction TB
-        SP["SupportPanel.tsx<br>useReducer(jobReducer)<br>useState(verticals, verticalsError, loadingVerticals, confirming)<br>useJobTiming(timing)<br>useRef(unsubscribe)"]
+        SP["SupportPanel.tsx<br>useReducer(jobReducer)<br>useState(verticals, verticalsError, loadingVerticals, models, modelInfo, confirming)<br>useJobTiming(timing)<br>useRef(unsubscribe)"]
     end
     subgraph Presentational["表示コンポーネント"]
         direction TB
-        Form["QueryForm.tsx<br>useState(query ほか 8 個)"]
+        Form["QueryForm.tsx<br>useState(query ほか 9 個)"]
         Timeline["StepTimeline.tsx<br>ステートレス"]
         Answer["AnswerCard.tsx<br>ステートレス"]
         Modal["ConfirmModal.tsx<br>ステートレス"]
@@ -155,6 +155,8 @@ export function SupportPanel({ variant = 'vertical' }: { variant?: SupportVarian
 | `verticals` | `VerticalInfo[]` | `[]` | `loadVerticals()` | セレクタの選択肢。**基本版では取得しないので空のまま** |
 | `verticalsError` | `string \| null` | `null` | `loadVerticals()` の成否 | 取得失敗の理由。非 null で `MetaErrorBanner` を出す |
 | `loadingVerticals` | `boolean` | `false` | `loadVerticals()` の前後 | 再取得中。バナーのボタンを `disabled` にする |
+| `models` | `ModelChoice[]` | `[]` | 初回の `fetchModels()` | モデルセレクタの選択肢。**基本版でも取得する**（モデルは両タブで選べる） |
+| `modelInfo` | `ModelInfo \| null` | `null` | 初回の `fetchModelInfo()` | サーバーの既定モデル。「（既定値: …）」の実名表示に使う |
 | `confirming` | `boolean` | `false` | `respond()` の前後 | 承認送信中。モーダルのボタンを `disabled` にする |
 | `timing` | `JobTiming` | `EMPTY_TIMING` | `beginTiming()` / `observeTiming()` | 開始・完了時刻。`useJobTiming(state.phase)` が返す（実体は `useState`） |
 | `unsubscribeRef` | `useRef<(() => void) \| null>` | `null` | 購読開始時 | SSE 解除関数の保持（**再レンダリングで消えないよう ref**） |
@@ -223,6 +225,7 @@ stateDiagram-v2
 | # | 目的 | 依存配列 | クリーンアップ | 備考 |
 |---|---|---|---|---|
 | 1 | 業界プロファイル一覧の取得 | `[showVertical, loadVerticals]` | `() => unsubscribeRef.current?.()` | **基本版（`showVertical=false`）では取得せず、クリーンアップだけ返す** |
+| 2 | モデル選択肢・既定モデルの取得 | `[]` | なし | **両タブで取得する**。失敗しても**バナーを出さない**（後述） |
 
 取得の本体は `useCallback` に切り出してある。`MetaErrorBanner` の「再取得」からも
 同じ関数を呼ぶためで、`useEffect` の中に直書きすると再取得の経路が作れない。
@@ -252,6 +255,19 @@ useEffect(() => {
   return () => unsubscribeRef.current?.();
 }, [showVertical, loadVerticals]);
 ```
+
+```tsx
+useEffect(() => {
+  // モデルの選択肢は**両タブとも**使う（基本版でもモデルは選べる）。
+  void fetchModels().then(setModels).catch(() => setModels([]));
+  void fetchModelInfo().then(setModelInfo).catch(() => setModelInfo(null));
+}, []);
+```
+
+> ⚠️ **モデル取得の失敗は `MetaErrorBanner` を出さない。** 業界プロファイルと違い、
+> 空でも「（既定値）」を選んだまま送信でき、**サーバーが設定どおりのモデルで走る**
+> ため機能が失われない（選べないだけ）。握りつぶしではなく、**縮退しても正しく
+> 動く経路が残る**という違いである。
 
 > ⚠️ **早期 return でもクリーンアップを返している。** `if (!showVertical) return;` と
 > 書くとアンマウント時に `EventSource` が閉じず、購読が残る。**両方の分岐で同じ
@@ -499,6 +515,7 @@ class S,V,R,Go,Err,Fail,Stream,I,M,D default
 
 | 版 | 日付 | 変更内容 |
 |---|---|---|
+| 1.5 | 2026-09-16 | **モデルセレクタに追随。** `models` / `modelInfo` の取得（`fetchModels` / `fetchModelInfo`）を副作用へ追加し、`QueryForm` へ `models` / `defaultModel` を渡すようにした。取得失敗でバナーを出さない理由（縮退しても既定モデルで正しく走る）を明記 |
 | 1.4 | 2026-09-12 | **アクセシビリティ記述の訂正。** 「実行中であることが伝わるか」を ❌ としていたが誤りだった。`Timeline` が `sr-only` の `aria-live="polite"` で「実行中: <ステップ名>」を読み上げており（`state/timelineAnnounce.ts`）、実行中であることは支援技術へ伝わっている。`.running-banner` にライブ領域を足すと二重読み上げになるため、あえて付けない |
 | 1.3 | 2026-09-12 | **本文を実装へ追随させた（それまで §4.1 は修正前のコード `.catch(() => setVerticals([]))` を載せたままだった）。** v1.1〜1.2 で実装済みの `MetaErrorBanner` / `QuestionSelectModal` / `interventionKind` を本文（概要・ツリー図・props・状態管理・副作用・表示の出し分け）へ反映。`useJobTiming` による開始・完了行（`JobClock`）と基本版の複数行入力（`multiline`）を追記。テスト件数を `npm test` の実測値へ差し替え。版番号の重複（1.1 が 2 行）を解消 |
 | 1.2 | 2026-08-30 | **業界プロファイル取得の失敗を握りつぶしていた不具合を修正。** `.catch(() => setVerticals([]))` だとバックエンド停止時に「（なし）しか選べない」としか見えなかったため、`MetaErrorBanner` で理由と復旧手順を表示し再取得できるようにした |

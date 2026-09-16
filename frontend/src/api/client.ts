@@ -10,6 +10,8 @@ import type {
   CollectionInfo,
   CollectionPoints,
   InputFileListResponse,
+  ModelChoice,
+  ModelInfo,
   QaParams,
   QdrantHealth,
   QueryParams,
@@ -64,6 +66,18 @@ export async function confirmIntervention(
       }),
     }),
   );
+  return response.json();
+}
+
+/** モデルの選択肢一覧（3タブ共通のセレクタ用）。 */
+export async function fetchModels(): Promise<ModelChoice[]> {
+  const response = await requireOk(await fetch('/api/models'));
+  return response.json();
+}
+
+/** サーバーの既定モデル（ヘッダー表示と「（既定値: …）」の実名）。 */
+export async function fetchModelInfo(): Promise<ModelInfo> {
+  const response = await requireOk(await fetch('/api/model'));
   return response.json();
 }
 

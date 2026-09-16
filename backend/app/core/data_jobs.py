@@ -131,7 +131,7 @@ class QaGenerationParams:
     output_dir: str = "qa_output"
     # Q/A 生成は文章生成の比重が大きいので、チャンク化の軽量モデルではなく
     # CLI（make_qa_register_qdrant.py --model）と `QAPipeline` の既定に合わせる
-    model: str = "claude-sonnet-4-6"
+    model: str = "claude-sonnet-5"
     max_docs: Optional[int] = None
     # ⚠️ True にするなら Celery ワーカーが起動していること。落ちていると
     #    パイプラインが例外を投げる（runner が error イベントへ変換する）

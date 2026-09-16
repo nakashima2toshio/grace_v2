@@ -210,7 +210,7 @@ describe('fileOptionLabel', () => {
 const qaBase: QaFormState = {
   inputFile: 'output_chunked/cc_news_chunks.csv',
   outputDir: 'qa_output',
-  model: 'claude-sonnet-4-6',
+  model: 'claude-sonnet-5',
   maxDocs: '',
   useCelery: false,
   concurrency: 8,
@@ -223,7 +223,7 @@ describe('buildQaParams', () => {
   it('フォームの値をそのまま渡す', () => {
     const params = buildQaParams(qaBase);
     expect(params.input_file).toBe('output_chunked/cc_news_chunks.csv');
-    expect(params.model).toBe('claude-sonnet-4-6');
+    expect(params.model).toBe('claude-sonnet-5');
     expect(params.batch_chunks).toBe(3);
     expect(params.analyze_coverage).toBe(true);
   });
@@ -258,10 +258,17 @@ describe('canSubmitQa', () => {
     expect(canSubmitQa({ ...qaBase, inputFile: '   ' }, false)).toBe(false);
   });
 
-  it('モデル欄が空なら送信できない', () => {
-    // 空文字を送るとサーバー側の既定値が働かず、空のモデル名で LLM を呼びに行く
-    expect(canSubmitQa({ ...qaBase, model: '' }, false)).toBe(false);
-    expect(canSubmitQa({ ...qaBase, model: '   ' }, false)).toBe(false);
+  it('モデル欄が空でも送信できる（= サーバーの既定値を使う）', () => {
+    // 選択式（ModelSelect）の「（既定値）」を選んだ状態。buildQaParams が
+    // `model` キーごと落とすので、サーバー側の Field(default=...) が効く。
+    expect(canSubmitQa({ ...qaBase, model: '' }, false)).toBe(true);
+    expect(canSubmitQa({ ...qaBase, model: '   ' }, false)).toBe(true);
+  });
+
+  it('モデル未選択なら model キーごと落とす（空文字を送らない）', () => {
+    // 空文字を送るとサーバー側の既定値が働かず 422 になる
+    expect('model' in buildQaParams({ ...qaBase, model: '' })).toBe(false);
+    expect('model' in buildChunkingParams({ ...chunkingBase, model: '  ' })).toBe(false);
   });
 
   it('実行中は送信できない', () => {

@@ -1,6 +1,6 @@
 # frontend/docs 棚卸し
 
-**Version 1.3** | 最終更新: 2026-09-12
+**Version 1.4** | 最終更新: 2026-09-16
 
 `frontend/`（Vite + React 18 + TypeScript）のドキュメント一覧と、実装への追随状況・
 欠落・残タスクをまとめる。
@@ -58,10 +58,11 @@
 
 | 文書 | 対象 | 実装行数 | 版 | 重要度 |
 |---|---|---:|---|:--:|
-| `QueryForm.md` | `components/QueryForm.tsx` | 266 | 1.2 | ★★★ |
+| `QueryForm.md` | `components/QueryForm.tsx` | 282 | 1.3 | ★★★ |
 | `ConfirmModal.md` | `components/ConfirmModal.tsx` — HITL アクション承認 | 95 | 1.1 | ★★ |
 | `QuestionSelectModal.md` | `components/QuestionSelectModal.tsx` — 0-(A) 主質問の選択 | 76 | 1.0 | ★★ |
-| `ReviewForm.md` | `components/ReviewForm.tsx` | 231 | 1.1 | ★★ |
+| `ReviewForm.md` | `components/ReviewForm.tsx` | 246 | 1.2 | ★★ |
+| `ModelSelect.md` | `components/ModelSelect.tsx` — 4 タブ共通のモデルセレクタ | 51 | 1.0 | ★★ |
 
 ### 2.3 表示コンポーネント
 
@@ -87,11 +88,12 @@
 
 ## 3. 実装カバレッジ（欠落している文書）
 
-`frontend/src/components/*.tsx` は **18 件**、対応する `<Component>.md` も **18 件**。
-**欠落は無い**（2026-09-12 に 4 件を新規作成して解消）。
+`frontend/src/components/*.tsx` は **19 件**、対応する `<Component>.md` も **19 件**。
+**欠落は無い**（2026-09-12 に 4 件、2026-09-16 に 1 件を新規作成）。
 
 | コンポーネント | 文書 | 作成日 |
 |---|---|---|
+| `ModelSelect.tsx` | `ModelSelect.md` | 2026-09-16 |
 | `ReviewPanel.tsx` | `ReviewPanel.md` | 2026-09-12 |
 | `ReviewForm.tsx` | `ReviewForm.md` | 2026-09-12 |
 | `JobClock.tsx` | `JobClock.md` | 2026-09-12 |
@@ -129,14 +131,15 @@ CLAUDE.md §6 のとおり、**判断ロジックはコンポーネントに残�
 |---|---:|---|
 | `dataReducer.ts` | 225 | データ準備ジョブの状態遷移 |
 | `reviewReducer.ts` | 191 | Review ジョブの状態遷移 |
-| `dataParams.ts` | 181 | データ準備フォーム → API パラメータ |
+| `dataParams.ts` | 196 | データ準備フォーム → API パラメータ（未選択モデルのキー省略を含む） |
 | `elapsed.ts` | 179 | 所要時間の整形・サーバ権威タイムスタンプの採否 |
 | `jobReducer.ts` | 173 | Support ジョブの状態遷移 |
-| `queryParams.ts` | 123 | 送信ペイロードの組み立て・基本版の vertical 固定 |
-| `formMemory.ts` | 113 | タブ切替時の入力退避と復元 |
+| `queryParams.ts` | 127 | 送信ペイロードの組み立て・基本版の vertical 固定・モデル未選択の null 化 |
+| `formMemory.ts` | 117 | タブ切替時の入力退避と復元（選んだモデルを含む） |
 | `highlight.ts` | 89 | 引用箇所のハイライト |
 | `citations.ts` | 76 | 出典の派生値 |
 | `useJobTiming.ts` | 56 | **例外的にフック**。判断は持たず `elapsed.ts` に委ねる |
+| `modelLabel.ts` | 68 | モデル名の表示文字列（ヘッダー・「（既定値: …）」・単価つき選択肢） |
 | `metaFetch.ts` | 53 | メタ取得失敗 → 対処可能な文言 |
 | `documentLimit.ts` | 52 | 文字数上限の判定・表示文言・アナウンス文言 |
 | `tabKeys.ts` | 49 | タブの矢印キー移動 |
@@ -151,18 +154,18 @@ CLAUDE.md §6 のとおり、**判断ロジックはコンポーネントに残�
 
 ## 5. テスト件数（実測）
 
-**2026-09-12 に `cd frontend && npm test` を実行した実測値。記憶で書かないこと。**
+**2026-09-16 に `cd frontend && npm test` を実行した実測値。記憶で書かないこと。**
 
 ```
-Test Files  19 passed (19)
-     Tests  276 passed (276)
+Test Files  20 passed (20)
+     Tests  288 passed (288)
 ```
 
 | テストファイル | 件数 |
 |---|---:|
-| `state/dataParams.test.ts` | 34 |
+| `state/dataParams.test.ts` | 35 |
 | `state/documentLimit.test.ts` | 10 |
-| `state/queryParams.test.ts` | 25 |
+| `state/queryParams.test.ts` | 27 |
 | `state/dataReducer.test.ts` | 24 |
 | `state/elapsed.test.ts` | 22 |
 | `components/ReviewForm.examples.test.ts` | 17 |
@@ -176,6 +179,7 @@ Test Files  19 passed (19)
 | `state/metaFetch.test.ts` | 10 |
 | `state/submitKey.test.ts` | 10 |
 | `state/timelineAnnounce.test.ts` | 9 |
+| `state/modelLabel.test.ts` | 9 |
 | `state/activeJobs.test.ts` | 8 |
 | `state/jobReducer.test.ts` | 7 |
 | `state/interventionKind.test.ts` | 4 |
@@ -220,6 +224,7 @@ npm run build    # 本番ビルド
 
 | 版 | 日付 | 変更内容 |
 |---|---|---|
+| 1.4 | 2026-09-16 | **モデルセレクタの追加に追随。** `ModelSelect.md` を新規作成し §2.2 へ追加。`QueryForm.md` v1.3 / `ReviewForm.md` v1.2 の版と実装行数を更新。`state/modelLabel.ts` を §4 へ追加し、テスト件数を **20 ファイル / 288 件**（実測）へ更新 |
 | 1.3 | 2026-09-12 | 残タスク 7（`CollectionPanel` の中止バナー）を完了し、**banner 系 9 箇所すべてに `role` が付いた**。あわせて `SupportPanel.md` / `ReviewPanel.md` の「実行中であることが伝わるか ❌」を訂正（`Timeline` の `aria-live` が読み上げており、バナーに足すと二重読み上げになる） |
 | 1.2 | 2026-09-12 | **アクセシビリティ改善に追随。** `ReviewForm` v1.1（`.sr-only` ラベル・`aria-invalid`・ライブ領域）と `ReviewPanel` v1.1（`role="alert"`）を反映。`state/documentLimit.ts`（純関数・10 件）を一覧へ追加し、テスト件数を 19 ファイル / 276 件へ更新。残タスクに `CollectionPanel` の同種 1 件を追加 |
 | 1.1 | 2026-09-12 | 欠落 4 件（`ReviewPanel` / `ReviewForm` / `JobClock` / `MetaErrorBanner`）を新規作成して解消。ヘッダー日付が遅れていた 6 件を実装と突き合わせ、**差分が無いことを確認**（§3.1）。`review_ui.md` を横断文書として位置づけ直し。残タスクにアクセシビリティの 2 件を追加 |
