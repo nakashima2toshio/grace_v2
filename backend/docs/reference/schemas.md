@@ -1,6 +1,16 @@
 # schemas.py - API スキーマ（Pydantic）ドキュメント
 
-**Version 1.5** | 最終更新: 2026-09-12
+**Version 1.6** | 最終更新: 2026-09-16
+
+> **本書の位置づけ**: `backend/app/schemas.py`（API のリクエスト / レスポンス / イベントの Pydantic スキーマ）の **IPO リファレンス**。
+> 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。
+>
+> | 知りたいこと | 参照先 |
+> |---|---|
+> | エンドポイント一覧・SSE ワイヤ形式・`types.ts` 対応 | [`api_contract.md`](../api_contract.md) |
+> | SupportResult の各段での埋まり方 | [`support_flow.md`](../support_flow.md) |
+> | ReviewResult の各段での埋まり方 | [`review_flow.md` §8](../review_flow.md) |
+> | 文書全体の地図 | [`README.md`](../README.md) |
 
 ---
 
@@ -1022,6 +1032,7 @@ ReviewResultModel, ReviewJobStatusResponse, RuleSetInfo
 | 1.1 | 2026-07-29 | GRACE-Review のスキーマ 7 モデル＋`MAX_DOCUMENT_CHARS` を追加（PR #41）。Support 側のモデルは無変更 |
 | 1.2 | 2026-08-01 | `QueryRequest` に `identity`（本人確認の識別子・CLI の `--identity` 相当）を追加。実際に照合される条件（`ec` ＋ `dry_run=False` ＋ `SUPPORT_IDENTITY_FILE`）を注記 |
 | 1.4 | 2026-09-12 | `QaGenerationRequest` を追加（`POST /api/qa/generate`）。`DataJobStatusResponse` の `kind` が 4 種になったことを反映 |
+| 1.6 | 2026-09-16 | 3 階建て再編（`reference/` へ移設）に伴い、冒頭へ**位置づけと上位文書への導線**を追加した |
 | 1.5 | 2026-09-12 | 3 つの状態レスポンス（`JobStatusResponse` / `ReviewJobStatusResponse` / `DataJobStatusResponse`）に `created_at` / `finished_at`（サーバ時計・エポック秒）を追加。SSE を購読していない経路でも所要時間を出せるようにするもの |
 
 ---

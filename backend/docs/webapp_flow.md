@@ -119,7 +119,7 @@ LLM は **Anthropic Claude**（既定 `claude-sonnet-4-6` / 軽量 `claude-haiku
 `basic` と `support` は**同じ `SupportPanel`** に `variant` を渡しているだけで、
 バックエンドも**同じ `run_support_agent_core`** を `vertical=None` で呼ぶ。
 別実装ではないため、専用の spec / flow を作ると `support_flow.md` の複製になり、
-片方だけが腐る（`backend/docs/README.md` §1 問題 #8・#10 と同じ事故）。
+片方だけが腐る（[`docs_audit.md` §1](./docs_audit.md) 問題 #8・#10 と同じ事故）。
 モード差は `vertical` の有無だけで、その一覧は
 [`support_flow.md` §7](./support_flow.md#7-基本版タブvertical--none) と
 [`../../docs/pipelines.md` §3](../../docs/pipelines.md) にある。
@@ -610,6 +610,9 @@ GRACE-Support は単一パターンではなく、以下を段階的に重ねて
 ---
 
 ## 6. リクエストライフサイクル（シーケンス図）
+
+> 📎 **backend の中だけ**の簡略版は [`architecture.md` §6](./architecture.md#6-リクエストが通る経路support-の例)。
+> 本節はフロント（描画）と `grace/`（plan/exec/tools）を加えた end-to-end 版である。
 
 ```mermaid
 %%{ init: { "theme": "base", "themeVariables": {
