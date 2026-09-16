@@ -204,9 +204,9 @@ local 側の該当ファイルには、Q/A タブとは**無関係な local 専�
 | ファイル | 直すところ |
 |---|---|
 | `backend/docs/data_pipeline.md` | 工程表・エンドポイント表・サブタブの並び（「3 工程」「② Qdrant 登録」の記述） |
-| `backend/docs/api_data.md` | エンドポイント一覧・IPO に `POST /api/qa/generate` を追加 |
-| `backend/docs/core_data_jobs.md` | params 表・runner・ステップ定義に `qa` を追加 |
-| `backend/docs/schemas.md` | `QaGenerationRequest` を追加 |
+| `backend/docs/reference/api_data.md` | エンドポイント一覧・IPO に `POST /api/qa/generate` を追加 |
+| `backend/docs/reference/core_data_jobs.md` | params 表・runner・ステップ定義に `qa` を追加 |
+| `backend/docs/reference/schemas.md` | `QaGenerationRequest` を追加 |
 | `frontend/docs/DataPanel.md` | サブタブ 3 → 4 |
 | `frontend/docs/DataJobPanel.md` | `variant` 2 → 3、Props・state・結果表示。**テスト件数は実行して実測値を書く** |
 | `CLAUDE.md` §2 | 「データ準備（3段階）」に Web からも実行できる旨を追記するか判断（local は追記済み） |

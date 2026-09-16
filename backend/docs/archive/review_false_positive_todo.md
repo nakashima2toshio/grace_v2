@@ -2,7 +2,7 @@
 
 > 🗄️ **アーカイブ（2026-09-15）**: §0 の 4 項目はすべて解消済みで、
 > 本書は**調査記録**として残す。現在の Review の設計は
-> [`../review_spec.md`](../review_spec.md) / [`../core_review_gates.md`](../core_review_gates.md) が正本。
+> [`../review_spec.md`](../review_spec.md) / [`../core_review_gates.md`](../reference/core_review_gates.md) が正本。
 
 
 `policy-01`（表示内容と社内規程の不一致）の誤検出を起点にした、3 日間の調査と修正の記録・
@@ -11,7 +11,7 @@
 > **✅ §0 の 4 項目はすべて解消済み。本書は調査記録として残す。**
 > （`docs/qa_tab_port_todo.md` と同じ扱い。2026-09-12 に完了表記を追加）
 > 現在の Review の設計は [`backend/docs/review_agent_spec.md`](../review_spec.md) と
-> [`backend/docs/core_review_gates.md`](../core_review_gates.md) を参照。
+> [`backend/docs/reference/core_review_gates.md`](../reference/core_review_gates.md) を参照。
 
 ---
 

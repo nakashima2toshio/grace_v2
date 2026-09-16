@@ -1,0 +1,149 @@
+# backend/docs 再編計画 ドキュメント
+
+**Version 1.0** | 最終更新: 2026-09-16
+
+> **本書の位置づけ**: `backend/docs` を「横断 / 系統別 / 参照」の 3 階建てへ
+> 作り替える計画と進捗。完了した作業は [`docs_audit.md`](./docs_audit.md) の
+> 変更履歴へ、現在の構成は [`README.md`](./README.md) へ落とす。
+
+---
+
+## 目次
+
+- [1. 再編の狙い](#1-再編の狙い)
+- [2. Phase 1（完了・2026-09-16）](#2-phase-1完了2026-09-16)
+- [3. Phase 2（未着手）系統別文書の統合](#3-phase-2未着手系統別文書の統合)
+- [4. Phase 3（未着手）参照文書の圧縮](#4-phase-3未着手参照文書の圧縮)
+- [5. 進め方の原則](#5-進め方の原則)
+- [6. 変更履歴](#6-変更履歴)
+
+---
+
+## 1. 再編の狙い
+
+再編前の `backend/docs` には、次の 3 つの問題があった。
+
+| # | 問題 | 根拠 |
+|---|---|---|
+| 1 | **共有基盤の説明が 3 か所に重複していた。** ジョブ・SSE・HITL は Support / Review / データ準備で同一実装なのに、説明が各系統の文書に分散していた | `api/review.py` と `api/data.py` の docstring が自ら「`api/support.py` と構造は同一」と書いている |
+| 2 | **`*_spec.md` と `*_flow.md` の 2 本立てが巨大だった。** Support は 155KB、Review は 89KB あり、通読できない | `support_flow.md` 1,622 行 + `support_spec.md` 934 行 |
+| 3 | **モジュール文書（17 本）と読み物（設計・フロー）が同じ階層に平置きされ、読む順路が無かった** | `README.md` が棚卸し表 33KB で、入口として機能していなかった |
+
+狙いは **「横断＝ job_runtime / 系統＝ flow / 索引＝ reference」の 3 階建て**にして、
+**同じ内容を 2 か所に持たない**こと。複製は必ず腐る（`review_agent_spec.md` が
+`rulesets.py` のキーワード表を複製し、15 ルール分の語が欠落した前例がある）。
+
+---
+
+## 2. Phase 1（完了・2026-09-16）
+
+### 2.1 新設した横断文書
+
+| 文書 | 何を集約したか |
+|---|---|
+| `architecture.md` | 層構造・モジュール責務・**外部境界**（backend が `grace/` `services/` 等へ委ねているもの）・依存の向き |
+| `job_runtime.md` | **`jobs.py` / `intervention_bridge.py` / `job_logs.py` の共有基盤を 1 本に集約。** 3 系統の重複説明をここへ寄せる受け皿 |
+| `api_contract.md` | 全 23 エンドポイント・SSE ワイヤ形式・ステータス方針・`types.ts` 対応 |
+| `config_and_providers.md` | モデル名の 3 本の解決経路・`judge_model()` / `detect_model()`・キーのガード位置 |
+| `pitfalls.md` | 非自明な設計判断・過去の事故・**直してはいけないもの** |
+
+### 2.2 構成の変更
+
+- モジュール文書 17 本（`api_*.md` 5 / `core_*.md` 10 / `main.md` / `schemas.md`）を
+  **`reference/` へ移動**（`git mv`）。リポジトリ全体の相対リンクを機械的に追随させ、
+  **136 の Markdown で壊れリンク 0 を確認**した
+- `README.md`（棚卸し 33KB）を **`docs_audit.md`** へ改称し、README を**地図**に作り替えた
+
+### 2.3 Phase 1 で意図的にやらなかったこと
+
+**内容の統合・削除は 1 件も行っていない。** `support_spec.md` 等の大きな文書は
+そのまま残っている（Phase 2 で扱う）。Phase 1 は**足す・動かす**だけに限定した。
+
+---
+
+## 3. Phase 2（未着手）系統別文書の統合
+
+**目的**: 系統ごとに 1 本へ寄せ、共有基盤の重複を `job_runtime.md` へ移す。
+
+### 3.1 Support（`support_flow.md` 1,622 行 + `support_spec.md` 934 行 → 1 本）
+
+| 統合前 | 行 | 統合後の行き先 |
+|---|---:|---|
+| `support_spec.md` §1 回答ポリシー | 94- | `support_flow.md`「④ 回答ゲート」の節へ（判断の WHY を段の説明に隣接させる） |
+| `support_spec.md` §2 HITL ポリシー | 147- | **`job_runtime.md` §4 へ寄せる**（機構は共通。Support 固有の閾値だけ残す） |
+| `support_spec.md` §3 データ契約・アクション実行 | 162- | `support_flow.md`「⑥ Action」の節へ |
+| `support_spec.md` §4 処理シーケンス | 218- | `support_flow.md` §1・§2 と**重複**。統合先に 1 つ残す |
+| `support_spec.md` §5 複数質問 | 265- | `support_flow.md`「0-(A)」の節へ |
+| `support_spec.md` §6 業界特化 | 566- | **新設 `verticals_and_rulesets.md` へ**（§3.3） |
+| `support_spec.md` §7 基本版タブ | 797- | `support_flow.md`「0-(B)」の節へ |
+| `support_spec.md` §8 KPI / §9 ロードマップ | 844- | KPI は統合先の末尾へ。ロードマップは `docs_audit.md` §6 の残タスクへ |
+| `support_flow.md` §3 クラス・関数一覧 | 235- | **破棄**（`reference/core_*.md` が正本。3 重管理になっている） |
+| `support_flow.md` 付録A CLI / 付録B トレース | 1109- | 維持（実行例は読み物として価値がある） |
+
+### 3.2 Review（`review_flow.md` 663 行 + `review_spec.md` 1,080 行 → 1 本）
+
+| 統合前 | 行き先 |
+|---|---|
+| `review_spec.md` §1 概要・§2 アーキテクチャ・§3 パイプライン | `review_flow.md` の各段へマージ |
+| `review_spec.md` §4 データモデル | `reference/schemas.md` / `reference/core_review_agent.md` へリンクし**本文は持たない** |
+| `review_spec.md` §5 RuleSet 定義 | **新設 `verticals_and_rulesets.md` へ**（本文は複製せず `rulesets.py` を指す） |
+| `review_spec.md` §6 ジョブ基盤の汎用化 | **`job_runtime.md` §3 へ寄せる**（共有基盤そのもの） |
+| `review_spec.md` §7 API 設計 | **`api_contract.md` へ寄せる** |
+| `review_spec.md` §8 フロントエンド設計 | `frontend/docs/` へ移送を検討 |
+| `review_spec.md` §9 テスト方針 | **新設 `testing.md` へ**（§3.4） |
+| `review_spec.md` §10-11 実装計画・未決事項 | `docs_audit.md` §6 の残タスクへ |
+| `review_flow.md` §3 クラス・関数一覧 | **破棄**（`reference/` が正本） |
+
+> ⚠️ `review_flow.md` の 515 行目に `## [HIGH] 最上級表現の根拠不備…` という
+> **出力例が見出しレベル 2 で書かれている**（目次を汚している）。統合時にコードブロックへ直す。
+
+### 3.3 新設 `verticals_and_rulesets.md`
+
+`VerticalProfile`（gov / saas / ec）と `RuleSet`（ec_ad・23 ルール）の**カタログ**。
+
+- 載せるもの: プロファイル / ルールセットの一覧、選び方、閾値の意味、増やし方
+- **載せないもの**: `RuleItem.description` とキーワードの**本文**。複製すると腐るため
+  `backend/app/core/rulesets.py` を正本として指す
+
+### 3.4 新設 `testing.md`
+
+- `backend/tests` の地図（Support 系 / Review 系 / 共有部品 / API）
+- `requirements-test.txt` と `uv run --no-sync` が要る理由
+- CI 4 ゲートと、**どこを触ったらどれを流すか**
+- テスト件数は**実行して実測値**を書く
+
+### 3.5 `webapp_flow.md` の扱い
+
+`run_dev.sh` 起点の end-to-end は、フロント側の関心（描画・状態遷移）と
+backend の関心（API 契約）が混ざっている。§6 リクエストライフサイクルは
+`architecture.md` §6 と重複するため、**§0 タブ ↔ 文書の対応表**を README へ、
+API 部分を `api_contract.md` へ寄せ、残りを `frontend/docs/` へ移すか検討する。
+
+---
+
+## 4. Phase 3（未着手）参照文書の圧縮
+
+`reference/*.md` は合計 約 380KB ある。Phase 2 で系統別文書が「なぜ」を引き受けたら、
+`reference/` は **IPO と公開シンボルの索引**に絞って薄くする。
+
+- 各モジュール文書から、系統別文書と重複する設計説明を削る
+- `reference/schemas.md`（38KB）は `api_contract.md` とフィールド定義の役割分担を決める
+- `reference/main.md` は `architecture.md` と重複する部分を削る
+
+---
+
+## 5. 進め方の原則
+
+1. **1 Phase = 1 PR。** 移動と内容変更を同じコミットに混ぜない（レビューで差分が読めなくなる）
+2. **統合は「削除」ではなく「移送」。** 行き先を本書の表に明記してから動かす
+3. **実装の表・定数を文書へ複製しない。** 正本へのリンクに置き換える
+4. **リンクは機械的に検証する。** 全 Markdown の相対リンクが解決することを確認する
+5. **数値（行数・件数・テスト数）は実測値を書く。** 記憶で書かない
+
+---
+
+## 6. 変更履歴
+
+| Version | 日付 | 変更内容 |
+|---|---|---|
+| 1.0 | 2026-09-16 | 新規作成。Phase 1 の完了内容と、Phase 2・3 の節単位の移送計画を記載した |

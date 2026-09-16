@@ -3,9 +3,9 @@
 **Version 1.2** | 最終更新: 2026-09-12
 
 > **参考ドキュメント**
-> - [`backend/docs/core_data_jobs.md`](./core_data_jobs.md) — 各ジョブの runner 実装
-> - [`backend/docs/core_jobs.md`](./core_jobs.md) — ジョブ基盤（`JobManager` / SSE / HITL ブリッジ）
-> - [`backend/docs/data_pipeline.md`](./data_pipeline.md) — データ準備パイプライン全体の設計
+> - [`backend/docs/reference/core_data_jobs.md`](./core_data_jobs.md) — 各ジョブの runner 実装
+> - [`backend/docs/reference/core_jobs.md`](./core_jobs.md) — ジョブ基盤（`JobManager` / SSE / HITL ブリッジ）
+> - [`backend/docs/data_pipeline.md`](../data_pipeline.md) — データ準備パイプライン全体の設計
 
 ---
 

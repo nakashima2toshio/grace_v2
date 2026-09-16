@@ -275,7 +275,7 @@ print(STEP_IDS)
 ```
 
 > ⚠️ **このタプルが実行順である。** 呼称（0-(A) / ①〜⑥ / ④'）とは並びが違い、
-> **④' `no_info` は ⑤ `web` の後**に来る（[`support_flow.md` §4](./support_flow.md) の対応表）。
+> **④' `no_info` は ⑤ `web` の後**に来る（[`support_flow.md` §4](../support_flow.md) の対応表）。
 
 #### 4.1.3 結果の JSON 化（API レスポンス・`result` イベント）
 
@@ -300,7 +300,7 @@ print(f"multi-question 既定: is_multi_question={d['is_multi_question']} "
 ```
 
 > 0-(A) 由来の 7 フィールドは**すべて optional**で、単一質問では既定値のまま返る。
-> 既存のフロント・API クライアントの挙動は変わらない（[`support_spec.md` §5.4](./support_spec.md#54-返すものsupportresult)）。
+> 既存のフロント・API クライアントの挙動は変わらない（[`support_spec.md` §5.4](../support_spec.md#54-返すものsupportresult)）。
 
 
 ### 4.2 SupportEvent クラス

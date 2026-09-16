@@ -463,7 +463,7 @@ job.emit(
 | `action` | `ConfirmModal.tsx` | ⑥ アクション実行の承認（承認 / 拒否の 2 択） |
 | `question` | `QuestionSelectModal.tsx` | 0-(A) 主質問の選択（N 択） |
 
-詳細は [`backend/docs/core_intervention_bridge.md`](../../backend/docs/core_intervention_bridge.md) と
+詳細は [`backend/docs/reference/core_intervention_bridge.md`](../../backend/docs/reference/core_intervention_bridge.md) と
 [`frontend/docs/ConfirmModal.md`](../../frontend/docs/ConfirmModal.md) を参照。
 
 > 📌 **v1 にあった Streamlit（`st.session_state` / `st.button`）の統合例は削除した。**

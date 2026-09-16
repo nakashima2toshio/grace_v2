@@ -421,7 +421,7 @@ print(REVIEW_STEP_IDS)
 
 > ⚠️ **番号（S1・①〜⑦）は Support との対応を示す呼称で、実行順とは一致しない。**
 > 上のタプルが実行順であり、**⑥ `web` が ⑤ `severity` より先**に来る。
-> UI のタイムラインもこの並びで描画される（[`review_flow.md`](./review_flow.md) §概要）。
+> UI のタイムラインもこの並びで描画される（[`review_flow.md`](../review_flow.md) §概要）。
 
 
 ### 4.2 ① 文書分割

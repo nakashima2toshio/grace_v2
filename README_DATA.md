@@ -34,31 +34,31 @@
 
 | 知りたいこと | 文書 |
 |---|---|
-| **データ準備 3 工程の設計全体**（チャンク化 → Q/A 生成 → Qdrant 登録） | [`backend/docs/data_pipeline.md`](backend/docs/data_pipeline.md) |
-| 画面から何ができるか・操作と実装の対応 | [`README.md`](README.md) §4.5「データ管理画面」 |
-| 環境構築（MeCab / Docker / Celery） | [`qa_qdrant/docs/01_install.md`](qa_qdrant/docs/01_install.md) |
-| Celery 並列の起動手順 | [`qa_qdrant/docs/celery_quick_start.md`](qa_qdrant/docs/celery_quick_start.md) |
+| **データ準備 3 工程の設計全体**（チャンク化 → Q/A 生成 → Qdrant 登録） | [`backend/docs/data_pipeline.md`](./backend/docs/data_pipeline.md) |
+| 画面から何ができるか・操作と実装の対応 | [`README.md`](./README.md) §4.5「データ管理画面」 |
+| 環境構築（MeCab / Docker / Celery） | [`qa_qdrant/docs/01_install.md`](./qa_qdrant/docs/01_install.md) |
+| Celery 並列の起動手順 | [`qa_qdrant/docs/celery_quick_start.md`](./qa_qdrant/docs/celery_quick_start.md) |
 
 ### モジュール単位で読む
 
 | 実装 | 文書 |
 |---|---|
-| `backend/app/api/data.py` — ジョブ起動・SSE・HITL | [`backend/docs/api_data.md`](backend/docs/api_data.md) |
-| `backend/app/api/qdrant.py` — Qdrant 参照 API（読み取り専用） | [`backend/docs/api_qdrant.md`](backend/docs/api_qdrant.md) |
-| `backend/app/core/data_jobs.py` — 3 種の runner・ステップ定義・CONFIRM の要否 | [`backend/docs/core_data_jobs.md`](backend/docs/core_data_jobs.md) |
-| `backend/app/core/job_logs.py` — 既存パッケージの `logging` を進捗イベントへ転送 | [`backend/docs/core_job_logs.md`](backend/docs/core_job_logs.md) |
-| `services/data_pipeline_service.py` — パス検証・Qdrant 操作・データ変換 | [`services/docs/data_pipeline_service.md`](services/docs/data_pipeline_service.md) |
-| `services/qdrant_service.py` — Qdrant クライアント・ヘルスチェック | [`services/docs/qdrant_service.md`](services/docs/qdrant_service.md) |
-| `qa_generation/pipeline.py` — `QAPipeline` | [`qa_generation/docs/pipeline.md`](qa_generation/docs/pipeline.md) |
-| `chunking/csv_text_to_chunks_text_csv.py` — セマンティックチャンキング | [`chunking/docs/csv_text_to_chunks_text_csv.md`](chunking/docs/csv_text_to_chunks_text_csv.md) |
+| `backend/app/api/data.py` — ジョブ起動・SSE・HITL | [`backend/docs/reference/api_data.md`](./backend/docs/reference/api_data.md) |
+| `backend/app/api/qdrant.py` — Qdrant 参照 API（読み取り専用） | [`backend/docs/reference/api_qdrant.md`](./backend/docs/reference/api_qdrant.md) |
+| `backend/app/core/data_jobs.py` — 3 種の runner・ステップ定義・CONFIRM の要否 | [`backend/docs/reference/core_data_jobs.md`](./backend/docs/reference/core_data_jobs.md) |
+| `backend/app/core/job_logs.py` — 既存パッケージの `logging` を進捗イベントへ転送 | [`backend/docs/reference/core_job_logs.md`](./backend/docs/reference/core_job_logs.md) |
+| `services/data_pipeline_service.py` — パス検証・Qdrant 操作・データ変換 | [`services/docs/data_pipeline_service.md`](./services/docs/data_pipeline_service.md) |
+| `services/qdrant_service.py` — Qdrant クライアント・ヘルスチェック | [`services/docs/qdrant_service.md`](./services/docs/qdrant_service.md) |
+| `qa_generation/pipeline.py` — `QAPipeline` | [`qa_generation/docs/pipeline.md`](./qa_generation/docs/pipeline.md) |
+| `chunking/csv_text_to_chunks_text_csv.py` — セマンティックチャンキング | [`chunking/docs/csv_text_to_chunks_text_csv.md`](./chunking/docs/csv_text_to_chunks_text_csv.md) |
 
 ### React 側
 
 | コンポーネント | 文書 |
 |---|---|
-| `DataPanel.tsx` — データ管理タブの枠（サブタブ 4 つ） | [`frontend/docs/DataPanel.md`](frontend/docs/DataPanel.md) |
-| `DataJobPanel.tsx` — 3 種のジョブ（チャンキング / Q/A 作成 / Qdrant 登録） | [`frontend/docs/DataJobPanel.md`](frontend/docs/DataJobPanel.md) |
-| `CollectionPanel.tsx` — コレクション管理 | [`frontend/docs/CollectionPanel.md`](frontend/docs/CollectionPanel.md) |
+| `DataPanel.tsx` — データ管理タブの枠（サブタブ 4 つ） | [`frontend/docs/DataPanel.md`](./frontend/docs/DataPanel.md) |
+| `DataJobPanel.tsx` — 3 種のジョブ（チャンキング / Q/A 作成 / Qdrant 登録） | [`frontend/docs/DataJobPanel.md`](./frontend/docs/DataJobPanel.md) |
+| `CollectionPanel.tsx` — コレクション管理 | [`frontend/docs/CollectionPanel.md`](./frontend/docs/CollectionPanel.md) |
 
 ---
 
@@ -68,13 +68,13 @@
 
 | シンボル | 移転先 |
 |---|---|
-| `JobLogHandler` / `capture_logs` / `_acquire_level` / `_release_level` | `backend/docs/core_job_logs.md` |
-| `ChunkingParams` / `RegisterParams` / `DeleteParams` / `QaGenerationParams` | `backend/docs/api_data.md`・`core_data_jobs.md` |
-| `_chunking_runner` / `_register_runner` / `_qa_runner` / `_ask_confirmation` | `backend/docs/core_data_jobs.md` |
+| `JobLogHandler` / `capture_logs` / `_acquire_level` / `_release_level` | `backend/docs/reference/core_job_logs.md` |
+| `ChunkingParams` / `RegisterParams` / `DeleteParams` / `QaGenerationParams` | `backend/docs/reference/api_data.md`・`core_data_jobs.md` |
+| `_chunking_runner` / `_register_runner` / `_qa_runner` / `_ask_confirmation` | `backend/docs/reference/core_data_jobs.md` |
 | `resolve_allowed_dir` / `list_input_files` / `resolve_input_file` | `backend/docs/data_pipeline.md`・`api_qdrant.md` |
-| `delete_collection` / `collection_exists` | `backend/docs/api_data.md`・`api_qdrant.md` |
-| `dataframe_to_records` / `collection_columns` | `backend/docs/api_qdrant.md` |
-| `run_chunking_sync` / `load_input_text` | `backend/docs/core_data_jobs.md` |
+| `delete_collection` / `collection_exists` | `backend/docs/reference/api_data.md`・`api_qdrant.md` |
+| `dataframe_to_records` / `collection_columns` | `backend/docs/reference/api_qdrant.md` |
+| `run_chunking_sync` / `load_input_text` | `backend/docs/reference/core_data_jobs.md` |
 | `PathNotAllowedError` | `services/docs/data_pipeline_service.md` |
 
 > 📌 **v1.0 に無く、移転先にはあるもの**: `QaGenerationParams` / `_qa_runner` /

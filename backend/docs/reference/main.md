@@ -428,7 +428,7 @@ allow_origins = [
 
 ### 6.1 起動ワークフロー
 
-> 📎 **起動手順の正本は [`install_and_setup.md` §6](./install_and_setup.md#6-起動手順)**。
+> 📎 **起動手順の正本は [`install_and_setup.md` §6](../install_and_setup.md#6-起動手順)**。
 > 以前は本書がその手順を複製していたが、`install_and_setup.md` §6・`CLAUDE.md` §2 と
 > 3 重管理になっていたため 2026-09-15 にリンクへ置き換えた
 > （本書は `main.py` のモジュールドキュメントであり、手順書ではない）。

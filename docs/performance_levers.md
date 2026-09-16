@@ -469,8 +469,8 @@ gov / saas / ec のコレクションが 1 つも無ければ、検索スコー�
 | `docs/agent_parallel_search.md` | 並列検索基盤（P-03b で再利用可能） |
 | `backend/docs/support_spec.md` | 複数質問（0-(A)）の設計 |
 | `backend/docs/archive/review_false_positive_todo.md` | Review の誤検知対応 TODO（§6 の関連） |
-| `backend/docs/core_gates.md` | `_answer_gate` 等の判定純関数（P-07 の対象） |
-| `backend/docs/core_review_agent.md` | Review コア（§6 の対象） |
+| `backend/docs/reference/core_gates.md` | `_answer_gate` 等の判定純関数（P-07 の対象） |
+| `backend/docs/reference/core_review_agent.md` | Review コア（§6 の対象） |
 
 ---
 

@@ -3,8 +3,8 @@
 **Version 1.1** | 最終更新: 2026-09-04
 
 > **参考ドキュメント**
-> - [`backend/docs/core_data_jobs.md`](./core_data_jobs.md) — 本モジュールの唯一の利用者
-> - [`backend/docs/core_jobs.md`](./core_jobs.md) — ジョブ基盤（`Job.emit` の実体）
+> - [`backend/docs/reference/core_data_jobs.md`](./core_data_jobs.md) — 本モジュールの唯一の利用者
+> - [`backend/docs/reference/core_jobs.md`](./core_jobs.md) — ジョブ基盤（`Job.emit` の実体）
 
 ---
 

@@ -7,7 +7,7 @@
 > | 知りたいこと | 正本 |
 > |---|---|
 > | なぜこの判定・しきい値・ポリシーなのか（WHY） | [`support_spec.md`](./support_spec.md) |
-> | 関数・クラスの仕様（IPO・シグネチャ） | [`core_support_agent.md`](./core_support_agent.md) / [`core_gates.md`](./core_gates.md) / [`core_verticals.md`](./core_verticals.md) |
+> | 関数・クラスの仕様（IPO・シグネチャ） | [`core_support_agent.md`](./reference/core_support_agent.md) / [`core_gates.md`](./reference/core_gates.md) / [`core_verticals.md`](./reference/core_verticals.md) |
 > | Web UI 起点の end-to-end（`run_dev.sh`） | [`webapp_flow.md`](./webapp_flow.md) |
 > | GRACE-**Review** 側（S1・①〜⑦） | [`review_flow.md`](./review_flow.md) |
 
@@ -296,7 +296,7 @@ style BRIDGE fill:#1a1a1a,stroke:#fff,color:#fff
 
 > 📝 旧 `confidence_flow_grace_vs_backend.md`（v1.1）を統合した節。
 > 測定の詳細は [`grace/docs/confidence_calibration.md`](../../grace/docs/confidence_calibration.md)、
-> 判定の詳細は [`core_gates.md`](./core_gates.md) が正本。
+> 判定の詳細は [`core_gates.md`](./reference/core_gates.md) が正本。
 
 **測定の心臓部（`GroundednessVerifier` による支持率）は両者で共有**している。違うのは
 「その支持率を最終的にどう判定へ落とすか」である。
@@ -450,7 +450,7 @@ style BACKEND fill:#1a1a1a,stroke:#fff,color:#fff
 
 > 📎 設計判断（なぜ絞るのか・なぜ自動選定しないのか・安全側の向き）は
 > [`support_spec.md` §5](./support_spec.md#5-0-a-複数質問クエリと担当範囲外) を参照。
-> 関数仕様は [`core_gates.md`](./core_gates.md) が正本。
+> 関数仕様は [`core_gates.md`](./reference/core_gates.md) が正本。
 
 ```python
 # run_support_agent_core 内（support_agent.py）

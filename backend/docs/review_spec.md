@@ -3,9 +3,9 @@
 **Version 1.4** | 最終更新: 2026-09-15 | ステータス: **実装済み（STEP1〜7 完了・master マージ済み）**
 
 > 📌 本書は**設計書**（意図と判断の記録）。実装後の各モジュール仕様は IPO 形式の
-> モジュールドキュメントを正とする — [`core_rulesets.md`](./core_rulesets.md) /
-> [`core_review_gates.md`](./core_review_gates.md) / [`core_review_agent.md`](./core_review_agent.md) /
-> [`api_review.md`](./api_review.md)、フロントは
+> モジュールドキュメントを正とする — [`core_rulesets.md`](./reference/core_rulesets.md) /
+> [`core_review_gates.md`](./reference/core_review_gates.md) / [`core_review_agent.md`](./reference/core_review_agent.md) /
+> [`api_review.md`](./reference/api_review.md)、フロントは
 > [`../../frontend/docs/review_ui.md`](../../frontend/docs/review_ui.md)。
 > 設計と実装が食い違う場合は**実装とモジュールドキュメントが正**。
 > ステップの実行順と入出力（WHAT）は [`review_flow.md`](./review_flow.md)。
@@ -683,7 +683,7 @@ RuleSet(
 ため、条文の要点を自己完結的に書く。
 
 **正本は `backend/app/core/rulesets.py`。** ルール ID・条項・severity・キーワードの一覧は
-[`core_rulesets.md` §5.4](./core_rulesets.md#54-ルール一覧23-件) にある。
+[`core_rulesets.md` §5.4](./reference/core_rulesets.md#54-ルール一覧23-件) にある。
 
 > ⚠️ **本書はキーワードの一覧を持たない。** 以前は 21 行の表で `keywords` まで複製していたが、
 > **実装が更新されるたびに必ず腐った**。2026-09-15 の実測では、キーワードを持つ 15 ルール
