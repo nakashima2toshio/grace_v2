@@ -8,8 +8,8 @@
 > | 知りたいこと | 正本 |
 > |---|---|
 > | ステップの実行順と各ステップの入出力（WHAT） | [`support_flow.md`](./support_flow.md) |
-> | 関数・クラスの仕様（IPO・シグネチャ・戻り値） | [`core_support_agent.md`](./core_support_agent.md) / [`core_gates.md`](./core_gates.md) / [`core_verticals.md`](./core_verticals.md) |
-> | API スキーマ | [`schemas.md`](./schemas.md) / [`api_support.md`](./api_support.md) |
+> | 関数・クラスの仕様（IPO・シグネチャ・戻り値） | [`core_support_agent.md`](./reference/core_support_agent.md) / [`core_gates.md`](./reference/core_gates.md) / [`core_verticals.md`](./reference/core_verticals.md) |
+> | API スキーマ | [`schemas.md`](./reference/schemas.md) / [`api_support.md`](./reference/api_support.md) |
 > | Web UI 起点の end-to-end | [`webapp_flow.md`](./webapp_flow.md) |
 > | GRACE-**Review**（文書 → 指摘）側 | [`review_spec.md`](./review_spec.md) / [`review_flow.md`](./review_flow.md) |
 >
@@ -168,10 +168,10 @@ class Q,CLS,RAG,GND,GATE,ANS,WARN,WEB,ESC,ACT,HITL,DO,OUT default
 
 | 型 | 実装位置 | 仕様の正本 |
 |---|---|---|
-| `SupportResult` | `backend/app/core/support_agent.py` | [`core_support_agent.md`](./core_support_agent.md) |
-| `ActionRequest` / `VerticalProfile` | `backend/app/core/verticals.py` | [`core_verticals.md`](./core_verticals.md) |
-| `QuestionCluster` | `backend/app/core/support_agent.py` | [`core_support_agent.md`](./core_support_agent.md) |
-| API レスポンス（Pydantic） | `backend/app/schemas.py` | [`schemas.md`](./schemas.md) |
+| `SupportResult` | `backend/app/core/support_agent.py` | [`core_support_agent.md`](./reference/core_support_agent.md) |
+| `ActionRequest` / `VerticalProfile` | `backend/app/core/verticals.py` | [`core_verticals.md`](./reference/core_verticals.md) |
+| `QuestionCluster` | `backend/app/core/support_agent.py` | [`core_support_agent.md`](./reference/core_support_agent.md) |
+| API レスポンス（Pydantic） | `backend/app/schemas.py` | [`schemas.md`](./reference/schemas.md) |
 
 > ⚠️ **フィールド表を本書に置かない。** 以前は本書の前身（`agent_support_example.md` §3）が
 > dataclass 定義を丸ごと複製していたが、`SupportResult` に 0-(A) の 7 フィールドが
@@ -755,7 +755,7 @@ style PROF fill:#1a1a1a,stroke:#fff,color:#fff
 共通コードは変えず、**プロファイルを渡すだけ**で切り替える設計。
 
 > 📎 `VerticalProfile` の**実際のフィールド定義**は
-> [`core_verticals.md`](./core_verticals.md) が正本（本書は設計意図のみを持つ）。
+> [`core_verticals.md`](./reference/core_verticals.md) が正本（本書は設計意図のみを持つ）。
 > 設計時の案にあった `sample_queries` / `kpi` は、評価基盤を持たないため実装していない。
 
 **適用ポイント（GRACE-Support への差し込み）**:

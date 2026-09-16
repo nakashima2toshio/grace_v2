@@ -3,10 +3,10 @@
 **Version 1.3** | 最終更新: 2026-09-12
 
 > **参考ドキュメント**
-> - [`backend/docs/api_data.md`](./api_data.md) — 本モジュールを起動する API 層
-> - [`backend/docs/core_jobs.md`](./core_jobs.md) — ジョブ基盤（`register_runner` / `JobManager`）
-> - [`backend/docs/core_job_logs.md`](./core_job_logs.md) — `capture_logs()` の仕組み
-> - [`backend/docs/data_pipeline.md`](./data_pipeline.md) — パイプライン全体の設計
+> - [`backend/docs/reference/api_data.md`](./api_data.md) — 本モジュールを起動する API 層
+> - [`backend/docs/reference/core_jobs.md`](./core_jobs.md) — ジョブ基盤（`register_runner` / `JobManager`）
+> - [`backend/docs/reference/core_job_logs.md`](./core_job_logs.md) — `capture_logs()` の仕組み
+> - [`backend/docs/data_pipeline.md`](../data_pipeline.md) — パイプライン全体の設計
 
 ---
 
@@ -254,7 +254,7 @@ job = mgr.start(ChunkingParams(input_file="OUTPUT/cc_news_1per.csv"))
 ```
 
 > 実行には入力 CSV と（登録ジョブでは）Qdrant が要るため、ここでは起動までを示す。
-> 画面から実行する手順は [`data_pipeline.md` §5](./data_pipeline.md#5-使用例)。
+> 画面から実行する手順は [`data_pipeline.md` §5](../data_pipeline.md#5-使用例)。
 
 
 ### 4.2 `ChunkingParams`
@@ -400,7 +400,7 @@ def _ask_confirmation(confirm: ConfirmFn, message: str, reason: str) -> tuple[bo
 > ⚠️ **`ChunkingAbortedError` は他の例外と分けて捕まえる。** LLM 呼び出しが
 > 連続で失敗して中断した場合で、原因と対処はメッセージ側が持っている。
 > `type(e).__name__` を前置きすると読みにくくなるだけなので、そのまま出す。
-> 詳細は [`chunking/docs/async_api_client.md`](../../chunking/docs/async_api_client.md) §4.4。
+> 詳細は [`chunking/docs/async_api_client.md`](../../../chunking/docs/async_api_client.md) §4.4。
 
 ### 5.4 `_qa_runner`
 

@@ -98,7 +98,7 @@
 | `MetaErrorBanner.tsx` | `MetaErrorBanner.md` | 2026-09-12 |
 
 > 📌 `main.tsx`（10 行）・`types.ts`（390 行）・`api/client.ts`（287 行）には個別文書が無い。
-> `types.ts` はバックエンドのスキーマと 1:1 で `backend/docs/schemas.md` が正、
+> `types.ts` はバックエンドのスキーマと 1:1 で `backend/docs/reference/schemas.md` が正、
 > `api/client.ts` は各パネル文書の「API 通信」節が実質の記述である。**意図的に持たない。**
 
 ### 3.1 ヘッダー日付が遅れていた 6 件 — 内容は一致していた

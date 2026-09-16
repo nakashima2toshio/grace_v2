@@ -173,7 +173,7 @@ CLAUDE.md §1 の表は「データ準備 | `chunking/`, `qa_generation/`, `qa_q
 - 「② Q/A 作成」「`/api/qa/generate`」の出現回数は **0**。
 - 同じ領域を扱う文書が他に 3 つある:
   `backend/docs/data_pipeline.md`（563 行・v1.2・09-12 更新）、
-  `backend/docs/core_data_jobs.md`、`backend/docs/api_data.md`。
+  `backend/docs/reference/core_data_jobs.md`、`backend/docs/reference/api_data.md`。
 - README.md からの参照は **1 箇所だけ**（1415 行）。
 
 ### T3-2 方針案（要判断・§8 で確認）

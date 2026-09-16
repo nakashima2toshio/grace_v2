@@ -3,8 +3,8 @@
 **Version 1.1** | 最終更新: 2026-09-04
 
 > **参考ドキュメント**
-> - [`backend/docs/api_data.md`](./api_data.md) — 登録・削除（副作用のある系）のジョブ API
-> - [`backend/docs/data_pipeline.md`](./data_pipeline.md) — データ準備パイプライン全体の設計
+> - [`backend/docs/reference/api_data.md`](./api_data.md) — 登録・削除（副作用のある系）のジョブ API
+> - [`backend/docs/data_pipeline.md`](../data_pipeline.md) — データ準備パイプライン全体の設計
 
 ---
 
