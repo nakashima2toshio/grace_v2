@@ -12,6 +12,8 @@ export interface QueryFormState {
   query: string;
   /** 業界プロファイル ID。未選択は空文字。 */
   vertical: string;
+  /** 使用する LLM。**未選択は空文字**（= サーバーの既定値を使う）。 */
+  model: string;
   useWeb: boolean;
   doAction: boolean;
   dryRun: boolean;
@@ -36,6 +38,8 @@ export interface QueryFormState {
  *
  * - `query` は trim する（前後の空白だけの入力は呼び出し側が弾く）
  * - **基本版（`showVertical=false`）では `vertical` を常に `null`** にする
+ * - **モデル未選択（空文字）は `null`** にする（サーバーの既定値を使う）。
+ *   フロントに既定のモデル名を持たせないための表現
  * - 識別子は `order_id` / `email` のどちらかが入っていれば送り、
  *   **両方空なら `null`**（「提示なし」を空文字の辞書と区別するため）
  * - **本人確認が起動しない設定（`isIdentityActive` が false）でも `null`**。
@@ -53,6 +57,7 @@ export function buildQueryParams(state: QueryFormState): QueryParams {
   return {
     query: state.query.trim(),
     vertical: state.showVertical ? state.vertical || null : null,
+    model: state.model.trim() || null,
     dry_run: state.dryRun,
     use_web: state.useWeb,
     do_action: state.doAction,

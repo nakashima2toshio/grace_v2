@@ -125,8 +125,8 @@ class ConfigManager:
         """デフォルト設定"""
         return {
             "models": {
-                "default": "claude-sonnet-4-6",
-                "available": ["claude-sonnet-4-6", "claude-haiku-4-5-20251001"]
+                "default": "claude-sonnet-5",
+                "available": ["claude-sonnet-5", "claude-opus-5", "claude-haiku-4-5"]
             },
             "api": {
                 "timeout": 30,

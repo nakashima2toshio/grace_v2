@@ -9,7 +9,42 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+from config import get_selectable_models
+
+
+def _validate_model_choice(v: Optional[str]) -> Optional[str]:
+    """`model` フィールドの共通バリデーション（3タブ共通のモデルセレクタ）。
+
+    `config.get_selectable_models()` に無い値は 422 で弾く。未知のモデル名を
+    そのまま Anthropic へ投げるとジョブが起動してから 404（`NotFoundError`）で
+    落ち、原因が分かりにくい（姉妹リポジトリで Detect 33 回が全滅した実例が
+    `backend/app/core/review_gates.py::detect_model` の docstring にある）。
+    受付の時点で弾く。
+
+    空文字・None は「サーバーの既定値を使う」の意味なので None へ正規化する。
+
+    ⚠️ Embedding はここに関係しない。Embedding は Gemini（`gemini-embedding-001`
+    3072 次元）固定で、選択の対象外（CLAUDE.md §3 プロバイダ方針）。
+    """
+    if v is None or v == "":
+        return None
+    return _require_model_choice(v)
+
+
+def _require_model_choice(v: str) -> str:
+    """必須の `model` フィールド用（チャンキング / Q/A 生成）。
+
+    こちらは空文字を許さない。データ準備側の `model` はスキーマ既定値を持つ
+    必須フィールドで、フロントは**未選択なら `model` キーごと落として**送る
+    （`frontend/src/state/dataParams.ts::modelOverride`）。空文字が届くのは
+    送信側のバグなので、既定値へ黙って倒さず 422 にする。
+    """
+    choices = get_selectable_models()
+    if v not in choices:
+        raise ValueError(f"未対応のモデルです: {v}（選択可能: {', '.join(choices)}）")
+    return v
 
 
 class QueryRequest(BaseModel):
@@ -18,6 +53,13 @@ class QueryRequest(BaseModel):
     query: str = Field(min_length=1, description="問い合わせ内容（チャット入力）")
     vertical: Optional[Literal["gov", "saas", "ec"]] = Field(
         default=None, description="業界プロファイル（--vertical 相当）")
+    model: Optional[str] = Field(
+        default=None,
+        description=(
+            "使用する LLM（GET /api/models の選択肢から 1 つ。未指定は既定値 "
+            "＝ config/grace_config.yml の llm.model）"
+        ),
+    )
     dry_run: bool = Field(default=True, description="アクションのドライラン（既定 ON）")
     use_web: bool = Field(default=True, description="Web フォールバック（--no-web 相当の逆）")
     do_action: bool = Field(default=True, description="アクション実行（--no-action 相当の逆）")
@@ -31,6 +73,8 @@ class QueryRequest(BaseModel):
             "SUPPORT_IDENTITY_FILE 設定時のみ"
         ),
     )
+
+    _validate_model = field_validator("model")(_validate_model_choice)
 
 
 class QueryAccepted(BaseModel):
@@ -175,12 +219,21 @@ class ReviewRequest(BaseModel):
     document_title: str = Field(default="無題", description="表示用タイトル")
     ruleset: Optional[Literal["ec_ad"]] = Field(
         default="ec_ad", description="適用するルールセット")
+    model: Optional[str] = Field(
+        default=None,
+        description=(
+            "使用する LLM（GET /api/models の選択肢から 1 つ。未指定は既定値 "
+            "＝ config/grace_config.yml の llm.model）"
+        ),
+    )
     # Support（既定 ON）と違い既定は OFF。文書レビューは条文が一次情報であり、
     # Web 検索は速度・コストに対して得るものが小さい。
     use_web: bool = Field(default=False, description="Web で法改正を裏取り（既定 OFF）")
     do_action: bool = Field(default=True, description="アクション実行（--no-action 相当の逆）")
     dry_run: bool = Field(default=True, description="アクションのドライラン（既定 ON）")
     verbose: bool = Field(default=False, description="詳細ログ（-v 相当）")
+
+    _validate_model = field_validator("model")(_validate_model_choice)
 
 
 class SegmentModel(BaseModel):
@@ -281,6 +334,43 @@ class RuleSetInfo(BaseModel):
     prompt_addendum: str = ""
 
 
+class ModelChoice(BaseModel):
+    """GET /api/models の 1 要素。3タブ共通のモデルセレクタ用。
+
+    `config.py::get_selectable_models()`（= `ModelConfig.SELECTABLE_MODELS`）で
+    絞り込み済みの一覧を返す。旧既定（`claude-sonnet-4-6`）や日付指定エイリアス
+    （`claude-haiku-4-5-20251001`）は**選択肢に出さない**。
+    """
+
+    id: str
+    # $/1K tokens。画面で単価差（haiku < sonnet < opus）を示すために返す
+    input_price: float
+    output_price: float
+    # コンテキスト長 / 1 応答の出力上限（tokens）
+    context_window: int
+    max_output: int
+
+
+class ModelInfo(BaseModel):
+    """GET /api/model。サーバーが既定として使うモデルの解決結果。
+
+    UI の「（既定値）」表示に実名を出すために使う。ここに出るのは
+    `config/grace_config.yml` → 環境変数 → `GraceConfig` を通した**解決後**の値
+    なので、画面と実挙動がずれない。
+    """
+
+    model: str
+    # 判定系（意図分類・情報なし判定・RAG 適合性）に使う軽量モデル。
+    light_model: str
+    # 論理層（計画生成・推論・根拠検証）の上位モデル。""（空）= model と同じ。
+    heavy_model: str = ""
+    # データ準備側の既定。**エージェントの既定（`model`）とは別物**で、
+    # チャンク化は軽量モデルを使う。データ管理タブの「（既定値: …）」に
+    # `model` を出すと、実際に走るモデルと違う名前を表示してしまう。
+    chunking_model: str = ""
+    qa_model: str = ""
+
+
 # =============================================================================
 # データ準備パイプライン（チャンキング → Q/A 生成 → Qdrant 登録 → コレクション管理）
 #
@@ -366,7 +456,10 @@ class ChunkingRequest(BaseModel):
     # 'ディレクトリ名/ファイル名' 形式。許可ディレクトリ外は 400
     input_file: str = Field(min_length=1, description="入力ファイル（--input-file 相当）")
     output_dir: str = Field(default="output_chunked", description="出力先（--output 相当）")
-    model: str = Field(default="claude-haiku-4-5", description="チャンク化に使う LLM")
+    model: str = Field(
+        default="claude-haiku-4-5",
+        description="チャンク化に使う LLM（GET /api/models の選択肢から 1 つ）",
+    )
     workers: int = Field(default=8, ge=1, le=32, description="並列ワーカー数")
     block_size: int = Field(default=1000, ge=100, le=8000, description="ブロックサイズ（文字）")
     text_column: Optional[str] = Field(default=None, description="CSV のテキストカラム名")
@@ -374,6 +467,8 @@ class ChunkingRequest(BaseModel):
     combine_rows: bool = Field(default=False, description="CSV 全行を結合する")
     resume: Optional[str] = Field(default=None, description="再開するジョブ ID")
     verbose: bool = False
+
+    _validate_model = field_validator("model")(_require_model_choice)
 
 
 class QaGenerationRequest(BaseModel):
@@ -393,7 +488,8 @@ class QaGenerationRequest(BaseModel):
     #    「③ Qdrant 登録」の選択肢に出てこない（`QaGenerationParams` と同じ理由）
     output_dir: str = Field(default="qa_output", description="Q/A CSV・JSON の出力先")
     model: str = Field(
-        default="claude-sonnet-4-6", description="Q/A 生成に使う LLM（Anthropic Claude）"
+        default="claude-sonnet-5",
+        description="Q/A 生成に使う LLM（GET /api/models の選択肢から 1 つ）",
     )
     max_docs: Optional[int] = Field(
         default=None, ge=1, description="処理する最大チャンク数（テスト用）"
@@ -406,6 +502,8 @@ class QaGenerationRequest(BaseModel):
     )
     analyze_coverage: bool = Field(default=True, description="カバレージ分析を実行する")
     verbose: bool = False
+
+    _validate_model = field_validator("model")(_require_model_choice)
 
 
 class RegisterRequest(BaseModel):

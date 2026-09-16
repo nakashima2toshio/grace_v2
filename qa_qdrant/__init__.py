@@ -65,7 +65,7 @@ def main():
     parser.add_argument(
         "--model",
         type=str,
-        default="claude-sonnet-4-6",
+        default="claude-sonnet-5",
         help="使用するLLMモデル（Anthropic Claude）"
     )
     parser.add_argument(

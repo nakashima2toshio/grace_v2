@@ -247,7 +247,7 @@ style BRIDGE fill:#1a1a1a,stroke:#fff,color:#fff
 |-----------|-----------|------|
 | `grace`（リポジトリ内） | - | planner / executor + tools / GroundednessVerifier / SourceAgreementCalculator / InterventionHandler |
 | `support_actions`（リポジトリ内） | - | ActionBackend（dry-run / webhook / pseudo）・IdentityVerifier |
-| Anthropic Claude API | `claude-sonnet-4-6`（既定）/ `claude-haiku-4-5-20251001`（軽量判定） | Plan / reasoning / 検証・分類・判定 |
+| Anthropic Claude API | `claude-sonnet-5`（既定）/ `claude-haiku-4-5-20251001`（軽量判定） | Plan / reasoning / 検証・分類・判定 |
 | Gemini Embedding API | `gemini-embedding-001`（3072次元） | RAG 検索の埋め込み |
 | Qdrant | - | 内部ナレッジのベクトル検索（コレクション `*_anthropic`） |
 
@@ -1319,7 +1319,7 @@ reasoning へ足す（**【回答の構成ルール】の後ろ**に置く。理
 
 | モデル | 回答本文の断り |
 |---|---|
-| `claude-sonnet-4-6` | あり（「天気・気象情報は当窓口の担当範囲外」） |
+| `claude-sonnet-5` | あり（「天気・気象情報は当窓口の担当範囲外」） |
 | 姉妹リポジトリのローカル LLM | **なし**（住民票にだけ答えて終わり） |
 
 落ちる理由は、回答生成プロンプトの【回答の構成ルール】1（参照情報にある事実のみ）・
@@ -1577,7 +1577,7 @@ groundedness 検証・⑤ 再検証・haiku 判定 2 種）。
 
 - 最大費目はステップ毎の確信度評価 `evaluate_with_factors`（およそ 1/3）。
   `claude-haiku-4-5-20251001`（`config.llm.light_model`）で実行され、`reasoning` /
-  groundedness / `evaluate_final` は `claude-sonnet-4-6` を使う。
+  groundedness / `evaluate_final` は `claude-sonnet-5` を使う。
 - 費用を抑えたいときは、⑤ Web フォールバックと外部検索を止めるのが最も効く。
 
 > 📝 **金額の実測値は本書に載せない。** 旧版は「1 ケース ≈ 9 円 / 1 run ≈ 80 円」と

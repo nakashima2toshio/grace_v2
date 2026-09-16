@@ -80,6 +80,9 @@ class JobParams:
 
     query: str
     vertical: Optional[str] = None
+    # 使用する LLM。None は「設定の既定値（config/grace_config.yml の llm.model）」。
+    # 値が入るのは UI のモデルセレクタで明示的に選んだときだけ。
+    model: Optional[str] = None
     dry_run: bool = True
     use_web: bool = True
     do_action: bool = True
@@ -285,6 +288,7 @@ def _support_runner(
         do_action=params.do_action,
         dry_run=params.dry_run,
         vertical=params.vertical,
+        model=params.model,
         identity=params.identity,
         emit=emit,
         confirm=confirm,

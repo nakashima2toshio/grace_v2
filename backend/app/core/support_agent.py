@@ -56,6 +56,7 @@ from backend.app.core.verticals import (
     Decision,
     Intent,
 )
+from config import get_selectable_models
 from grace import (
     ActionDecision,
     InterventionAction,
@@ -244,6 +245,7 @@ def run_support_agent_core(
     do_action: bool = True,
     dry_run: bool = True,
     vertical: Optional[str] = None,
+    model: Optional[str] = None,
     identity: Optional[Dict[str, str]] = None,
     emit: Optional[EmitFn] = None,
     confirm: Optional[ConfirmFn] = None,
@@ -251,6 +253,9 @@ def run_support_agent_core(
     """GRACE-Support パイプラインを実行する（CLI 版 `run_support_agent` と同等）。
 
     Args:
+        model: 使用する LLM。None（既定）なら config/grace_config.yml の
+            llm.model のまま。指定する場合は `config.get_selectable_models()`
+            に含まれる値のみ許可する。判定系が使う light_model は上書きしない。
         emit: 進捗イベントのコールバック（None なら通知なし）
         confirm: HITL CONFIRM/ESCALATE の解決コールバック。
             None の場合は自動承認（CLI 互換。既定ドライランのため安全）。
@@ -286,6 +291,23 @@ def run_support_agent_core(
     # リクエスト単位のディープコピーを作り、以降の生成物（planner/executor/
     # tools/verifier …）はすべてこのコピーを参照させる。
     config = copy.deepcopy(get_config())
+
+    # UI（3タブ共通のモデルセレクタ）からの上書き。指定が無ければ設定の既定値。
+    #
+    # ⚠️ **`light_model` は上書きしない。** 判定系（意図分類・情報なし判定・
+    # RAG 適合性）は 2 値しか返さない定型判定で、上位モデルを当てても精度は
+    # 変わらず単価だけ上がる（haiku と opus で 5 倍）。設定の軽量モデルを
+    # そのまま使う（`gates.py::judge_model()` が読む経路）。
+    # heavy_model も触らない — ""（空）のときは model へフォールバックする
+    # 既存ロジックにより、選択したモデルへ自動で揃う。
+    if model:
+        if model not in get_selectable_models():
+            raise ValueError(
+                f"未対応のモデルです: {model}（選択可能: "
+                f"{', '.join(get_selectable_models())}）"
+            )
+        config.llm.model = model
+
     tool_registry = create_tool_registry(config)
     planner = create_planner(config)
     executor = create_executor(config, tool_registry)

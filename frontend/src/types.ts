@@ -76,6 +76,38 @@ export interface SupportResult {
   out_of_scope_guidance: string;
 }
 
+/** GET /api/models の 1 要素（3タブ共通のモデルセレクタ用）。 */
+export interface ModelChoice {
+  id: string;
+  /** $/1K tokens。単価差（haiku < sonnet < opus）を画面に出すために使う。 */
+  input_price: number;
+  output_price: number;
+  /** コンテキスト長 / 1 応答の出力上限（tokens）。 */
+  context_window: number;
+  max_output: number;
+}
+
+/**
+ * GET /api/model。サーバーが既定として使うモデルの**解決後**の値。
+ *
+ * ⚠️ フロントに既定値を焼き付けないこと。`config/grace_config.yml` を変えた
+ * ときに画面と実挙動がずれる。
+ */
+export interface ModelInfo {
+  model: string;
+  /** 判定系（意図分類・情報なし判定・RAG 適合性）に使う軽量モデル。 */
+  light_model: string;
+  /** 論理層の上位モデル。''（空）= model と同じ。 */
+  heavy_model: string;
+  /**
+   * データ準備側の既定。**エージェントの既定（`model`）とは別物**で、
+   * チャンク化は軽量モデルを使う。データ管理タブの「（既定値: …）」には
+   * こちらを出す（`model` を出すと実際に走るモデルと違う名前になる）。
+   */
+  chunking_model: string;
+  qa_model: string;
+}
+
 export interface VerticalInfo {
   id: string;
   name: string;
@@ -101,6 +133,8 @@ export interface InterventionInfo {
 export interface QueryParams {
   query: string;
   vertical: string | null;
+  /** 使用する LLM。未選択（null）は既定値。GET /api/models の選択肢から 1 つ。 */
+  model: string | null;
   dry_run: boolean;
   use_web: boolean;
   do_action: boolean;
@@ -204,6 +238,8 @@ export interface ReviewParams {
   document: string;
   document_title: string;
   ruleset: string | null;
+  /** 使用する LLM。未選択（null）は既定値。GET /api/models の選択肢から 1 つ。 */
+  model: string | null;
   use_web: boolean;
   do_action: boolean;
   dry_run: boolean;
@@ -290,7 +326,11 @@ export interface InputFileListResponse {
 export interface ChunkingParams {
   input_file: string;
   output_dir: string;
-  model: string;
+  /**
+   * チャンク化に使う LLM。**未選択ならキーごと省略する**（`?`）。
+   * 空文字を送るとサーバー側の `Field(default=...)` が働かず 422 になる。
+   */
+  model?: string;
   workers: number;
   block_size: number;
   text_column: string | null;
@@ -307,7 +347,8 @@ export interface ChunkingParams {
 export interface QaParams {
   input_file: string;
   output_dir: string;
-  model: string;
+  /** Q/A 生成に使う LLM。未選択ならキーごと省略する（ChunkingParams と同じ）。 */
+  model?: string;
   max_docs: number | null;
   /** ⚠️ true にするなら Celery ワーカーが起動していること。 */
   use_celery: boolean;

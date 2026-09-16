@@ -29,6 +29,20 @@ export function toOptionalNumber(value: string): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+/**
+ * モデル欄 → 送信ペイロードの部分オブジェクト。
+ *
+ * ⚠️ **空欄なら `model` キーごと落とす。** 空文字を送るとキー自体は存在する
+ * ため、サーバー側の `Field(default=...)` が働かない（本リポジトリでは
+ * `_require_model_choice` が 422 で弾く）。未選択は「サーバーの既定値を使う」
+ * の意味なので、キーを送らないのが正しい表現になる。既定値は
+ * `backend/app/schemas.py` の 1 箇所で管理し、フロントには持たせない。
+ */
+export function modelOverride(model: string): { model?: string } {
+  const trimmed = model.trim();
+  return trimmed === '' ? {} : { model: trimmed };
+}
+
 /** 空文字を null にする（省略可能な文字列パラメータ用）。 */
 export function toOptionalString(value: string): string | null {
   const trimmed = value.trim();
@@ -52,7 +66,7 @@ export function buildChunkingParams(state: ChunkingFormState): ChunkingParams {
   return {
     input_file: state.inputFile.trim(),
     output_dir: state.outputDir.trim() || 'output_chunked',
-    model: state.model,
+    ...modelOverride(state.model),
     workers: state.workers,
     block_size: state.blockSize,
     text_column: toOptionalString(state.textColumn),
@@ -81,7 +95,8 @@ export function buildQaParams(state: QaFormState): QaParams {
     // ⚠️ 既定は `qa_output` 直下。入れ子にすると GET /api/files が拾わず、
     // 「③ Qdrant 登録」の選択肢に出てこない（backend の既定と揃える）
     output_dir: state.outputDir.trim() || 'qa_output',
-    model: state.model.trim(),
+    // 空欄なら `model` キーごと落とす（チャンク化と同じ理由）
+    ...modelOverride(state.model),
     max_docs: toOptionalNumber(state.maxDocs),
     use_celery: state.useCelery,
     concurrency: state.concurrency,
@@ -94,12 +109,16 @@ export function buildQaParams(state: QaFormState): QaParams {
 /**
  * 送信ボタンを押せるか（Q/A 生成）。
  *
- * ⚠️ **モデル欄が空でも押せるようにしない。** 空文字を送ると、キー自体は
- * 存在するためサーバー側の `Field(default=...)` が働かず、空のモデル名で
- * LLM を呼びに行って実行時に失敗する。ここで止める方が原因が分かりやすい。
+ * モデル欄は**空でも押せる**。空 = 「サーバーの既定値を使う」で、
+ * `buildQaParams` が `model` キーごと落とすため、サーバー側の
+ * `Field(default=...)` が正しく効く（`modelOverride` の注記を参照）。
+ *
+ * ⚠️ 以前はここで空を弾いていた。モデル欄が自由入力だった頃の名残で、当時は
+ * 空文字がそのまま送られて実行時に失敗していた。選択式（`ModelSelect`）に
+ * 変えたいまは、空を弾くと「（既定値）」を選んだまま送信できなくなる。
  */
 export function canSubmitQa(state: QaFormState, running: boolean): boolean {
-  return !running && state.inputFile.trim() !== '' && state.model.trim() !== '';
+  return !running && state.inputFile.trim() !== '';
 }
 
 export interface RegisterFormState {

@@ -152,7 +152,7 @@ def test_heavy_model_defaults_to_main_model():
     """既定（heavy_model 未設定）は現行挙動と同じモデル。"""
     from grace.config import resolve_heavy_model
 
-    assert resolve_heavy_model(_cfg()) == "claude-sonnet-4-6"
+    assert resolve_heavy_model(_cfg()) == "claude-sonnet-5"
 
 
 def test_heavy_model_override_wins():

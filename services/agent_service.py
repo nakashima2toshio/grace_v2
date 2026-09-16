@@ -184,8 +184,8 @@ class ReActAgent:
         use_hybrid_search: bool = True  # ★追加: ハイブリッド検索フラグ
     ):
         self.selected_collections = selected_collections
-        # [MIGRATION] モデルデフォルト: "claude-sonnet-4-6"
-        self.model_name = model_name or get_config("models.default", "claude-sonnet-4-6")
+        # [MIGRATION] モデルデフォルト: "claude-sonnet-5"
+        self.model_name = model_name or get_config("models.default", "claude-sonnet-5")
         self.session_id = session_id or str(uuid.uuid4())
         self.use_hybrid_search = use_hybrid_search
 

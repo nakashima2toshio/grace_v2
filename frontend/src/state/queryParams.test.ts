@@ -10,6 +10,7 @@ import {
 const base: QueryFormState = {
   query: 'パスワードを忘れました',
   vertical: '',
+  model: '',
   useWeb: true,
   doAction: true,
   dryRun: true,
@@ -24,12 +25,22 @@ describe('buildQueryParams', () => {
     expect(buildQueryParams(base)).toEqual({
       query: 'パスワードを忘れました',
       vertical: null,
+      model: null,
       dry_run: true,
       use_web: true,
       do_action: true,
       verbose: false,
       identity: null,
     });
+  });
+
+  it('モデル未選択（空文字）は null にする（サーバーの既定値を使う）', () => {
+    expect(buildQueryParams(base).model).toBeNull();
+    expect(buildQueryParams({ ...base, model: '   ' }).model).toBeNull();
+  });
+
+  it('選んだモデルをそのまま送る', () => {
+    expect(buildQueryParams({ ...base, model: 'claude-opus-5' }).model).toBe('claude-opus-5');
   });
 
   it('query の前後の空白を落とす', () => {

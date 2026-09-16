@@ -14,11 +14,14 @@
 // ⚠️ タブは**アンマウントで切り替える**（条件レンダリング）。各パネルが自分の
 // reducer・SSE 購読・承認状態を持つため、離れた側の EventSource が
 // useEffect のクリーンアップで確実に閉じる。
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { fetchModelInfo } from './api/client';
+import { MODEL_LABEL_PREFIX, formatModelLabel } from './state/modelLabel';
 import { handleTabKeyDown } from './state/tabKeys';
 import { DataPanel } from './components/DataPanel';
 import { ReviewPanel } from './components/ReviewPanel';
 import { SupportPanel } from './components/SupportPanel';
+import type { ModelInfo } from './types';
 
 type Tab = 'basic' | 'support' | 'review' | 'data';
 
@@ -35,6 +38,25 @@ export default function App() {
   // 矢印キーで移動したときにフォーカスも運ぶ（WAI-ARIA の tablist パターン）
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
+  // 既定の利用モデル名。起動時に 1 回だけ取る（サーバ側の設定値）。
+  // ⚠️ 取得に失敗しても画面は壊さない。null のままヘッダーに何も出さないだけ
+  //    （バックエンド未起動でもタブ操作はできるべきなので、エラーを出さない）。
+  const [modelInfo, setModelInfo] = useState<ModelInfo | null>(null);
+  useEffect(() => {
+    let alive = true;
+    void fetchModelInfo()
+      .then((info) => {
+        if (alive) setModelInfo(info);
+      })
+      .catch(() => {
+        /* ヘッダーの装飾なので握りつぶす */
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+  const modelLabel = formatModelLabel(modelInfo);
+
   const onKeyDown = (event: React.KeyboardEvent, index: number) => {
     const next = handleTabKeyDown(event, index, TABS.length);
     if (next === null) return;
@@ -45,7 +67,18 @@ export default function App() {
   return (
     <div className="app">
       <header>
-        <h1>{active.label}</h1>
+        {/* タイトルの右へ既定の利用モデル名を並べる。未取得なら何も出さない。
+            ⚠️ これは**既定値**の表示で、フォームで別のモデルを選べば
+            そちらが使われる（選択結果は各フォームのセレクタに出る）。 */}
+        <div className="header-title">
+          <h1>{active.label}</h1>
+          {modelLabel !== null && (
+            <span className="model-badge">
+              <span className="model-badge-label">{MODEL_LABEL_PREFIX}</span>
+              <span className="model-badge-value">{modelLabel}</span>
+            </span>
+          )}
+        </div>
         <nav className="tabs" role="tablist" aria-label="エージェントとデータ準備">
           {TABS.map((t, index) => (
             <button

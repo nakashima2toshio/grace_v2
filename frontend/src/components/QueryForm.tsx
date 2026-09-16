@@ -27,7 +27,8 @@ import {
   isIdentityActive,
 } from '../state/queryParams';
 import { isSubmitKey } from '../state/submitKey';
-import type { QueryParams, VerticalInfo } from '../types';
+import type { ModelChoice, QueryParams, VerticalInfo } from '../types';
+import { ModelSelect } from './ModelSelect';
 
 const BASIC_EXAMPLES: Array<{ label: string; query: string; vertical: string | null }> = [
   { label: 'パスワードを忘れました', query: 'パスワードを忘れました', vertical: null },
@@ -43,6 +44,10 @@ const VERTICAL_EXAMPLES: Array<{ label: string; query: string; vertical: string 
 
 interface Props {
   verticals: VerticalInfo[];
+  /** モデルの選択肢（GET /api/models）。空なら「（既定値）」だけが出る。 */
+  models: ModelChoice[];
+  /** サーバーの既定モデル名（GET /api/model）。「（既定値）」に実名を出す。 */
+  defaultModel?: string;
   running: boolean;
   onSubmit: (params: QueryParams) => void;
   /** 業界プロファイル セレクタを出すか。基本版タブでは false（vertical は常に null）。 */
@@ -58,6 +63,8 @@ interface Props {
 
 export function QueryForm({
   verticals,
+  models,
+  defaultModel,
   running,
   onSubmit,
   showVertical = true,
@@ -71,6 +78,8 @@ export function QueryForm({
   const [restored] = useState(() => recallQueryForm(memoryKey));
   const [query, setQuery] = useState(restored.query);
   const [vertical, setVertical] = useState<string>(restored.vertical);
+  // 空文字 = 未選択 =「サーバーの既定値を使う」。既定のモデル名はここに持たない。
+  const [model, setModel] = useState<string>(restored.model);
   const [dryRun, setDryRun] = useState(restored.dryRun);
   const [verbose, setVerbose] = useState(restored.verbose);
   const [useWeb, setUseWeb] = useState(restored.useWeb);
@@ -82,9 +91,9 @@ export function QueryForm({
   // クリーンアップは依存の取りこぼしで古い値を書きやすいので、素直に毎回書く。
   useEffect(() => {
     rememberQueryForm(memoryKey, {
-      query, vertical, dryRun, verbose, useWeb, doAction, orderId, email,
+      query, vertical, model, dryRun, verbose, useWeb, doAction, orderId, email,
     });
-  }, [memoryKey, query, vertical, dryRun, verbose, useWeb, doAction, orderId, email]);
+  }, [memoryKey, query, vertical, model, dryRun, verbose, useWeb, doAction, orderId, email]);
 
   // 本人確認が実際に起動するのは require_identity のプロファイルのときだけ。
   // 基本版（showVertical=false）は vertical を送らないので、常に起動しない。
@@ -110,7 +119,7 @@ export function QueryForm({
   const submitIfReady = () => {
     if (!query.trim() || running) return;
     onSubmit(buildQueryParams({
-      query, vertical, useWeb, doAction, dryRun, verbose,
+      query, vertical, model, useWeb, doAction, dryRun, verbose,
       orderId, email, showVertical,
       requireIdentity: selected?.require_identity,
     }));
@@ -184,6 +193,13 @@ export function QueryForm({
             </select>
           </label>
         )}
+        <ModelSelect
+          models={models}
+          value={model}
+          onChange={setModel}
+          disabled={running}
+          defaultModel={defaultModel}
+        />
         <label>
           <input
             type="checkbox"

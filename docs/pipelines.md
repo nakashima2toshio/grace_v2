@@ -3,7 +3,7 @@
 本書は**アプリが提供する 3 つのモードを 1 枚で見比べる**ためのハブである。
 判定の詳細は `docs/guardrails.md`、回答生成の詳細は `docs/reasoning_flow.md` を参照。
 
-技術スタック: LLM = Anthropic Claude（既定 `claude-sonnet-4-6`）／
+技術スタック: LLM = Anthropic Claude（既定 `claude-sonnet-5`）／
 Embedding = Gemini（`gemini-embedding-001`・3072次元）。
 
 > ⚠️ **行番号は書かない。** 実装への参照はすべて「ファイル名 + シンボル名」で示す。

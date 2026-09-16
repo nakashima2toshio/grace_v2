@@ -1,14 +1,15 @@
 # api/meta.py - メタ情報 API ドキュメント
 
-**Version 1.3** | 最終更新: 2026-09-16
+**Version 1.4** | 最終更新: 2026-09-16
 
-> **本書の位置づけ**: `backend/app/api/meta.py`（業界プロファイル / ルールセット一覧・ヘルスチェック）の **IPO リファレンス**。
+> **本書の位置づけ**: `backend/app/api/meta.py`（モデル一覧 / 業界プロファイル / ルールセット一覧・ヘルスチェック）の **IPO リファレンス**。
 > 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。
 >
 > | 知りたいこと | 参照先 |
 > |---|---|
 > | エンドポイント一覧 | [`api_contract.md` §1.5](../api_contract.md) |
 > | プロファイル・ルールセットの中身 | [`verticals_and_rulesets.md`](../verticals_and_rulesets.md) |
+> | モデル選択の方針・上書き範囲 | [`config_and_providers.md` §3.1](../config_and_providers.md) |
 > | API キーの扱い | [`config_and_providers.md` §4](../config_and_providers.md) |
 > | 文書全体の地図 | [`README.md`](../README.md) |
 
@@ -35,7 +36,8 @@
 ヘルスチェック）を提供する FastAPI ルーターモジュール。UI のプロファイルセレクタ用に
 組み込み業界プロファイル（`PROFILES`）を返す `GET /api/verticals`、組み込みルールセット
 （`RULESETS`）を返す `GET /api/rulesets`、稼働確認・実行前提（APIキー設定有無）を返す
-`GET /api/health` の 3 エンドポイントを定義する。
+`GET /api/health`、モデルセレクタの選択肢を返す `GET /api/models`、既定モデルの
+**解決後**の値を返す `GET /api/model` の 5 エンドポイントを定義する。
 
 LLM は Anthropic Claude（`ANTHROPIC_API_KEY`）、Embedding は Gemini（`GOOGLE_API_KEY`）を
 使うため、health は両キーの設定有無を返す。
@@ -45,6 +47,8 @@ LLM は Anthropic Claude（`ANTHROPIC_API_KEY`）、Embedding は Gemini（`GOOG
 - 組み込み業界プロファイル一覧の提供（`GET /api/verticals`）
 - 組み込みルールセット一覧の提供（`GET /api/rulesets`）
 - 稼働確認と API キー設定有無の可視化（`GET /api/health`）
+- モデルセレクタの選択肢の提供（`GET /api/models`）
+- 既定モデルの解決結果の提供（`GET /api/model`）
 
 ### 各責務対応のモジュール
 
@@ -53,13 +57,17 @@ LLM は Anthropic Claude（`ANTHROPIC_API_KEY`）、Embedding は Gemini（`GOOG
 | 1 | プロファイル一覧 | `api/meta.py` → `core/verticals.py` | `PROFILES` を `VerticalInfo` へ整形 |
 | 1b | ルールセット一覧 | `api/meta.py` → `core/rulesets.py` | `RULESETS` を `RuleSetInfo` へ整形 |
 | 2 | ヘルスチェック | `api/meta.py` | `os.getenv` でキー設定有無を返す |
-| 3 | 出力スキーマ | `backend/app/schemas.py` | `VerticalInfo` |
+| 3 | 出力スキーマ | `backend/app/schemas.py` | `VerticalInfo` / `RuleSetInfo` / `ModelChoice` / `ModelInfo` |
+| 4 | モデル選択肢 | `api/meta.py` → `config.py` | `get_selectable_models()` に単価・上限を添える |
+| 5 | 既定モデル | `api/meta.py` → `grace/config.py` | 解決後の `llm.*` とスキーマ既定値を返す |
 
 ### 主要機能一覧
 
 | 機能 | 説明 |
 |------|------|
 | `router` | `APIRouter(prefix="/api")` |
+| `list_models()` | GET /models（モデルセレクタの選択肢） |
+| `current_model()` | GET /model（既定モデルの解決結果） |
 | `list_verticals()` | GET /verticals（業界プロファイル一覧） |
 | `list_rulesets()` | GET /rulesets（ルールセット一覧） |
 | `health()` | GET /health（稼働確認＋APIキー有無） |
@@ -77,6 +85,8 @@ flowchart TB
     end
 
     subgraph MODULE["api/meta.py"]
+        M["GET /models"]
+        MD["GET /model"]
         V["GET /verticals"]
         R["GET /rulesets"]
         H["GET /health"]
@@ -87,8 +97,15 @@ flowchart TB
         RULES["core/rulesets.RULESETS"]
         ENV["環境変数（ANTHROPIC/GOOGLE キー）"]
         SCH["schemas.VerticalInfo / RuleSetInfo"]
+        MCFG["config.get_selectable_models / ModelConfig"]
+        GCFG["grace.config.get_config().llm"]
     end
 
+    FE --> M
+    FE --> MD
+    M --> MCFG
+    MD --> GCFG
+    MD --> MCFG
     FE --> V
     FE --> R
     FE --> H
@@ -99,7 +116,7 @@ flowchart TB
     H --> ENV
 classDef default fill:#000,stroke:#fff,color:#fff
 classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
-class FE,V,R,H,PROF,RULES,ENV,SCH default
+class FE,M,MD,V,R,H,PROF,RULES,ENV,SCH,MCFG,GCFG default
 style CLIENT fill:#1a1a1a,stroke:#fff,color:#fff
 style MODULE fill:#1a1a1a,stroke:#fff,color:#fff
 style SOURCE fill:#1a1a1a,stroke:#fff,color:#fff
@@ -107,6 +124,8 @@ style SOURCE fill:#1a1a1a,stroke:#fff,color:#fff
 
 ### 1.2 データフロー
 
+0. フロント（全タブ）が起動時に `GET /api/models` / `GET /api/model` を取得し、
+   モデルセレクタと「（既定値: …）」表示を構築
 1. フロント（Support タブ）が起動時に `GET /api/verticals` でプロファイル一覧を取得しセレクタを構築
 1b. フロント（Review タブ）が起動時に `GET /api/rulesets` でルールセット一覧を取得しセレクタを構築
 2. `GET /api/health` で稼働確認と APIキー設定有無を確認（未設定なら注意表示）
@@ -120,6 +139,8 @@ style SOURCE fill:#1a1a1a,stroke:#fff,color:#fff
 ```mermaid
 flowchart TB
     subgraph ROUTER["APIRouter (/api)"]
+        LM["list_models()"]
+        CM["current_model()"]
         LV["list_verticals()"]
         LR["list_rulesets()"]
         HE["health()"]
@@ -131,8 +152,15 @@ flowchart TB
         VI["VerticalInfo"]
         RSI["RuleSetInfo"]
         OS["os.getenv"]
+        SEL["get_selectable_models()"]
+        MC["ModelConfig（単価・上限）"]
+        GC["get_config().llm"]
     end
 
+    LM --> SEL
+    LM --> MC
+    CM --> GC
+    CM --> MC
     LV --> PROF
     LV --> VI
     LR --> RSET
@@ -140,7 +168,7 @@ flowchart TB
     HE --> OS
 classDef default fill:#000,stroke:#fff,color:#fff
 classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
-class LV,LR,HE,PROF,RSET,VI,RSI,OS default
+class LM,CM,LV,LR,HE,PROF,RSET,VI,RSI,OS,SEL,MC,GC default
 style ROUTER fill:#1a1a1a,stroke:#fff,color:#fff
 style DEPS fill:#1a1a1a,stroke:#fff,color:#fff
 ```
@@ -159,7 +187,9 @@ style DEPS fill:#1a1a1a,stroke:#fff,color:#fff
 |-----------|------|
 | `backend.app.core.verticals` | `PROFILES`（業界プロファイル辞書） |
 | `backend.app.core.rulesets` | `RULESETS`（ルールセット辞書） |
-| `backend.app.schemas` | `VerticalInfo` / `RuleSetInfo`（出力スキーマ） |
+| `backend.app.schemas` | `VerticalInfo` / `RuleSetInfo` / `ModelChoice` / `ModelInfo`（出力スキーマ）、`ChunkingRequest` / `QaGenerationRequest`（データ準備側の既定値の引き元） |
+| `config`（トップレベル） | `get_selectable_models()` / `ModelConfig`（選択肢・単価・上限） |
+| `grace.config` | `get_config().llm`（既定モデルの解決結果） |
 
 ---
 
@@ -173,6 +203,8 @@ style DEPS fill:#1a1a1a,stroke:#fff,color:#fff
 
 | 関数名 | メソッド/パス | 概要 |
 |-------|--------------|------|
+| `list_models()` | GET /models | 選択可能なモデルを単価・上限つきで返す |
+| `current_model()` | GET /model | サーバーの既定モデル（解決後）を返す |
 | `list_verticals()` | GET /verticals | 組み込み業界プロファイルを返す |
 | `list_rulesets()` | GET /rulesets | 組み込みルールセットを返す |
 | `health()` | GET /health | 稼働確認とAPIキー設定有無を返す |
@@ -232,6 +264,74 @@ print(sorted(v))
 
 
 ### 4.2 エンドポイント関数
+
+#### `list_models`
+
+**概要**: 3タブ共通のモデルセレクタ用に、選択可能なモデルを単価・上限つきで返す。
+
+```python
+@router.get("/models", response_model=List[ModelChoice])
+def list_models() -> List[ModelChoice]
+```
+
+| パラメータ | 型 | デフォルト | 説明 |
+|------------|------|-----------|------|
+| （なし） | - | - | 引数なし |
+
+| 項目 | 内容 |
+|------|------|
+| **Input** | なし |
+| **Process** | `get_selectable_models()` の各モデルに `ModelConfig.get_model_pricing()` / `get_model_limits()` を引いて `ModelChoice` へ整形 |
+| **Output** | `List[ModelChoice]`: `{id, input_price, output_price, context_window, max_output}` |
+
+**戻り値例**:
+```python
+[
+    {"id": "claude-sonnet-5", "input_price": 0.002, "output_price": 0.01,
+     "context_window": 1000000, "max_output": 128000},
+    {"id": "claude-opus-5", "input_price": 0.005, "output_price": 0.025,
+     "context_window": 1000000, "max_output": 128000},
+    {"id": "claude-haiku-4-5", "input_price": 0.001, "output_price": 0.005,
+     "context_window": 200000, "max_output": 64000},
+]
+```
+
+> ⚠️ **旧既定（`claude-sonnet-4-6`）と日付指定エイリアス
+> （`claude-haiku-4-5-20251001`）は出てこない。** どちらも実在する有効な
+> モデル名で `AVAILABLE_MODELS` には残っている（`CLAUDE.md` R1）。同じモデルが
+> 2 行並ぶのを避けるため、**選択肢からだけ外している**。
+>
+> ⚠️ **Embedding も出てこない。** Gemini `gemini-embedding-001`（3072 次元）固定。
+
+#### `current_model`
+
+**概要**: サーバーが既定として使うモデルの**解決後**の値を返す。UI のヘッダー表示と、
+セレクタの「（既定値: …）」に実名を出すために使う。
+
+```python
+@router.get("/model", response_model=ModelInfo)
+def current_model() -> ModelInfo
+```
+
+| パラメータ | 型 | デフォルト | 説明 |
+|------------|------|-----------|------|
+| （なし） | - | - | 引数なし |
+
+| 項目 | 内容 |
+|------|------|
+| **Input** | なし |
+| **Process** | `get_config().llm` から `model` / `light_model` / `heavy_model` を取り、データ準備側の既定は `ChunkingRequest` / `QaGenerationRequest` の**スキーマ既定値**から引く |
+| **Output** | `ModelInfo` |
+
+**戻り値例**:
+```python
+{"model": "claude-sonnet-5", "light_model": "claude-haiku-4-5-20251001",
+ "heavy_model": "", "chunking_model": "claude-haiku-4-5", "qa_model": "claude-sonnet-5"}
+```
+
+> ⚠️ **`chunking_model` / `qa_model` は `model` と別物。** チャンク化は軽量モデルを
+> 使うので、データ管理タブの「（既定値: …）」に `model` を出すと実際に走る
+> モデルと違う名前を表示してしまう。
 
 #### `list_verticals`
 
@@ -357,6 +457,11 @@ GET /api/health
 ### 5.1 基本的なワークフロー（フロント起動時）
 
 ```text
+0. GET /api/models  /  GET /api/model
+   → [{"id": "claude-sonnet-5", ...}, {"id": "claude-opus-5", ...}, {"id": "claude-haiku-4-5", ...}]
+   → {"model": "claude-sonnet-5", "light_model": "claude-haiku-4-5-20251001", ...}
+   （モデルセレクタの選択肢と「（既定値: …）」表示に反映）
+
 1. GET /api/health
    → {"status": "ok", "anthropic_api_key": true, "google_api_key": true}
    （いずれか false なら「.env にキー未設定」を UI で警告）
@@ -386,6 +491,7 @@ router  # APIRouter(prefix="/api", tags=["meta"])
 
 | バージョン | 日付 | 変更内容 |
 |-----------|------|---------|
+| 1.4 | 2026-09-16 | `GET /api/models` / `GET /api/model` を追加（モデルセレクタ）。構成図・一覧表・IPO 詳細・使用例を追随させた |
 | 1.3 | 2026-09-16 | 3 階建て再編（`reference/` へ移設）に伴い、冒頭へ**位置づけと上位文書への導線**を追加した |
 | 1.2 | 2026-09-15 | **§4.1「使用例」を新設**（2026-09-15）。ドキュメント規約 `a_class_method_md_format.md` §6.1 が IPO 詳細セクションの冒頭に必須としている代表ワークフローが欠落していた。起動確認（health / verticals / rulesets）とプロファイル 1 件のフィールド確認の 2 本を追加し、**実行して出力を確認した**（外部依存が要る例はその旨を明記）。旧 §4.1 は §4.2 へ繰り下げ |
 | 1.0 | 2026-07-15 | 初版作成（GET /verticals・GET /health の IPO ドキュメント） |
@@ -408,9 +514,11 @@ flowchart LR
         TY["typing"]
     end
 
-    subgraph INTERNAL["backend.app"]
+    subgraph INTERNAL["backend.app ほか"]
         PROF["core.verticals（PROFILES）"]
-        VI["schemas（VerticalInfo）"]
+        VI["schemas（VerticalInfo / ModelChoice / ModelInfo）"]
+        CFG["config（get_selectable_models / ModelConfig）"]
+        GCFG["grace.config（get_config）"]
     end
 
     META --> AR
@@ -418,9 +526,11 @@ flowchart LR
     META --> TY
     META --> PROF
     META --> VI
+    META --> CFG
+    META --> GCFG
 classDef default fill:#000,stroke:#fff,color:#fff
 classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
-class META,AR,OS,TY,PROF,VI default
+class META,AR,OS,TY,PROF,VI,CFG,GCFG default
 style FASTAPI fill:#1a1a1a,stroke:#fff,color:#fff
 style STD fill:#1a1a1a,stroke:#fff,color:#fff
 style INTERNAL fill:#1a1a1a,stroke:#fff,color:#fff

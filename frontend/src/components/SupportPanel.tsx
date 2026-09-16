@@ -12,6 +12,8 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import {
   confirmIntervention,
+  fetchModelInfo,
+  fetchModels,
   fetchVerticals,
   startQuery,
   subscribeStream,
@@ -20,7 +22,7 @@ import { interventionKind } from '../state/interventionKind';
 import { initialJobState, jobReducer } from '../state/jobReducer';
 import { metaErrorMessage } from '../state/metaFetch';
 import { useJobTiming } from '../state/useJobTiming';
-import type { QueryParams, VerticalInfo } from '../types';
+import type { ModelChoice, ModelInfo, QueryParams, VerticalInfo } from '../types';
 import { AnswerCard } from './AnswerCard';
 import { ConfirmModal } from './ConfirmModal';
 import { JobFinishLine, JobStartLine } from './JobClock';
@@ -48,6 +50,14 @@ export function SupportPanel({ variant = 'vertical' }: { variant?: SupportVarian
   //    「選択肢が（なし）しか無い」としか見えず、原因がユーザーに伝わらなかった。
   const [verticalsError, setVerticalsError] = useState<string | null>(null);
   const [loadingVerticals, setLoadingVerticals] = useState(false);
+  // モデルの選択肢と、サーバーの既定モデル（「（既定値: …）」の実名表示用）。
+  //
+  // ⚠️ こちらは取得失敗を**バナーで出さない**。業界プロファイルと違い、空でも
+  //    「（既定値）」を選んだまま送信でき、サーバーが設定どおりのモデルで走る
+  //    ため、機能が失われない（選べないだけ）。握りつぶしではなく、縮退しても
+  //    正しく動く経路が残るという違いである。
+  const [models, setModels] = useState<ModelChoice[]>([]);
+  const [modelInfo, setModelInfo] = useState<ModelInfo | null>(null);
   const [confirming, setConfirming] = useState(false);
   const unsubscribeRef = useRef<(() => void) | null>(null);
   const showVertical = variant === 'vertical';
@@ -67,6 +77,12 @@ export function SupportPanel({ variant = 'vertical' }: { variant?: SupportVarian
         setVerticalsError(metaErrorMessage(error, '業界プロファイル'));
       })
       .finally(() => setLoadingVerticals(false));
+  }, []);
+
+  useEffect(() => {
+    // モデルの選択肢は**両タブとも**使う（基本版でもモデルは選べる）。
+    void fetchModels().then(setModels).catch(() => setModels([]));
+    void fetchModelInfo().then(setModelInfo).catch(() => setModelInfo(null));
   }, []);
 
   useEffect(() => {
@@ -127,6 +143,8 @@ export function SupportPanel({ variant = 'vertical' }: { variant?: SupportVarian
 
       <QueryForm
         verticals={verticals}
+        models={models}
+        defaultModel={modelInfo?.model ?? ''}
         running={state.phase === 'running'}
         onSubmit={submit}
         showVertical={showVertical}

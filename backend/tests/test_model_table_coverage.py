@@ -27,9 +27,13 @@ DEFAULT_MODELS = {
     # backend/app/core/data_jobs.py::QaGenerationParams.model
     # qa_qdrant/make_qa.py / make_qa_register_qdrant.py の CLI --model 既定
     # qa_generation/pipeline.py::QAPipeline / smart_qa_generator.py
-    "claude-sonnet-4-6": "Q/A 生成・LLM 全般の既定",
+    "claude-sonnet-5": "Q/A 生成・LLM 全般の既定",
     # config.ModelConfig の軽量モデル（grace/config.py::llm.light_model）
     "claude-haiku-4-5-20251001": "軽量モデル（日付指定）",
+    # UI（GET /api/models）で選べる上位モデル
+    "claude-opus-5": "上位モデル（モデルセレクタの選択肢）",
+    # 旧既定。既存設定ファイルを読み込む環境がまだ指しうる
+    "claude-sonnet-4-6": "旧既定（後方互換）",
 }
 
 
@@ -71,10 +75,12 @@ def test_lookup_does_not_fall_back_for_defaults():
         limits = ModelConfig.MODEL_LIMITS.get(name, generic_limits)
         assert pricing is not generic_pricing, f"{name} の単価がフォールバックしている"
         assert limits is not generic_limits, f"{name} の上限がフォールバックしている"
-        # Claude 系は 200k コンテキスト。128k ならフォールバック値を掴んでいる。
-        assert limits["max_tokens"] == 200000, (
-            f"{name} の max_tokens が {limits['max_tokens']}。"
-            "Claude 系は 200000 のはずで、128000 なら表に行が無い。"
+        # フォールバック値（128000）を掴んでいないこと。世代でコンテキスト長が
+        # 違う（Sonnet 5 / Opus 5 は 1M、Haiku 4.5 と旧 Sonnet 4.6 は 200k）ので
+        # 特定の値では固定せず、「汎用既定ではない」ことだけを見る。
+        assert limits["max_tokens"] != generic_limits["max_tokens"], (
+            f"{name} の max_tokens が {limits['max_tokens']}（汎用フォールバック値）。"
+            "表に行が無い。"
         )
 
 
@@ -88,4 +94,4 @@ def test_available_models_are_priced():
 def test_config_module_is_the_repo_one():
     """取り違え防止: 参照している config が本リポジトリのものであること。"""
     assert hasattr(config, "ModelConfig")
-    assert ModelConfig.DEFAULT_MODEL == "claude-sonnet-4-6"
+    assert ModelConfig.DEFAULT_MODEL == "claude-sonnet-5"

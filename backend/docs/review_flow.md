@@ -141,7 +141,7 @@ GRACE-Review は、**文書（EC の LP・商品説明文など）を規程（�
 
 | 用途 | 実体 |
 |---|---|
-| LLM（検出・判定・要約） | Anthropic Claude `claude-sonnet-4-6` |
+| LLM（検出・判定・要約） | Anthropic Claude `claude-sonnet-5` |
 | LLM（軽量二段判定） | Anthropic Claude `claude-haiku-4-5-20251001` |
 | Embedding（規程検索） | Gemini `gemini-embedding-001`（3072次元） |
 | ベクトル DB | Qdrant（コレクション `*_anthropic`） |

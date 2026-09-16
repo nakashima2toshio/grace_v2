@@ -1,6 +1,6 @@
 # App.tsx - 4 タブのルートコンテナ ドキュメント
 
-**Version 1.2** | 最終更新: 2026-08-05
+**Version 1.3** | 最終更新: 2026-09-16
 
 ---
 
@@ -24,11 +24,11 @@
 | 項目 | 内容 |
 |---|---|
 | ファイル | `frontend/src/App.tsx` |
-| 種別 | **コンテナコンポーネント**（`useState` によるタブ選択のみ） |
+| 種別 | **コンテナコンポーネント**（タブ選択の `useState` ＋ 既定モデル取得の `useEffect`） |
 | 親 | `main.tsx`（`createRoot`） |
 | 子 | `SupportPanel`（基本版 / Support の 2 用途）・`ReviewPanel`・`DataPanel` |
-| 主な依存 | `./components/SupportPanel` / `./components/ReviewPanel` / `./components/DataPanel` |
-| 対応バックエンド | なし（API を直接呼ばない。子パネルが呼ぶ） |
+| 主な依存 | `./components/SupportPanel` / `./components/ReviewPanel` / `./components/DataPanel` / `./state/modelLabel` / `./api/client`（`fetchModelInfo`） |
+| 対応バックエンド | `GET /api/model`（ヘッダーの利用モデル名のみ。ジョブ系 API は子パネルが呼ぶ） |
 
 `App.tsx` は**タブの選択だけ**を持つ薄いルート。ジョブ状態・SSE 購読・承認状態は
 **各パネルが自分で持つ**ため、`App` は reducer も `useEffect` も持たない。
@@ -122,6 +122,7 @@ style Panels fill:#1a1a1a,stroke:#fff,color:#fff
 | 変数 | 型 | 初期値 | 更新契機 | 説明 |
 |---|---|---|---|---|
 | `tab` | `'basic' \| 'support' \| 'review'` | `'basic'` | タブボタンの `click` | 表示するパネル。**既定は基本版** |
+| `modelInfo` | `ModelInfo \| null` | `null` | 初回の `fetchModelInfo()` | ヘッダーに出す既定モデル名。取得失敗なら `null` のまま（**何も出さない**） |
 
 ### 3.2 reducer state（`useReducer`）
 
@@ -137,6 +138,7 @@ style Panels fill:#1a1a1a,stroke:#fff,color:#fff
 |---|---|---|
 | `active` | `TABS.find((t) => t.id === tab) ?? TABS[0]` | `h1` に出すタブ名。見つからない場合は先頭（基本版）へフォールバック |
 | `variant` | `tab === 'basic' ? 'basic' : 'vertical'` | `SupportPanel` へ渡す業界特化の有無 |
+| `modelLabel` | `formatModelLabel(modelInfo)` | ヘッダーの「利用モデル名：」に出す文字列。**`null` なら何も描画しない**（純関数・`state/modelLabel.ts`） |
 
 ---
 
@@ -144,7 +146,16 @@ style Panels fill:#1a1a1a,stroke:#fff,color:#fff
 
 ### 4.1 副作用一覧（`useEffect`）
 
-**なし。** `App` は `useEffect` を持たない。API 取得も SSE 購読も各パネルの責務である。
+| # | 目的 | 依存配列 | クリーンアップ | 備考 |
+|---|---|---|---|---|
+| 1 | 既定モデル名の取得（`GET /api/model`） | `[]` | `alive = false`（`setState` の取りこぼし防止） | **失敗しても画面を壊さない**。ヘッダーに何も出さないだけ |
+
+SSE 購読とジョブ系 API は引き続き各パネルの責務である。`App` が持つ副作用は
+**ヘッダー表示のためのこの 1 本だけ**。
+
+> ⚠️ **ヘッダーに出るのは「既定値」である。** フォームのモデルセレクタで別の
+> モデルを選べばそちらが使われる。選択結果はセレクタ側に出る
+> （`ModelSelect.md`）。
 
 ### 4.2 アンマウントによる SSE 解放
 
@@ -229,8 +240,9 @@ class Start,Show,Tab,Same,Swap,New default
 |---|---|---|---|
 | `Tab` | 本ファイル（ローカル） | — | UI 内部のみ。バックエンドに対応物なし |
 | `SupportVariant` | `components/SupportPanel.tsx` | — | 同上 |
+| `ModelInfo` | `types.ts` | `backend/app/schemas.py::ModelInfo` | `GET /api/model` の戻り値 |
 
-`App.tsx` は API を直接呼ばないため、バックエンド由来の型を持たない。
+ジョブ系 API は各パネルが呼ぶ。`App.tsx` が直接呼ぶのは `GET /api/model` だけである。
 
 ---
 
@@ -261,9 +273,10 @@ class Start,Show,Tab,Same,Swap,New default
 
 | テストファイル | 対象 | 実行 |
 |---|---|---|
-| （なし） | — | — |
+| `src/state/tabKeys.test.ts` | タブの矢印キー移動（`handleTabKeyDown`） | `npm test`（12 件） |
+| `src/state/modelLabel.test.ts` | ヘッダーのモデル名文字列（`formatModelLabel`） | `npm test`（9 件） |
 
-**`App.tsx` の単体テストは未整備。** `@testing-library/react` を導入していないため、
+**`App.tsx` 自体のレンダリングテストは未整備。** `@testing-library/react` を導入していないため、
 JSX のレンダリングテストは持たない。ガードは以下 2 つ。
 
 | 手段 | 何を守るか |
@@ -284,3 +297,4 @@ JSX のレンダリングテストは持たない。ガードは以下 2 つ。
 | 1.0 | 2026-08-01 | 初版作成。3 タブ化（基本版 / GRACE-Support / GRACE-Review）後の実装に基づく。`key={tab}` が必要な理由と、それが型検査では守られない点を明記 |
 | 1.1 | 2026-08-05 | 4 タブ目「データ管理」（`DataPanel`）を追加。前 3 つ（使う）と最後（準備する）の区分を明記 |
 | 1.2 | 2026-08-05 | タブの矢印キー移動・roving tabindex・`role="tabpanel"` を追加 |
+| 1.3 | 2026-09-16 | **ヘッダーに既定の利用モデル名を表示**（`GET /api/model` → `state/modelLabel.ts::formatModelLabel`）。論理層（`heavy_model`）だけ別モデルのときは併記する。取得失敗時は何も出さない（画面は壊さない） |

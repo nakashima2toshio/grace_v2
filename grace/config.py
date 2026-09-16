@@ -56,7 +56,9 @@ logger = logging.getLogger(__name__)
 class LLMConfig(BaseModel):
     """LLM設定（本プロジェクトは Anthropic を使用）"""
     provider: str = "anthropic"
-    model: str = "claude-sonnet-4-6"
+    # 既定モデル。UI のモデルセレクタ（GET /api/models）で
+    # claude-opus-5 / claude-haiku-4-5 へリクエスト単位に上書きできる。
+    model: str = "claude-sonnet-5"
     # ステップ毎の確信度評価（evaluate_with_factors）などテレメトリ級の
     # 定型評価タスクに使う軽量モデル。回答生成・根拠検証は model を使う。
     light_model: str = "claude-haiku-4-5-20251001"
@@ -69,7 +71,7 @@ class LLMConfig(BaseModel):
     #      合計上限になる。llm_compat が既定で thinking を明示 disabled にして
     #      いるためそのままでも動くが、思考を活かすなら
     #      heavy_thinking_budget_tokens を設定する
-    #   2. 入出力単価が上がる（sonnet の 1.7 倍程度）。cost.* の上限も見直す
+    #   2. 入出力単価が上がる（sonnet の 2.5 倍）。cost.* の上限も見直す
     #   3. 判定系（複雑度推定・意図分類・情報なし判定・RAG 適合性）は
     #      light_model 側であり、ここでは切り替わらない
     heavy_model: str = ""

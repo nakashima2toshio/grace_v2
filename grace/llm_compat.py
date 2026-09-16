@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 _GEMINI_PROVIDERS = {"gemini", "google", "google-genai", "genai"}
 
 # Anthropic デフォルトモデル（config 未指定時のフォールバック）
-DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-4-6"
+DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-5"
 
 # 拡張思考を有効にするときに本文用として最低限確保するトークン数。
 # Anthropic は max_tokens > budget_tokens を要求し、差分が本文の取り分になる。

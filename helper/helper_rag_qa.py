@@ -68,7 +68,7 @@ from qa_generation.semantic import SemanticCoverage  # noqa: E402
 
 [Q/A生成クラス]
 
-8. LLMBasedQAGenerator - LLM（Anthropic Claude / claude-sonnet-4-6）を使用したQ/A生成クラス（基本Q/A生成、多様な種類のQ/A生成）
+8. LLMBasedQAGenerator - LLM（Anthropic Claude / claude-sonnet-5）を使用したQ/A生成クラス（基本Q/A生成、多様な種類のQ/A生成）
 9. ChainOfThoughtQAGenerator -
 思考の連鎖（Chain-of-Thought）を使った高品質Q/A生成クラス（推論過程付きQ/A生成、信頼度スコア算出）
 10. RuleBasedQAGenerator - ルールベースのQ/A生成クラス（定義文抽出、事実情報抽出、列挙パターン抽出）
@@ -501,7 +501,7 @@ def get_smart_keywords(text: str, mode: str = "auto", prefer_mecab: bool = True)
 class QACountOptimizer:
     """Q/Aペア数の最適化を行うクラス"""
 
-    def __init__(self, llm_model: str = "claude-sonnet-4-6"):
+    def __init__(self, llm_model: str = "claude-sonnet-5"):
         self.llm_model_for_token_count = llm_model
         self.unified_client = create_llm_client(provider="anthropic", default_model=self.llm_model_for_token_count)
 
@@ -1593,7 +1593,7 @@ class EnhancedQAPairsList(BaseModel):
 class LLMBasedQAGenerator:
     """LLMを使用したQ/A生成（Anthropic API使用）"""
 
-    def __init__(self, model="claude-sonnet-4-6"):
+    def __init__(self, model="claude-sonnet-5"):
         self.client = create_llm_client(provider="anthropic")
         self.model = model
 
@@ -1683,10 +1683,10 @@ class LLMBasedQAGenerator:
 class ChainOfThoughtQAGenerator:
     """思考の連鎖を使った高品質Q/A生成（Anthropic API使用）"""
 
-    def __init__(self, model: str = "claude-sonnet-4-6"):
+    def __init__(self, model: str = "claude-sonnet-5"):
         """
         Args:
-            model: 使用するAnthropicモデル（デフォルト: claude-sonnet-4-6）
+            model: 使用するAnthropicモデル（デフォルト: claude-sonnet-5）
         """
         self.model = model
         self.client = create_llm_client(provider="anthropic")
@@ -2108,10 +2108,10 @@ class OptimizedHybridQAGenerator:
     ルールベース抽出 + LLM品質向上 + 埋め込みベースカバレージ計算
     """
 
-    def __init__(self, model: str = "claude-sonnet-4-6", embedding_model: str = "gemini-embedding-001"):
+    def __init__(self, model: str = "claude-sonnet-5", embedding_model: str = "gemini-embedding-001"):
         """
         Args:
-            model: 使用するLLMモデル（デフォルト: claude-sonnet-4-6）
+            model: 使用するLLMモデル（デフォルト: claude-sonnet-5）
             embedding_model: 埋め込みモデル（デフォルト: gemini-embedding-001）
         """
         self.client = create_llm_client(provider="anthropic")
@@ -2123,7 +2123,8 @@ class OptimizedHybridQAGenerator:
 
         # サポートモデルリスト（Anthropic LLM + Gemini）
         self.supported_models = [
-            "claude-sonnet-4-6", "claude-haiku-4-5-20251001",
+            "claude-sonnet-5", "claude-opus-5", "claude-haiku-4-5",
+            "claude-haiku-4-5-20251001", "claude-sonnet-4-6",
             "gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-2.5-pro",
             "gemini-2.5-flash", "gemini-2.5-flash-lite-preview-06-17"
         ]
@@ -2453,8 +2454,11 @@ Instructions:
         # モデル別の料金（1Mトークンあたり、USD）
         # Anthropic: https://www.anthropic.com/pricing / Gemini: https://ai.google.dev/pricing
         pricing = {
-            "claude-sonnet-4-6": {"input": 3.0, "output": 15.0},
+            "claude-sonnet-5": {"input": 2.0, "output": 10.0},
+            "claude-opus-5": {"input": 5.0, "output": 25.0},
+            "claude-haiku-4-5": {"input": 1.0, "output": 5.0},
             "claude-haiku-4-5-20251001": {"input": 1.0, "output": 5.0},
+            "claude-sonnet-4-6": {"input": 3.0, "output": 15.0},
             "gemini-2.0-flash": {"input": 0.10, "output": 0.40},
             "gemini-2.0-flash-lite": {"input": 0.075, "output": 0.30},
             "gemini-2.5-pro": {"input": 1.25, "output": 10.00},
@@ -2481,7 +2485,7 @@ class BatchHybridQAGenerator(OptimizedHybridQAGenerator):
     """
 
     def __init__(self,
-                 model: str = "claude-sonnet-4-6",
+                 model: str = "claude-sonnet-5",
                  embedding_model: str = "gemini-embedding-001",
                  batch_size: int = 10,
                  embedding_batch_size: int = 100,
@@ -2489,7 +2493,7 @@ class BatchHybridQAGenerator(OptimizedHybridQAGenerator):
                  target_coverage: float = 0.95):
         """
         Args:
-            model: 使用するLLMモデル（デフォルト: claude-sonnet-4-6）
+            model: 使用するLLMモデル（デフォルト: claude-sonnet-5）
             embedding_model: 埋め込みモデル（デフォルト: gemini-embedding-001）
             batch_size: LLM処理のバッチサイズ
             embedding_batch_size: 埋め込み処理のバッチサイズ
