@@ -54,7 +54,7 @@
 | 計画→実行→検証→ゲート | planner / executor / confidence / gates | ✅ | [pipelines](docs/pipelines.md) §2 ステップ対照表／[guardrails](docs/guardrails.md) §1 全体図／[reasoning_flow](docs/reasoning_flow.md) §1 ② の中身 |
 | 根拠検証 | support_rate（neutral 除外）、GroundednessVerifier | ✅ | [guardrails](docs/guardrails.md) §2 **G1 / G1A / G1A' / G1B / G1C / G1D** |
 | HITL 介入 | （Human-In-The-Loop）intervention.py（CONFIRM・タイムアウトで安全側） | ✅ | [guardrails](docs/guardrails.md) §2 **G9**（本人確認は **G8**、起票の可否は **G7**） |
-| RAG + Web 裏取り | Qdrant / agent_parallel_search | ✅ | [guardrails](docs/guardrails.md) §2 **G0 / G5 / G5A / G5B** |
+| RAG + Web 裏取り | Qdrant / grace/tools.py（優先順に直列検索・一次閾値0.70で打ち切り） | ✅ | [guardrails](docs/guardrails.md) §2 **G0 / G5 / G5A / G5B** |
 | 動的リプラン | replan.py（失敗・低信頼・フィードバックの 3 トリガー） | ✅ | [guardrails](docs/guardrails.md) §3.1 モジュール一覧／[reasoning_flow](docs/reasoning_flow.md) §1.2（リプラン後の結果も観測に拾う理由） |
 | 実行メモリ | memory.py（JSONL、コレクション優先度の事前分布） | ✅ | — （3 文書とも未記載） |
 | 信頼度較正 | calibration.py（温度スケーリング、ECE） | ✅ | [guardrails](docs/guardrails.md) §3.1 モジュール一覧／§4 閾値・設定値（重み） |

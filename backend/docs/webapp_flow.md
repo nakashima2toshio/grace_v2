@@ -542,8 +542,8 @@ style CORE fill:#1a1a1a,stroke:#fff,color:#fff
 | Prompt Chaining（逐次分割） | ①→⑥ の逐次パイプライン | `support_agent.run_support_agent_core` |
 | Plan & Execute（計画と実行の分離） | Plan（計画生成）と Execute（実行）を分離 | ② `planner.py` / ③ `executor.py` |
 | Orchestrator-Workers（中央制御・役割分担） | Executor が `ToolRegistry` を統制 | ③ `executor.py` + `tools.py`（rag_search/web_search/reasoning/ask_user） |
-| Parallelization（並列実行） | 複数コレクションの並列検索 | `agent_parallel_search.py`（`ParallelSearchEngine`） |
-| ReAct（推論と行動の反復） | 複雑度 ≥ 0.7 の動的経路 | `services/agent_service.py`（`ReActAgent`）/ Executor dispatch |
+| Parallelization（並列実行） | ⚠️ **Web 経路では未採用**。許可コレクションは `grace/tools.py` が優先順に**直列**検索し、一次閾値(0.70)到達で打ち切る（クエリベクトルは 1 回だけ生成して使い回す） | `grace/tools.py`（`RAGSearchTool.execute`）。`agent_parallel_search.py` は Legacy ReAct 経路専用で、Web からは呼ばれない |
+| ReAct（推論と行動の反復） | ⚠️ **Web 経路では未起動**。`run_legacy_agent` アクションを生成するプランナが存在せず、`ReActAgent` は `grace/step_trace/benchmark.py` の `mode="react"` からのみ動く | `services/agent_service.py`（`ReActAgent`）＝ベンチ専用 |
 | Evaluator-Optimizer（評価・最適化ループ） | 信頼度評価 → 再計画 | ③ `confidence.py` + `replan.py`（閾値 0.4） |
 | Self-Reflective（自己内省） | 根拠検証・LLM 自己評価 | ④a `confidence.py`（`GroundednessVerifier`/`LLMSelfEvaluator`） |
 | Human-in-the-Loop（人間介入） | CONFIRM 承認・有人エスカレ | ⑥ `intervention.py` + `intervention_bridge.py` |
@@ -555,7 +555,7 @@ style CORE fill:#1a1a1a,stroke:#fff,color:#fff
 | # | パターン | `grace/` 担当モジュール | `backend/app/core/` 担当モジュール | 実装概要 |
 |:--:|---------|------------------------|-----------------------------------|---------|
 | 1 | Prompt Chaining（逐次フェーズ分割） | `executor.py`（ステップ連鎖） | `support_agent.py` | ①→⑥ を逐次連結し、前段の出力を次段の入力にする |
-| 2 | Parallelization（並列実行） | `tools.py`（複数コレクション検索） | — | 許可コレクションを横断検索（`ParallelSearchEngine`＝`agent_parallel_search.py`） |
+| 2 | Parallelization（並列実行） | `tools.py`（複数コレクション検索） | — | 許可コレクションを横断検索。ただし⚠️ **直列**（優先順に 1 つずつ検索し一次閾値0.70で break）。`ParallelSearchEngine`（`agent_parallel_search.py`）は**使っていない** |
 | 3 | Evaluator-Optimizer（評価・最適化ループ） | `confidence.py` / `replan.py` / `calibration.py` / `benchmark.py` | — | 信頼度評価 → 閾値0.4未満で再計画、較正（ECE 縮小）、KPI 計測 |
 | 4 | Orchestrator-Workers（中央制御・役割分担） | `executor.py` / `tools.py`（`ToolRegistry`） | `support_agent.py` / `jobs.py` | Executor が rag/web/reasoning/ask_user を統制、Job が実行を編成 |
 | 5 | ReAct（推論と行動の反復） | `executor.py`（動的経路） / `tools.py` | — | 複雑度 ≥ 0.7 で推論→行動→観測を反復（`services/agent_service.ReActAgent`） |
@@ -589,8 +589,8 @@ GRACE-Support は単一パターンではなく、以下を段階的に重ねて
 |:--:|---------------------|-------------------------------------|------|
 | 骨格 | Plan & Execute | `grace/planner.py` + `grace/executor.py` + `core/support_agent.py` | 計画（Plan）と実行（Execute）を分離した基本骨格 |
 | 実行編成 | Orchestrator-Workers | `grace/executor.py` + `grace/tools.py`（`ToolRegistry`） / `core/jobs.py` | Executor がツール群を統制、Job が実行を編成 |
-| 検索 | Parallelization ＋ RAG | `grace/tools.py`（`rag_search`） / `qdrant_client_wrapper.py` / `agent_parallel_search.py` | 許可コレクションを並列検索し内部根拠を取得 |
-| 複雑クエリ | ReAct | `grace/executor.py`（動的経路） / `services/agent_service.py` | 複雑度 ≥ 0.7 で推論→行動→観測を反復 |
+| 検索 | RAG（直列フォールバック） | `grace/tools.py`（`rag_search`） / `qdrant_client_wrapper.py` | 許可コレクションを優先順に**直列**検索し、一次閾値(0.70)に届いた時点で打ち切って内部根拠を取得（`agent_parallel_search.py` は不使用） |
+| 複雑クエリ | 複雑度による計画切替 | `grace/planner.py`（`estimate_complexity` / `_should_use_llm_plan`） | 複雑度がしきい値未満ならルールベース計画、超えれば LLM 計画。⚠️ ReAct（`services/agent_service.py`）への分岐では**ない** |
 | 品質ループ | Evaluator-Optimizer ＋ Self-Reflective | `grace/confidence.py` + `grace/replan.py` + `grace/calibration.py` | 信頼度評価・根拠検証・較正 → 閾値未達で再計画 |
 | 安全弁 | Guardrails | `core/gates.py` + `grace/schemas.py` + groundedness ゲート | しきい値・型・根拠・情報なし検知で回答を守る |
 | 人間協調 | Human-in-the-Loop | `grace/intervention.py` + `core/intervention_bridge.py` | 副作用アクションの承認・有人エスカレ |
@@ -604,7 +604,7 @@ GRACE-Support は単一パターンではなく、以下を段階的に重ねて
 |---------|------|-------------------|
 | ブレイン | 推論・判断の中核（LLM） | Anthropic Claude（`claude-sonnet-5` / 軽量 `claude-haiku-4-5-20251001`） |
 | プランニング | タスク分解・計画策定 | `grace/planner.py`（複雑度推定・計画生成） |
-| メモリ | 短期（コンテキスト）/ 長期（DB） | `grace/memory.py`・`Scratchpad`・コレクションキャッシュ（`agent_cache.py`）・Qdrant |
+| メモリ | 短期（コンテキスト）/ 長期（DB） | `grace/memory.py`（`ExecutionMemory`・永続 JSONL）・`Scratchpad`・Qdrant。⚠️ `agent_cache.py` は Legacy ReAct 経路専用で Web 経路では稼働しない |
 | ツール | API・DB・外部サービス連携 | `grace/tools.py`（`ToolRegistry`: rag_search/web_search/reasoning/ask_user） |
 
 ---
