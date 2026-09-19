@@ -256,8 +256,9 @@ style PROF fill:#1a1a1a,stroke:#fff,color:#fff
 | `prompt_addendum` | `config.llm.prompt_addendum` 経由で `ReasoningTool._build_prompt()` のシステム指示直後に「業務方針（遵守）」として注入。executor 経由・Web フォールバック経由の両 reasoning に効く | ✅ 実装済み |
 | `sample_queries` / `kpi` | 期待ラベル付きテストケースと KPI 計測は dataclass には持たせない方針 | ❌ **未実装**（外部化先とされていた評価ランナーは本リポジトリに無い） |
 
-**CLI**: `uv run python agent_support_example.py --vertical gov "住民票の取り方は？"`（プロファイルを選択）。**実装済み**。
-実行例は [`support_flow.md` 付録A](./support_flow.md#付録a-cli-仕様と実行例) を参照。
+**選択方法**: Web UI の「GRACE-Support」タブの業界プロファイル セレクタ、または
+`POST /api/support/submit` の `vertical` フィールド。**実装済み**。
+旧 CLI 引数との対応は [`support_flow.md` 付録A](./support_flow.md#付録a-旧-cli-仕様削除済み記録) を参照。
 
 **実装状況**: `VerticalProfile` 導入と gov/saas/ec の 3 プロファイルは実装済み（PR #106）。設計時の実装順（自治体 → SaaS → EC）どおり 3 業界を同時に組み込み済みで、上表のとおり全項目が配線済み。残件は [`support_flow.md` §9.3](./support_flow.md#93-残タスク次工程候補) を参照。
 

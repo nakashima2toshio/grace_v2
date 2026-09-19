@@ -849,9 +849,10 @@ sequenceDiagram
 ### 7.1 コード全文
 
 > ⚠️ **これは本書内の解説用コード片であり、リポジトリに置かれたファイルではない。**
-> 実物のエントリポイントは `agent_support_example.py`（CLI。Web と同じコアを通る）と
-> `grace/step_trace/s0_arg.py` … `s9_render.py`（段ごとの IN/Process/OUT 表示）である。
+> 実物のエントリポイントは Web API（`uvicorn backend.app.main:app` →
+> `backend/app/core/support_agent.py::run_support_agent_core`）である。
 > 実行方法は §7.3 を参照。
+> （CLI `agent_support_example.py` と `grace/step_trace/s*.py` は 2026-09-19 に削除した）
 
 ```python
 """GRACE エージェントの最小実行サンプル。
@@ -970,11 +971,16 @@ docker-compose -f docker-compose/docker-compose.yml up -d
 #   ANTHROPIC_API_KEY=...   ← LLM（計画・推論・信頼度評価）
 #   GOOGLE_API_KEY=...      ← Embedding（RAG 検索のベクトル化）
 
-# 3) 実行 — 実物のエントリポイントを使う
-uv run python agent_support_example.py --vertical gov -v "住民票の写しの取り方は？"
+# 3) 実行 — 実物のエントリポイント（Web API）を使う
+./run_dev.sh          # backend :8000 + frontend :5173
+#   → http://localhost:5173 の「GRACE-Support」タブで業界プロファイルを選んで送信
 
-# 段ごとに確かめたいとき（IN → Process → OUT を表示）
-uv run python grace/step_trace/s2_plan.py --vertical gov "住民票の写しの取り方は？"
+# スクリプトから直接コアを呼ぶ場合
+uv run python -c "
+from backend.app.core.support_agent import run_support_agent_core
+r = run_support_agent_core('住民票の写しの取り方は？', vertical='gov', verbose=True)
+print(r.decision, r.answer)
+"
 ```
 
 **出力例（イメージ・§7.1 のコード片を動かした場合）**:

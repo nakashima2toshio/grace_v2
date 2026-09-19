@@ -38,9 +38,9 @@
 ## 概要
 
 `backend/app/core/gates.py` は、GRACE-Support の**回答ゲート・強制エスカレ・情報なし検知・
-救済・出典整形などの純ロジック関数群**を集めたモジュール。`agent_support_example.py`（CLI）
-から移設したもので、判定結果が CLI 版と同一になるようロジックは一切変更していない
-（後方互換のため `agent_support_example` が再エクスポート）。
+救済・出典整形などの純ロジック関数群**を集めたモジュール。かつての CLI
+（`agent_support_example.py`・2026-09-19 削除）から移設したもので、移設時に判定結果が
+変わらないようロジックは一切変更していない。
 
 多くが副作用のない純関数で、`core/support_agent.py` のパイプラインから呼ばれる。二段判定
 （第 1 段=キーワード候補検出、第 2 段=軽量 LLM 判定）が中核で、LLM は Anthropic Claude の
@@ -952,8 +952,7 @@ action = _decide_action(query, decision, profile, classify)
 
 ## 7. エクスポート
 
-`__all__` 定義はない。`core/support_agent.py` が個別 import し、`agent_support_example` が
-後方互換のため再エクスポートする。
+`__all__` 定義はない。`core/support_agent.py` / `core/review_agent.py` が個別 import する。
 
 ```python
 # 公開シンボル（明示的 __all__ はなし）
