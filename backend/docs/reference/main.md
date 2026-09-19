@@ -32,9 +32,9 @@
 ## 概要
 
 `backend/app/main.py` は、GRACE-Support（業界特化・自律型サポートエージェント）の
-**Web API（FastAPI アプリケーション）のエントリポイント**である。CLI 版
-`agent_support_example.py` と同一のコアサービス（`backend/app/core/support_agent.py`）を
-HTTP/SSE 経由で公開するための「起動と結線」だけを担い、業務ロジックは持たない。
+**Web API（FastAPI アプリケーション）のエントリポイント**である。コアサービス
+（`backend/app/core/support_agent.py`）を HTTP/SSE 経由で公開するための「起動と結線」だけを
+担い、業務ロジックは持たない。
 
 本モジュール自体にクラス・関数は定義されておらず、**モジュールレベルで ASGI アプリ
 （`app`）を生成し、CORS ミドルウェアと 2 つの API ルーター（`support` / `meta`）を

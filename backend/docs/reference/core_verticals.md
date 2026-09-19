@@ -32,8 +32,9 @@
 ## 概要
 
 `backend/app/core/verticals.py` は、GRACE-Support の**業界プロファイル（VerticalProfile）定義**を
-提供するモジュール。`agent_support_example.py` から移設（React マイグレーション）したもので、
-CLI・API の双方から参照される（後方互換のため `agent_support_example` が再エクスポート）。
+提供するモジュール。かつての CLI（`agent_support_example.py`・2026-09-19 削除）から
+移設（React マイグレーション）したもので、現在は `support_agent.py` / `gates.py` /
+`api/meta.py` から参照される。
 
 業界プロファイルは、検索スコープ（Qdrant コレクション）・強制エスカレ語・アクション対応・
 本人確認要否・しきい値・業界方針を 1 つの枠にまとめ、`--vertical`（gov/saas/ec）で切り替える。
@@ -88,7 +89,6 @@ flowchart TB
         CORE["core/support_agent.py"]
         GATES["core/gates.py"]
         META["api/meta.py"]
-        CLI["agent_support_example.py（再エクスポート）"]
     end
 
     subgraph MODULE["core/verticals.py"]
@@ -107,11 +107,10 @@ flowchart TB
     GATES --> VP
     GATES --> AR
     META --> PROF
-    CLI --> PROF
     PROF --> QDRANT
 classDef default fill:#000,stroke:#fff,color:#fff
 classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
-class CORE,GATES,META,CLI,VP,AR,PROF,TYP,QDRANT default
+class CORE,GATES,META,VP,AR,PROF,TYP,QDRANT default
 style CLIENT fill:#1a1a1a,stroke:#fff,color:#fff
 style MODULE fill:#1a1a1a,stroke:#fff,color:#fff
 style EXTERNAL fill:#1a1a1a,stroke:#fff,color:#fff
@@ -545,8 +544,7 @@ PROFILES["fin"] = VerticalProfile(
 
 ## 7. エクスポート
 
-`__all__` 定義はない。`support_agent.py` / `gates.py` / `api/meta.py` が個別 import し、
-`agent_support_example` が後方互換のため再エクスポートする。
+`__all__` 定義はない。`support_agent.py` / `gates.py` / `api/meta.py` が個別 import する。
 
 ```python
 # 公開シンボル（明示的 __all__ はなし）

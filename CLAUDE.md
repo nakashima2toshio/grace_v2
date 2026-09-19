@@ -114,12 +114,13 @@ Review の新規実装は **Segment / Detect / Severity の 3 つだけ**で、
 Retrieve・Ground・誤検知抑止・Action は Support と同じ機構の再利用である。
 設計は `backend/docs/review_flow.md`。
 
-> **⚠️ Web API と CLI は同じコア関数を通る（Support のみ）。**
-> `uvicorn backend.app.main:app` も `agent_support_example.py` も
-> `run_support_agent_core` を呼ぶ。「Web だけ / CLI だけ」の分岐は存在しないので、
-> 片方で検証した挙動は他方にも当てはまる。
-> **ただし Review に CLI 入口は無い**（`run_review_agent_core` は Web API 専用）。
-> Review の挙動確認は `./run_dev.sh` か `backend/tests/test_review_agent_core.py` で行う。
+> **⚠️ CLI 入口は Support / Review とも存在しない（2026-09-19 以降）。**
+> 唯一の入口は Web API（`uvicorn backend.app.main:app` → `run_support_agent_core` /
+> `run_review_agent_core`）である。かつて Support には CLI
+> （`agent_support_example.py`）と S0〜S9 のステップ別トレース（`grace/step_trace/s*.py`）が
+> あったが、いずれも機能確認用の薄いラッパだったため削除した（実装は git 履歴に残る）。
+> 挙動確認は `./run_dev.sh` か `backend/tests/`（`test_support_agent_core.py` /
+> `test_review_agent_core.py`）で行う。
 
 ---
 
@@ -135,10 +136,12 @@ docker-compose -f docker-compose/docker-compose.yml up -d
 
 # バックエンド単体
 uvicorn backend.app.main:app --reload --port 8000
-
-# CLI（同じコアを通る。挙動確認に便利）
-uv run python agent_support_example.py --vertical gov -v "住民票の写しの取り方は？"
 ```
+
+> ⚠️ **エージェント実行の CLI は無い。** `agent_support_example.py` と
+> `grace/step_trace/s*.py` は 2026-09-19 に削除した（§1 の注記）。
+> 挙動確認は `./run_dev.sh`（:5173）か `backend/tests/` で行う。
+> 下の「データ準備」の CLI は現役である。
 
 ### データ準備（3段階）
 ```bash
@@ -287,7 +290,8 @@ cd frontend && npm run lint && npm test && npm run build   # frontend
 
 `[tool.ruff.lint.isort] known-first-party` にトップレベルモジュールを列挙している。
 **新規トップレベルモジュールを足したらここにも追記する**（現在は `scripts` /
-`qdrant_delete_collection` を含む全 21 個）。
+`qdrant_delete_collection` を含む全 20 個。`agent_support_example` は
+2026-09-19 の削除にあわせて外した）。
 
 > ⚠️ **この設定の効き目を過大評価しないこと（2026-09-13 実測）。**
 > `known-first-party` を丸ごとコメントアウトして `ruff 0.12.11 check .` を回しても
@@ -564,7 +568,9 @@ python -m chunking.csv_text_to_chunks_text_csv \
 ### 9.4 参照してはいけない廃止ファイル
 grace_v2 に**存在しない**: `setup.py` / `server.py` / a-prefixed scripts
 （`a30_qdrant_registration.py` 等）/ `agent_rag.py` / `ui/` /
-リポジトリ直下の `tests/` / `test_celery_integration.py`。
+リポジトリ直下の `tests/` / `test_celery_integration.py` /
+**`agent_support_example.py`** / **`grace/step_trace/s0_arg.py`〜`s9_render.py`**
+（後ろ 2 つは 2026-09-19 に削除。§1・§2 の注記を参照）。
 
 > ⚠️ **`start_celery.sh` は存在する**（2026-09-12 訂正）。以前この一覧に
 > 入っていたが、Q/A 生成の Celery 並列（CLI の `--use-celery` / データ管理タブの

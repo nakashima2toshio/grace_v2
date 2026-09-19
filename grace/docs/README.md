@@ -147,7 +147,7 @@ IPO 形式・`a_class_method_md_format.md` 準拠。**実行順ではなく役�
 | 文書 | 所在 | 理由 |
 |---|---|---|
 | `benchmark.md` | `grace/step_trace/docs/benchmark.md` | 対象が `grace/step_trace/benchmark.py`。サブパッケージの文書はそのパッケージ配下（CLAUDE.md §9.1）。**2026-09-14 に `grace/docs/` から移動** |
-| `s0_arg.md`〜`s9_render.md` | `grace/step_trace/docs/` | 同上 |
+| ~~`s0_arg.md`〜`s9_render.md`~~ | — | **2026-09-19 に削除**（対象の `grace/step_trace/s*.py` が CLI 削除にともない不要になったため） |
 | GRACE-Support 設計 3 点 | `backend/docs/` | `backend/app/core/` の文書（2026-09-04 に移動済み・§5 タスク 4） |
 
 ### 2.6 横断文書の重複禁止ルール

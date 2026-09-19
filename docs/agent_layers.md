@@ -266,8 +266,8 @@ dev: `:5173` / FastAPI dev: `:8000`）。
 > **`InterventionBridge` が L3 と L4 の境界そのもの。** `grace/intervention.py` は
 > 「`resolver` を呼べば人間の答えが返る」同期関数として書かれており、実際には
 > SSE → ユーザ操作 → `POST /confirm` の往復で実現される。この分離により、
-> L3 のコードは HTTP から独立したままとなり、CLI（`agent_support_example.py`）でも
-> 同じコアが動く（CLAUDE.md §1）。
+> L3 のコードは HTTP から独立したままとなり、テストやスクリプトから
+> 同じコアを直接呼べる（CLAUDE.md §1）。
 
 ### 8.1 Streamlit は存在しない
 
