@@ -91,7 +91,7 @@ CLAUDE.md §9.1 の表を、判断に使える形へ具体化したもの。
 
 | 文書 | 対象 | 行数 | Ver |
 |---|---|---:|---|
-| `agent_parallel_search.md` | `agent_parallel_search.py` — 並列検索エンジン（`ThreadPoolExecutor`） | 705 | 1.0 |
+| `agent_parallel_search.md` | `agent_parallel_search.py` — 並列検索エンジン（`ThreadPoolExecutor`）。⚠️ Legacy ReAct 経路専用で Web アプリからは未稼働（同文書「稼働範囲」参照） | 723 | 1.1 |
 
 ### 3.3 進行中の TODO
 

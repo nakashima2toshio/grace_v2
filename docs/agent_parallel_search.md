@@ -1,6 +1,6 @@
 # agent_parallel_search.py - 並列検索エンジン ドキュメント
 
-**Version 1.0** | 最終更新: 2026-07-25
+**Version 1.1** | 最終更新: 2026-09-19
 
 ---
 
@@ -35,6 +35,23 @@ Embedding（Gemini）や Qdrant 依存を engine 本体から切り離し、並�
 - 検索の並列化対象は I/O 待ち（Qdrant への検索リクエスト）であり、GIL の影響を受けにくいため
   スレッドプールが有効に働く（プロセス並列は不要）。
 - 1 コレクションの遅延・失敗が全体を止めないよう、**コレクション単位でタイムアウトと例外を隔離**する。
+
+### ⚠️ 稼働範囲（2026-09-19 調査）
+
+**Web アプリ（`./run_dev.sh` / `uvicorn backend.app.main:app`）からは実行されない。**
+
+| | 実態 |
+|---|---|
+| Web 経路の RAG 検索 | `grace/tools.py::RAGSearchTool.execute()` が担当。**並列ではなく直列**で、優先順に 1 コレクションずつ検索し一次閾値（0.70）到達で `break` する。クエリベクトルは `_embed_query_once` で 1 回だけ生成して使い回す |
+| 本モジュールの呼び出し元 | `agent_tools.search_rag_knowledge_base()` / `search_rag_knowledge_base_cached()` の 2 つのみ。さらにその呼び出し元は Legacy ReAct 経路（`services/agent_service.py::ReActAgent`）だけ |
+| ReAct 経路の起動口 | `grace/step_trace/benchmark.py` の `mode="react"` / `"both"`（GRACE との横並びベンチ）のみ。`grace/schemas.py` の `run_legacy_agent` アクションを生成するプランナは存在しない |
+
+直列方式は本モジュールの劣化版ではなく、**実測バグの修正を経た意図的な設計**である
+（緩和閾値のみのヒットで打ち切って正解コレクションに到達しなかった事例、検索順が最下位スコアを
+採用していた事例への対処。詳細は `grace/tools.py` のコメント参照）。全件ファンアウトとは
+レイテンシ／Qdrant 負荷／早期打ち切りの利のトレードオフが異なる。
+
+将来 Web 経路で並列化する場合の再利用候補としては `docs/performance_levers.md` の P-03b がある。
 
 ### 主な責務
 
@@ -666,6 +683,7 @@ __all__ = [
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 1.1 | 「稼働範囲」を追記（Web アプリからは未稼働・Legacy ReAct 経路専用であることを明記）。`agent_tools.py` 側の import を関数内へ遅延化 |
 | 1.0 | 初版作成（`ParallelSearchEngine` / `SearchResult` / `search_all_parallel` の IPO 詳細と、ThreadPoolExecutor による並列処理の制御フロー・データフローを重点解説） |
 
 ---

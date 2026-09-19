@@ -260,7 +260,7 @@ dev: `:5173` / FastAPI dev: `:8000`）。
 | `backend/app/core/job_logs.py::JobLogHandler` | `logging.Handler` を継承しログを SSE イベント化 | Log forwarding |
 | `backend/app/core/data_jobs.py` | チャンク化 / Q&A 生成 / Qdrant 登録 / 削除の 4 ランナー | ETL jobs |
 | `celery_config.py` / `celery_tasks.py` | `generate_qa_for_chunk_task` をチャンク単位で fan-out | Distributed task queue |
-| `agent_cache.py` | 検索結果キャッシュ | Cache layer |
+| `agent_cache.py` | コレクション選択キャッシュ（⚠️ Legacy ReAct 経路専用。Web 経路のコレクション優先度は `grace/memory.py::ExecutionMemory` が担う） | Cache layer |
 | `qdrant_client_wrapper.py` ＋ `docker-compose/` | ベクトル DB | Vector store |
 
 > **`InterventionBridge` が L3 と L4 の境界そのもの。** `grace/intervention.py` は
