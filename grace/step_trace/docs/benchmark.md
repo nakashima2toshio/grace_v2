@@ -1,6 +1,6 @@
 # benchmark.py - GRACE ベンチマーク計測 ドキュメント
 
-**Version 2.0** | 最終更新: 2026-09-04
+**Version 2.1** | 最終更新: 2026-09-19
 
 > ## ⚠️ 本書の前提（2026-09-04 訂正）
 >
@@ -10,6 +10,11 @@
 >   `run_benchmark.sh` は**リポジトリに無く、git 全履歴にも無い**。
 >   モジュールに `if __name__ == "__main__"` ブロックも無いため、**ライブラリとして呼ぶ**（§6）。
 > - 本書に載る実行ログ・数値は**過去の 1 回の実測**であり、再実行すれば変動する。
+> - **2026-09-19 まで、このモジュールは import しても実行できなかった。** 相対 import が
+>   `from .config` / `.executor` / `.planner`（＝`grace.step_trace.*` を指す）のままで、
+>   `BenchmarkRunner()` の生成が `ModuleNotFoundError: No module named 'grace.step_trace.config'`
+>   で落ちていた。`grace/` 直下に置かれていた頃の記述が、`grace/step_trace/` へ移った際に
+>   追随していなかったもの。`..config` / `..executor` / `..planner` へ是正済み（§8 v2.1）。
 
 ---
 
@@ -825,6 +830,7 @@ __all__ = [
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 2.1 | **実行不能だった相対 import を修正**（2026-09-19）。`from .config` / `.executor` / `.planner` は `grace.step_trace.*` を指しており、`BenchmarkRunner()` の生成時点で `ModuleNotFoundError` になっていた（4 箇所を `..` へ是正）。呼び出し元が 1 つも無いため、誰にも気づかれていなかった。修正後に `BenchmarkRunner()` が生成できること・`select_queries(fast=True)` が代表 5 クエリ（Q01/Q03/Q10/Q11/Q13）を返すことを実測で確認 |
 | 2.0 | 実装との突き合わせによる訂正。(1) **モジュールの所在**を `grace/benchmark.py` から実際の `grace/step_trace/benchmark.py` へ是正（責務表・Mermaid のサブグラフ名を含む）。(2) **CLI `run_benchmark.py` / `run_benchmark.sh` はリポジトリに存在しない**（git 全履歴 0 件・モジュールに `__main__` ブロックも無い）ため、§6.0 を「Python から `BenchmarkRunner` を呼ぶ」実行方法へ全面差し替えし、冒頭の再現方法と実行結果サンプルの見出しも同様に修正。(3) 公開シンボル 26 件のうち文書が触れていないのは `BENCHMARK_LOG_DIR` と `BenchmarkLogger._ensure_csv_headers` の 2 件のみであることを AST で確認（記述内容自体は現行実装と一致） |
 | 1.5 | 冒頭に「ベンチマーク実行の様子（FAST モード / 5クエリ）」セクションを追加。実行ログの表示行（`🔍 Searching` / `[WEB SEARCH IPO]` / `[BENCHMARK]`）を時系列タイムラインとして抜粋し、ケース別解説（A〜E）・読み取り（しきい値介入・経路出し分け・強制リプラン・route_correct 独立採点）を記述。生ログ全文は `temp.txt` に保存。目次を更新 |
 | 1.4 | 「実行結果サンプル」①②表を `--fast --collection cc_news_2per_anthropic` の最新実行（2026-06-27）の実測値へ差し替え。介入は A=NOTIFY / B=CONFIRM(0.616) / C=CONFIRM(0.617) / D=NOTIFY(0.898・replan1で収束) / E=ESCALATE(0.300)。介入レベルが信頼度しきい値（silent 0.9 / notify 0.7 / confirm 0.4）に従う点と、route_correct が介入レベルと独立に経路で採点される点を注記。経路一致率は 5/5=100% を維持 |
