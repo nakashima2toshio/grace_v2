@@ -53,7 +53,7 @@ Support のつもりで触った変更が Review を壊す。
 | Support コア | `backend/app/core/support_agent.py`、ゲートは `core/gates.py`、業界定義は `core/verticals.py` |
 | Review コア | `backend/app/core/review_agent.py`、ゲートは `core/review_gates.py`、ルール定義は `core/rulesets.py` |
 | 自律エージェント基盤 | `grace/` — planner / executor / confidence / intervention / replan / tools |
-| ツール・検索 | `agent_tools.py`, `agent_parallel_search.py`, `agent_cache.py`, `qdrant_client_wrapper.py` |
+| ツール・検索 | `agent_tools.py`, `qdrant_client_wrapper.py`（`agent_parallel_search.py` / `agent_cache.py` は **Legacy ReAct 経路専用**。Web 経路では未稼働・§9.4 の注記を参照） |
 | アクション実行 | `support_actions.py`（`ActionBackend`。**Support / Review 共用**） |
 | データ準備（CLI） | `chunking/`, `qa_generation/`, `qa_qdrant/` |
 | データ準備（Web） | `backend/app/api/data.py` / `api/qdrant.py`、`backend/app/core/data_jobs.py`、`services/data_pipeline_service.py` |
