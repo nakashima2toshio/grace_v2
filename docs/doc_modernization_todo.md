@@ -1,6 +1,6 @@
 # ドキュメント最新化・不具合除去 TODO（`./run_dev.sh` テスト前の地ならし）
 
-**Version 2.0** | 作成日: 2026-09-12 | 最終更新: 2026-09-12 | 対象コミット: `d832a54`（master）
+**Version 2.2** | 作成日: 2026-09-12 | 最終更新: 2026-09-20 | 対象コミット: `d832a54`（master）
 
 > # ✅ ①〜⑧ をすべて実施した（2026-09-12）
 >
@@ -38,7 +38,7 @@
 | **チャンキングの既定 `claude-haiku-4-5` が価格表・上限表に無い** | 実機の「データ管理 → ① チャンキング」画面。`.get()` で静かにフォールバック（⑦ で是正・T6-5） |
 | **チャンキングは Gemini ではなく Anthropic を使う** | `csv_text_to_chunks_text_csv.py:571` が `ANTHROPIC_API_KEY` を要求。文書は逆を書いていた（⑥⑦ で是正） |
 | **`dataset_service` / `file_service` に呼び出し元が無い** | `grep -rn "from services"` の全件確認。Streamlit 時代の遺物（⑥ で明記） |
-| **`streamlit` が依存に残る（import は 0 件）** | `pyproject.toml` 1.48.1 / `requirements.txt` 1.52.1 と版も不一致（§10 の残タスク） |
+| **`streamlit` が依存に残る（import は 0 件）** | `pyproject.toml` 1.48.1 / `requirements.txt` 1.52.1 と版も不一致。**§10.1 で `altair` / `pydeck` とともに削除済み** |
 | **`check_async.py` は git 全履歴に存在しない** | `git log --all --diff-filter=A`（⑦ で学習用文書と明記） |
 | **README の API 一覧が 7/18 関数しか載せていなかった** | `frontend/src/api/client.ts` の export を数えた（⑧ で是正） |
 
@@ -459,6 +459,7 @@ Q/A 生成は CLAUDE.md §3 で **Anthropic 必須**の用途。T6-2 と同じ�
 
 | Version | 内容 |
 |---|---|
+| 2.2 | §2 の「`streamlit` が依存に残る」を「§10.1 で削除済み」へ是正し、`qa_qdrant/docs/01_install.md` の「整理は残タスク」という注記も削除済みの記述へ直した（v2.1 で削除したのに、依存が残っている前提の文が 2 箇所に残っていた）（2026-09-20） |
 | 2.1 | **死にコードと不要依存を削除**（2026-09-12・ユーザー承認）。`dataset_service.py` / `file_service.py` / `check_async.md` と `streamlit` / `altair` / `pydeck` 依存。合計 2,779 行＋依存 3 件。§10.1 に確認手順を記録 |
 | 2.0 | **⑤〜⑧ を実施して完了**（2026-09-12）。frontend/docs の欠落 4 件を作成し 6 件を突き合わせ、Streamlit 残骸 13 ファイルを除去、`config.py` の不足行を回帰テスト付きで追加、README_DATA を索引化。§0.2 に「文書に書いていなかった事実」6 件を記録 |
 | 1.1 | ①〜④ の実施結果を反映（2026-09-12）。**T2-1「リンク切れ 25 件」を誤りとして撤回**（HTML コメントを除外せず判定していた）。スクリーンショット 11 枚を撮影し `D-09` を新設。T1-1〜T1-3 / T4-1 / T4-4 を完了。§6 に実機で見つかったモデル名の不一致（T6-5）を追記 |
