@@ -1,6 +1,6 @@
 # インストール・環境構築ガイド（Q/A 生成・Qdrant 登録まわり）
 
-**Version 2.0** | 最終更新: 2026-09-12
+**Version 2.1** | 最終更新: 2026-09-20
 
 本ドキュメントは **Q/A 生成 → Qdrant 登録**（`qa_qdrant/` / `qa_generation/` / `chunking/`）を
 動かすための環境構築を解説します。MeCab・Docker（Qdrant / Redis）・Celery 並列など、
@@ -139,11 +139,10 @@ cd frontend && npm install
 | `mecab-python3` | 形態素解析（`regex_mecab.py`）。**本体と辞書は別途必要**（§2.4） |
 | `pandas` / `tiktoken` | データ処理・トークンカウント |
 
-> 📌 **`streamlit` が依存に残っているが、コード中に `import streamlit` は 1 件も無い**
-> （2026-09-12 実測）。`pyproject.toml` は `1.48.1`、`requirements.txt` は `1.52.1` と
-> **版も食い違っている**。Streamlit 版アプリ（`ui/`）の名残であり、
-> **インストールは不要**。整理は
-> [`docs/doc_modernization_todo.md`](../../docs/doc_modernization_todo.md) の残タスク。
+> 📌 **`streamlit` / `altair` / `pydeck` は 2026-09-12 に依存から削除済み**
+> （Streamlit 版アプリ（`ui/`）の名残で、コード中の `import streamlit` は 0 件だった）。
+> 削除の確認手順は
+> [`docs/doc_modernization_todo.md`](../../docs/doc_modernization_todo.md) §10.1 にある。
 
 ### 2.4 MeCabのインストール(日本語処理用)
 
@@ -865,6 +864,7 @@ grace_v2/
 
 | 日付       | 版 | 変更内容 |
 | ---------- | --- | --------------------------------------------- |
+| 2026-09-20 | 2.1 | §2.3 の注記を是正。`streamlit` / `altair` / `pydeck` は**2026-09-12 に依存から削除済み**なのに、「依存に残っている・整理は残タスク」と書いたままだった（版の食い違いの記述も含め、削除前の状態を指していた） |
 | 2026-09-12 | 2.0 | **全面改訂。** v1 は Streamlit 版（`streamlit run agent_rag.py --server.port=8500`）の手順だったが、`agent_rag.py` は存在せず Streamlit も使っていない。現行の React（:5173）+ FastAPI（:8000）へ差し替え、必須 API キーを `GEMINI_API_KEY` 単独から **`ANTHROPIC_API_KEY`（LLM）＋ `GOOGLE_API_KEY`（Embedding）** の 2 本立てへ是正。依存管理も venv/pip から **uv** へ。汎用セットアップは `backend/docs/install_and_setup.md` へ委譲し、本書は Q/A 生成・Qdrant 登録固有の準備（MeCab / Docker / Celery）に絞った |
 | 2025-12-03 | 1.1 | 構成図のMermaid化、トラブルシューティング追記 |
 | 2025-11-28 | 1.0 | 初版作成 |
