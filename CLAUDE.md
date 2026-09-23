@@ -347,13 +347,14 @@ cd frontend && npm run lint && npm test && npm run build   # frontend
 | `state/metaFetch.ts` / `state/timelineAnnounce.ts` | ✅ | ❌ |
 | `components/MetaErrorBanner.tsx` | ✅ | ❌ |
 | `state/documentLimit.ts`（文字数上限の判定・アナウンス文言） | ✅ | ❌ |
-| `components/ModelSelect.tsx` / `state/modelLabel.ts` | ✅（2026-09-16 に追加） | ✅ |
+| `components/ModelSelect.tsx` | ❌（2026-09-23 に削除。モデル選択はヘッダー） | ✅ |
+| `state/modelLabel.ts` | ✅（2026-09-16 に追加） | ✅ |
 | `state/headerModel.ts`（モデル選択をヘッダーで行う。全タブ・2026-09-23） | ✅ | ❌ |
 | LLM プロバイダ | Anthropic | Ollama（ローカル） |
 
 > この表は「**local からコピーすると消えるもの**」の一覧である。
 > 実測日: 2026-09-13（`frontend/src/` を両リポジトリで突き合わせ）。
-> `ModelSelect.tsx` / `modelLabel.ts` は 2026-09-16 に**両方に存在**するようになったが、
+> `modelLabel.ts` は**両方に存在**するが（`ModelSelect.tsx` はこちらでは 2026-09-23 に削除）、
 > **中身は別物**（こちらは Anthropic のモデル一覧・単価つきラベル、local は Ollama）。
 > 名前が同じでも**コピーで持ち込まない**こと。
 > こちらにしかないフロント資産を足したら、**この表にも 1 行足す**こと。

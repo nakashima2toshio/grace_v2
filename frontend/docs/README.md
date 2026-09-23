@@ -1,6 +1,6 @@
 # frontend/docs 棚卸し
 
-**Version 1.6** | 最終更新: 2026-09-23
+**Version 1.7** | 最終更新: 2026-09-23
 
 `frontend/`（Vite + React 18 + TypeScript）のドキュメント一覧と、実装への追随状況・
 欠落・残タスクをまとめる。
@@ -62,7 +62,6 @@
 | `ConfirmModal.md` | `components/ConfirmModal.tsx` — HITL アクション承認 | 95 | 1.1 | ★★ |
 | `QuestionSelectModal.md` | `components/QuestionSelectModal.tsx` — 0-(A) 主質問の選択 | 76 | 1.0 | ★★ |
 | `ReviewForm.md` | `components/ReviewForm.tsx` | 237 | 1.4 | ★★ |
-| `ModelSelect.md` | `components/ModelSelect.tsx` — フォーム内のモデルセレクタ（**現在未使用**） | 53 | 1.3 | ★ |
 
 ### 2.3 表示コンポーネント
 
@@ -93,7 +92,6 @@
 
 | コンポーネント | 文書 | 作成日 |
 |---|---|---|
-| `ModelSelect.tsx` | `ModelSelect.md` | 2026-09-16 |
 | `ReviewPanel.tsx` | `ReviewPanel.md` | 2026-09-12 |
 | `ReviewForm.tsx` | `ReviewForm.md` | 2026-09-12 |
 | `JobClock.tsx` | `JobClock.md` | 2026-09-12 |
@@ -217,7 +215,7 @@ npm run build    # 本番ビルド
 | 5 | ~~`ReviewForm` のアクセシビリティ~~ | ✅ 完了（v1.1・`.sr-only` ラベル＋`aria-invalid`＋ライブ領域） |
 | 6 | ~~`ReviewPanel` の打ち切り警告に `role` が無い~~ | ✅ 完了（v1.1・`role="alert"`） |
 | 7 | ~~`CollectionPanel.tsx` の中止バナーに `role` が無い~~ | ✅ 完了（v1.3・`role="status"`）。**banner 系 9 箇所すべてに role が付いた** |
-| 8 | `components/ModelSelect.tsx` が未使用（全タブのモデル選択をヘッダーへ移したため）。削除するか要判断（あわせて `modelLabel.ts` の `formatModelLabel` / `defaultOptionLabel` も未使用） | 低 |
+| 8 | ~~`components/ModelSelect.tsx` が未使用~~ | ✅ 完了（2026-09-23 に `ModelSelect.tsx` / `ModelSelect.md` を削除）。`modelLabel.ts` の `formatModelLabel` / `defaultOptionLabel` は未使用のまま残っている |
 
 詳細と根拠は [`docs/doc_modernization_todo.md`](../../docs/doc_modernization_todo.md) を参照。
 
@@ -227,6 +225,7 @@ npm run build    # 本番ビルド
 
 | 版 | 日付 | 変更内容 |
 |---|---|---|
+| 1.7 | 2026-09-23 | **未使用になった `ModelSelect.tsx` と `ModelSelect.md` を削除**し、文書一覧・実装カバレッジから外した（残タスク 8 を完了） |
 | 1.6 | 2026-09-23 | **データ管理タブもヘッダーでモデルを選ぶ変更に追随。** `App.md` v1.5 / `DataPanel.md` v1.3 / `DataJobPanel.md` v1.4 / `ModelSelect.md` v1.3（**未使用**になった）の版と実装行数を更新。テスト件数を **21 ファイル / 304 件**（実測）へ更新 |
 | 1.5 | 2026-09-23 | **モデル選択をヘッダー（`App`）へ移した変更に追随。** `App.md` v1.4 / `SupportPanel.md` v1.6 / `ReviewPanel.md` v1.4 / `QueryForm.md` v1.5 / `ReviewForm.md` v1.4 / `ModelSelect.md` v1.2 の版と実装行数を更新。`state/headerModel.ts` を §4 へ追加し、テスト件数を **21 ファイル / 301 件**（実測）へ更新 |
 | 1.4 | 2026-09-16 | **モデルセレクタの追加に追随。** `ModelSelect.md` を新規作成し §2.2 へ追加。`QueryForm.md` v1.3 / `ReviewForm.md` v1.2 の版と実装行数を更新。`state/modelLabel.ts` を §4 へ追加し、テスト件数を **20 ファイル / 288 件**（実測）へ更新 |
