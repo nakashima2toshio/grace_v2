@@ -348,6 +348,7 @@ cd frontend && npm run lint && npm test && npm run build   # frontend
 | `components/MetaErrorBanner.tsx` | ✅ | ❌ |
 | `state/documentLimit.ts`（文字数上限の判定・アナウンス文言） | ✅ | ❌ |
 | `components/ModelSelect.tsx` / `state/modelLabel.ts` | ✅（2026-09-16 に追加） | ✅ |
+| `state/headerModel.ts`（モデル選択をヘッダーで行う。2026-09-23） | ✅ | ❌ |
 | LLM プロバイダ | Anthropic | Ollama（ローカル） |
 
 > この表は「**local からコピーすると消えるもの**」の一覧である。
@@ -409,7 +410,8 @@ React の型（`KeyboardEvent` 等）に直接依存させず、必要なフィ�
 | `state/submitKey.ts` | textarea の送信キー（Ctrl+Enter / ⌘+Enter・**IME 変換中は送信しない**） |
 | `state/dataParams.ts` | データ準備フォームの入力 → API パラメータ組み立て（空欄・トリム・null 化・未選択モデルのキー省略） |
 | `state/tabKeys.ts` | タブの矢印キー移動 |
-| `state/formMemory.ts` | タブ切替時の入力退避と復元（選んだモデルを含む） |
+| `state/formMemory.ts` | タブ切替時の入力退避と復元（モデルはヘッダー側が持つので含まない） |
+| `state/headerModel.ts` | ヘッダーのモデルセレクタ（基本版 / Support / Review）の表示値・選択肢・対象タブ |
 | `state/interventionKind.ts` | 承認待ちが action（⑥ 実行承認）か question（0-(A) 主質問の選択）か |
 | `state/documentLimit.ts` | 文字数上限の判定・表示文言・**アナウンス文言**（超過中は長さを含めず再読み上げを防ぐ） |
 | `state/metaFetch.ts` | メタ取得失敗を対処可能な文言へ（silent failure を出さない） |

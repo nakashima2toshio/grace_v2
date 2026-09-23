@@ -1,6 +1,6 @@
 # ReviewPanel.tsx - 文書 → 指摘 パネル ドキュメント
 
-**Version 1.3** | 最終更新: 2026-09-16
+**Version 1.4** | 最終更新: 2026-09-23
 
 ---
 
@@ -72,7 +72,7 @@ flowchart TB
         App["App.tsx<br>useState(tab)"]
     end
     subgraph Container["コンテナ（状態の所有者）"]
-        RP["ReviewPanel.tsx<br>useReducer(reviewReducer)<br>useState(rulesets, rulesetsError,<br>loadingRulesets, models, modelInfo, confirming)<br>useJobTiming(timing)<br>useRef(unsubscribe)"]
+        RP["ReviewPanel.tsx<br>useReducer(reviewReducer)<br>useState(rulesets, rulesetsError,<br>loadingRulesets, confirming)<br>useJobTiming(timing)<br>useRef(unsubscribe)"]
     end
     subgraph Presentational["表示・入力コンポーネント"]
         RF["ReviewForm.tsx<br>useState × 8"]
@@ -105,7 +105,18 @@ style Presentational fill:#1a1a1a,stroke:#fff,color:#fff
 
 ## 2. Props インターフェース
 
-**Props なし**（`export function ReviewPanel()`）。
+```typescript
+export function ReviewPanel({
+  model = '',
+}: {
+  /** ヘッダー（App）で選んだモデル。空文字 = サーバーの既定値。 */
+  model?: string;
+} = {})
+```
+
+| Prop | 型 | 必須 | 既定値 | 説明 |
+|---|---|:---:|---|---|
+| `model` | `string` | | `''` | ヘッダー（`App`）で選んだモデル。空文字はサーバーの既定値 |
 
 `SupportPanel` と違い `variant` を取らない。Review タブは 1 つしかないため。
 
@@ -113,7 +124,7 @@ style Presentational fill:#1a1a1a,stroke:#fff,color:#fff
 
 | 子 | 渡す props |
 |---|---|
-| `ReviewForm` | `rulesets` / `running`（`phase === 'running'`）/ `onSubmit` |
+| `ReviewForm` | `rulesets` / `model`（素通し）/ `running`（`phase === 'running'`）/ `onSubmit` |
 | `ReviewTimeline` | `state`（`ReviewJobState` 全体） |
 | `FindingSummaryBar` | `summary`（`result.summary`） |
 | `DocumentView` | `document`（`state.document`）/ `findings` / `selectedFindingId` / `onSelect` |
@@ -146,8 +157,6 @@ style Presentational fill:#1a1a1a,stroke:#fff,color:#fff
 | `rulesets` | `RuleSetInfo[]` | `[]` | `loadRulesets()` | セレクタの選択肢 |
 | `rulesetsError` | `string \| null` | `null` | `loadRulesets()` の成否 | 取得失敗の理由。非 null で `MetaErrorBanner` |
 | `loadingRulesets` | `boolean` | `false` | `loadRulesets()` の前後 | 再取得中。バナーのボタンを `disabled` |
-| `models` | `ModelChoice[]` | `[]` | 初回の `fetchModels()` | モデルセレクタの選択肢 |
-| `modelInfo` | `ModelInfo \| null` | `null` | 初回の `fetchModelInfo()` | サーバーの既定モデル（「（既定値: …）」の実名） |
 | `confirming` | `boolean` | `false` | `respond()` の前後 | 承認送信中 |
 | `timing` | `JobTiming` | `EMPTY_TIMING` | `beginTiming()` / `observeTiming()` | `useJobTiming(state.phase)` が返す |
 | `unsubscribeRef` | `useRef<(() => void) \| null>` | `null` | 購読開始時 | SSE 解除関数（**再レンダリングで消えないよう ref**） |
@@ -511,6 +520,7 @@ class S,V,R,Go,Err,Fail,Stream,I,M,D,Sel default
 
 | 版 | 日付 | 変更内容 |
 |---|---|---|
+| 1.4 | 2026-09-23 | **モデル選択をヘッダー（`App`）へ移した。** `models` / `modelInfo` の state と取得を削除し、`model` prop を受け取って `ReviewForm` へ渡すだけにした（Props なし → `model` 1 つ） |
 | 1.3 | 2026-09-16 | **モデルセレクタに追随。** `models` / `modelInfo` の取得を副作用へ追加し、`ReviewForm` へ `models` / `defaultModel` を渡すようにした |
 | 1.2 | 2026-09-12 | **アクセシビリティ記述の訂正。** 「点検中であることが伝わるか」を ❌ としていたが誤りだった。`Timeline` が `sr-only` の `aria-live="polite"` で「実行中: <ステップ名>」を読み上げており（`state/timelineAnnounce.ts`）、実行中であることは支援技術へ伝わっている。`.running-banner` にライブ領域を足すと二重読み上げになるため、あえて付けない |
 | 1.1 | 2026-09-12 | **打ち切り警告 `.warn-banner` に `role="alert"` を追加**（`MetaErrorBanner` / `CollectionPanel` と同じ扱い）。結果が不完全であることは利用者が気付くべき事実なので、視覚のみの表示では足りなかった |

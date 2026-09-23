@@ -1,6 +1,6 @@
 # ReviewForm.tsx - 文書レビュー入力フォーム ドキュメント
 
-**Version 1.2** | 最終更新: 2026-09-16
+**Version 1.4** | 最終更新: 2026-09-23
 
 ---
 
@@ -24,9 +24,9 @@
 | 項目 | 内容 |
 |---|---|
 | ファイル | `frontend/src/components/ReviewForm.tsx`（246 行） |
-| 種別 | **状態保持コンポーネント**（`useState` × 8） |
+| 種別 | **状態保持コンポーネント**（`useState` × 7） |
 | 親 | `ReviewPanel.tsx` |
-| 子 | `ModelSelect`（モデルセレクタ） |
+| 子 | なし（モデルの選択はヘッダー＝`App` に移した） |
 | 主な依存 | `../state/formMemory`（`recallReviewForm` / `rememberReviewForm`）/ `../state/documentLimit`（`documentLimit`） |
 | 対応バックエンド | `POST /api/review/submit`（`api/review.py`）/ `ReviewRequest`（`schemas.py`） |
 
@@ -87,10 +87,11 @@ style Pure fill:#1a1a1a,stroke:#fff,color:#fff
 ```typescript
 interface Props {
   rulesets: RuleSetInfo[];
-  /** モデルの選択肢（GET /api/models）。空なら「（既定値）」だけが出る。 */
-  models: ModelChoice[];
-  /** サーバーの既定モデル名（GET /api/model）。「（既定値）」に実名を出す。 */
-  defaultModel?: string;
+  /**
+   * 使うモデル。**ヘッダー（App）のセレクタで選んだ値**を受け取る。
+   * 空文字 = 未選択 =「サーバーの既定値を使う」（送信時に null へ倒す）。
+   */
+  model: string;
   running: boolean;
   onSubmit: (params: ReviewParams) => void;
 }
@@ -99,8 +100,7 @@ interface Props {
 | Prop | 型 | 必須 | 既定値 | 説明 |
 |---|---|:---:|---|---|
 | `rulesets` | `RuleSetInfo[]` | ✅ | — | `/api/rulesets` の取得結果。セレクタの選択肢 |
-| `models` | `ModelChoice[]` | ✅ | — | `/api/models` の取得結果。モデルセレクタの選択肢 |
-| `defaultModel` | `string` | | `undefined` | `/api/model` の `model`。未選択項目を「（既定値: <名前>）」にする |
+| `model` | `string` | ✅ | — | ヘッダー（`App`）で選んだモデル。空文字は「サーバーの既定値」で、送信時に `null` へ倒す |
 | `running` | `boolean` | ✅ | — | 実行中フラグ。`true` の間は全入力を `disabled` |
 | `onSubmit` | `(params: ReviewParams) => void` | ✅ | — | 送信時に `ReviewParams` を親へ返す |
 
@@ -117,7 +117,7 @@ interface Props {
 
 ## 3. 状態管理
 
-### 3.1 ローカル state（`useState` × 8）
+### 3.1 ローカル state（`useState` × 7）
 
 | 変数 | 型 | 初期値 | 更新契機 | 説明 |
 |---|---|---|---|---|
@@ -125,7 +125,6 @@ interface Props {
 | `document` | `string` | `restored.document` | textarea の `onChange` / 例文チップ | 点検対象の本文 |
 | `title` | `string` | `restored.title` | テキスト入力 / 例文チップ | 文書タイトル。空なら送信時に `'無題'` |
 | `ruleset` | `string` | `restored.ruleset` | セレクタ変更 | 空文字は `null` として送る |
-| `model` | `string` | `restored.model` | `ModelSelect` | **空文字＝サーバーの既定値**。送信時に `null` へ倒す |
 | `useWeb` | `boolean` | `restored.useWeb` | チェックボックス | **既定 ON**（法改正の裏取り。信頼度を下げる方向にのみ使う） |
 | `dryRun` | `boolean` | `restored.dryRun` | チェックボックス | **既定 OFF**（ON で起票せずログのみ） |
 | `verbose` | `boolean` | `restored.verbose` | チェックボックス | 詳細ログ |
@@ -186,7 +185,7 @@ useEffect(() => {
 ```mermaid
 flowchart TB
     Mount["マウント"] --> Recall["recallReviewForm()<br>（遅延初期化で 1 度だけ）"]
-    Recall --> State["useState × 6"]
+    Recall --> State["useState × 6（入力）"]
     Input["ユーザー入力 / 例文チップ"] --> State
     State --> Remember["useEffect → rememberReviewForm()"]
     State --> Derive["tooLong / canSubmit / selected"]
@@ -331,9 +330,9 @@ onSubmit({
 | `src/components/ReviewForm.examples.test.ts` | **`EXAMPLES` の中身**（各例文が満たすべき条件） | 17 |
 | `src/state/formMemory.test.ts` | 入力の退避と復元 | 13 |
 | `src/state/documentLimit.test.ts` | 上限の境界・表示文言・**アナウンス文言の不変性** | 10 |
-| `src/state/modelLabel.test.ts` | モデル名の表示文字列（`ModelSelect` の「（既定値）」含む） | 9 |
+| `src/state/headerModel.test.ts` | ヘッダーのモデルセレクタ（`model` prop の供給元） | 13 |
 
-**2026-09-16 に `npm test` を実行した実測値**（フロント全体は 20 ファイル / 288 件）。
+**2026-09-23 に `npm test` を実行した実測値**（フロント全体は 21 ファイル / 301 件）。
 
 ### テスト方針
 
@@ -350,6 +349,7 @@ onSubmit({
 
 | 版 | 日付 | 変更内容 |
 |---|---|---|
+| 1.4 | 2026-09-23 | **モデルセレクタをヘッダー（`App`）へ移した。** フォーム内の `ModelSelect` と `model` state を削除し、`models` / `defaultModel` prop を `model` prop へ置き換えた。`formMemory` からも `model` を外した。`useState` は 8 → 7 個 |
 | 1.3 | 2026-09-23 | **チェックボックスの既定を変更**: Web 裏取り OFF → ON、dry-run ON → OFF（`DEFAULT_REVIEW_FORM`）。詳細ログは従来どおり OFF。API スキーマ `ReviewRequest` の既定は API 直叩き用で据え置き（UI は常に値を明示送信する） |
 | 1.2 | 2026-09-16 | **モデルセレクタを追加**（`models` / `defaultModel` prop → `ModelSelect`）。`model` は空文字＝「サーバーの既定値」で、送信時に `null` へ倒す。`formMemory` にも `model` を追加した |
 | 1.1 | 2026-09-12 | **アクセシビリティを改善。** タイトルと文書に `.sr-only` のラベルを付け、上限超過を `aria-invalid` ＋ `aria-describedby` ＋ ライブ領域で伝えるようにした。判定・文言は `state/documentLimit.ts`（純関数・vitest 10 件）へ切り出し、**超過中のアナウンス文言を長さに依存させない**ことで再読み上げを防いでいる |
