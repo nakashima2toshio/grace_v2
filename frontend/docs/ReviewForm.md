@@ -126,8 +126,8 @@ interface Props {
 | `title` | `string` | `restored.title` | テキスト入力 / 例文チップ | 文書タイトル。空なら送信時に `'無題'` |
 | `ruleset` | `string` | `restored.ruleset` | セレクタ変更 | 空文字は `null` として送る |
 | `model` | `string` | `restored.model` | `ModelSelect` | **空文字＝サーバーの既定値**。送信時に `null` へ倒す |
-| `useWeb` | `boolean` | `restored.useWeb` | チェックボックス | **既定 OFF**（条文が一次情報のため） |
-| `dryRun` | `boolean` | `restored.dryRun` | チェックボックス | **既定 ON**（起票せずログのみ） |
+| `useWeb` | `boolean` | `restored.useWeb` | チェックボックス | **既定 ON**（法改正の裏取り。信頼度を下げる方向にのみ使う） |
+| `dryRun` | `boolean` | `restored.dryRun` | チェックボックス | **既定 OFF**（ON で起票せずログのみ） |
 | `verbose` | `boolean` | `restored.verbose` | チェックボックス | 詳細ログ |
 
 > ⚠️ **`restored` は `useState(() => recallReviewForm())` の遅延初期化で 1 度だけ引く。**
@@ -350,6 +350,7 @@ onSubmit({
 
 | 版 | 日付 | 変更内容 |
 |---|---|---|
+| 1.3 | 2026-09-23 | **チェックボックスの既定を変更**: Web 裏取り OFF → ON、dry-run ON → OFF（`DEFAULT_REVIEW_FORM`）。詳細ログは従来どおり OFF。API スキーマ `ReviewRequest` の既定は API 直叩き用で据え置き（UI は常に値を明示送信する） |
 | 1.2 | 2026-09-16 | **モデルセレクタを追加**（`models` / `defaultModel` prop → `ModelSelect`）。`model` は空文字＝「サーバーの既定値」で、送信時に `null` へ倒す。`formMemory` にも `model` を追加した |
 | 1.1 | 2026-09-12 | **アクセシビリティを改善。** タイトルと文書に `.sr-only` のラベルを付け、上限超過を `aria-invalid` ＋ `aria-describedby` ＋ ライブ領域で伝えるようにした。判定・文言は `state/documentLimit.ts`（純関数・vitest 10 件）へ切り出し、**超過中のアナウンス文言を長さに依存させない**ことで再読み上げを防いでいる |
 | 1.0 | 2026-09-12 | 初版作成。実装は 2026-08-20 からあったが文書が無かった（`frontend/docs/README.md` の索引が無く欠落を検知できていなかった） |
