@@ -37,7 +37,11 @@ export function formatModelLabel(info: ModelInfo | null): string | null {
   return model;
 }
 
-/** `ModelSelect` の「未選択」項目のラベル（既定値が不明なときの文言）。 */
+/**
+ * 「未選択」項目のラベル（既定値が不明なときの文言）。
+ *
+ * ⚠️ 使っていたフォーム内セレクタ（`ModelSelect`）は削除済みで、現在は未使用。
+ */
 export const DEFAULT_OPTION_FALLBACK = '（既定値）';
 
 /**
