@@ -1,6 +1,6 @@
 ## GRACE アプリ（`./run_dev.sh`）- 画面・操作・プログラム対応 ドキュメント
 
-**Version 3.0** | 最終更新: 2026-09-12
+**Version 3.1** | 最終更新: 2026-09-23
 
 ![B-01 起動直後（基本版）](docs/images/b-01-basic-initial.png)
 
@@ -1259,6 +1259,8 @@ sequenceDiagram
 
 バックエンドのポートは `BACKEND_PORT` 環境変数で変更できる（既定 8000）。
 
+`run_dev.sh` は起動前に :8000（`BACKEND_PORT`）と :5173 を確認し、**使用中なら使っているプロセスを停止する**（停止対象は PID とコマンド行を表示する。TERM で止まらなければ `kill -9`）。止めたくない場合は `RUN_DEV_FREE_PORTS=0 ./run_dev.sh`。Ctrl+C では `uv run` / `npm run dev` の**子プロセス（uvicorn・vite）まで**止める（以前は親だけを止めていたため、次回の起動が `[Errno 48] Address already in use` で失敗していた）。
+
 ### 5.3 フロントエンドの主要定数
 
 | 定数 | 値 | 定義場所 | 備考 |
@@ -1541,6 +1543,7 @@ from backend.app.core.jobs import job_manager, JobParams
 | 2.8 | **§1 に概観図（4 層）を追加した。** 既存の構成図は 17 ノードあり、初見で全体像を掴むには細かすぎた。**ブラウザ → Vite → FastAPI → コアパイプライン**の 4 ノードだけの図を §1.0 として先に置き、既存図を §1.1 詳細へ送った。4 ノードは既存図のサブグラフ名と同一なので、概観と詳細が 1 対 1 で対応する。各層の実体と役割の対応表も添えた。ヘッドレス Chromium ＋ Mermaid 11 で README 内の全 6 ブロックを描画し、新図が 276×406（4 ノードが縦一列）で成立することを確認済み |
 | 2.9 | **4 タブすべてに実行時間の表示を追加した（§4.6 を新設）。** 送信した時刻をフォーム直下に、決着した時刻と所要時間を結果の一番下に出す。時刻は **reducer に持たせず**パネルの state で持つ（reducer は純関数であり `Date.now()` を中で呼ぶと純粋性が壊れるため）。判断と整形は `state/elapsed.ts` の純関数へ出し、vitest 22 件を追加（frontend 計 167 → 189 件）。**失敗時も完了行を出す**——結果カードは成功時にしか描画されないため、結果が無いときはパネル直下へ出す。ブラウザで 4 タブすべての表示を実測し、起動 API を 6 秒遅延させたケースで所要が `00:00:06`（スクリプト実測 6.3 秒）になることも確認した。画面ショット枠 `T-01` を追加して 28 → 29 枚 |
 | 3.0 | **実装との事実突き合わせで記述のずれを是正した。** (1) §3.3 の Support ステップ表が **8 行**で、先頭の `analyze`（0-(A) 入力・質問分析／複数質問の検知）が欠けていた——`support_agent.py::STEP_IDS` と `jobReducer.ts::STEP_IDS` はどちらも **9 個**であり、「`step` イベントと 1:1 で対応する」という同節の記述自体と矛盾していたため行を追加し、表示ラベルを `STEP_LABELS` / `REVIEW_STEP_LABELS` の逐語へ揃えた。(2) §5.3 の `STEP_IDS` を **8 個 → 9 個**へ。「`support_agent.py::STEP_IDS` と一致必須」と書きながら不一致だった。(3) §5.4「UI に出ないが固定で送られる値」から Support の `use_web` / `do_action` を削除——実際は `QueryForm` のトグルで、`state/queryParams.ts::buildQueryParams()` が `state.useWeb` / `state.doAction` を送っている。固定なのは `ReviewForm.tsx` にリテラルで書かれた Review の `do_action: true` **だけ**なので、節名を「送信ペイロードの既定値」に変えフォーム別のトグル数（Support 4 / Review 3）を明記した。(4) **`QuestionSelectModal` の記載が 0 件**だった——0-(A) で複数質問を検知したとき主質問を選ばせるモーダルで、`SupportPanel` が `state/interventionKind.ts` の判定で `ConfirmModal` と出し分けている。§2 の画面レイアウト図と対比表へ追加した。(5) §2 の `StepTimeline` を 8 → **9 ステップ**、`QueryForm` の「問い合わせ 1 行」を **textarea（複数行・Ctrl+Enter / ⌘+Enter で送信）**へ。(6) フロントのテスト表を実測へ更新（**189 件 / 13 ファイル → 276 件 / 19 ファイル**）。`citations` / `dataParams` / `documentLimit` / `interventionKind` / `serverTiming` / `submitKey` / `ReviewForm.examples` の 7 ファイルが表から漏れていた。(7) §4.3 のステップ詳細の例を `ルール 21 件` → **23 件**へ（`len(EC_AD.rules)` を実行して確認。keihyo 12 / tokusho 6 / yakki 4 / policy 1）。(8) §8 の **`2.8` が重複**し、並びが 2.6 → 2.8 → 2.9 → 2.7 → 2.8 と崩れていたので、詳細な方の 2.8 を残して 2.6 → 2.7 → 2.8 → 2.9 の昇順へ直した |
+| 3.1 | §5.2 に `run_dev.sh` の使用中ポートの解放（:8000 / :5173。`RUN_DEV_FREE_PORTS=0` で無効）と、Ctrl+C で子プロセスまで止めるようにした変更を追記（grace_v2_local と同じ変更） |
 ---
 
 ## 付録: 依存関係図
