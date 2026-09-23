@@ -259,7 +259,7 @@ describe('canSubmitQa', () => {
   });
 
   it('モデル欄が空でも送信できる（= サーバーの既定値を使う）', () => {
-    // 選択式（ModelSelect）の「（既定値）」を選んだ状態。buildQaParams が
+    // ヘッダーのモデルセレクタで「（既定値）」を選んだ状態。buildQaParams が
     // `model` キーごと落とすので、サーバー側の Field(default=...) が効く。
     expect(canSubmitQa({ ...qaBase, model: '' }, false)).toBe(true);
     expect(canSubmitQa({ ...qaBase, model: '   ' }, false)).toBe(true);
