@@ -112,8 +112,9 @@ def detect_model(config) -> str:
 ```python
 # config.py
 ModelConfig.SELECTABLE_MODELS = [
+    "claude-fable-5-1",  # 最上位
+    "claude-opus-5-5",   # 上位
     "claude-sonnet-5",   # 既定
-    "claude-opus-5",     # 上位
     "claude-haiku-4-5",  # 軽量
 ]
 
@@ -130,7 +131,24 @@ def get_selectable_models() -> List[str]: ...
 > モデル」の一覧で、旧既定（`claude-sonnet-4-6`）と日付指定エイリアス
 > （`claude-haiku-4-5-20251001`）も含む。どちらも実在する有効なモデル名なので
 > 消さない（`CLAUDE.md` R1）。**選択肢に出さないだけ**である
-> （同じモデルが 2 行並ぶのを避けるため）。
+> （同じモデルが 2 行並ぶのを避けるため）。旧上位 `claude-opus-5` も同様に
+> 選択肢からは外したが、`llm.heavy_model` 等の既存設定のために表には残している。
+
+### モデル世代で API への送り方が違う
+
+`grace/llm_compat.py` と `helper/helper_llm.py::AnthropicClient` は、
+`ModelConfig` の 3 つの表を見てリクエストを組み立てる。
+**選択肢にモデルを足すときは、この表にも載せること**（載せないと旧世代扱いで
+`temperature` や `{"type": "disabled"}` を送り、API が 400 を返す）。
+
+| 表 | 該当モデル | 意味 |
+|---|---|---|
+| `NO_TEMPERATURE_MODELS` | Sonnet 5 / Opus 5 / Opus 5.5 / Fable 5.1 | `temperature` を送らない（送ると 400） |
+| `ADAPTIVE_THINKING_MODELS` | 同上 | 思考を有効にするときは `{"type": "adaptive"}`（`budget_tokens` は 400） |
+| `ALWAYS_THINKING_MODELS` | Opus 5.5 / Fable 5.1 | 思考を無効化できない。`thinking` を省略し `output_config.effort = "low"`、`max_tokens` を 4096 以上に広げる |
+
+Haiku 4.5・Sonnet 4.6 はどの表にも載らず、従来どおり
+`{"type": "disabled"}` ＋ `temperature`（思考有効時は `budget_tokens`）で送る。
 
 ### 上書きの範囲
 
@@ -243,5 +261,6 @@ class Yml,Env,Loader,Validated,Users,Dotenv,Runtime default
 
 | Version | 日付 | 変更内容 |
 |---|---|---|
+| 1.2 | 2026-09-23 | 選択肢を 4 件へ変更（`claude-fable-5-1` / `claude-opus-5-5` を追加、`claude-opus-5` を外した）。「モデル世代で API への送り方が違う」を追加 |
 | 1.1 | 2026-09-16 | 既定を `claude-sonnet-5` へ変更。§3.1（UI からのモデル選択・上書き範囲・Embedding が対象外である理由）を追加 |
 | 1.0 | 2026-09-16 | 新規作成。3 本の解決経路・2 つの解決関数・キーのガード位置を実装から整理した |

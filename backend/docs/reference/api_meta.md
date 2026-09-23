@@ -287,9 +287,11 @@ def list_models() -> List[ModelChoice]
 **戻り値例**:
 ```python
 [
-    {"id": "claude-sonnet-5", "input_price": 0.002, "output_price": 0.01,
+    {"id": "claude-fable-5-1", "input_price": 0.01, "output_price": 0.05,
      "context_window": 1000000, "max_output": 128000},
-    {"id": "claude-opus-5", "input_price": 0.005, "output_price": 0.025,
+    {"id": "claude-opus-5-5", "input_price": 0.004, "output_price": 0.02,
+     "context_window": 1000000, "max_output": 128000},
+    {"id": "claude-sonnet-5", "input_price": 0.002, "output_price": 0.01,
      "context_window": 1000000, "max_output": 128000},
     {"id": "claude-haiku-4-5", "input_price": 0.001, "output_price": 0.005,
      "context_window": 200000, "max_output": 64000},
@@ -458,7 +460,7 @@ GET /api/health
 
 ```text
 0. GET /api/models  /  GET /api/model
-   → [{"id": "claude-sonnet-5", ...}, {"id": "claude-opus-5", ...}, {"id": "claude-haiku-4-5", ...}]
+   → [{"id": "claude-fable-5-1", ...}, {"id": "claude-opus-5-5", ...}, {"id": "claude-sonnet-5", ...}, {"id": "claude-haiku-4-5", ...}]
    → {"model": "claude-sonnet-5", "light_model": "claude-haiku-4-5-20251001", ...}
    （モデルセレクタの選択肢と「（既定値: …）」表示に反映）
 
@@ -491,6 +493,7 @@ router  # APIRouter(prefix="/api", tags=["meta"])
 
 | バージョン | 日付 | 変更内容 |
 |-----------|------|---------|
+| 1.5 | 2026-09-23 | `GET /api/models` の戻り値例を 4 件へ更新（`claude-fable-5-1` / `claude-opus-5-5` を追加、`claude-opus-5` を外した） |
 | 1.4 | 2026-09-16 | `GET /api/models` / `GET /api/model` を追加（モデルセレクタ）。構成図・一覧表・IPO 詳細・使用例を追随させた |
 | 1.3 | 2026-09-16 | 3 階建て再編（`reference/` へ移設）に伴い、冒頭へ**位置づけと上位文書への導線**を追加した |
 | 1.2 | 2026-09-15 | **§4.1「使用例」を新設**（2026-09-15）。ドキュメント規約 `a_class_method_md_format.md` §6.1 が IPO 詳細セクションの冒頭に必須としている代表ワークフローが欠落していた。起動確認（health / verticals / rulesets）とプロファイル 1 件のフィールド確認の 2 本を追加し、**実行して出力を確認した**（外部依存が要る例はその旨を明記）。旧 §4.1 は §4.2 へ繰り下げ |

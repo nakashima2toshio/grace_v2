@@ -29,6 +29,8 @@ DEFAULT_ENCODING = "cl100k_base"
 MODEL_ENCODINGS = {
     # Anthropic Claude（本プロジェクト既定 LLM。tiktokenでは近似）
     "claude-sonnet-5": "cl100k_base",
+    "claude-fable-5-1": "cl100k_base",
+    "claude-opus-5-5": "cl100k_base",
     "claude-opus-5": "cl100k_base",
     "claude-haiku-4-5": "cl100k_base",
     "claude-haiku-4-5-20251001": "cl100k_base",
@@ -59,6 +61,8 @@ MODEL_ENCODINGS = {
 LLM_PRICING = {
     # Anthropic Claude（本プロジェクト既定 LLM）
     "claude-sonnet-5": {"input": 0.002, "output": 0.010},
+    "claude-fable-5-1": {"input": 0.010, "output": 0.050},
+    "claude-opus-5-5": {"input": 0.004, "output": 0.020},
     "claude-opus-5": {"input": 0.005, "output": 0.025},
     "claude-haiku-4-5": {"input": 0.001, "output": 0.005},
     "claude-haiku-4-5-20251001": {"input": 0.001, "output": 0.005},
@@ -84,6 +88,8 @@ EMBEDDING_PRICING = {
 MODEL_LIMITS = {
     # Anthropic Claude（本プロジェクト既定 LLM）
     "claude-sonnet-5": {"max_tokens": 1000000, "max_output": 128000},
+    "claude-fable-5-1": {"max_tokens": 1000000, "max_output": 128000},
+    "claude-opus-5-5": {"max_tokens": 1000000, "max_output": 128000},
     "claude-opus-5": {"max_tokens": 1000000, "max_output": 128000},
     "claude-haiku-4-5": {"max_tokens": 200000, "max_output": 64000},
     "claude-haiku-4-5-20251001": {"max_tokens": 200000, "max_output": 64000},

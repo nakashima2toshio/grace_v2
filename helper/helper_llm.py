@@ -19,6 +19,8 @@ from typing import Any, Dict, List, NamedTuple, Optional, Type
 from dotenv import load_dotenv
 from pydantic import BaseModel
 
+from config import ModelConfig
+
 # SDK imports
 # try:
 #     from openai import OpenAI
@@ -52,7 +54,9 @@ logger = logging.getLogger(__name__)
 # 本プロジェクトの LLM は Anthropic（Claude）。Gemini は後方互換のため残置。
 LLM_MODELS = [
     "claude-sonnet-5",            # デフォルト（GRACE 本体・推論）
-    "claude-opus-5",              # 上位（難しい推論・レビュー）
+    "claude-fable-5-1",           # 最上位（難しい推論・長時間のエージェント処理）
+    "claude-opus-5-5",            # 上位（下の旧上位の後継）
+    "claude-opus-5",              # 旧上位（後方互換）
     "claude-haiku-4-5",           # 軽量（日付なしエイリアス）
     "claude-haiku-4-5-20251001",  # 文字列処理・eval ジャッジ向け
     "claude-sonnet-4-6",          # 旧既定（後方互換）
@@ -66,6 +70,8 @@ LLM_MODELS = [
 # 価格は 1K トークンあたりの USD（概算）
 LLM_PRICING = {
     "claude-sonnet-5"            : {"input": 0.002, "output": 0.010},
+    "claude-fable-5-1"           : {"input": 0.010, "output": 0.050},
+    "claude-opus-5-5"            : {"input": 0.004, "output": 0.020},
     "claude-opus-5"              : {"input": 0.005, "output": 0.025},
     "claude-haiku-4-5"           : {"input": 0.001, "output": 0.005},
     "claude-haiku-4-5-20251001"  : {"input": 0.001, "output": 0.005},
@@ -79,6 +85,8 @@ LLM_PRICING = {
 
 LLM_LIMITS = {
     "claude-sonnet-5"            : {"max_tokens": 1000000, "max_output": 128000},
+    "claude-fable-5-1"           : {"max_tokens": 1000000, "max_output": 128000},
+    "claude-opus-5-5"            : {"max_tokens": 1000000, "max_output": 128000},
     "claude-opus-5"              : {"max_tokens": 1000000, "max_output": 128000},
     "claude-haiku-4-5"           : {"max_tokens": 200000, "max_output": 64000},
     "claude-haiku-4-5-20251001"  : {"max_tokens": 200000, "max_output": 64000},
@@ -297,8 +305,10 @@ class AnthropicClient(LLMClient):
         }
         if system:
             create_kwargs["system"] = system
-        if "temperature" in kwargs:
-            create_kwargs["temperature"] = kwargs.pop("temperature")
+        temperature = kwargs.pop("temperature", None)
+        # temperature を送ると 400 になるモデルがある（config.py::NO_TEMPERATURE_MODELS）
+        if temperature is not None and ModelConfig.supports_temperature(model):
+            create_kwargs["temperature"] = temperature
         message = self._get_client().messages.create(**create_kwargs)
         # per-call usage を記録（usage が無い/壊れている場合は 0）
         usage = getattr(message, "usage", None)

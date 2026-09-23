@@ -31,7 +31,10 @@ DEFAULT_MODELS = {
     # config.ModelConfig の軽量モデル（grace/config.py::llm.light_model）
     "claude-haiku-4-5-20251001": "軽量モデル（日付指定）",
     # UI（GET /api/models）で選べる上位モデル
-    "claude-opus-5": "上位モデル（モデルセレクタの選択肢）",
+    "claude-fable-5-1": "最上位モデル（モデルセレクタの選択肢）",
+    "claude-opus-5-5": "上位モデル（モデルセレクタの選択肢）",
+    # 旧上位。選択肢からは外したが heavy_model 等の既存設定がまだ指しうる
+    "claude-opus-5": "旧上位モデル（後方互換）",
     # 旧既定。既存設定ファイルを読み込む環境がまだ指しうる
     "claude-sonnet-4-6": "旧既定（後方互換）",
 }
