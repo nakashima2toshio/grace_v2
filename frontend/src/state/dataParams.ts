@@ -114,8 +114,9 @@ export function buildQaParams(state: QaFormState): QaParams {
  * `Field(default=...)` が正しく効く（`modelOverride` の注記を参照）。
  *
  * ⚠️ 以前はここで空を弾いていた。モデル欄が自由入力だった頃の名残で、当時は
- * 空文字がそのまま送られて実行時に失敗していた。選択式（`ModelSelect`）に
- * 変えたいまは、空を弾くと「（既定値）」を選んだまま送信できなくなる。
+ * 空文字がそのまま送られて実行時に失敗していた。選択式（いまはヘッダーの
+ * モデルセレクタ）に変えたいまは、空を弾くと「（既定値）」を選んだまま
+ * 送信できなくなる。
  */
 export function canSubmitQa(state: QaFormState, running: boolean): boolean {
   return !running && state.inputFile.trim() !== '';
