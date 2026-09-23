@@ -1,6 +1,6 @@
 # frontend/docs 棚卸し
 
-**Version 1.7** | 最終更新: 2026-09-23
+**Version 1.8** | 最終更新: 2026-09-23
 
 `frontend/`（Vite + React 18 + TypeScript）のドキュメント一覧と、実装への追随状況・
 欠落・残タスクをまとめる。
@@ -138,7 +138,7 @@ CLAUDE.md §6 のとおり、**判断ロジックはコンポーネントに残�
 | `highlight.ts` | 89 | 引用箇所のハイライト |
 | `citations.ts` | 76 | 出典の派生値 |
 | `useJobTiming.ts` | 56 | **例外的にフック**。判断は持たず `elapsed.ts` に委ねる |
-| `modelLabel.ts` | 68 | モデル名の表示文字列（ヘッダー・「（既定値: …）」・単価つき選択肢） |
+| `modelLabel.ts` | 29 | ヘッダーの見出し文字列・単価つき選択肢のラベル |
 | `metaFetch.ts` | 53 | メタ取得失敗 → 対処可能な文言 |
 | `documentLimit.ts` | 52 | 文字数上限の判定・表示文言・アナウンス文言 |
 | `tabKeys.ts` | 49 | タブの矢印キー移動 |
@@ -157,7 +157,7 @@ CLAUDE.md §6 のとおり、**判断ロジックはコンポーネントに残�
 
 ```
 Test Files  21 passed (21)
-     Tests  304 passed (304)
+     Tests  297 passed (297)
 ```
 
 | テストファイル | 件数 |
@@ -179,7 +179,7 @@ Test Files  21 passed (21)
 | `state/metaFetch.test.ts` | 10 |
 | `state/submitKey.test.ts` | 10 |
 | `state/timelineAnnounce.test.ts` | 9 |
-| `state/modelLabel.test.ts` | 9 |
+| `state/modelLabel.test.ts` | 2 |
 | `state/activeJobs.test.ts` | 8 |
 | `state/jobReducer.test.ts` | 7 |
 | `state/interventionKind.test.ts` | 4 |
@@ -215,7 +215,7 @@ npm run build    # 本番ビルド
 | 5 | ~~`ReviewForm` のアクセシビリティ~~ | ✅ 完了（v1.1・`.sr-only` ラベル＋`aria-invalid`＋ライブ領域） |
 | 6 | ~~`ReviewPanel` の打ち切り警告に `role` が無い~~ | ✅ 完了（v1.1・`role="alert"`） |
 | 7 | ~~`CollectionPanel.tsx` の中止バナーに `role` が無い~~ | ✅ 完了（v1.3・`role="status"`）。**banner 系 9 箇所すべてに role が付いた** |
-| 8 | ~~`components/ModelSelect.tsx` が未使用~~ | ✅ 完了（2026-09-23 に `ModelSelect.tsx` / `ModelSelect.md` を削除）。`modelLabel.ts` の `formatModelLabel` / `defaultOptionLabel` は未使用のまま残っている |
+| 8 | ~~`components/ModelSelect.tsx` が未使用~~ | ✅ 完了（2026-09-23 に `ModelSelect.tsx` / `ModelSelect.md` を削除。未使用になった `modelLabel.ts` の `formatModelLabel` / `defaultOptionLabel` / `DEFAULT_OPTION_FALLBACK` も同日に削除） |
 
 詳細と根拠は [`docs/doc_modernization_todo.md`](../../docs/doc_modernization_todo.md) を参照。
 
@@ -225,6 +225,7 @@ npm run build    # 本番ビルド
 
 | 版 | 日付 | 変更内容 |
 |---|---|---|
+| 1.8 | 2026-09-23 | **`modelLabel.ts` の未使用関数を削除**（`formatModelLabel` / `defaultOptionLabel` / `DEFAULT_OPTION_FALLBACK`）。テスト件数を **21 ファイル / 297 件**（実測）へ更新 |
 | 1.7 | 2026-09-23 | **未使用になった `ModelSelect.tsx` と `ModelSelect.md` を削除**し、文書一覧・実装カバレッジから外した（残タスク 8 を完了） |
 | 1.6 | 2026-09-23 | **データ管理タブもヘッダーでモデルを選ぶ変更に追随。** `App.md` v1.5 / `DataPanel.md` v1.3 / `DataJobPanel.md` v1.4 / `ModelSelect.md` v1.3（**未使用**になった）の版と実装行数を更新。テスト件数を **21 ファイル / 304 件**（実測）へ更新 |
 | 1.5 | 2026-09-23 | **モデル選択をヘッダー（`App`）へ移した変更に追随。** `App.md` v1.4 / `SupportPanel.md` v1.6 / `ReviewPanel.md` v1.4 / `QueryForm.md` v1.5 / `ReviewForm.md` v1.4 / `ModelSelect.md` v1.2 の版と実装行数を更新。`state/headerModel.ts` を §4 へ追加し、テスト件数を **21 ファイル / 301 件**（実測）へ更新 |
