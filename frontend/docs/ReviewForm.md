@@ -332,7 +332,7 @@ onSubmit({
 | `src/state/documentLimit.test.ts` | 上限の境界・表示文言・**アナウンス文言の不変性** | 10 |
 | `src/state/headerModel.test.ts` | ヘッダーのモデルセレクタ（`model` prop の供給元） | 13 |
 
-**2026-09-23 に `npm test` を実行した実測値**（フロント全体は 21 ファイル / 301 件）。
+**2026-09-23 に `npm test` を実行した実測値**（フロント全体は 21 ファイル / 297 件）。
 
 ### テスト方針
 

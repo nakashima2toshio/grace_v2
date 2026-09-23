@@ -287,7 +287,7 @@ class Start,Show,Tab,Same,Swap,New default
 | テストファイル | 対象 | 実行 |
 |---|---|---|
 | `src/state/tabKeys.test.ts` | タブの矢印キー移動（`handleTabKeyDown`） | `npm test`（12 件） |
-| `src/state/modelLabel.test.ts` | 単価つきラベル（`modelOptionLabel`。ヘッダーの選択肢が使う） | `npm test`（9 件） |
+| `src/state/modelLabel.test.ts` | 見出し文字列と単価つきラベル（`modelOptionLabel`。ヘッダーの選択肢が使う） | `npm test`（2 件） |
 | `src/state/headerModel.test.ts` | ヘッダーのモデルセレクタ（タブごとのスロット・表示値・選択肢・論理層の注記） | `npm test`（16 件） |
 
 **`App.tsx` 自体のレンダリングテストは未整備。** `@testing-library/react` を導入していないため、

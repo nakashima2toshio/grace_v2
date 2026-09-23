@@ -416,7 +416,7 @@ React の型（`KeyboardEvent` 等）に直接依存させず、必要なフィ�
 | `state/interventionKind.ts` | 承認待ちが action（⑥ 実行承認）か question（0-(A) 主質問の選択）か |
 | `state/documentLimit.ts` | 文字数上限の判定・表示文言・**アナウンス文言**（超過中は長さを含めず再読み上げを防ぐ） |
 | `state/metaFetch.ts` | メタ取得失敗を対処可能な文言へ（silent failure を出さない） |
-| `state/modelLabel.ts` | モデル名の表示文字列（ヘッダー・「（既定値: …）」・単価つき選択肢） |
+| `state/modelLabel.ts` | ヘッダーの見出し文字列・単価つき選択肢のラベル |
 | `state/timelineAnnounce.ts` | 支援技術へ読み上げる 1 行の決定 |
 | `state/citations.ts` / `highlight.ts` / `elapsed.ts` / `activeJobs.ts` | 表示用の派生値 |
 | `state/jobReducer.ts` / `dataReducer.ts` / `reviewReducer.ts` | ジョブ状態の遷移 |
