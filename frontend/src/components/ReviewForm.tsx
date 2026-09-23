@@ -196,7 +196,7 @@ export function ReviewForm({ rulesets, models, defaultModel, running, onSubmit }
             onChange={(e) => setUseWeb(e.target.checked)}
             disabled={running}
           />
-          Web で法改正を裏取り（既定 OFF・条文が一次情報のため）
+          Web で法改正を裏取り（既定 ON）
         </label>
         <label>
           <input
@@ -205,7 +205,7 @@ export function ReviewForm({ rulesets, models, defaultModel, running, onSubmit }
             onChange={(e) => setDryRun(e.target.checked)}
             disabled={running}
           />
-          dry-run（起票せずログのみ・既定 ON）
+          dry-run（起票せずログのみ・既定 OFF）
         </label>
         <label>
           <input

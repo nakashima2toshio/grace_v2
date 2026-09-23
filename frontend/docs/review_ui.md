@@ -238,8 +238,8 @@ interface Props {
 | `document` | `string` | `restored.document`（既定 `''`） | `onChange` / サンプル投入 | 点検対象の文書 |
 | `title` | `string` | `restored.title`（既定 `''`） | `onChange` / サンプル投入 | 空なら送信時に `'無題'` |
 | `ruleset` | `string` | `restored.ruleset`（既定 `'ec_ad'`） | セレクタ変更 | 適用するルールセット |
-| `useWeb` | `boolean` | `restored.useWeb`（既定 `false`） | チェックボックス | **既定 OFF**（Support と逆） |
-| `dryRun` | `boolean` | `restored.dryRun`（既定 `true`） | チェックボックス | 既定 ON（起票せずログのみ） |
+| `useWeb` | `boolean` | `restored.useWeb`（既定 `true`） | チェックボックス | 既定 ON（2026-09-23 に OFF から変更） |
+| `dryRun` | `boolean` | `restored.dryRun`（既定 `false`） | チェックボックス | 既定 OFF（2026-09-23 に ON から変更。ON で起票せずログのみ） |
 | `verbose` | `boolean` | `restored.verbose`（既定 `false`） | チェックボックス | 詳細ログ |
 
 > ⚠️ **タブ切替はアンマウント**（`App.tsx` の条件レンダリング）なので、退避しないと
@@ -577,3 +577,4 @@ document.slice(finding.start, finding.end) === finding.excerpt
 | 1.0 | 2026-07-29 | 初版作成（GRACE-Review STEP6・PR #42 に対応） |
 | 1.1 | 2026-08-05 | **ルールセット取得の失敗を握りつぶしていた不具合を修正。** バックエンド停止時にセレクタが空になるだけで理由が出なかったため、`MetaErrorBanner` で復旧手順を表示し再取得できるようにした |
 | 1.2 | 2026-08-05 | **タブを切り替えると入力が既定値へ戻る不具合を修正。** 貼り付けた文書・タイトル・ルールセット・チェックを `state/formMemory.ts` へ退避し、再マウント時に復元する |
+| 1.4 | 2026-09-23 | ReviewForm の既定値を変更（Web 裏取り ON・dry-run OFF）。state 表を追随 |
