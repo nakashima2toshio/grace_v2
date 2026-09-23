@@ -1,6 +1,6 @@
 # DataJobPanel.tsx - チャンキング / Qdrant 登録の実行パネル ドキュメント
 
-**Version 1.4** | 最終更新: 2026-09-23
+**Version 1.5** | 最終更新: 2026-09-23
 
 ---
 
@@ -164,7 +164,7 @@ export function DataJobPanel({
 | `batchSize` | `number` | `100` | 入力 | Embedding バッチサイズ |
 | `embedWorkers` | `number` | `2` | 入力 | Embedding 並列数 |
 | `maxDocs` | `string` | `''` | 入力 | 最大件数。**文字列で保持** |
-| `verbose` | `boolean` | `false` | チェックボックス | 詳細ログ |
+| `verbose` | `boolean` | `true` | チェックボックス | 詳細ログ |
 | `confirming` | `boolean` | `false` | 承認送信時 | 二重送信の防止 |
 
 > ⚠️ **`maxRows` / `maxDocs` は `number` ではなく `string` で保持する。**
@@ -524,3 +524,4 @@ LLM 用途（Anthropic Claude）とは別系統なので、画面から切り替
 | 1.4 | 2026-09-23 | **モデルの選択をヘッダー（`App`）へ移した。** フォーム内の `ModelSelect` 2 つと `model` / `qaModel` / `models` / `modelInfo` の state、モデル取得の `useEffect` を削除し、`chunkingModel` / `qaModel` prop（`App` → `DataPanel` 経由）を受け取るようにした。`useState` は 25 → 21、`useEffect` は 3 → 2 |
 | 1.3 | 2026-09-16 | **モデル欄を自由入力から `ModelSelect`（選択式）へ変更**。選択肢は `GET /api/models`、既定値は `GET /api/model` の `chunking_model` / `qa_model`。未選択は `model` キーごと省略して送るため、`canSubmitQa` の「モデル欄が空なら送信できない」条件を撤去した。`useState` は 23 → 25、`useEffect` は 2 → 3 |
 | 1.2 | 2026-09-12 | **`variant='qa'`（Q/A 生成）を追加**。`useState` は 17 → 23（旧版の「× 13」は実装より古かった）、呼ぶ API は 2 → 3。出力先を入れ子にしない理由とモデル既定が違う理由を §7 に追記。テスト件数を実測値へ更新 |
+| 1.5 | 2026-09-23 | **詳細ログの既定を ON へ変更**（基本版 / GRACE-Support / GRACE-Review は `DEFAULT_QUERY_FORM` / `DEFAULT_REVIEW_FORM` の `verbose`、データ管理は `DataJobPanel` の `useState`） |
