@@ -103,7 +103,8 @@ export function DataJobPanel({
   const [embedWorkers, setEmbedWorkers] = useState(2);
   const [maxDocs, setMaxDocs] = useState('');
 
-  const [verbose, setVerbose] = useState(false);
+  // 詳細ログの既定は ON（3 工程で共用）
+  const [verbose, setVerbose] = useState(true);
 
   // ⚠️ ③ Qdrant 登録の埋め込みは Gemini（gemini-embedding-001 3072 次元）固定で、
   //    モデル選択の対象外（ヘッダーのセレクタにも出ない）。

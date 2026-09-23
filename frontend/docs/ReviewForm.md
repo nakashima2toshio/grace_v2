@@ -1,6 +1,6 @@
 # ReviewForm.tsx - 文書レビュー入力フォーム ドキュメント
 
-**Version 1.4** | 最終更新: 2026-09-23
+**Version 1.5** | 最終更新: 2026-09-23
 
 ---
 
@@ -127,7 +127,7 @@ interface Props {
 | `ruleset` | `string` | `restored.ruleset` | セレクタ変更 | 空文字は `null` として送る |
 | `useWeb` | `boolean` | `restored.useWeb` | チェックボックス | **既定 ON**（法改正の裏取り。信頼度を下げる方向にのみ使う） |
 | `dryRun` | `boolean` | `restored.dryRun` | チェックボックス | **既定 OFF**（ON で起票せずログのみ） |
-| `verbose` | `boolean` | `restored.verbose` | チェックボックス | 詳細ログ |
+| `verbose` | `boolean` | `restored.verbose`（既定 `true`） | チェックボックス | 詳細ログ |
 
 > ⚠️ **`restored` は `useState(() => recallReviewForm())` の遅延初期化で 1 度だけ引く。**
 > 毎レンダーで読み直すと**入力中に上書きされる**。
@@ -349,6 +349,7 @@ onSubmit({
 
 | 版 | 日付 | 変更内容 |
 |---|---|---|
+| 1.5 | 2026-09-23 | **詳細ログの既定を ON へ変更**（基本版 / GRACE-Support / GRACE-Review は `DEFAULT_QUERY_FORM` / `DEFAULT_REVIEW_FORM` の `verbose`、データ管理は `DataJobPanel` の `useState`） |
 | 1.4 | 2026-09-23 | **モデルセレクタをヘッダー（`App`）へ移した。** フォーム内の `ModelSelect` と `model` state を削除し、`models` / `defaultModel` prop を `model` prop へ置き換えた。`formMemory` からも `model` を外した。`useState` は 8 → 7 個 |
 | 1.3 | 2026-09-23 | **チェックボックスの既定を変更**: Web 裏取り OFF → ON、dry-run ON → OFF（`DEFAULT_REVIEW_FORM`）。詳細ログは従来どおり OFF。API スキーマ `ReviewRequest` の既定は API 直叩き用で据え置き（UI は常に値を明示送信する） |
 | 1.2 | 2026-09-16 | **モデルセレクタを追加**（`models` / `defaultModel` prop → `ModelSelect`）。`model` は空文字＝「サーバーの既定値」で、送信時に `null` へ倒す。`formMemory` にも `model` を追加した |

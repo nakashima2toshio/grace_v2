@@ -1,6 +1,6 @@
 # QueryForm.tsx - 問い合わせ入力フォーム ドキュメント
 
-**Version 1.5** | 最終更新: 2026-09-23
+**Version 1.6** | 最終更新: 2026-09-23
 
 ---
 
@@ -165,7 +165,7 @@ interface Props {
 | `query` | `string` | `restored.query`（既定 `''`） | `input` の `onChange` | 問い合わせ内容 |
 | `vertical` | `string` | `restored.vertical`（既定 `''`） | セレクタ変更・例文チップ | 空文字は「プロファイルなし」 |
 | `dryRun` | `boolean` | `restored.dryRun`（既定 **`false`**） | チェックボックス | 既定 OFF（アクションは HITL CONFIRM で承認後に実行。ON で実行せずログのみ） |
-| `verbose` | `boolean` | `restored.verbose`（既定 `false`） | チェックボックス | 詳細ログ |
+| `verbose` | `boolean` | `restored.verbose`（既定 `true`） | チェックボックス | 詳細ログ |
 | `useWeb` | `boolean` | `restored.useWeb`（既定 **`true`**） | チェックボックス | Web フォールバック |
 | `doAction` | `boolean` | `restored.doAction`（既定 **`true`**） | チェックボックス | アクション実行 |
 | `orderId` | `string` | `restored.orderId`（既定 `''`） | 識別子欄 | 本人確認の `order_id` |
@@ -473,3 +473,4 @@ class S,Opt,Push,V,R,Build,Vert,Null,Sel,Act,Id,Send1,Send2 default
 | 1.2 | 2026-08-25 | **基本版タブの問い合わせ欄を複数行（`<textarea>`）に変更**（grace_v2_local と同等化）。`multiline` prop で分岐し、`showVertical` からは導出しない。`<textarea>` では Enter が改行になり HTML の暗黙送信が効かなくなるため、`Ctrl+Enter` / `⌘+Enter` を送信に割り当て、判定を `state/submitKey.ts` の純関数へ分離（**IME 変換中の Enter は送信しない**）。送信経路が 3 つになったので条件判定を `submitIfReady()` へ集約 |
 | 1.4 | 2026-09-23 | **dry-run の既定を OFF へ変更**（`DEFAULT_QUERY_FORM.dryRun = false`）。ラベルも「既定 OFF」へ。詳細ログは従来どおり既定 OFF（grace_v2_local と同じ既定値） |
 | 1.5 | 2026-09-23 | **モデルセレクタをヘッダー（`App`）へ移した。** フォーム内の `ModelSelect` と `model` state を削除し、`models` / `defaultModel` prop を `model` prop（ヘッダーで選んだ値）へ置き換えた。`formMemory` からも `model` を外した（`App` はアンマウントされないので退避が要らない） |
+| 1.6 | 2026-09-23 | **詳細ログの既定を ON へ変更**（基本版 / GRACE-Support / GRACE-Review は `DEFAULT_QUERY_FORM` / `DEFAULT_REVIEW_FORM` の `verbose`、データ管理は `DataJobPanel` の `useState`） |
