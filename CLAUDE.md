@@ -343,21 +343,26 @@ cd frontend && npm run lint && npm test && npm run build   # frontend
 
 | 機能 | grace_v2 | grace_v2_local |
 |---|:--:|:--:|
-| `state/formMemory.ts`（タブ切替時の入力退避） | ✅ | ❌ |
-| `state/metaFetch.ts` / `state/timelineAnnounce.ts` | ✅ | ❌ |
-| `components/MetaErrorBanner.tsx` | ✅ | ❌ |
-| `state/documentLimit.ts`（文字数上限の判定・アナウンス文言） | ✅ | ❌ |
-| `components/ModelSelect.tsx` | ❌（2026-09-23 に削除。モデル選択はヘッダー） | ✅ |
-| `state/modelLabel.ts` | ✅（2026-09-16 に追加） | ✅ |
-| `state/headerModel.ts`（モデル選択をヘッダーで行う。全タブ・2026-09-23） | ✅ | ❌ |
+| `state/formMemory.ts`（タブ切替時の入力退避） | ✅ | ✅（2026-09-20 に移植） |
+| `state/metaFetch.ts` / `state/timelineAnnounce.ts` | ✅ | ✅（2026-09-20 に移植） |
+| `components/MetaErrorBanner.tsx` | ✅ | ✅（2026-09-20 に移植） |
+| `state/documentLimit.ts`（文字数上限の判定・アナウンス文言） | ✅ | ✅（2026-09-20 に移植） |
+| `state/modelLabel.ts` | ✅ | ✅（**中身は別物**） |
+| `state/headerModel.ts`（モデル選択をヘッダーで行う。全タブ） | ✅（2026-09-23） | ✅（2026-09-23 に移植。**既定値の取り方が違う**） |
+| `components/ModelSelect.tsx` | ❌（2026-09-23 に削除） | ❌（同日に削除） |
+| `state/focusTrap.ts` / `state/selectionKeys.ts`（a11y） | ❌ | ✅（local にしかない） |
 | LLM プロバイダ | Anthropic | Ollama（ローカル） |
 
-> この表は「**local からコピーすると消えるもの**」の一覧である。
-> 実測日: 2026-09-13（`frontend/src/` を両リポジトリで突き合わせ）。
-> `modelLabel.ts` は**両方に存在**するが（`ModelSelect.tsx` はこちらでは 2026-09-23 に削除）、
-> **中身は別物**（こちらは Anthropic のモデル一覧・単価つきラベル、local は Ollama）。
-> 名前が同じでも**コピーで持ち込まない**こと。
-> こちらにしかないフロント資産を足したら、**この表にも 1 行足す**こと。
+> この表は、**ファイル単位で見た両リポジトリの差分**である。
+> 実測日: 2026-09-23（`frontend/src/` のファイル一覧を両リポジトリの master で突き合わせ）。
+> **ファイル名が同じでも中身が同じとは限らない。** とくに次の 2 つは別物なので、
+> **コピーで持ち込まない**こと。
+> - `modelLabel.ts` — こちらは Anthropic の単価つきラベル、local は Ollama の
+>   `supports_tool_calls` / `notes` を畳み込むラベル
+> - `headerModel.ts` — データ管理タブの既定値が、こちらは `ModelInfo.chunking_model` /
+>   `qa_model`、local は `ModelInfo.model`（local の `ModelInfo` にはこの 2 項目が無い）
+>
+> 片側にしかないフロント資産を足したら、**この表にも 1 行足す**こと。
 
 **実例（2026-08-25）**: 基本版タブの複数行入力を local から移植する際、
 `QueryForm.tsx` を丸ごとコピーしていれば `formMemory`（外した dry-run が
