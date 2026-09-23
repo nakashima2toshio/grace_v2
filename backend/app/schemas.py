@@ -15,7 +15,7 @@ from config import get_selectable_models
 
 
 def _validate_model_choice(v: Optional[str]) -> Optional[str]:
-    """`model` フィールドの共通バリデーション（3タブ共通のモデルセレクタ）。
+    """`model` フィールドの共通バリデーション（ヘッダーのモデルセレクタ）。
 
     `config.get_selectable_models()` に無い値は 422 で弾く。未知のモデル名を
     そのまま Anthropic へ投げるとジョブが起動してから 404（`NotFoundError`）で
@@ -335,7 +335,7 @@ class RuleSetInfo(BaseModel):
 
 
 class ModelChoice(BaseModel):
-    """GET /api/models の 1 要素。3タブ共通のモデルセレクタ用。
+    """GET /api/models の 1 要素。ヘッダーのモデルセレクタ用。
 
     `config.py::get_selectable_models()`（= `ModelConfig.SELECTABLE_MODELS`）で
     絞り込み済みの一覧を返す。旧既定（`claude-sonnet-4-6`）や日付指定エイリアス

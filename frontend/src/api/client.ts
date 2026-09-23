@@ -69,7 +69,7 @@ export async function confirmIntervention(
   return response.json();
 }
 
-/** モデルの選択肢一覧（3タブ共通のセレクタ用）。 */
+/** ヘッダーのモデルセレクタの選択肢一覧。 */
 export async function fetchModels(): Promise<ModelChoice[]> {
   const response = await requireOk(await fetch('/api/models'));
   return response.json();

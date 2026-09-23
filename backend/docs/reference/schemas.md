@@ -815,7 +815,7 @@ class RuleSetInfo(BaseModel):
 ### 4.12b ModelChoice / ModelInfo
 
 **概要**: `GET /api/models` の 1 要素と、`GET /api/model` のレスポンス。
-3タブ共通のモデルセレクタが読む。
+ヘッダーのモデルセレクタが読む。
 
 ```python
 class ModelChoice(BaseModel):

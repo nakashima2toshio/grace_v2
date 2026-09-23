@@ -25,7 +25,7 @@ router = APIRouter(prefix="/api", tags=["meta"])
 
 @router.get("/models", response_model=List[ModelChoice])
 def list_models() -> List[ModelChoice]:
-    """3タブ共通のモデルセレクタ用の選択肢一覧を返す。
+    """ヘッダーのモデルセレクタ用の選択肢一覧を返す。
 
     `config.py::get_selectable_models()` で絞り込み済み（旧既定・日付指定
     エイリアスは含まない）。単価と上限も添えて、選択の判断材料にする。

@@ -267,7 +267,7 @@ print(sorted(v))
 
 #### `list_models`
 
-**概要**: 3タブ共通のモデルセレクタ用に、選択可能なモデルを単価・上限つきで返す。
+**概要**: ヘッダーのモデルセレクタ用に、選択可能なモデルを単価・上限つきで返す。
 
 ```python
 @router.get("/models", response_model=List[ModelChoice])

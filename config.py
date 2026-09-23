@@ -35,7 +35,7 @@ class ModelConfig:
         "claude-sonnet-4-6",            # 旧既定（後方互換。既存設定の読み込み用）
     ]
 
-    # UI（3タブ共通のモデルセレクタ）に出す選択肢。
+    # UI（ヘッダーのモデルセレクタ）に出す選択肢。
     #
     # ⚠️ `AVAILABLE_MODELS` とは別物。あちらは「このコードが単価・上限を知っている
     #    モデル」の一覧で、旧既定や日付指定エイリアスも含む。ユーザーに選ばせるのは
@@ -153,7 +153,7 @@ class ModelConfig:
 
 
 def get_selectable_models() -> List[str]:
-    """UI（3タブ共通のモデルセレクタ）に出してよいモデル一覧を返す。
+    """UI（ヘッダーのモデルセレクタ）に出してよいモデル一覧を返す。
 
     `ModelConfig.SELECTABLE_MODELS` をそのまま返す薄い関数だが、呼び出し側
     （`backend/app/schemas.py` のバリデータ / `GET /api/models` / エージェント

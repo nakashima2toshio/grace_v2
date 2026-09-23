@@ -1,5 +1,5 @@
 # backend/tests/test_model_selection.py
-"""モデルセレクタ（3タブ共通）の回帰テスト。
+"""ヘッダーのモデルセレクタの回帰テスト。
 
 ## 何を守るか
 

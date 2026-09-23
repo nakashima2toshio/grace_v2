@@ -76,7 +76,7 @@ export interface SupportResult {
   out_of_scope_guidance: string;
 }
 
-/** GET /api/models の 1 要素（3タブ共通のモデルセレクタ用）。 */
+/** GET /api/models の 1 要素（ヘッダーのモデルセレクタ用）。 */
 export interface ModelChoice {
   id: string;
   /** $/1K tokens。単価差（haiku < sonnet < opus）を画面に出すために使う。 */
