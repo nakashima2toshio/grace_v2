@@ -27,7 +27,9 @@ class ModelConfig:
     # 利用可能なモデル一覧（テキスト生成）
     AVAILABLE_MODELS: List[str] = [
         "claude-sonnet-5",              # デフォルト（推論・生成）
-        "claude-opus-5",                # 上位（難しい推論・レビュー）
+        "claude-fable-5-1",             # 最上位（難しい推論・長時間のエージェント処理）
+        "claude-opus-5-5",              # 上位（下の旧上位の後継。単価も安い）
+        "claude-opus-5",                # 旧上位（後方互換。heavy_model 等の既存設定用）
         "claude-haiku-4-5",             # 軽量。日付なしエイリアス。UI の選択肢
         "claude-haiku-4-5-20251001",    # 同上の日付指定。light_model の既定値
         "claude-sonnet-4-6",            # 旧既定（後方互換。既存設定の読み込み用）
@@ -37,18 +39,44 @@ class ModelConfig:
     #
     # ⚠️ `AVAILABLE_MODELS` とは別物。あちらは「このコードが単価・上限を知っている
     #    モデル」の一覧で、旧既定や日付指定エイリアスも含む。ユーザーに選ばせるのは
-    #    現行世代の 3 つだけにして、同じモデルが 2 行（日付あり／なし）出るのを防ぐ。
+    #    現行世代の 4 つだけにして、同じモデルが 2 行（日付あり／なし）出るのを防ぐ。
+    #    並びは上位 → 軽量の順（プルダウンの表示順）。既定は DEFAULT_MODEL。
     SELECTABLE_MODELS: List[str] = [
+        "claude-fable-5-1",
+        "claude-opus-5-5",
         "claude-sonnet-5",
-        "claude-opus-5",
         "claude-haiku-4-5",
     ]
 
     # デフォルトモデル
     DEFAULT_MODEL: str = "claude-sonnet-5"
 
-    # temperatureパラメータをサポートしないモデル（Claude は全モデルサポート）
-    NO_TEMPERATURE_MODELS: List[str] = []
+    # temperature / top_p / top_k を受け付けないモデル（既定値以外を送ると 400）。
+    # 軽量モデルと旧既定（このリストに無いもの）は受け付ける。
+    NO_TEMPERATURE_MODELS: List[str] = [
+        "claude-sonnet-5",
+        "claude-opus-5",
+        "claude-opus-5-5",
+        "claude-fable-5-1",
+    ]
+
+    # 拡張思考の指定方法が「adaptive」のモデル。
+    # `{"type": "enabled", "budget_tokens": N}` を送ると 400 になるので、
+    # 思考を有効にするときは `{"type": "adaptive"}` を送る。
+    ADAPTIVE_THINKING_MODELS: List[str] = [
+        "claude-sonnet-5",
+        "claude-opus-5",
+        "claude-opus-5-5",
+        "claude-fable-5-1",
+    ]
+
+    # 思考を**無効化できない**モデル（`{"type": "disabled"}` を送ると 400）。
+    # thinking パラメータは省略し、深さは effort（output_config）で抑える。
+    # max_tokens は「思考 + 本文」の合計上限になる点に注意（grace/llm_compat.py）。
+    ALWAYS_THINKING_MODELS: List[str] = [
+        "claude-opus-5-5",
+        "claude-fable-5-1",
+    ]
 
     # モデル料金（$/1K tokens）。Gemini エントリは後方互換のため残置。
     #
@@ -60,6 +88,8 @@ class ModelConfig:
     #    **既定モデル名を変えるときは、この表と MODEL_LIMITS の両方に行を足すこと。**
     MODEL_PRICING: Dict[str, Dict[str, float]] = {
         "claude-sonnet-5": {"input": 0.002, "output": 0.010},
+        "claude-fable-5-1": {"input": 0.010, "output": 0.050},
+        "claude-opus-5-5": {"input": 0.004, "output": 0.020},
         "claude-opus-5": {"input": 0.005, "output": 0.025},
         "claude-haiku-4-5": {"input": 0.001, "output": 0.005},
         "claude-haiku-4-5-20251001": {"input": 0.001, "output": 0.005},
@@ -76,6 +106,8 @@ class ModelConfig:
     MODEL_LIMITS: Dict[str, Dict[str, int]] = {
         # max_tokens = コンテキスト長 / max_output = 1 応答の出力上限
         "claude-sonnet-5": {"max_tokens": 1000000, "max_output": 128000},
+        "claude-fable-5-1": {"max_tokens": 1000000, "max_output": 128000},
+        "claude-opus-5-5": {"max_tokens": 1000000, "max_output": 128000},
         "claude-opus-5": {"max_tokens": 1000000, "max_output": 128000},
         "claude-haiku-4-5": {"max_tokens": 200000, "max_output": 64000},
         "claude-haiku-4-5-20251001": {"max_tokens": 200000, "max_output": 64000},
@@ -92,6 +124,16 @@ class ModelConfig:
     def supports_temperature(cls, model: str) -> bool:
         """モデルがtemperatureパラメータをサポートするかチェック"""
         return model not in cls.NO_TEMPERATURE_MODELS
+
+    @classmethod
+    def uses_adaptive_thinking(cls, model: str) -> bool:
+        """思考を `{"type": "adaptive"}` で有効にするモデルか（budget_tokens は 400）"""
+        return model in cls.ADAPTIVE_THINKING_MODELS
+
+    @classmethod
+    def thinking_always_on(cls, model: str) -> bool:
+        """思考を無効化できないモデルか（`{"type": "disabled"}` は 400）"""
+        return model in cls.ALWAYS_THINKING_MODELS
 
     @classmethod
     def get_model_limits(cls, model: str) -> Dict[str, int]:

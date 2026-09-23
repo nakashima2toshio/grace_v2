@@ -208,11 +208,11 @@ class _SpyMessages:
         return SimpleNamespace(content=[SimpleNamespace(text="ok")], usage=None)
 
 
-def _call(config: dict | None):
+def _call(config: dict | None, model: str = "claude-sonnet-4-6"):
     """Anthropic クライアントを差し替えて messages.create の引数を捕まえる。"""
     from grace.llm_compat import AnthropicGenaiClient
 
-    client = AnthropicGenaiClient(default_model="claude-sonnet-4-6")
+    client = AnthropicGenaiClient(default_model=model)
     spy = _SpyMessages()
     client._client = SimpleNamespace(messages=spy)
 
@@ -261,6 +261,67 @@ def test_thinking_budget_falsy_means_disabled(value):
     kwargs = _call({"max_output_tokens": 512, "thinking_budget_tokens": value})
 
     assert kwargs["thinking"] == {"type": "disabled"}
+
+
+# --- モデル世代ごとの送り方（config.py::ModelConfig）---------------------------
+# NO_TEMPERATURE_MODELS / ADAPTIVE_THINKING_MODELS は temperature と budget_tokens が 400。
+# ALWAYS_THINKING_MODELS はさらに thinking を無効化できない（disabled も 400）。
+
+
+@pytest.mark.parametrize(
+    "model", ["claude-sonnet-5", "claude-opus-5", "claude-opus-5-5", "claude-fable-5-1"]
+)
+def test_new_generation_never_sends_temperature(model):
+    """temperature を送ると 400 になる世代には送らない。"""
+    kwargs = _call({"max_output_tokens": 512, "temperature": 0.0}, model=model)
+
+    assert "temperature" not in kwargs
+
+
+@pytest.mark.parametrize("model", ["claude-haiku-4-5", "claude-haiku-4-5-20251001"])
+def test_haiku_still_receives_temperature(model):
+    """どの表にも載らない世代は temperature を受け付けるので従来どおり送る。"""
+    kwargs = _call({"max_output_tokens": 512, "temperature": 0.0}, model=model)
+
+    assert kwargs["temperature"] == 0.0
+    assert kwargs["thinking"] == {"type": "disabled"}
+
+
+@pytest.mark.parametrize("model", ["claude-sonnet-5", "claude-opus-5"])
+def test_adaptive_generation_can_still_disable_thinking(model):
+    """ADAPTIVE だが ALWAYS ではない世代は disabled を受け付ける。"""
+    kwargs = _call({"max_output_tokens": 10}, model=model)
+
+    assert kwargs["thinking"] == {"type": "disabled"}
+    assert kwargs["max_tokens"] == 10
+    assert "output_config" not in kwargs
+
+
+@pytest.mark.parametrize(
+    "model", ["claude-sonnet-5", "claude-opus-5", "claude-opus-5-5", "claude-fable-5-1"]
+)
+def test_adaptive_generation_uses_adaptive_instead_of_budget(model):
+    """budget_tokens を受け付けない世代では adaptive を送る。"""
+    kwargs = _call({"max_output_tokens": 1024, "thinking_budget_tokens": 4000}, model=model)
+
+    assert kwargs["thinking"] == {"type": "adaptive"}
+    assert kwargs["max_tokens"] > 4000
+    assert "temperature" not in kwargs
+
+
+@pytest.mark.parametrize("model", ["claude-opus-5-5", "claude-fable-5-1"])
+def test_always_thinking_models_omit_thinking_and_lower_effort(model):
+    """思考を無効化できないモデルには disabled を送らず、effort=low で抑える。
+
+    max_tokens は「思考 + 本文」の上限になるので、`max_output_tokens: 10`
+    （複雑度推定・意図分類）をそのまま渡すと本文が空になる。下限まで広げる。
+    """
+    kwargs = _call({"max_output_tokens": 10, "temperature": 0.0}, model=model)
+
+    assert "thinking" not in kwargs
+    assert kwargs["output_config"] == {"effort": "low"}
+    assert kwargs["max_tokens"] >= 4096
+    assert "temperature" not in kwargs
 
 
 # ---------------------------------------------------------------------------
@@ -393,3 +454,27 @@ def test_generic_run_clears_preferred_domains(monkeypatch):
     core.run_support_agent_core("パスワードを忘れました", vertical=None)
 
     assert captured["cfg"].web_search.preferred_domains == []
+
+
+# ---------------------------------------------------------------------------
+# helper.helper_llm.AnthropicClient（Q/A 生成・データ準備の経路）も同じ規則
+# ---------------------------------------------------------------------------
+
+
+def _helper_call(model: str, **kwargs):
+    from helper.helper_llm import AnthropicClient
+
+    client = AnthropicClient(api_key="dummy", default_model=model)
+    spy = _SpyMessages()
+    client._client = SimpleNamespace(messages=spy)
+    client.generate_content("q", **kwargs)
+    return spy.kwargs
+
+
+@pytest.mark.parametrize("model", ["claude-sonnet-5", "claude-opus-5-5", "claude-fable-5-1"])
+def test_helper_client_drops_temperature_for_new_generation(model):
+    assert "temperature" not in _helper_call(model, temperature=0.3)
+
+
+def test_helper_client_keeps_temperature_for_haiku():
+    assert _helper_call("claude-haiku-4-5", temperature=0.3)["temperature"] == 0.3

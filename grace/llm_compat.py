@@ -27,6 +27,8 @@ import json
 import logging
 from typing import Any, Optional
 
+from config import ModelConfig
+
 logger = logging.getLogger(__name__)
 
 # Gemini をそのまま使う場合のプロバイダー名
@@ -41,6 +43,12 @@ _MIN_TEXT_TOKENS = 1024
 
 # Anthropic が要求する thinking budget の下限。
 _MIN_THINKING_BUDGET = 1024
+
+# 思考を無効化できないモデル（ModelConfig.ALWAYS_THINKING_MODELS）で確保する max_tokens の下限。
+# これらのモデルでは max_tokens が「思考 + 本文」の合計上限になるため、
+# `max_output_tokens: 10` のような短い呼び出しをそのまま渡すと思考だけで使い切り、
+# 本文が空になる。
+_ALWAYS_THINKING_MIN_TOKENS = 4096
 
 
 def _thinking_budget(requested: Any, max_tokens: int) -> int:
@@ -187,21 +195,35 @@ class _AnthropicModels:
             kwargs["system"] = system_prompt
 
         # --- 拡張思考（extended thinking）の明示制御 ---------------------------
-        # 一部のモデル（claude-opus-5 等）は thinking が **既定で有効**で、
+        # 一部のモデル（ADAPTIVE_THINKING_MODELS）は thinking が **既定で有効**で、
         # その場合 max_tokens は「思考 + 本文」の合計上限になり、temperature は
         # 指定できない。GRACE の呼び出しサイトには
         # `max_output_tokens: 10`（複雑度推定・意図分類・情報なし判定）や
         # `temperature: 0.0`（groundedness / JSON 生成）が多数あるため、
         # 既定を暗黙に任せるとモデル差し替えの瞬間に「本文が空」「API エラー」で
         # 壊れる。ここで **常に明示** し、呼び出し側が budget を渡したときだけ有効化する。
+        #
+        # 送り方はモデル世代で 3 通りに分かれる（config.py::ModelConfig）:
+        #   - どの表にも無いモデル          : enabled + budget_tokens / disabled。temperature 可
+        #   - ADAPTIVE_THINKING_MODELS      : adaptive / disabled。temperature は 400
+        #   - ALWAYS_THINKING_MODELS        : 思考は無効化できない（disabled も 400）。
+        #                                     thinking を省略し、effort=low で思考を抑える
         budget = _thinking_budget(cfg.get("thinking_budget_tokens"), max_tokens)
         if budget:
-            kwargs["thinking"] = {"type": "enabled", "budget_tokens": budget}
+            if ModelConfig.uses_adaptive_thinking(model_name):
+                # budget_tokens を受け付けない世代。思考量は adaptive に任せる。
+                kwargs["thinking"] = {"type": "adaptive"}
+            else:
+                kwargs["thinking"] = {"type": "enabled", "budget_tokens": budget}
             # 思考中は温度指定不可。呼び出し側の temperature は無視する。
             kwargs["max_tokens"] = max(max_tokens, budget + _MIN_TEXT_TOKENS)
+        elif ModelConfig.thinking_always_on(model_name):
+            # 「思考なし」の代わりに最小の effort で走らせ、本文の取り分を確保する。
+            kwargs["output_config"] = {"effort": "low"}
+            kwargs["max_tokens"] = max(max_tokens, _ALWAYS_THINKING_MIN_TOKENS)
         else:
             kwargs["thinking"] = {"type": "disabled"}
-            if temperature is not None:
+            if temperature is not None and ModelConfig.supports_temperature(model_name):
                 kwargs["temperature"] = float(temperature)
 
         message = self._get_client().messages.create(**kwargs)

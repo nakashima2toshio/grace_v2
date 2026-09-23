@@ -80,7 +80,7 @@
 
 | Method | パス | 状態 | 説明 |
 |---|---|---:|---|
-| GET | `/api/models` | 200 | モデルセレクタの選択肢（3 件・単価と上限つき） |
+| GET | `/api/models` | 200 | モデルセレクタの選択肢（4 件・単価と上限つき） |
 | GET | `/api/model` | 200 | サーバーの既定モデル（**解決後**の値。「（既定値: …）」表示用） |
 | GET | `/api/verticals` | 200 | 業界プロファイル一覧（gov / saas / ec） |
 | GET | `/api/rulesets` | 200 | ルールセット一覧（**ルール本文は返さない**・件数と法令のみ） |
@@ -89,7 +89,7 @@
 #### モデル選択の契約
 
 - 選択肢は `config.py::get_selectable_models()` の 1 箇所で決まる
-  （`claude-sonnet-5` / `claude-opus-5` / `claude-haiku-4-5`）
+  （`claude-fable-5-1` / `claude-opus-5-5` / `claude-sonnet-5` / `claude-haiku-4-5`）
 - `QueryRequest.model` / `ReviewRequest.model` は**省略可**。`null` / 省略 =
   「サーバーの既定値を使う」
 - `ChunkingRequest.model` / `QaGenerationRequest.model` は**必須（既定値つき）**。
@@ -228,5 +228,6 @@ Qdrant が落ちていても 200 を返し、本文の `available: false` と理
 
 | Version | 日付 | 変更内容 |
 |---|---|---|
+| 1.2 | 2026-09-23 | モデル選択肢を 4 件へ変更（`claude-fable-5-1` / `claude-opus-5-5` を追加、`claude-opus-5` を外した） |
 | 1.1 | 2026-09-16 | `GET /api/models` / `GET /api/model` を追加（23 → 25）。モデル選択の契約と 422 の条件を追記 |
 | 1.0 | 2026-09-16 | 新規作成。全 23 エンドポイント・SSE ワイヤ形式・ステータス方針・types.ts 対応を実装から書き起こした |

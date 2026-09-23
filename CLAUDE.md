@@ -240,24 +240,33 @@ cd frontend && npm run lint && npm test && npm run build   # frontend
 
 ### 3.2 実在するモデル名（勝手に「修正」しない）
 
-`config.py::ModelConfig` が定義する 5 つはすべて実在し、**すべて正しい**。
+`config.py::ModelConfig` が定義する 7 つはすべて実在し、**すべて正しい**。
 
 | モデル名 | 用途 | UI の選択肢 |
 |---|---|:--:|
+| `claude-fable-5-1` | 最上位（難しい推論・長時間のエージェント処理） | ✅ |
+| `claude-opus-5-5` | 上位（`claude-opus-5` の後継・単価も安い） | ✅ |
 | `claude-sonnet-5` | **既定**（推論・生成） | ✅ |
-| `claude-opus-5` | 上位（難しい推論・レビュー）。`llm.heavy_model` にも使える | ✅ |
 | **`claude-haiku-4-5`** | 軽量。**日付なしエイリアス**。チャンキングの既定値 | ✅ |
+| `claude-opus-5` | 旧上位（後方互換。`llm.heavy_model` 等の既存設定用） | ❌ |
 | `claude-haiku-4-5-20251001` | 上記の日付指定。`llm.light_model` / `INTENT_MODEL` の値 | ❌ |
 | `claude-sonnet-4-6` | 旧既定（後方互換。既存設定の読み込み用） | ❌ |
 
 **`claude-haiku-4-5` を「日付が抜けている」と判断して書き換えないこと。**
-意図的なエイリアスであり、`MODEL_PRICING` / `MODEL_LIMITS` にも 5 つとも登録されている。
+意図的なエイリアスであり、`MODEL_PRICING` / `MODEL_LIMITS` にも 7 つとも登録されている。
 これは R1（モデル名のマッピングを作らない）と同種の事故である。
 
-> ⚠️ **「UI の選択肢 ❌」は「使えない」という意味ではない。** 下 2 つは有効な
+> ⚠️ **「UI の選択肢 ❌」は「使えない」という意味ではない。** 下 3 つは有効な
 > モデル名で、設定ファイルからは指定できる。**同じモデルが 2 行（日付あり／なし）
-> 並ぶのを避けるため、セレクタに出していないだけ**である
+> 並ぶのを避けるため、また旧世代を選ばせないため、セレクタに出していないだけ**である
 > （`ModelConfig.AVAILABLE_MODELS` ⊃ `SELECTABLE_MODELS`）。
+>
+> ⚠️ **モデル世代で API への送り方が違う。** `ModelConfig` の
+> `NO_TEMPERATURE_MODELS`（temperature は 400）/ `ADAPTIVE_THINKING_MODELS`
+> （`budget_tokens` は 400・`adaptive` を送る）/ `ALWAYS_THINKING_MODELS`
+> （`{"type": "disabled"}` も 400）を `grace/llm_compat.py` と
+> `helper/helper_llm.py` が読む。**選択肢にモデルを足すときはこの 3 表も確認する**
+> （詳細は `backend/docs/config_and_providers.md` §3.1）。
 
 ### 3.3 調査済み・触らなくてよい残置コード
 
@@ -552,7 +561,7 @@ python -m chunking.csv_text_to_chunks_text_csv \
 | 用途 | ✅ 正しい表記 | ❌ 禁止表記 |
 |---|---|---|
 | LLM全般 | `Anthropic Claude` | `OpenAI GPT`, `Gemini`（LLM 用途） |
-| デフォルトモデル | `claude-sonnet-5`（上位 `claude-opus-5` / 軽量 `claude-haiku-4-5`・日付指定 `claude-haiku-4-5-20251001`） | `gpt-4o-mini`, `gemini-2.5-flash` |
+| デフォルトモデル | `claude-sonnet-5`（最上位 `claude-fable-5-1` / 上位 `claude-opus-5-5` / 軽量 `claude-haiku-4-5`・日付指定 `claude-haiku-4-5-20251001`） | `gpt-4o-mini`, `gemini-2.5-flash` |
 | Embedding | `Gemini` `gemini-embedding-001`（3072次元） | `text-embedding-3-*`（本番 Embedding 用途） |
 | LLMクライアント | `create_llm_client("anthropic")` | `"openai"` / `"gemini"`（LLM 用途） |
 | LLM用APIキー | `ANTHROPIC_API_KEY` | `OPENAI_API_KEY` |
@@ -590,7 +599,7 @@ grace_v2 に**存在しない**: `setup.py` / `server.py` / a-prefixed scripts
 ## R1. モデル名のマッピングを絶対に作らない
 
 **以下はすべて実在する有効なモデル名:**
-- `claude-sonnet-5`, `claude-opus-5`, `claude-haiku-4-5`, `claude-haiku-4-5-20251001`, `claude-sonnet-4-6`
+- `claude-fable-5-1`, `claude-opus-5-5`, `claude-sonnet-5`, `claude-opus-5`, `claude-haiku-4-5`, `claude-haiku-4-5-20251001`, `claude-sonnet-4-6`
 - `gpt-5-nano`, `gpt-5-mini`, `gpt-5` ← 実在する GPT-5 系
 - `gpt-4.1`, `gpt-4.1-mini` ← 実在する GPT-4.1 系
 - `o3`, `o3-mini`, `o4`, `o4-mini` ← 実在する O 系

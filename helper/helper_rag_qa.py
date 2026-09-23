@@ -2123,7 +2123,8 @@ class OptimizedHybridQAGenerator:
 
         # サポートモデルリスト（Anthropic LLM + Gemini）
         self.supported_models = [
-            "claude-sonnet-5", "claude-opus-5", "claude-haiku-4-5",
+            "claude-sonnet-5", "claude-fable-5-1", "claude-opus-5-5",
+            "claude-opus-5", "claude-haiku-4-5",
             "claude-haiku-4-5-20251001", "claude-sonnet-4-6",
             "gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-2.5-pro",
             "gemini-2.5-flash", "gemini-2.5-flash-lite-preview-06-17"
@@ -2455,6 +2456,8 @@ Instructions:
         # Anthropic: https://www.anthropic.com/pricing / Gemini: https://ai.google.dev/pricing
         pricing = {
             "claude-sonnet-5": {"input": 2.0, "output": 10.0},
+            "claude-fable-5-1": {"input": 10.0, "output": 50.0},
+            "claude-opus-5-5": {"input": 4.0, "output": 20.0},
             "claude-opus-5": {"input": 5.0, "output": 25.0},
             "claude-haiku-4-5": {"input": 1.0, "output": 5.0},
             "claude-haiku-4-5-20251001": {"input": 1.0, "output": 5.0},

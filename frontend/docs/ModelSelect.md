@@ -31,7 +31,7 @@
 | 対応バックエンド | `GET /api/models`（`api/meta.py`）／ `GET /api/model`（同） |
 
 4 タブすべてで使う**共通のモデルセレクタ**。選択肢は `GET /api/models` が返す
-3 件（`claude-sonnet-5` / `claude-opus-5` / `claude-haiku-4-5`）で、
+4 件（`claude-fable-5-1` / `claude-opus-5-5` / `claude-sonnet-5` / `claude-haiku-4-5`・上位 → 軽量の順）で、
 **未選択（空文字）は「サーバーの既定値を使う」**を意味する。
 
 > ⚠️ **既定のモデル名をフロントに持たせない。** 「（既定値: …）」に出す実名は
@@ -53,7 +53,7 @@
 | 機能 | 実装 | 説明 |
 |---|---|---|
 | 未選択の表示 | `defaultOptionLabel(defaultModel ?? '')` | 既定値が分かれば「（既定値: <名前>）」、不明なら「（既定値）」 |
-| 選択肢の表示 | `modelOptionLabel(m)` | モデル名に入力・出力単価を添える（3 つで 5 倍の開きがある） |
+| 選択肢の表示 | `modelOptionLabel(m)` | モデル名に入力・出力単価を添える（4 つで 10 倍の開きがある） |
 | 二重操作の防止 | `disabled` | 実行中は `<select>` ごと無効 |
 
 ---
@@ -240,4 +240,5 @@ class API1,API2,Models,Info,MS,Pick,Parent,Build,Post default
 
 | 版 | 日付 | 変更内容 |
 |---|---|---|
+| 1.1 | 2026-09-23 | 選択肢を 4 件へ変更（`claude-fable-5-1` / `claude-opus-5-5` を追加、旧上位 `claude-opus-5` を外した）。コンポーネントの実装は無変更（選択肢はサーバーが返す） |
 | 1.0 | 2026-09-16 | 初版作成。既定を `claude-sonnet-5` とし、`claude-opus-5` / `claude-haiku-4-5` を選べるようにする改修に合わせて新設した |

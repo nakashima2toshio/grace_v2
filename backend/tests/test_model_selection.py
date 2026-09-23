@@ -3,8 +3,8 @@
 
 ## 何を守るか
 
-既定は `claude-sonnet-5`、選択肢は `claude-sonnet-5` / `claude-opus-5` /
-`claude-haiku-4-5` の 3 つ。選択肢の解決は `config.py::get_selectable_models()`
+既定は `claude-sonnet-5`、選択肢は `claude-fable-5-1` / `claude-opus-5-5` /
+`claude-sonnet-5` / `claude-haiku-4-5` の 4 つ（上位 → 軽量の順）。選択肢の解決は `config.py::get_selectable_models()`
 の**1 箇所**に寄せてあり、API のバリデータ・`GET /api/models`・エージェント
 コアの上書きがすべてそこを読む。どれか 1 つが独自の一覧を持つと、画面で選べる
 のに 422 になる（またはその逆）といった食い違いが起きる。
@@ -35,7 +35,12 @@ from config import ModelConfig, get_selectable_models
 
 client = TestClient(app)
 
-EXPECTED_CHOICES = ["claude-sonnet-5", "claude-opus-5", "claude-haiku-4-5"]
+EXPECTED_CHOICES = [
+    "claude-fable-5-1",
+    "claude-opus-5-5",
+    "claude-sonnet-5",
+    "claude-haiku-4-5",
+]
 
 
 # ---------------------------------------------------------------------------
@@ -43,9 +48,23 @@ EXPECTED_CHOICES = ["claude-sonnet-5", "claude-opus-5", "claude-haiku-4-5"]
 # ---------------------------------------------------------------------------
 
 
-def test_selectable_models_are_the_three_current_ones():
-    """選択肢は現行世代の 3 つだけ。"""
+def test_selectable_models_are_the_four_current_ones():
+    """選択肢は現行世代の 4 つだけ（並びはプルダウンの表示順）。"""
     assert get_selectable_models() == EXPECTED_CHOICES
+
+
+def test_default_model_is_sonnet_5_and_selectable():
+    """既定は `claude-sonnet-5`。既定が選択肢に無いと、画面で既定を選び直せない。"""
+    assert ModelConfig.DEFAULT_MODEL == "claude-sonnet-5"
+    assert ModelConfig.DEFAULT_MODEL in get_selectable_models()
+
+
+def test_opus_5_is_no_longer_selectable_but_still_known():
+    """旧上位 `claude-opus-5` は選択肢から外したが、既存設定（heavy_model 等）の
+    ために単価・上限表と AVAILABLE_MODELS には残す（CLAUDE.md R1: 消さない）。"""
+    assert "claude-opus-5" not in get_selectable_models()
+    assert "claude-opus-5" in ModelConfig.AVAILABLE_MODELS
+    assert "claude-opus-5" in ModelConfig.MODEL_PRICING
 
 
 def test_selectable_models_exclude_legacy_and_dated_alias():
@@ -127,7 +146,7 @@ def test_query_request_rejects_non_choices(model):
 
 
 def test_review_request_shares_the_same_validation():
-    assert ReviewRequest(document="x", model="claude-opus-5").model == "claude-opus-5"
+    assert ReviewRequest(document="x", model="claude-opus-5-5").model == "claude-opus-5-5"
     with pytest.raises(ValueError):
         ReviewRequest(document="x", model="bogus")
 
@@ -220,8 +239,8 @@ def _run_core_capturing_config(monkeypatch, model):
 
 
 def test_core_applies_the_selected_model(monkeypatch):
-    assert _run_core_capturing_config(monkeypatch, "claude-opus-5").llm.model == (
-        "claude-opus-5"
+    assert _run_core_capturing_config(monkeypatch, "claude-opus-5-5").llm.model == (
+        "claude-opus-5-5"
     )
 
 
@@ -232,7 +251,7 @@ def test_core_keeps_light_model_when_overriding(monkeypatch):
     モデルを当てても精度は変わらず単価だけ上がる。`light_model` まで一緒に
     上書きすると、opus を選んだ瞬間に判定 1 回あたりの単価が 5 倍になる。
     """
-    config = _run_core_capturing_config(monkeypatch, "claude-opus-5")
+    config = _run_core_capturing_config(monkeypatch, "claude-opus-5-5")
 
     assert config.llm.light_model == "claude-haiku-4-5-20251001"
 
