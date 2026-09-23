@@ -14,14 +14,26 @@
 // ⚠️ タブは**アンマウントで切り替える**（条件レンダリング）。各パネルが自分の
 // reducer・SSE 購読・承認状態を持つため、離れた側の EventSource が
 // useEffect のクリーンアップで確実に閉じる。
+//
+// モデルの選択はヘッダー（タイトル横）で行う（基本版 / Support / Review）。
+// 選択は App の state にタブごとに持つので、タブを切り替えても残る
+// （判断は state/headerModel.ts の純関数）。
 import { useEffect, useRef, useState } from 'react';
-import { fetchModelInfo } from './api/client';
+import { fetchModelInfo, fetchModels } from './api/client';
+import {
+  INITIAL_HEADER_MODELS,
+  headerModelOptions,
+  headerSelectValue,
+  heavyModelNote,
+  isModelTab,
+  type HeaderModels,
+} from './state/headerModel';
 import { MODEL_LABEL_PREFIX, formatModelLabel } from './state/modelLabel';
 import { handleTabKeyDown } from './state/tabKeys';
 import { DataPanel } from './components/DataPanel';
 import { ReviewPanel } from './components/ReviewPanel';
 import { SupportPanel } from './components/SupportPanel';
-import type { ModelInfo } from './types';
+import type { ModelChoice, ModelInfo } from './types';
 
 type Tab = 'basic' | 'support' | 'review' | 'data';
 
@@ -57,6 +69,26 @@ export default function App() {
   }, []);
   const modelLabel = formatModelLabel(modelInfo);
 
+  // モデルの選択肢（GET /api/models）と、タブごとの選択（空文字 = サーバーの既定値）。
+  // ⚠️ 選択肢の取得失敗は握りつぶしてよい。既定モデルだけの選択肢に縮退し、
+  //    サーバーは設定どおりのモデルで走るので機能は失われない（選べないだけ）。
+  const [models, setModels] = useState<ModelChoice[]>([]);
+  const [headerModels, setHeaderModels] = useState<HeaderModels>(INITIAL_HEADER_MODELS);
+  useEffect(() => {
+    let alive = true;
+    void fetchModels()
+      .then((list) => {
+        if (alive) setModels(list);
+      })
+      .catch(() => {
+        /* 上記のとおり縮退して動くので出さない */
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+  const defaultModel = modelInfo?.model ?? '';
+
   const onKeyDown = (event: React.KeyboardEvent, index: number) => {
     const next = handleTabKeyDown(event, index, TABS.length);
     if (next === null) return;
@@ -72,11 +104,36 @@ export default function App() {
             そちらが使われる（選択結果は各フォームのセレクタに出る）。 */}
         <div className="header-title">
           <h1>{active.label}</h1>
-          {modelLabel !== null && (
-            <span className="model-badge">
+          {isModelTab(tab) ? (
+            // エージェントの 3 タブ: ここでモデルを選ぶ（送信時にこの値が使われる）
+            <label className="model-badge">
               <span className="model-badge-label">{MODEL_LABEL_PREFIX}</span>
-              <span className="model-badge-value">{modelLabel}</span>
-            </span>
+              <select
+                className="model-badge-select"
+                value={headerSelectValue(headerModels[tab], defaultModel)}
+                onChange={(e) =>
+                  setHeaderModels((prev) => ({ ...prev, [tab]: e.target.value }))
+                }
+              >
+                {headerModelOptions(models, defaultModel).map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              {modelInfo !== null && heavyModelNote(
+                headerSelectValue(headerModels[tab], defaultModel), modelInfo.heavy_model,
+              )}
+            </label>
+          ) : (
+            // データ管理タブ: 工程ごと（チャンキング / Q/A 作成）にモデルが違うので、
+            // 選択はフォーム側に残し、ここは既定値の表示だけにする。
+            modelLabel !== null && (
+              <span className="model-badge">
+                <span className="model-badge-label">{MODEL_LABEL_PREFIX}</span>
+                <span className="model-badge-value">{modelLabel}</span>
+              </span>
+            )
           )}
         </div>
         <nav className="tabs" role="tablist" aria-label="エージェントとデータ準備">
@@ -108,10 +165,14 @@ export default function App() {
         {tab === 'data' ? (
           <DataPanel />
         ) : tab === 'review' ? (
-          <ReviewPanel />
+          <ReviewPanel model={headerModels.review} />
         ) : (
           // 基本版と Support は同一パイプライン。variant で業界特化の有無だけを切り替える。
-          <SupportPanel key={tab} variant={tab === 'basic' ? 'basic' : 'vertical'} />
+          <SupportPanel
+            key={tab}
+            variant={tab === 'basic' ? 'basic' : 'vertical'}
+            model={headerModels[tab === 'basic' ? 'basic' : 'support']}
+          />
         )}
       </div>
     </div>

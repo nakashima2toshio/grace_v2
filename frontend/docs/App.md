@@ -1,6 +1,6 @@
 # App.tsx - 4 タブのルートコンテナ ドキュメント
 
-**Version 1.3** | 最終更新: 2026-09-16
+**Version 1.4** | 最終更新: 2026-09-23
 
 ---
 
@@ -24,11 +24,11 @@
 | 項目 | 内容 |
 |---|---|
 | ファイル | `frontend/src/App.tsx` |
-| 種別 | **コンテナコンポーネント**（タブ選択の `useState` ＋ 既定モデル取得の `useEffect`） |
+| 種別 | **コンテナコンポーネント**（タブ選択・タブごとのモデル選択の `useState` ＋ モデル情報取得の `useEffect`） |
 | 親 | `main.tsx`（`createRoot`） |
 | 子 | `SupportPanel`（基本版 / Support の 2 用途）・`ReviewPanel`・`DataPanel` |
-| 主な依存 | `./components/SupportPanel` / `./components/ReviewPanel` / `./components/DataPanel` / `./state/modelLabel` / `./api/client`（`fetchModelInfo`） |
-| 対応バックエンド | `GET /api/model`（ヘッダーの利用モデル名のみ。ジョブ系 API は子パネルが呼ぶ） |
+| 主な依存 | `./components/SupportPanel` / `./components/ReviewPanel` / `./components/DataPanel` / `./state/modelLabel` / `./state/headerModel` / `./api/client`（`fetchModelInfo` / `fetchModels`） |
+| 対応バックエンド | `GET /api/model` / `GET /api/models`（ヘッダーのモデルセレクタ。ジョブ系 API は子パネルが呼ぶ） |
 
 `App.tsx` は**タブの選択だけ**を持つ薄いルート。ジョブ状態・SSE 購読・承認状態は
 **各パネルが自分で持つ**ため、`App` は reducer も `useEffect` も持たない。
@@ -51,6 +51,8 @@
 - 基本版 / Support で `SupportPanel` を**複製せず** `variant` で振り分ける
 - `key={tab}` を与えて、基本版 ⇄ Support の切替時にパネルを作り直させる
 - `h1` にアクティブなタブ名を出す
+- **ヘッダー（タイトル横）でモデルを選ばせる**（基本版 / Support / Review）。選択は
+  タブごとに持ち、`SupportPanel` / `ReviewPanel` へ `model` prop で渡す
 
 ### 主要機能一覧
 
@@ -61,6 +63,7 @@
 | パネル振り分け | 条件レンダリング | `data` なら `DataPanel`、`review` なら `ReviewPanel`、他は `SupportPanel` |
 | 業界特化の有無 | `variant` prop | `tab === 'basic' ? 'basic' : 'vertical'` |
 | 再マウント強制 | `key={tab}` | 基本版 ⇄ Support の状態持ち越しを防ぐ |
+| モデル選択 | ヘッダーの `<select className="model-badge-select">` | エージェントの 3 タブだけ。データ管理タブは工程ごとにモデルが違うため既定値の表示のみ |
 
 ---
 
@@ -72,9 +75,9 @@ flowchart TB
         direction TB
         Main["main.tsx<br>createRoot"]
     end
-    subgraph Root["ルート（タブ選択のみ）"]
+    subgraph Root["ルート（タブ選択 + ヘッダーのモデル選択）"]
         direction TB
-        App["App.tsx<br>useState(tab)"]
+        App["App.tsx<br>useState(tab, modelInfo, models, headerModels)"]
     end
     subgraph Panels["パネル（状態の所有者）"]
         direction TB
@@ -84,8 +87,8 @@ flowchart TB
     end
 
     Main --> App
-    App -->|"variant + key（basic / vertical）"| SP
-    App -->|"props なし"| RP
+    App -->|"variant + key + model"| SP
+    App -->|"model"| RP
     App -->|"props なし"| DP
 classDef default fill:#000,stroke:#fff,color:#fff
 classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
@@ -122,7 +125,9 @@ style Panels fill:#1a1a1a,stroke:#fff,color:#fff
 | 変数 | 型 | 初期値 | 更新契機 | 説明 |
 |---|---|---|---|---|
 | `tab` | `'basic' \| 'support' \| 'review'` | `'basic'` | タブボタンの `click` | 表示するパネル。**既定は基本版** |
-| `modelInfo` | `ModelInfo \| null` | `null` | 初回の `fetchModelInfo()` | ヘッダーに出す既定モデル名。取得失敗なら `null` のまま（**何も出さない**） |
+| `modelInfo` | `ModelInfo \| null` | `null` | 初回の `fetchModelInfo()` | サーバーの既定モデル名（未選択時にセレクタへ出す値）。取得失敗なら `null` のまま |
+| `models` | `ModelChoice[]` | `[]` | 初回の `fetchModels()` | セレクタの選択肢。取得失敗なら空（既定モデルだけの選択肢に縮退） |
+| `headerModels` | `HeaderModels` | `INITIAL_HEADER_MODELS`（全タブ `''`） | ヘッダーのセレクタ変更 | タブごとの選択。**空文字は「サーバーの既定値」**。`App` はアンマウントされないのでタブを切り替えても残る |
 
 ### 3.2 reducer state（`useReducer`）
 
@@ -138,7 +143,10 @@ style Panels fill:#1a1a1a,stroke:#fff,color:#fff
 |---|---|---|
 | `active` | `TABS.find((t) => t.id === tab) ?? TABS[0]` | `h1` に出すタブ名。見つからない場合は先頭（基本版）へフォールバック |
 | `variant` | `tab === 'basic' ? 'basic' : 'vertical'` | `SupportPanel` へ渡す業界特化の有無 |
-| `modelLabel` | `formatModelLabel(modelInfo)` | ヘッダーの「利用モデル名：」に出す文字列。**`null` なら何も描画しない**（純関数・`state/modelLabel.ts`） |
+| `modelLabel` | `formatModelLabel(modelInfo)` | **データ管理タブ**のヘッダーに出す文字列。**`null` なら何も描画しない**（純関数・`state/modelLabel.ts`） |
+| `defaultModel` | `modelInfo?.model ?? ''` | セレクタの未選択時の表示値 |
+| セレクタの表示値 | `headerSelectValue(headerModels[tab], defaultModel)` | 未選択なら既定モデル名を出す（空欄にしない。純関数・`state/headerModel.ts`） |
+| セレクタの選択肢 | `headerModelOptions(models, defaultModel)` | 単価つきラベル。既定モデルが一覧外なら先頭に足す |
 
 ---
 
@@ -148,14 +156,17 @@ style Panels fill:#1a1a1a,stroke:#fff,color:#fff
 
 | # | 目的 | 依存配列 | クリーンアップ | 備考 |
 |---|---|---|---|---|
-| 1 | 既定モデル名の取得（`GET /api/model`） | `[]` | `alive = false`（`setState` の取りこぼし防止） | **失敗しても画面を壊さない**。ヘッダーに何も出さないだけ |
+| 1 | 既定モデル名の取得（`GET /api/model`） | `[]` | `alive = false`（`setState` の取りこぼし防止） | **失敗しても画面を壊さない** |
+| 2 | モデルの選択肢の取得（`GET /api/models`） | `[]` | `alive = false` | 失敗しても出さない。既定モデルだけの選択肢に縮退し、サーバーは設定どおりのモデルで走る |
 
 SSE 購読とジョブ系 API は引き続き各パネルの責務である。`App` が持つ副作用は
-**ヘッダー表示のためのこの 1 本だけ**。
+**ヘッダーのモデルセレクタのためのこの 2 本だけ**。
 
-> ⚠️ **ヘッダーに出るのは「既定値」である。** フォームのモデルセレクタで別の
-> モデルを選べばそちらが使われる。選択結果はセレクタ側に出る
-> （`ModelSelect.md`）。
+> 📝 **モデルの選択はヘッダーで行う**（2026-09-23 以降・基本版 / Support / Review）。
+> 以前は各フォームに `ModelSelect` があり、ヘッダーは既定値の表示だけだった。
+> 選んだ値は `SupportPanel` / `ReviewPanel` → `QueryForm` / `ReviewForm` へ
+> `model` prop で渡り、送信時に使われる。データ管理タブのセレクタ（チャンキング /
+> Q/A 作成）は工程ごとに既定モデルが違うため、フォーム側に残している（`ModelSelect.md`）。
 
 ### 4.2 アンマウントによる SSE 解放
 
@@ -241,8 +252,10 @@ class Start,Show,Tab,Same,Swap,New default
 | `Tab` | 本ファイル（ローカル） | — | UI 内部のみ。バックエンドに対応物なし |
 | `SupportVariant` | `components/SupportPanel.tsx` | — | 同上 |
 | `ModelInfo` | `types.ts` | `backend/app/schemas.py::ModelInfo` | `GET /api/model` の戻り値 |
+| `ModelChoice` | `types.ts` | `backend/app/schemas.py::ModelChoice` | `GET /api/models` の要素 |
+| `HeaderModels` | `state/headerModel.ts` | — | タブごとのモデル選択（UI 内部のみ） |
 
-ジョブ系 API は各パネルが呼ぶ。`App.tsx` が直接呼ぶのは `GET /api/model` だけである。
+ジョブ系 API は各パネルが呼ぶ。`App.tsx` が直接呼ぶのは `GET /api/model` / `GET /api/models` だけである。
 
 ---
 
@@ -251,7 +264,7 @@ class Start,Show,Tab,Same,Swap,New default
 | 項目 | 内容 |
 |---|---|
 | スタイル方式 | プレーン CSS（`src/styles.css`）。CSS-in-JS・Tailwind は不使用 |
-| 主要クラス | `.app`, `.tabs`, `.tab`, `.tab.active`, `.tab-sub` |
+| 主要クラス | `.app`, `.tabs`, `.tab`, `.tab.active`, `.tab-sub`, `.model-badge`, `.model-badge-select` |
 | ダークモード | 未対応 |
 
 ### アクセシビリティ・チェック
@@ -275,6 +288,7 @@ class Start,Show,Tab,Same,Swap,New default
 |---|---|---|
 | `src/state/tabKeys.test.ts` | タブの矢印キー移動（`handleTabKeyDown`） | `npm test`（12 件） |
 | `src/state/modelLabel.test.ts` | ヘッダーのモデル名文字列（`formatModelLabel`） | `npm test`（9 件） |
+| `src/state/headerModel.test.ts` | ヘッダーのモデルセレクタ（表示値・選択肢・対象タブ・論理層の注記） | `npm test`（13 件） |
 
 **`App.tsx` 自体のレンダリングテストは未整備。** `@testing-library/react` を導入していないため、
 JSX のレンダリングテストは持たない。ガードは以下 2 つ。
@@ -298,3 +312,4 @@ JSX のレンダリングテストは持たない。ガードは以下 2 つ。
 | 1.1 | 2026-08-05 | 4 タブ目「データ管理」（`DataPanel`）を追加。前 3 つ（使う）と最後（準備する）の区分を明記 |
 | 1.2 | 2026-08-05 | タブの矢印キー移動・roving tabindex・`role="tabpanel"` を追加 |
 | 1.3 | 2026-09-16 | **ヘッダーに既定の利用モデル名を表示**（`GET /api/model` → `state/modelLabel.ts::formatModelLabel`）。論理層（`heavy_model`）だけ別モデルのときは併記する。取得失敗時は何も出さない（画面は壊さない） |
+| 1.4 | 2026-09-23 | **モデルの選択をヘッダーへ移した**（基本版 / Support / Review）。「利用モデル名：」の表示をセレクタに置き換え、選択をタブごとに `headerModels` で持って `SupportPanel` / `ReviewPanel` へ `model` prop で渡す。判断は `state/headerModel.ts`（純関数・vitest 13 件）。データ管理タブは従来どおり既定値の表示のみ |

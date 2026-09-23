@@ -6,8 +6,6 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import {
   confirmReviewIntervention,
-  fetchModelInfo,
-  fetchModels,
   fetchRuleSets,
   startReview,
   subscribeStream,
@@ -15,7 +13,7 @@ import {
 import { metaErrorMessage } from '../state/metaFetch';
 import { initialReviewState, reviewReducer } from '../state/reviewReducer';
 import { useJobTiming } from '../state/useJobTiming';
-import type { ModelChoice, ModelInfo, ReviewParams, RuleSetInfo } from '../types';
+import type { ReviewParams, RuleSetInfo } from '../types';
 import { ConfirmModal } from './ConfirmModal';
 import { JobFinishLine, JobStartLine } from './JobClock';
 import { MetaErrorBanner } from './MetaErrorBanner';
@@ -24,7 +22,12 @@ import { FindingList, FindingSummaryBar } from './FindingList';
 import { ReviewForm } from './ReviewForm';
 import { ReviewTimeline } from './ReviewTimeline';
 
-export function ReviewPanel() {
+export function ReviewPanel({
+  model = '',
+}: {
+  /** ヘッダー（App）で選んだモデル。空文字 = サーバーの既定値。 */
+  model?: string;
+} = {}) {
   const [state, dispatch] = useReducer(reviewReducer, initialReviewState);
   // 開始・完了時刻。完了の記録は phase の決着を見て自動で入る（useJobTiming）。
   const [timing, beginTiming, observeTiming] = useJobTiming(state.phase);
@@ -32,10 +35,6 @@ export function ReviewPanel() {
   // 取得に失敗した理由。null なら成功（または未取得）
   const [rulesetsError, setRulesetsError] = useState<string | null>(null);
   const [loadingRulesets, setLoadingRulesets] = useState(false);
-  // モデルの選択肢と既定モデル。取得失敗をバナーで出さない理由は
-  // SupportPanel と同じ（空でも「（既定値）」で正しく走る）。
-  const [models, setModels] = useState<ModelChoice[]>([]);
-  const [modelInfo, setModelInfo] = useState<ModelInfo | null>(null);
   const [confirming, setConfirming] = useState(false);
   const unsubscribeRef = useRef<(() => void) | null>(null);
 
@@ -53,11 +52,6 @@ export function ReviewPanel() {
         setRulesetsError(metaErrorMessage(error, 'ルールセット'));
       })
       .finally(() => setLoadingRulesets(false));
-  }, []);
-
-  useEffect(() => {
-    void fetchModels().then(setModels).catch(() => setModels([]));
-    void fetchModelInfo().then(setModelInfo).catch(() => setModelInfo(null));
   }, []);
 
   useEffect(() => {
@@ -132,8 +126,7 @@ export function ReviewPanel() {
 
       <ReviewForm
         rulesets={rulesets}
-        models={models}
-        defaultModel={modelInfo?.model ?? ''}
+        model={model}
         running={state.phase === 'running'}
         onSubmit={submit}
       />
