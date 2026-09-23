@@ -1,6 +1,6 @@
 # ModelSelect.tsx - モデルセレクタ ドキュメント
 
-**Version 1.2** | 最終更新: 2026-09-23
+**Version 1.3** | 最終更新: 2026-09-23
 
 ---
 
@@ -25,20 +25,20 @@
 |---|---|
 | ファイル | `frontend/src/components/ModelSelect.tsx`（54 行） |
 | 種別 | **表示コンポーネント（ステートレス）** |
-| 親 | `DataJobPanel.tsx`（基本版 / Support / Review はヘッダーのセレクタを使う） |
+| 親 | **なし（未使用）**。全タブのモデル選択はヘッダー（`App.tsx`）へ移した |
 | 子 | なし |
 | 主な依存 | `../state/modelLabel`（`defaultOptionLabel` / `modelOptionLabel`） |
 | 対応バックエンド | `GET /api/models`（`api/meta.py`）／ `GET /api/model`（同） |
 
-**データ管理タブ（`DataJobPanel`）のモデルセレクタ**。選択肢は `GET /api/models` が返す
+> ⚠️ **現在どこからも使われていない**（2026-09-23）。全タブのモデル選択を
+> ヘッダー（`App.tsx` のタイトル横・`state/headerModel.ts`）へ移したため。
+> 削除するかどうかは未決（削除は確認を取ってから行う方針のため残してある）。
+> 以下は使われていた当時の仕様である。
+
+**データ管理タブ（`DataJobPanel`）のモデルセレクタだった**。選択肢は `GET /api/models` が返す
 4 件（`claude-fable-5-1` / `claude-opus-5-5` / `claude-sonnet-5` / `claude-haiku-4-5`・上位 → 軽量の順）で、
 **未選択（空文字）は「サーバーの既定値を使う」**を意味する。
 
-> 📝 **基本版 / GRACE-Support / GRACE-Review では使わなくなった**（2026-09-23）。
-> この 3 タブのモデル選択はヘッダー（`App.tsx` のタイトル横）へ移した
-> （`App.md`・`state/headerModel.ts`）。データ管理タブは工程（チャンキング /
-> Q/A 作成）ごとに既定モデルが違い、ヘッダー 1 つでは表せないため、
-> フォーム内のこのセレクタを使い続けている。
 
 > ⚠️ **既定のモデル名をフロントに持たせない。** 「（既定値: …）」に出す実名は
 > `GET /api/model` から受け取る（`defaultModel` prop）。フロントに焼き付けると、
@@ -237,6 +237,7 @@ class API1,API2,Models,Info,MS,Pick,Parent,Build,Post default
 
 | 版 | 日付 | 変更内容 |
 |---|---|---|
+| 1.3 | 2026-09-23 | **未使用になった。** データ管理タブもヘッダーの 2 つのセレクタ（① チャンキング / ② Q/A 作成）で選ぶようにしたため、`DataJobPanel` からも外した |
 | 1.2 | 2026-09-23 | **基本版 / Support / Review での利用をやめた**（モデル選択をヘッダーへ移したため）。利用箇所はデータ管理タブ（`DataJobPanel`）のみ。ツリー図・状態の所有者を追随 |
 | 1.1 | 2026-09-23 | 選択肢を 4 件へ変更（`claude-fable-5-1` / `claude-opus-5-5` を追加、旧上位 `claude-opus-5` を外した）。コンポーネントの実装は無変更（選択肢はサーバーが返す） |
 | 1.0 | 2026-09-16 | 初版作成。既定を `claude-sonnet-5` とし、`claude-opus-5` / `claude-haiku-4-5` を選べるようにする改修に合わせて新設した |

@@ -4,9 +4,9 @@ import {
   headerModelOptions,
   headerSelectValue,
   heavyModelNote,
-  isModelTab,
+  headerSlots,
 } from './headerModel';
-import type { ModelChoice } from '../types';
+import type { ModelChoice, ModelInfo } from '../types';
 
 const choice = (id: string, input = 0.002, output = 0.01): ModelChoice => ({
   id,
@@ -16,21 +16,46 @@ const choice = (id: string, input = 0.002, output = 0.01): ModelChoice => ({
   max_output: 128000,
 });
 
-describe('isModelTab', () => {
-  it('エージェントの 3 タブはヘッダーでモデルを選ぶ', () => {
-    expect(isModelTab('basic')).toBe(true);
-    expect(isModelTab('support')).toBe(true);
-    expect(isModelTab('review')).toBe(true);
+const info: ModelInfo = {
+  model: 'claude-sonnet-5',
+  light_model: 'claude-haiku-4-5-20251001',
+  heavy_model: '',
+  chunking_model: 'claude-haiku-4-5',
+  qa_model: 'claude-sonnet-5',
+};
+
+describe('headerSlots', () => {
+  it.each(['basic', 'support', 'review'] as const)(
+    'エージェントのタブ（%s）はセレクタ 1 つ・既定は model',
+    (tab) => {
+      expect(headerSlots(tab, info)).toEqual([
+        { slot: tab, label: '利用モデル名：', defaultModel: 'claude-sonnet-5', showHeavy: true },
+      ]);
+    },
+  );
+
+  it('データ管理タブは工程ごとに 2 つ（既定は chunking_model / qa_model）', () => {
+    expect(headerSlots('data', info)).toEqual([
+      { slot: 'chunking', label: '① チャンキング：', defaultModel: 'claude-haiku-4-5', showHeavy: false },
+      { slot: 'qa', label: '② Q/A 作成：', defaultModel: 'claude-sonnet-5', showHeavy: false },
+    ]);
   });
 
-  it('データ管理タブは対象外（工程ごとに既定モデルが違う）', () => {
-    expect(isModelTab('data')).toBe(false);
+  it('既定モデルが未取得なら既定値は空文字（セレクタ自体は出す）', () => {
+    expect(headerSlots('data', null).map((s) => s.defaultModel)).toEqual(['', '']);
+    expect(headerSlots('basic', null)[0].defaultModel).toBe('');
   });
 });
 
 describe('INITIAL_HEADER_MODELS', () => {
   it('初期状態はすべて未選択（= サーバーの既定値）', () => {
-    expect(INITIAL_HEADER_MODELS).toEqual({ basic: '', support: '', review: '' });
+    expect(INITIAL_HEADER_MODELS).toEqual({
+      basic: '',
+      support: '',
+      review: '',
+      chunking: '',
+      qa: '',
+    });
   });
 });
 

@@ -1,6 +1,6 @@
 # DataJobPanel.tsx - チャンキング / Qdrant 登録の実行パネル ドキュメント
 
-**Version 1.3** | 最終更新: 2026-09-16
+**Version 1.4** | 最終更新: 2026-09-23
 
 ---
 
@@ -25,9 +25,9 @@
 | 項目 | 内容 |
 |---|---|
 | ファイル | `frontend/src/components/DataJobPanel.tsx` |
-| 種別 | コンテナコンポーネント（`useReducer` + `useState` × 25 + `useEffect` × 3 + `useRef`） |
+| 種別 | コンテナコンポーネント（`useReducer` + `useState` × 21 + `useEffect` × 2 + `useRef`） |
 | 親 | `DataPanel.tsx`（`variant` を渡して 3 用途で共用） |
-| 子 | `Timeline.tsx`、`ConfirmModal.tsx`、`ModelSelect.tsx` |
+| 子 | `Timeline.tsx`、`ConfirmModal.tsx`（モデルの選択はヘッダー＝`App` に移した） |
 | 主な依存 | `../api/client`, `../state/dataParams`, `../state/dataReducer` |
 | 対応バックエンド | `backend/app/api/data.py`（`/api/chunking/run`, `/api/qa/generate`, `/api/qdrant/register`） |
 
@@ -73,7 +73,7 @@ flowchart TB
     subgraph Container["コンテナ（本ドキュメント対象）"]
         direction TB
         DP["DataPanel.tsx<br>useState(sub)"]
-        DJ["DataJobPanel.tsx<br>useReducer(dataReducer)<br>useState × 25"]
+        DJ["DataJobPanel.tsx<br>useReducer(dataReducer)<br>useState × 21"]
     end
     subgraph Logic["純ロジック"]
         direction TB
@@ -105,12 +105,30 @@ style Presentational fill:#1a1a1a,stroke:#fff,color:#fff
 ```typescript
 export type DataJobVariant = 'chunking' | 'qa' | 'register';
 
-export function DataJobPanel({ variant }: { variant: DataJobVariant })
+export function DataJobPanel({
+  variant,
+  chunkingModel = '',
+  qaModel = '',
+}: {
+  variant: DataJobVariant;
+  /**
+   * ヘッダー（App）の「① チャンキング」で選んだモデル。
+   * 空文字 = 未選択 =「サーバーの既定値を使う」（`ChunkingRequest.model` の既定）。
+   */
+  chunkingModel?: string;
+  /**
+   * ヘッダー（App）の「② Q/A 作成」で選んだモデル。
+   * 空文字 = 未選択 =「サーバーの既定値を使う」（`QaGenerationRequest.model` の既定）。
+   */
+  qaModel?: string;
+})
 ```
 
 | Prop | 型 | 必須 | 既定値 | 説明 |
 |---|---|:---:|---|---|
 | `variant` | `DataJobVariant` | ✅ | — | フォームの中身と呼ぶ API を決める |
+| `chunkingModel` | `string` | | `''` | ヘッダーの「① チャンキング」で選んだモデル。`ChunkingFormState.model` に入る |
+| `qaModel` | `string` | | `''` | ヘッダーの「② Q/A 作成」で選んだモデル。`QaFormState.model` に入る |
 
 ### コールバックの契約
 
@@ -131,16 +149,12 @@ export function DataJobPanel({ variant }: { variant: DataJobVariant })
 | `files` | `InputFileInfo[]` | `[]` | `useEffect`（dir 変更時） | ファイル候補 |
 | `inputFile` | `string` | `''` | セレクタ変更 | `dir/name` 形式 |
 | `outputDir` | `string` | `'output_chunked'` | 入力 | チャンク化の出力先 |
-| `model` | `string` | `''` | `ModelSelect` | チャンク化の LLM。**空文字＝サーバーの既定値**（`ChunkingRequest.model`） |
 | `workers` | `number` | `8` | 入力 | 並列ワーカー数 |
 | `blockSize` | `number` | `1000` | 入力 | ブロックサイズ（文字） |
 | `textColumn` | `string` | `''` | 入力 | CSV のテキストカラム（空 = 自動検出） |
 | `maxRows` | `string` | `''` | 入力 | 最大行数（空 = 全件）。**文字列で保持** |
 | `combineRows` | `boolean` | `false` | チェックボックス | CSV 全行を結合 |
 | `qaOutputDir` | `string` | `'qa_output'` | 入力 | Q/A CSV・JSON の出力先。**入れ子にしない**（§7） |
-| `qaModel` | `string` | `''` | `ModelSelect` | Q/A 生成の LLM。**空文字＝サーバーの既定値**（`QaGenerationRequest.model`） |
-| `models` | `ModelChoice[]` | `[]` | 初回の `fetchModels()` | モデルセレクタの選択肢（`GET /api/models`） |
-| `modelInfo` | `ModelInfo \| null` | `null` | 初回の `fetchModelInfo()` | 「（既定値: …）」に出す実名。**チャンク化は `chunking_model`、Q/A は `qa_model`** |
 | `useCelery` | `boolean` | `false` | チェックボックス | Celery で並列生成（**ワーカーが要る**） |
 | `concurrency` | `number` | `8` | 入力 | Celery の並列タスク数 |
 | `batchChunks` | `number` | `3` | 入力 | 1 回の生成で渡すチャンク数 |
@@ -422,13 +436,14 @@ Q/A CSV が**「③ Qdrant 登録」のファイルセレクタに出てこな�
 
 > ⚠️ **この既定値をフロントに持たない。** 実体は `backend/app/schemas.py` の
 > `ChunkingRequest.model` / `QaGenerationRequest.model` にあり、画面は
-> `GET /api/model` の `chunking_model` / `qa_model` を「（既定値: …）」として
-> 表示するだけである。未選択なら `buildChunkingParams` / `buildQaParams` が
+> `GET /api/model` の `chunking_model` / `qa_model` を**ヘッダーの 2 つのセレクタ**
+> （「① チャンキング」「② Q/A 作成」）の未選択時の値として表示するだけである
+> （`state/headerModel.ts::headerSlots`）。未選択なら `buildChunkingParams` / `buildQaParams` が
 > **`model` キーごと落として**送り、サーバー側の既定が効く
 > （空文字を送ると 422。`state/dataParams.ts::modelOverride`）。
 >
-> ⚠️ **ヘッダーの「利用モデル名」（`ModelInfo.model`）を渡さないこと。** あれは
-> エージェントの既定（`claude-sonnet-5`）で、チャンク化で実際に走るモデルとは違う。
+> ⚠️ **エージェントの既定（`ModelInfo.model`）を流用しないこと。** チャンク化で
+> 実際に走るモデルとは違う。ヘッダーを工程ごとの 2 つに分けたのはこのため。
 
 ### Embedding プロバイダの固定
 
@@ -506,5 +521,6 @@ LLM 用途（Anthropic Claude）とは別系統なので、画面から切り替
 |---|---|---|
 | 1.0 | 2026-08-05 | 初版作成 |
 | 1.1 | 2026-08-05 | タブ離脱時に進捗を失う不具合を修正（`activeJobs` による再購読）。`role="alert"` と `Timeline` のライブ領域を追加 |
+| 1.4 | 2026-09-23 | **モデルの選択をヘッダー（`App`）へ移した。** フォーム内の `ModelSelect` 2 つと `model` / `qaModel` / `models` / `modelInfo` の state、モデル取得の `useEffect` を削除し、`chunkingModel` / `qaModel` prop（`App` → `DataPanel` 経由）を受け取るようにした。`useState` は 25 → 21、`useEffect` は 3 → 2 |
 | 1.3 | 2026-09-16 | **モデル欄を自由入力から `ModelSelect`（選択式）へ変更**。選択肢は `GET /api/models`、既定値は `GET /api/model` の `chunking_model` / `qa_model`。未選択は `model` キーごと省略して送るため、`canSubmitQa` の「モデル欄が空なら送信できない」条件を撤去した。`useState` は 23 → 25、`useEffect` は 2 → 3 |
 | 1.2 | 2026-09-12 | **`variant='qa'`（Q/A 生成）を追加**。`useState` は 17 → 23（旧版の「× 13」は実装より古かった）、呼ぶ API は 2 → 3。出力先を入れ子にしない理由とモデル既定が違う理由を §7 に追記。テスト件数を実測値へ更新 |

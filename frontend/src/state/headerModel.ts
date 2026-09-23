@@ -13,26 +13,73 @@
 // null へ倒し、サーバーが `config/grace_config.yml` の `llm.model` で走る。
 // ⚠️ 既定のモデル名をフロントに持たないこと（値は GET /api/model から来る）。
 //
-// ## 選択はタブごと
+// ## 選択は「スロット」ごと
 //
 // 基本版と GRACE-Support は同じパイプラインだが**別のタブ**なので、片方で
 // 選んだモデルがもう片方へ漏れないよう記憶を分ける（formMemory と同じ方針）。
+// データ管理タブは工程（チャンキング / Q/A 作成）ごとに既定モデルが違うので、
+// **2 つのセレクタを並べ**、それぞれ別のスロットに持つ。
 // 値は `App` の state に持つ。`App` はアンマウントされないので、
 // タブを切り替えても選択は残る。
-import type { ModelChoice } from '../types';
-import { modelOptionLabel } from './modelLabel';
+import type { ModelChoice, ModelInfo } from '../types';
+import { MODEL_LABEL_PREFIX, modelOptionLabel } from './modelLabel';
 
-/** ヘッダーでモデルを選べるタブ。データ管理タブは工程ごとにモデルが違うので対象外。 */
-export type ModelTab = 'basic' | 'support' | 'review';
+/** 画面のタブ（`App.tsx` の `Tab` と同じ値）。 */
+export type AppTab = 'basic' | 'support' | 'review' | 'data';
 
-/** タブごとの選択。空文字 = 未選択（サーバーの既定値）。 */
-export type HeaderModels = Record<ModelTab, string>;
+/** 選択を持つ単位。エージェントの 3 タブは 1 つずつ、データ管理タブは工程ごとに 2 つ。 */
+export type ModelSlot = 'basic' | 'support' | 'review' | 'chunking' | 'qa';
 
-export const INITIAL_HEADER_MODELS: HeaderModels = { basic: '', support: '', review: '' };
+/** スロットごとの選択。空文字 = 未選択（サーバーの既定値）。 */
+export type HeaderModels = Record<ModelSlot, string>;
 
-/** そのタブがヘッダーでモデルを選ぶタブか。 */
-export function isModelTab(tab: string): tab is ModelTab {
-  return tab === 'basic' || tab === 'support' || tab === 'review';
+export const INITIAL_HEADER_MODELS: HeaderModels = {
+  basic: '',
+  support: '',
+  review: '',
+  chunking: '',
+  qa: '',
+};
+
+/** ヘッダーに並べるセレクタ 1 つ分。 */
+export interface HeaderSlot {
+  slot: ModelSlot;
+  /** セレクタの見出し（例: `利用モデル名：` / `① チャンキング：`）。 */
+  label: string;
+  /** 未選択時に表示するサーバーの既定モデル名。未取得なら空文字。 */
+  defaultModel: string;
+  /** 論理層（`llm.heavy_model`）の注記を出すか。エージェントのタブだけ。 */
+  showHeavy: boolean;
+}
+
+/**
+ * そのタブのヘッダーに並べるセレクタを返す。
+ *
+ * - エージェントの 3 タブ → 1 つ（既定は `ModelInfo.model`）
+ * - データ管理タブ → 2 つ（既定は `chunking_model` / `qa_model`）。
+ *   チャンキングの既定は軽量モデルなので、`model` を流用すると
+ *   **画面の既定値と実際に走るモデルが食い違う**（以前のヘッダーがそうだった）。
+ */
+export function headerSlots(tab: AppTab, info: ModelInfo | null): HeaderSlot[] {
+  if (tab === 'data') {
+    return [
+      {
+        slot: 'chunking',
+        label: '① チャンキング：',
+        defaultModel: info?.chunking_model ?? '',
+        showHeavy: false,
+      },
+      {
+        slot: 'qa',
+        label: '② Q/A 作成：',
+        defaultModel: info?.qa_model ?? '',
+        showHeavy: false,
+      },
+    ];
+  }
+  return [
+    { slot: tab, label: MODEL_LABEL_PREFIX, defaultModel: info?.model ?? '', showHeavy: true },
+  ];
 }
 
 /**

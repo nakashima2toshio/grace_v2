@@ -1,8 +1,7 @@
-// データ管理タブ（DataJobPanel）の LLM モデルセレクタ。
+// LLM モデルセレクタ（フォーム内に置く版）。
 //
-// ⚠️ 基本版 / GRACE-Support / GRACE-Review のモデル選択はヘッダー（App.tsx）へ
-//    移した（state/headerModel.ts）。データ管理タブは工程（チャンキング / Q/A 作成）
-//    ごとに既定モデルが違うので、このフォーム内セレクタを使い続けている。
+// ⚠️ 現在どこからも使われていない。全タブのモデル選択はヘッダー（App.tsx）へ
+//    移した（state/headerModel.ts）。削除するかは未決。
 //
 // 選択肢は GET /api/models（config.py::get_selectable_models()）から取得した
 // ものだけ。旧既定（claude-sonnet-4-6）や日付指定エイリアスは含まれない。

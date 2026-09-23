@@ -1,6 +1,6 @@
 # frontend/docs 棚卸し
 
-**Version 1.5** | 最終更新: 2026-09-23
+**Version 1.6** | 最終更新: 2026-09-23
 
 `frontend/`（Vite + React 18 + TypeScript）のドキュメント一覧と、実装への追随状況・
 欠落・残タスクをまとめる。
@@ -48,10 +48,10 @@
 | 文書 | 対象 | 実装行数 | 版 | 重要度 |
 |---|---|---:|---|:--:|
 | `SupportPanel.md` | `components/SupportPanel.tsx` — 基本版 / GRACE-Support 共用 | 192 | 1.6 | ★★★ |
-| `DataJobPanel.md` | `components/DataJobPanel.tsx` — データ準備ジョブ 3 種 | 736 | 1.2 | ★★★ |
-| `DataPanel.md` | `components/DataPanel.tsx` — データ管理タブの枠 | 94 | 1.2 | ★★ |
+| `DataJobPanel.md` | `components/DataJobPanel.tsx` — データ準備ジョブ 3 種 | 738 | 1.4 | ★★★ |
+| `DataPanel.md` | `components/DataPanel.tsx` — データ管理タブの枠 | 107 | 1.3 | ★★ |
 | `CollectionPanel.md` | `components/CollectionPanel.tsx` — コレクション管理 | 413 | 1.3 | ★★ |
-| `App.md` | `App.tsx` — タブ切替・パネルの振り分け・ヘッダーのモデル選択 | 180 | 1.4 | ★★ |
+| `App.md` | `App.tsx` — タブ切替・パネルの振り分け・ヘッダーのモデル選択 | 169 | 1.5 | ★★ |
 | `ReviewPanel.md` | `components/ReviewPanel.tsx` — GRACE-Review 本体 | 208 | 1.4 | ★★★ |
 
 ### 2.2 入力・モーダル
@@ -62,7 +62,7 @@
 | `ConfirmModal.md` | `components/ConfirmModal.tsx` — HITL アクション承認 | 95 | 1.1 | ★★ |
 | `QuestionSelectModal.md` | `components/QuestionSelectModal.tsx` — 0-(A) 主質問の選択 | 76 | 1.0 | ★★ |
 | `ReviewForm.md` | `components/ReviewForm.tsx` | 237 | 1.4 | ★★ |
-| `ModelSelect.md` | `components/ModelSelect.tsx` — データ管理タブのモデルセレクタ | 54 | 1.2 | ★★ |
+| `ModelSelect.md` | `components/ModelSelect.tsx` — フォーム内のモデルセレクタ（**現在未使用**） | 53 | 1.3 | ★ |
 
 ### 2.3 表示コンポーネント
 
@@ -136,7 +136,7 @@ CLAUDE.md §6 のとおり、**判断ロジックはコンポーネントに残�
 | `jobReducer.ts` | 173 | Support ジョブの状態遷移 |
 | `queryParams.ts` | 127 | 送信ペイロードの組み立て・基本版の vertical 固定・モデル未選択の null 化 |
 | `formMemory.ts` | 118 | タブ切替時の入力退避と復元（モデルはヘッダー側が持つので含まない） |
-| `headerModel.ts` | 79 | ヘッダーのモデルセレクタ（表示値・選択肢・対象タブ・論理層の注記） |
+| `headerModel.ts` | 126 | ヘッダーのモデルセレクタ（タブごとのスロット・表示値・選択肢・論理層の注記） |
 | `highlight.ts` | 89 | 引用箇所のハイライト |
 | `citations.ts` | 76 | 出典の派生値 |
 | `useJobTiming.ts` | 56 | **例外的にフック**。判断は持たず `elapsed.ts` に委ねる |
@@ -159,7 +159,7 @@ CLAUDE.md §6 のとおり、**判断ロジックはコンポーネントに残�
 
 ```
 Test Files  21 passed (21)
-     Tests  301 passed (301)
+     Tests  304 passed (304)
 ```
 
 | テストファイル | 件数 |
@@ -174,7 +174,7 @@ Test Files  21 passed (21)
 | `markdown/parseMarkdown.test.ts` | 16 |
 | `state/reviewReducer.test.ts` | 13 |
 | `state/formMemory.test.ts` | 13 |
-| `state/headerModel.test.ts` | 13 |
+| `state/headerModel.test.ts` | 16 |
 | `state/highlight.test.ts` | 13 |
 | `state/citations.test.ts` | 13 |
 | `state/tabKeys.test.ts` | 12 |
@@ -217,6 +217,7 @@ npm run build    # 本番ビルド
 | 5 | ~~`ReviewForm` のアクセシビリティ~~ | ✅ 完了（v1.1・`.sr-only` ラベル＋`aria-invalid`＋ライブ領域） |
 | 6 | ~~`ReviewPanel` の打ち切り警告に `role` が無い~~ | ✅ 完了（v1.1・`role="alert"`） |
 | 7 | ~~`CollectionPanel.tsx` の中止バナーに `role` が無い~~ | ✅ 完了（v1.3・`role="status"`）。**banner 系 9 箇所すべてに role が付いた** |
+| 8 | `components/ModelSelect.tsx` が未使用（全タブのモデル選択をヘッダーへ移したため）。削除するか要判断（あわせて `modelLabel.ts` の `formatModelLabel` / `defaultOptionLabel` も未使用） | 低 |
 
 詳細と根拠は [`docs/doc_modernization_todo.md`](../../docs/doc_modernization_todo.md) を参照。
 
@@ -226,6 +227,7 @@ npm run build    # 本番ビルド
 
 | 版 | 日付 | 変更内容 |
 |---|---|---|
+| 1.6 | 2026-09-23 | **データ管理タブもヘッダーでモデルを選ぶ変更に追随。** `App.md` v1.5 / `DataPanel.md` v1.3 / `DataJobPanel.md` v1.4 / `ModelSelect.md` v1.3（**未使用**になった）の版と実装行数を更新。テスト件数を **21 ファイル / 304 件**（実測）へ更新 |
 | 1.5 | 2026-09-23 | **モデル選択をヘッダー（`App`）へ移した変更に追随。** `App.md` v1.4 / `SupportPanel.md` v1.6 / `ReviewPanel.md` v1.4 / `QueryForm.md` v1.5 / `ReviewForm.md` v1.4 / `ModelSelect.md` v1.2 の版と実装行数を更新。`state/headerModel.ts` を §4 へ追加し、テスト件数を **21 ファイル / 301 件**（実測）へ更新 |
 | 1.4 | 2026-09-16 | **モデルセレクタの追加に追随。** `ModelSelect.md` を新規作成し §2.2 へ追加。`QueryForm.md` v1.3 / `ReviewForm.md` v1.2 の版と実装行数を更新。`state/modelLabel.ts` を §4 へ追加し、テスト件数を **20 ファイル / 288 件**（実測）へ更新 |
 | 1.3 | 2026-09-12 | 残タスク 7（`CollectionPanel` の中止バナー）を完了し、**banner 系 9 箇所すべてに `role` が付いた**。あわせて `SupportPanel.md` / `ReviewPanel.md` の「実行中であることが伝わるか ❌」を訂正（`Timeline` の `aria-live` が読み上げており、バナーに足すと二重読み上げになる） |

@@ -15,8 +15,9 @@
 // reducer・SSE 購読・承認状態を持つため、離れた側の EventSource が
 // useEffect のクリーンアップで確実に閉じる。
 //
-// モデルの選択はヘッダー（タイトル横）で行う（基本版 / Support / Review）。
-// 選択は App の state にタブごとに持つので、タブを切り替えても残る
+// モデルの選択はヘッダー（タイトル横）で行う。エージェントの 3 タブは 1 つ、
+// データ管理タブは工程（チャンキング / Q/A 作成）ごとに 2 つ並べる。
+// 選択は App の state にスロットごとに持つので、タブを切り替えても残る
 // （判断は state/headerModel.ts の純関数）。
 import { useEffect, useRef, useState } from 'react';
 import { fetchModelInfo, fetchModels } from './api/client';
@@ -24,11 +25,10 @@ import {
   INITIAL_HEADER_MODELS,
   headerModelOptions,
   headerSelectValue,
+  headerSlots,
   heavyModelNote,
-  isModelTab,
   type HeaderModels,
 } from './state/headerModel';
-import { MODEL_LABEL_PREFIX, formatModelLabel } from './state/modelLabel';
 import { handleTabKeyDown } from './state/tabKeys';
 import { DataPanel } from './components/DataPanel';
 import { ReviewPanel } from './components/ReviewPanel';
@@ -67,7 +67,6 @@ export default function App() {
       alive = false;
     };
   }, []);
-  const modelLabel = formatModelLabel(modelInfo);
 
   // モデルの選択肢（GET /api/models）と、タブごとの選択（空文字 = サーバーの既定値）。
   // ⚠️ 選択肢の取得失敗は握りつぶしてよい。既定モデルだけの選択肢に縮退し、
@@ -87,7 +86,7 @@ export default function App() {
       alive = false;
     };
   }, []);
-  const defaultModel = modelInfo?.model ?? '';
+  const slots = headerSlots(tab, modelInfo);
 
   const onKeyDown = (event: React.KeyboardEvent, index: number) => {
     const next = handleTabKeyDown(event, index, TABS.length);
@@ -99,42 +98,32 @@ export default function App() {
   return (
     <div className="app">
       <header>
-        {/* タイトルの右へ既定の利用モデル名を並べる。未取得なら何も出さない。
-            ⚠️ これは**既定値**の表示で、フォームで別のモデルを選べば
-            そちらが使われる（選択結果は各フォームのセレクタに出る）。 */}
+        {/* タイトルの右へモデルのセレクタを並べる。ここで選んだ値が送信に使われる。
+            エージェントの 3 タブは 1 つ、データ管理タブは工程ごとに 2 つ。 */}
         <div className="header-title">
           <h1>{active.label}</h1>
-          {isModelTab(tab) ? (
-            // エージェントの 3 タブ: ここでモデルを選ぶ（送信時にこの値が使われる）
-            <label className="model-badge">
-              <span className="model-badge-label">{MODEL_LABEL_PREFIX}</span>
-              <select
-                className="model-badge-select"
-                value={headerSelectValue(headerModels[tab], defaultModel)}
-                onChange={(e) =>
-                  setHeaderModels((prev) => ({ ...prev, [tab]: e.target.value }))
-                }
-              >
-                {headerModelOptions(models, defaultModel).map((option) => (
-                  <option key={option.id} value={option.id}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-              {modelInfo !== null && heavyModelNote(
-                headerSelectValue(headerModels[tab], defaultModel), modelInfo.heavy_model,
-              )}
-            </label>
-          ) : (
-            // データ管理タブ: 工程ごと（チャンキング / Q/A 作成）にモデルが違うので、
-            // 選択はフォーム側に残し、ここは既定値の表示だけにする。
-            modelLabel !== null && (
-              <span className="model-badge">
-                <span className="model-badge-label">{MODEL_LABEL_PREFIX}</span>
-                <span className="model-badge-value">{modelLabel}</span>
-              </span>
-            )
-          )}
+          {slots.map(({ slot, label, defaultModel, showHeavy }) => {
+            const value = headerSelectValue(headerModels[slot], defaultModel);
+            return (
+              <label key={slot} className="model-badge">
+                <span className="model-badge-label">{label}</span>
+                <select
+                  className="model-badge-select"
+                  value={value}
+                  onChange={(e) =>
+                    setHeaderModels((prev) => ({ ...prev, [slot]: e.target.value }))
+                  }
+                >
+                  {headerModelOptions(models, defaultModel).map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                {showHeavy && modelInfo !== null && heavyModelNote(value, modelInfo.heavy_model)}
+              </label>
+            );
+          })}
         </div>
         <nav className="tabs" role="tablist" aria-label="エージェントとデータ準備">
           {TABS.map((t, index) => (
@@ -163,7 +152,7 @@ export default function App() {
 
       <div role="tabpanel" id={`tabpanel-${tab}`} aria-labelledby={`tab-${tab}`}>
         {tab === 'data' ? (
-          <DataPanel />
+          <DataPanel chunkingModel={headerModels.chunking} qaModel={headerModels.qa} />
         ) : tab === 'review' ? (
           <ReviewPanel model={headerModels.review} />
         ) : (
