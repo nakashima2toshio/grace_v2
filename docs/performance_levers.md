@@ -1,6 +1,26 @@
 # 性能改善レバー — 回答品質とレイテンシ・コストを決めている箇所
 
-**Version 2.0** | 最終更新: 2026-09-02
+**Version 2.1** | 最終更新: 2026-09-24
+
+---
+
+## 目次
+
+0. [概要](#概要)
+1. [性能を決める層](#1-性能を決める層)
+2. [レバーの現況一覧](#2-レバーの現況一覧)
+3. [実装済みレバーの要点](#3-実装済みレバーの要点)
+4. [未実装で残るレバー](#4-未実装で残るレバー)
+5. [クラウド LLM 特有のコスト・レイテンシ・レバー](#5-クラウド-llm-特有のコストレイテンシレバー)
+6. [GRACE-Review 側のレバー](#6-grace-review-側のレバー)
+7. [実施順序と注意](#7-実施順序と注意)
+8. [検証方法](#8-検証方法)
+9. [関連ドキュメント](#9-関連ドキュメント)
+10. [変更履歴](#10-変更履歴)
+
+---
+
+## 概要
 
 本書は「**性能（回答品質・レイテンシ・コスト）を決めているコード上の箇所**」を、実コードから
 起こして評価した資料である。モードごとの全体像は `docs/pipelines.md`、判定の詳細は
@@ -17,20 +37,73 @@
 > ⚠️ **v1.7 は「P-06 未実装」と書いていたが、実際には実装済みだった**
 > （`AgentConfig.RAG_SEARCH_LIMIT = 5`）。v2.0 で全レバーを実コードに当てて再確認した。
 
----
+### 主な責務
 
-## 目次
+- 検索で回答に使うチャンクを選ぶ（二段閾値・上位 N 件・許可コレクション順）
+- 回答が出典で支持される割合（support_rate）を測る
+- 閾値と照合して answer / escalate を決める
+- プロンプトを組み立てて回答を生成する
+- 用途ごとにモデル階層を割り当て、レイテンシとコストを決める
+- リクエストごとに設定を隔離し、並行実行で閾値やモデルが混ざらないようにする
 
-1. [性能を決める層](#1-性能を決める層)
-2. [レバーの現況一覧](#2-レバーの現況一覧)
-3. [実装済みレバーの要点](#3-実装済みレバーの要点)
-4. [未実装で残るレバー](#4-未実装で残るレバー)
-5. [クラウド LLM 特有のコスト・レイテンシ・レバー](#5-クラウド-llm-特有のコストレイテンシレバー)
-6. [GRACE-Review 側のレバー](#6-grace-review-側のレバー)
-7. [実施順序と注意](#7-実施順序と注意)
-8. [検証方法](#8-検証方法)
-9. [関連ドキュメント](#9-関連ドキュメント)
-10. [変更履歴](#10-変更履歴)
+### 各責務対応のモジュール
+
+| # | 責務 | 対応モジュール | 説明 |
+|---|------|--------------|------|
+| 1 | 検索（層 [1]） | `agent_tools.py` / `grace/tools.py` / `qdrant_client_wrapper.py` | `select_by_similarity`（P-04）・`_apply_allowed_collections`（P-03）・`AgentConfig.RAG_SEARCH_LIMIT`（P-06） |
+| 2 | 根拠検証（層 [2]） | `grace/confidence.py` / `grace/executor.py` | `GroundednessVerifier`・`_extract_source_texts`（P-01） |
+| 3 | 判定（層 [3]） | `backend/app/core/gates.py` / `backend/app/core/verticals.py` | `_answer_gate` と業界プロファイルの閾値（P-07） |
+| 4 | 生成（層 [4]） | `grace/tools.py` | `ReasoningTool._build_prompt`（W-2 / W-2b / P-10） |
+| 5 | モデル階層（層 [6]） | `grace/config.py` / `config/grace_config.yml` | `llm.light_model` / `llm.model` / `llm.heavy_model` の割り当て（M-1 / M-3） |
+| 6 | 設定の隔離（層 [5]） | `backend/app/core/support_agent.py` / `backend/app/core/review_agent.py` | `copy.deepcopy(get_config())`（P-08）。ジョブ実行は `backend/app/core/jobs.py` |
+
+### アーキテクチャ構成図
+
+性能を決める 6 層の依存は [§1](#1-性能を決める層) にある。ここでは各層がシステムのどこに置かれているかを 3 層で示す。
+
+```mermaid
+flowchart TB
+    subgraph CALLER["呼び出し側"]
+        JOBS["backend/app/core/jobs.py<br>ジョブ実行（[5] 基盤）"]
+        CORE["support_agent.py / review_agent.py<br>deepcopy(get_config())"]
+    end
+    subgraph MECH["本書が扱う機構（性能レバー）"]
+        RET["[1] 検索<br>agent_tools.py / grace/tools.py"]
+        GRD["[2] 根拠検証<br>grace/confidence.py"]
+        GATE["[3] 判定<br>backend/app/core/gates.py"]
+        GEN["[4] 生成<br>grace/tools.py ReasoningTool"]
+        MOD["[6] モデル階層<br>grace/config.py"]
+    end
+    subgraph EXTERNAL["外部・下位"]
+        QD["Qdrant<br>Gemini Embedding 3072 次元"]
+        LLM["LLM API（Anthropic Claude）"]
+        CFG["config/grace_config.yml"]
+    end
+    JOBS --> CORE
+    CORE --> RET
+    CORE --> GEN
+    CORE --> GRD
+    CORE --> GATE
+    RET --> QD
+    GEN --> LLM
+    GRD --> LLM
+    MOD --> CFG
+    MOD -.-> GEN
+    MOD -.-> GRD
+classDef default fill:#000,stroke:#fff,color:#fff
+classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
+class JOBS,CORE,RET,GRD,GATE,GEN,MOD,QD,LLM,CFG default
+style CALLER fill:#1a1a1a,stroke:#fff,color:#fff
+style MECH fill:#1a1a1a,stroke:#fff,color:#fff
+style EXTERNAL fill:#1a1a1a,stroke:#fff,color:#fff
+```
+
+**データフロー**:
+
+1. ジョブごとにコアが設定を複製し（P-08）、検索 → 生成 → 根拠検証 → 判定の順に進める
+2. 検索は Qdrant から候補を取り、二段閾値で採用件数を決める（回答品質への影響が最大）
+3. 生成と根拠検証は LLM を呼ぶ。どのモデルを使うかは [6] の割り当てで決まり、秒数と単価を支配する
+4. 判定は閾値との照合だけで LLM を呼ばない（判定系の補助 LLM を除く）
 
 ---
 
@@ -479,6 +552,7 @@ gov / saas / ec のコレクションが 1 つも無ければ、検索スコー�
 
 | バージョン | 変更内容 |
 |---|---|
+| 2.1 | `a_cross_doc_md_format.md`（横断文書・種別 A）に準拠（2026-09-24）。概要（主な責務／各責務対応のモジュール／3 層のアーキテクチャ構成図）を追加し、冒頭の説明文を概要へ移した。本文の章番号（テスト docstring から `§3 P-04` 等で参照）は変えていない |
 | 2.0 | **全レバーを実コードへ当てて再確認**。①**P-06 を「未実装」から「実装済み」へ訂正**（`RAG_SEARCH_LIMIT = 5`。v1.7 の記載が誤りだった）。②**行番号参照を全廃**（突き合わせで全滅を確認）。③クラウド LLM 特有のコスト・レイテンシ・レバー（モデル階層 M-1 / M-3・`judges` ブロック不在・コスト上限・M-4〜M-6・タイムアウト）を §5 として新設。④GRACE-Review 側のレバー（組合せ爆発ガード・detect の回数・`detect_model`）を §6 として新設。⑤P-03 を「順序の是正（実装済み）」と「横断ランキング（P-03b・未実装）」に分離。⑥層の図に [6] モデル階層を追加。⑦実施順序を「残っているもの」基準へ書き直した |
 | 1.7 | W-2（担当範囲の明示）と M-3（適合性チェックの軽量化）を実装 |
 | 1.6 | P-08（config の並行汚染）を実装。`copy.deepcopy(get_config())` によるリクエスト単位のコピー |
