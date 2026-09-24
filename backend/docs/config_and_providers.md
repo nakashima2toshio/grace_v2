@@ -1,6 +1,24 @@
 # 設定・モデル・プロバイダの解決経路 ドキュメント
 
-**Version 1.1** | 最終更新: 2026-09-16
+**Version 1.3** | 最終更新: 2026-09-24
+
+---
+
+## 目次
+
+- [概要](#概要)
+- [1. プロバイダ方針（恒久ルール）](#1-プロバイダ方針恒久ルール)
+- [2. モデル名の解決経路](#2-モデル名の解決経路)
+- [3. backend の各所が使うモデル](#3-backend-の各所が使うモデル)
+- [3.1 UI から選ぶ（リクエスト単位の上書き）](#31-ui-から選ぶリクエスト単位の上書き)
+- [4. API キーと起動ガード](#4-api-キーと起動ガード)
+- [5. 設定の読み込み順](#5-設定の読み込み順)
+- [6. 既定モデルを変えるときの手順](#6-既定モデルを変えるときの手順)
+- [7. 変更履歴](#7-変更履歴)
+
+---
+
+## 概要
 
 > **本書の位置づけ**: 「**どのモデルが、どこで決まるのか**」を backend 視点で 1 枚にする。
 > 既定モデルを変える・API キーの前提を確認する・プロバイダを取り違えていないか
@@ -11,18 +29,64 @@
 > - [`pitfalls.md`](./pitfalls.md) — 触る前に知っておく落とし穴
 > - [`data_pipeline.md`](./data_pipeline.md) — 登録時の Embedding プロバイダ
 
----
+### 主な責務
 
-## 目次
+- 用途でプロバイダを分ける（LLM は Anthropic、Embedding だけ Gemini）
+- モデル名を §2 の 3 本の経路と §3.1 のリクエスト単位の上書きで解決し（CLAUDE.md §3.1 の「4 本」）、設定ファイル（yml）を正とする
+- 判定系と ③ Detect のモデルを解決関数で決める
+- UI で選んだモデルをリクエスト単位の上書きとして適用する
+- API キーを用途ごとに要求し、ジョブ実行時にガードする
 
-- [1. プロバイダ方針（恒久ルール）](#1-プロバイダ方針恒久ルール)
-- [2. モデル名の解決経路](#2-モデル名の解決経路)
-- [3. backend の各所が使うモデル](#3-backend-の各所が使うモデル)
-- [3.1 UI から選ぶ（リクエスト単位の上書き）](#31-ui-から選ぶリクエスト単位の上書き)
-- [4. API キーと起動ガード](#4-api-キーと起動ガード)
-- [5. 設定の読み込み順](#5-設定の読み込み順)
-- [6. 既定モデルを変えるときの手順](#6-既定モデルを変えるときの手順)
-- [7. 変更履歴](#7-変更履歴)
+### 各責務対応のモジュール
+
+| # | 責務 | 対応モジュール | 説明 |
+|---|------|--------------|------|
+| 1 | プロバイダの使い分け | `config.py`（`ModelConfig` / `GeminiConfig`）/ `grace/llm_compat.py` / `helper/helper_embedding.py` | `GeminiConfig` は Embedding 用途に限って参照する（§1） |
+| 2 | 解決経路 | `config/grace_config.yml` / `grace/config.py` / `backend/app/core/verticals.py` / `config.py` | `llm.model` / `INTENT_MODEL` / `ModelConfig.DEFAULT_MODEL`（§2）。4 本目のリクエスト上書きは下の #4 |
+| 3 | 判定系・Detect のモデル | `backend/app/core/gates.py` / `backend/app/core/review_gates.py` | `judge_model()` / `detect_model()` が yml を正として解決する |
+| 4 | リクエスト単位の上書き | `config.py::get_selectable_models()` / `backend/app/schemas.py` / `backend/app/core/support_agent.py` / `review_agent.py` | 選択肢は 1 箇所で決まり、`_validate_model_choice` で検証、`copy.deepcopy(get_config())` のコピーだけを書き換える（§3.1） |
+| 5 | API キーのガード | `backend/app/core/support_agent.py` / `review_agent.py` / `backend/app/api/meta.py` | `ANTHROPIC_API_KEY` が無ければジョブ実行時に error イベントで返す。`GET /api/health` が有無を返す（§4） |
+
+### アーキテクチャ構成図
+
+```mermaid
+flowchart TB
+    subgraph CALLER["呼び出し側"]
+        UI["frontend ヘッダーのモデルセレクタ<br>GET /api/models"]
+        REQ["QueryRequest.model<br>ReviewRequest.model"]
+    end
+    subgraph MECH["本書が扱う機構（モデル・プロバイダの解決）"]
+        YML["config/grace_config.yml<br>llm.model / light_model"]
+        GC["grace/config.py<br>ConfigLoader"]
+        RES["gates.py judge_model<br>review_gates.py detect_model"]
+        MC["config.py<br>ModelConfig / SELECTABLE_MODELS"]
+    end
+    subgraph EXTERNAL["外部・下位"]
+        LLM["Anthropic Claude<br>ANTHROPIC_API_KEY"]
+        EMB["Gemini Embedding<br>GOOGLE_API_KEY"]
+    end
+    UI --> REQ
+    REQ -->|"検証"| MC
+    YML --> GC
+    GC --> RES
+    REQ -->|"そのリクエストだけ上書き"| GC
+    RES --> LLM
+    GC --> LLM
+    GC -->|"Embedding"| EMB
+classDef default fill:#000,stroke:#fff,color:#fff
+classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
+class UI,REQ,YML,GC,RES,MC,LLM,EMB default
+style CALLER fill:#1a1a1a,stroke:#fff,color:#fff
+style MECH fill:#1a1a1a,stroke:#fff,color:#fff
+style EXTERNAL fill:#1a1a1a,stroke:#fff,color:#fff
+```
+
+**データフロー**:
+
+1. 起動時に yml → 環境変数（`GRACE_`）→ `GraceConfig` の順で設定を読む
+2. リクエストが `model` を指定すると、コアが設定のコピーの `llm.model` だけを差し替える（`light_model` は変えない）
+3. 生成・推論は `llm.model`、判定系は `judge_model()` / `detect_model()` が返すモデルで Anthropic を呼ぶ
+4. 検索と登録のベクトル化だけは Gemini Embedding を呼ぶ
 
 ---
 
@@ -261,6 +325,7 @@ class Yml,Env,Loader,Validated,Users,Dotenv,Runtime default
 
 | Version | 日付 | 変更内容 |
 |---|---|---|
+| 1.3 | 2026-09-24 | `a_cross_doc_md_format.md` v1.1（種別 A）に準拠（2026-09-24）。概要（主な責務／各責務対応のモジュール／3 層のアーキテクチャ構成図）を追加し、冒頭の説明文を概要へ移した。本文の章番号は変えていない。ヘッダーの Version と変更履歴の最新版の食い違いも解消した |
 | 1.2 | 2026-09-23 | 選択肢を 4 件へ変更（`claude-fable-5-1` / `claude-opus-5-5` を追加、`claude-opus-5` を外した）。「モデル世代で API への送り方が違う」を追加 |
 | 1.1 | 2026-09-16 | 既定を `claude-sonnet-5` へ変更。§3.1（UI からのモデル選択・上書き範囲・Embedding が対象外である理由）を追加 |
 | 1.0 | 2026-09-16 | 新規作成。3 本の解決経路・2 つの解決関数・キーのガード位置を実装から整理した |

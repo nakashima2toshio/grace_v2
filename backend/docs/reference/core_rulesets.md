@@ -772,6 +772,7 @@ flowchart LR
     META --> SCH
     TEST --> RS
 classDef default fill:#000,stroke:#fff,color:#fff
+classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
 class RS,RG,RA,META,SCH,TEST default
 ```
 

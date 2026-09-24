@@ -1,13 +1,13 @@
 # DataJobPanel.tsx - チャンキング / Qdrant 登録の実行パネル ドキュメント
 
-**Version 1.5** | 最終更新: 2026-09-23
+**Version 1.6** | 最終更新: 2026-09-24
 
 ---
 
 ## 目次
 
 - [概要](#概要)
-- [1. コンポーネントツリー図](#1-コンポーネントツリー図)
+- [1. アーキテクチャ構成図](#1-アーキテクチャ構成図)
 - [2. Props インターフェース](#2-props-インターフェース)
 - [3. 状態管理](#3-状態管理)
 - [4. データフロー・副作用](#4-データフロー副作用)
@@ -39,6 +39,16 @@
 - `recreate=True` の承認要求（intervention）を `ConfirmModal` で処理する。
 - 結果（チャンク数 / Q/A ペア数・カバレージ率 / 登録件数）を提示する。
 
+### 各責務対応のモジュール
+
+| # | 責務 | 対応モジュール | 説明 |
+|---|---|---|---|
+| 1 | 入力ファイルの選択 | `DataJobPanel.tsx` / `api/client.ts` | `fetchInputFiles` で許可ディレクトリだけを列挙 |
+| 2 | パラメータの組み立て | `DataJobPanel.tsx` / `state/dataParams.ts` | 空欄・トリム・null 化は純関数 |
+| 3 | ジョブ起動と SSE 購読 | `DataJobPanel.tsx` / `api/client.ts` / `state/dataReducer.ts` | `startChunking` / `startQaGeneration` / `startRegister` → `subscribeStream` |
+| 4 | `recreate` の承認 | `DataJobPanel.tsx` / `ConfirmModal.tsx` | バックエンドの `intervention` を承認 / 拒否 |
+| 5 | 結果の提示 | `DataJobPanel.tsx` / `JobClock.tsx` | チャンク数・Q/A 数・カバレージ・登録件数と実行時刻 |
+
 ### なぜ 1 コンポーネントで 3 用途を兼ねるのか
 
 チャンキング・Q/A 生成・登録は**器が同じ**（フォーム → ジョブ起動 → SSE 購読 → Timeline → 結果）で、
@@ -66,7 +76,50 @@
 
 ---
 
-## 1. コンポーネントツリー図
+## 1. アーキテクチャ構成図
+
+### 1.1 システム全体での位置づけ
+
+```mermaid
+flowchart TB
+    subgraph CALLER["呼び出し側"]
+        DP["DataPanel.tsx<br>variant"]
+        APP["App.tsx<br>chunkingModel / qaModel"]
+    end
+    subgraph TARGET["対象コンポーネント"]
+        DJ["DataJobPanel.tsx<br>useReducer(dataReducer)"]
+        PRM["state/dataParams.ts"]
+        DR["state/dataReducer.ts"]
+        SUB["Timeline / ConfirmModal / JobClock"]
+    end
+    subgraph EXTERNAL["外部（API・バックエンド）"]
+        CL["api/client.ts"]
+        BE["backend api/data.py<br>chunking / qa / register"]
+        CORE["core/data_jobs.py"]
+    end
+    DP -->|"variant"| DJ
+    APP -->|"model"| DP
+    DJ --> PRM
+    DJ --> DR
+    DJ --> SUB
+    DJ --> CL
+    CL -->|"POST / SSE"| BE
+    BE --> CORE
+classDef default fill:#000,stroke:#fff,color:#fff
+classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
+class DP,APP,DJ,PRM,DR,SUB,CL,BE,CORE default
+style CALLER fill:#1a1a1a,stroke:#fff,color:#fff
+style TARGET fill:#1a1a1a,stroke:#fff,color:#fff
+style EXTERNAL fill:#1a1a1a,stroke:#fff,color:#fff
+```
+
+**データフロー**:
+
+1. フォーム入力を `dataParams.ts` で API パラメータへ組み立て、`POST /api/{chunking,qa,qdrant}/...` でジョブを起動する
+2. `subscribeStream` で SSE を購読し、イベントを `dataReducer` で状態へ畳んで `Timeline` に出す
+3. `recreate` 登録時はバックエンドの承認要求を `ConfirmModal` で処理し、完了後に結果を提示する
+
+### 1.2 コンポーネントツリー図
 
 ```mermaid
 flowchart TB
@@ -296,6 +349,7 @@ flowchart LR
     R --> CM["ConfirmModal（recreate 時）"]
     R --> RES["結果カード"]
 classDef default fill:#000,stroke:#fff,color:#fff
+classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
 class F,B,P,J,S,E,R,TL,CM,RES default
 ```
 
@@ -397,6 +451,7 @@ flowchart TB
     Run --> D["done → 結果カード"]
     Cancel --> D
 classDef default fill:#000,stroke:#fff,color:#fff
+classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
 class S,F,P,V,Go,RC,M,Run,Cancel,D default
 ```
 
@@ -525,3 +580,4 @@ LLM 用途（Anthropic Claude）とは別系統なので、画面から切り替
 | 1.3 | 2026-09-16 | **モデル欄を自由入力から `ModelSelect`（選択式）へ変更**。選択肢は `GET /api/models`、既定値は `GET /api/model` の `chunking_model` / `qa_model`。未選択は `model` キーごと省略して送るため、`canSubmitQa` の「モデル欄が空なら送信できない」条件を撤去した。`useState` は 23 → 25、`useEffect` は 2 → 3 |
 | 1.2 | 2026-09-12 | **`variant='qa'`（Q/A 生成）を追加**。`useState` は 17 → 23（旧版の「× 13」は実装より古かった）、呼ぶ API は 2 → 3。出力先を入れ子にしない理由とモデル既定が違う理由を §7 に追記。テスト件数を実測値へ更新 |
 | 1.5 | 2026-09-23 | **詳細ログの既定を ON へ変更**（基本版 / GRACE-Support / GRACE-Review は `DEFAULT_QUERY_FORM` / `DEFAULT_REVIEW_FORM` の `verbose`、データ管理は `DataJobPanel` の `useState`） |
+| 1.6 | 2026-09-24 | `a_react_page_md_format.md` v1.1 に追随（2026-09-24）。概要に「各責務対応のモジュール」（主な責務と 1:1）を追加し、`## 1.` を「アーキテクチャ構成図」として **1.1 システム全体での位置づけ（3 層）** と 1.2 コンポーネントツリー図の 2 枚構成にした。Mermaid の `classDef subgraphStyle` の欠落を補った |

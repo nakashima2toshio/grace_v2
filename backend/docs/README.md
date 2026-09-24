@@ -1,6 +1,8 @@
 # backend/docs — 文書の地図
 
-**Version 2.2** | 最終更新: 2026-09-16
+**Version 2.3** | 最終更新: 2026-09-24
+
+---
 
 `backend/`（FastAPI + パイプライン中核）の**入口**。どの文書に何が書いてあるか、
 どの順に読むかだけを示す。
@@ -13,6 +15,16 @@
 > **関連**: `grace/` 側は [`grace/docs/README.md`](../../grace/docs/README.md)、
 > フロントは [`frontend/docs/README.md`](../../frontend/docs/README.md)、
 > 横断の設計メモは [`docs/README.md`](../../docs/README.md)。
+
+---
+
+## 目次
+
+- [1. 読む順路](#1-読む順路)
+- [2. 文書一覧](#2-文書一覧)
+- [3. 目的別の早見表](#3-目的別の早見表)
+- [4. 文書を書くときの規約](#4-文書を書くときの規約)
+- [5. 変更履歴](#5-変更履歴)
 
 ---
 
@@ -36,25 +48,27 @@ reference/*.md             引く（通読しない）
 
 ### 2.1 横断（backend 全体を理解する）
 
-| 文書 | 何が書いてあるか |
-|---|---|
-| [`architecture.md`](./architecture.md) | 層構造、17 モジュールの責務と行数、**backend が持たないもの（外部境界）**、依存の向き、リクエストが通る経路 |
-| [`job_runtime.md`](./job_runtime.md) | **3 系統が共有する実行基盤の正本。** ジョブのライフサイクル、イベントのリプレイ、runner 注入、HITL の橋渡し、ログ転送、ローカル専用であることの制約 |
-| [`api_contract.md`](./api_contract.md) | 全 23 エンドポイント、SSE のワイヤ形式、HTTP ステータスの使い分け、`frontend/src/types.ts` との対応 |
-| [`config_and_providers.md`](./config_and_providers.md) | **モデル名の 3 本の解決経路**、`judge_model()` / `detect_model()`、API キーのガード位置 |
-| [`pitfalls.md`](./pitfalls.md) | 非自明な設計判断・過去に壊れた箇所・**直してはいけないもの** |
+| 文書 | 種別 | 何が書いてあるか |
+|---|:--:|---|
+| [`architecture.md`](./architecture.md) | A | 層構造、17 モジュールの責務と行数、**backend が持たないもの（外部境界）**、依存の向き、リクエストが通る経路 |
+| [`job_runtime.md`](./job_runtime.md) | A | **3 系統が共有する実行基盤の正本。** ジョブのライフサイクル、イベントのリプレイ、runner 注入、HITL の橋渡し、ログ転送、ローカル専用であることの制約 |
+| [`api_contract.md`](./api_contract.md) | A | 全 23 エンドポイント、SSE のワイヤ形式、HTTP ステータスの使い分け、`frontend/src/types.ts` との対応 |
+| [`config_and_providers.md`](./config_and_providers.md) | A | **モデル名の 3 本の解決経路**、`judge_model()` / `detect_model()`、API キーのガード位置 |
+| [`pitfalls.md`](./pitfalls.md) | B | 非自明な設計判断・過去に壊れた箇所・**直してはいけないもの** |
 
 ### 2.2 系統別（何をどう判断しているか）
 
-| 文書 | 対象 |
-|---|---|
-| [`support_flow.md`](./support_flow.md) | GRACE-Support の処理フロー（0-(A)〜⑥）と設計判断。**WHY と HOW が 1 本**（v3.0 で `support_spec.md` を統合） |
-| [`review_flow.md`](./review_flow.md) | GRACE-Review の処理フロー（S1・①〜⑦）と設計判断（v2.0 で `review_spec.md` を統合） |
-| [`verticals_and_rulesets.md`](./verticals_and_rulesets.md) | 業界プロファイル（gov / saas / ec）とルールセット（ec_ad）の**カタログ**・増やし方 |
-| [`data_pipeline.md`](./data_pipeline.md) | チャンク化 → Q/A 生成 → Qdrant 登録（付録A: 規程コレクションの準備） |
-| [`webapp_flow.md`](./webapp_flow.md) | `run_dev.sh` 起点の end-to-end（ブラウザ → FastAPI → コア → 描画） |
+| 文書 | 種別 | 対象 |
+|---|:--:|---|
+| [`support_flow.md`](./support_flow.md) | A | GRACE-Support の処理フロー（0-(A)〜⑥）と設計判断。**WHY と HOW が 1 本**（v3.0 で `support_spec.md` を統合） |
+| [`review_flow.md`](./review_flow.md) | A | GRACE-Review の処理フロー（S1・①〜⑦）と設計判断（v2.0 で `review_spec.md` を統合） |
+| [`verticals_and_rulesets.md`](./verticals_and_rulesets.md) | A | 業界プロファイル（gov / saas / ec）とルールセット（ec_ad）の**カタログ**・増やし方 |
+| [`data_pipeline.md`](./data_pipeline.md) | A | チャンク化 → Q/A 生成 → Qdrant 登録（付録A: 規程コレクションの準備） |
+| [`webapp_flow.md`](./webapp_flow.md) | A | `run_dev.sh` 起点の end-to-end（ブラウザ → FastAPI → コア → 描画） |
 
 ### 2.3 モジュール参照（`reference/`）— 引く用
+
+種別はすべて E（`a_class_method_md_format.md` の IPO 形式。使用例は IPO 詳細の冒頭 `### 4.1 使用例`）。
 
 各文書の冒頭に**位置づけと上位文書への導線**がある（どの設計文書が「なぜ」の正本かを示す）。
 公開シンボルの網羅は AST で検証済み（**223 シンボル / 未記載 0**・実測 2026-09-16）。
@@ -70,13 +84,13 @@ reference/*.md             引く（通読しない）
 
 ### 2.4 運用・記録
 
-| 文書 | 内容 |
-|---|---|
-| [`install_and_setup.md`](./install_and_setup.md) | 環境構築・**起動手順の正本** |
-| [`testing.md`](./testing.md) | `backend/tests` の地図・どこを触ったらどれを流すか・CI の 4 ゲート |
-| [`migration_plan.md`](./migration_plan.md) | 文書再編の計画（Phase 1 完了 / Phase 2・3 の予定） |
-| [`docs_audit.md`](./docs_audit.md) | 棚卸し・実装追随の照合結果・検証スクリプト・残タスク |
-| [`archive/`](./archive/) | 記録としては残すが実装の正ではない文書 |
+| 文書 | 種別 | 内容 |
+|---|:--:|---|
+| [`install_and_setup.md`](./install_and_setup.md) | B | 環境構築・**起動手順の正本** |
+| [`testing.md`](./testing.md) | B | `backend/tests` の地図・どこを触ったらどれを流すか・CI の 4 ゲート |
+| [`migration_plan.md`](./migration_plan.md) | C | 文書再編の計画（Phase 1 完了 / Phase 2・3 の予定） |
+| [`docs_audit.md`](./docs_audit.md) | C | 棚卸し・実装追随の照合結果・検証スクリプト・残タスク |
+| [`archive/`](./archive/) | — | 記録としては残すが実装の正ではない文書 |
 
 ---
 
@@ -104,6 +118,7 @@ reference/*.md             引く（通読しない）
 |---|---|
 | Python モジュール（IPO 形式） | `.claude/skills/grace-agent-docs/a_class_method_md_format.md` |
 | React コンポーネント | `.claude/skills/grace-agent-docs/a_react_page_md_format.md` |
+| 設計・フロー・API 契約・手順・索引（IPO 以外。上表の種別 A / B / C） | `.claude/skills/grace-agent-docs/a_cross_doc_md_format.md`（A: 概要に主な責務・各責務対応のモジュール・3 層の構成図／B: 概要に結論・対象モジュール／C: 目次と変更履歴） |
 | 単体テスト（SAE 形式） | `.claude/skills/grace-agent-tests/a_test_md_format.md` |
 | Mermaid のスタイル | `CLAUDE.md` §7（黒背景・白文字が**必須**） |
 
@@ -117,6 +132,7 @@ reference/*.md             引く（通読しない）
 
 | Version | 日付 | 変更内容 |
 |---|---|---|
+| 2.3 | 2026-09-24 | `a_cross_doc_md_format.md` v1.1（種別 C）に準拠（2026-09-24）。目次を追加し、§2 の各表へ「種別」列（A / B / C、`reference/` は E）を足し、§4 の規約表に横断文書フォーマットを追加した |
 | 2.2 | 2026-09-16 | **Phase 3 を反映**。`reference/` の 17 文書に位置づけヘッダーが付いたことを §2.3 に明記した（圧縮は実測の結果不要と判断。[`migration_plan.md` §4](./migration_plan.md)） |
 | 2.1 | 2026-09-16 | **Phase 2 を反映**。`support_spec.md` / `review_spec.md` を各 `*_flow.md` へ統合し、`verticals_and_rulesets.md` と `testing.md` を新設した（[`migration_plan.md` §3](./migration_plan.md)） |
 | 2.0 | 2026-09-16 | 棚卸し内容を `docs_audit.md` へ分離し、README を**地図**に作り替えた。モジュール文書 17 本を `reference/` へ移動し、横断文書 5 本を新設した |

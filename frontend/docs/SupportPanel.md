@@ -1,13 +1,13 @@
 # SupportPanel.tsx - 問い合わせ → 回答 パネル ドキュメント
 
-**Version 1.6** | 最終更新: 2026-09-23
+**Version 1.7** | 最終更新: 2026-09-24
 
 ---
 
 ## 目次
 
 1. [概要](#概要)
-2. [コンポーネントツリー図](#1-コンポーネントツリー図)
+2. [コンポーネントツリー図](#12-コンポーネントツリー図)
 3. [Props インターフェース](#2-props-インターフェース)
 4. [状態管理](#3-状態管理)
 5. [データフロー・副作用](#4-データフロー副作用)
@@ -53,6 +53,18 @@
 - 業界プロファイル取得の**失敗理由**を `MetaErrorBanner` で伝え、再取得させる
 - ジョブの開始・完了時刻を保持し、開始行 / 完了行として表示する
 
+### 各責務対応のモジュール
+
+| # | 責務 | 対応モジュール | 説明 |
+|---|---|---|---|
+| 1 | ジョブの起動 | `SupportPanel.tsx` / `api/client.ts` | `startQuery` → `POST /api/support/query` |
+| 2 | SSE 購読と状態の畳み込み | `SupportPanel.tsx` / `state/jobReducer.ts` | `subscribeStream` の戻り値を `useEffect` のクリーンアップで返す |
+| 3 | HITL の承認 / 拒否 | `SupportPanel.tsx` / `ConfirmModal.tsx` / `QuestionSelectModal.tsx` / `state/interventionKind.ts` | `confirmIntervention`。action / question の出し分けは `interventionKind()` |
+| 4 | `variant` による切替 | `SupportPanel.tsx` / `QueryForm.tsx` | `basic` は `/api/verticals` を取得せず、セレクタも出さない |
+| 5 | 実行中・エラーのバナー | `SupportPanel.tsx` | `phase` と `error` から表示 |
+| 6 | 業界プロファイル取得の失敗通知 | `SupportPanel.tsx` / `state/metaFetch.ts` / `MetaErrorBanner.tsx` | `fetchVerticals` の失敗を `metaErrorMessage` で文言化 |
+| 7 | 開始・完了時刻の表示 | `SupportPanel.tsx` / `state/useJobTiming.ts` / `JobClock.tsx` | `JobStartLine` / `JobFinishLine` |
+
 ### 主要機能一覧
 
 | 機能 | 実装 | 説明 |
@@ -70,7 +82,46 @@
 
 ---
 
-## 1. コンポーネントツリー図
+## 1. アーキテクチャ構成図
+
+### 1.1 システム全体での位置づけ
+
+```mermaid
+flowchart TB
+    subgraph CALLER["呼び出し側"]
+        APP["App.tsx<br>variant, model"]
+    end
+    subgraph TARGET["対象コンポーネント"]
+        SP["SupportPanel.tsx<br>useReducer(jobReducer)"]
+        JR["state/jobReducer.ts"]
+        CH["QueryForm / StepTimeline / AnswerCard<br>ConfirmModal / QuestionSelectModal<br>MetaErrorBanner / JobClock"]
+    end
+    subgraph EXTERNAL["外部（API・バックエンド）"]
+        CL["api/client.ts"]
+        API["backend api/support.py"]
+        CORE["core/support_agent.py<br>run_support_agent_core"]
+    end
+    APP -->|"variant, model"| SP
+    SP --> JR
+    SP --> CH
+    SP --> CL
+    CL -->|"POST / SSE"| API
+    API --> CORE
+classDef default fill:#000,stroke:#fff,color:#fff
+classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
+class APP,SP,JR,CH,CL,API,CORE default
+style CALLER fill:#1a1a1a,stroke:#fff,color:#fff
+style TARGET fill:#1a1a1a,stroke:#fff,color:#fff
+style EXTERNAL fill:#1a1a1a,stroke:#fff,color:#fff
+```
+
+**データフロー**:
+
+1. フォームの送信で `startQuery` を呼び、`job_id` を受け取る
+2. `subscribeStream` で SSE を購読し、イベントを `jobReducer` へ流して各子コンポーネントへ配る
+3. 承認待ちは種別に応じて `ConfirmModal` / `QuestionSelectModal` で処理し、`confirmIntervention` で返す
+
+### 1.2 コンポーネントツリー図
 
 ```mermaid
 flowchart TB
@@ -305,6 +356,7 @@ flowchart TB
     Red --> UI["StepTimeline / AnswerCard / ConfirmModal"]
     Start -.失敗.-> Fail["dispatch({type:'failed'})"]
 classDef default fill:#000,stroke:#fff,color:#fff
+classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
 class User,Form,Unsub,Start,JobId,Started,Sub,Ev,Red,UI,Fail default
 ```
 
@@ -429,6 +481,7 @@ flowchart TB
     I -->|"なし"| D["done → AnswerCard を表示"]
     M --> D
 classDef default fill:#000,stroke:#fff,color:#fff
+classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
 class S,V,R,Go,Err,Fail,Stream,I,M,D default
 ```
 
@@ -512,6 +565,7 @@ class S,V,R,Go,Err,Fail,Stream,I,M,D default
 
 | 版 | 日付 | 変更内容 |
 |---|---|---|
+| 1.7 | 2026-09-24 | `a_react_page_md_format.md` v1.1 に追随（2026-09-24）。概要に「各責務対応のモジュール」（主な責務と 1:1）を追加し、`## 1.` を「アーキテクチャ構成図」として **1.1 システム全体での位置づけ（3 層）** と 1.2 コンポーネントツリー図の 2 枚構成にした。Mermaid の `classDef subgraphStyle` の欠落を補った |
 | 1.6 | 2026-09-23 | **モデル選択をヘッダー（`App`）へ移した。** `models` / `modelInfo` の state と取得の副作用を削除し、`model` prop を受け取って `QueryForm` へ渡すだけにした |
 | 1.5 | 2026-09-16 | **モデルセレクタに追随。** `models` / `modelInfo` の取得（`fetchModels` / `fetchModelInfo`）を副作用へ追加し、`QueryForm` へ `models` / `defaultModel` を渡すようにした。取得失敗でバナーを出さない理由（縮退しても既定モデルで正しく走る）を明記 |
 | 1.4 | 2026-09-12 | **アクセシビリティ記述の訂正。** 「実行中であることが伝わるか」を ❌ としていたが誤りだった。`Timeline` が `sr-only` の `aria-live="polite"` で「実行中: <ステップ名>」を読み上げており（`state/timelineAnnounce.ts`）、実行中であることは支援技術へ伝わっている。`.running-banner` にライブ領域を足すと二重読み上げになるため、あえて付けない |

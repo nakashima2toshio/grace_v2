@@ -563,6 +563,7 @@ flowchart LR
     RA --> JOBS
     JOBS --> SA
 classDef default fill:#000,stroke:#fff,color:#fff
+classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
 class MAIN,AR,AS,JOBS,RA,SA,SCH default
 ```
 

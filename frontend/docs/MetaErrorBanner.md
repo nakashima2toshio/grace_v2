@@ -1,13 +1,13 @@
 # MetaErrorBanner.tsx - メタ取得エラーのバナー ドキュメント
 
-**Version 1.0** | 最終更新: 2026-09-12
+**Version 1.1** | 最終更新: 2026-09-24
 
 ---
 
 ## 目次
 
 1. [概要](#概要)
-2. [コンポーネントツリー図](#1-コンポーネントツリー図)
+2. [コンポーネントツリー図](#12-コンポーネントツリー図)
 3. [Props インターフェース](#2-props-インターフェース)
 4. [状態管理](#3-状態管理)
 5. [データフロー・副作用](#4-データフロー副作用)
@@ -44,6 +44,14 @@
 - 「再取得」ボタンを出し、**ページをリロードせずに**復帰できるようにする
 - 再取得中はボタンを無効化して二重送信を防ぐ
 
+### 各責務対応のモジュール
+
+| # | 責務 | 対応モジュール | 説明 |
+|---|---|---|---|
+| 1 | 失敗理由の表示 | `MetaErrorBanner.tsx` / `state/metaFetch.ts` | 文言は親が `metaErrorMessage` で作って渡す |
+| 2 | 再取得ボタン | `MetaErrorBanner.tsx` | `onRetry` を親へ返す |
+| 3 | 再取得中の無効化 | `MetaErrorBanner.tsx` | `retrying` で `disabled` |
+
 ### 主要機能一覧
 
 | 機能 | 実装 | 説明 |
@@ -55,7 +63,43 @@
 
 ---
 
-## 1. コンポーネントツリー図
+## 1. アーキテクチャ構成図
+
+### 1.1 システム全体での位置づけ
+
+```mermaid
+flowchart TB
+    subgraph CALLER["呼び出し側"]
+        SP["SupportPanel.tsx<br>業界プロファイル"]
+        RP["ReviewPanel.tsx<br>ルールセット"]
+    end
+    subgraph TARGET["対象コンポーネント"]
+        MB["MetaErrorBanner.tsx<br>ステートレス"]
+    end
+    subgraph EXTERNAL["外部（API・バックエンド）"]
+        MF["state/metaFetch.ts<br>metaErrorMessage"]
+        BE["GET /api/verticals<br>GET /api/rulesets"]
+    end
+    SP -->|"message, retrying / onRetry"| MB
+    RP --> MB
+    SP --> MF
+    RP --> MF
+    SP --> BE
+classDef default fill:#000,stroke:#fff,color:#fff
+classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
+class SP,RP,MB,MF,BE default
+style CALLER fill:#1a1a1a,stroke:#fff,color:#fff
+style TARGET fill:#1a1a1a,stroke:#fff,color:#fff
+style EXTERNAL fill:#1a1a1a,stroke:#fff,color:#fff
+```
+
+**データフロー**:
+
+1. 親パネルがメタ情報（業界プロファイル / ルールセット）を取得し、失敗時に `metaErrorMessage` で文言を作る
+2. 本コンポーネントが文言と再取得ボタンを表示する
+3. 再取得ボタンで親の `onRetry` が呼ばれ、同じ API を取り直す
+
+### 1.2 コンポーネントツリー図
 
 ```mermaid
 flowchart TB
@@ -136,6 +180,7 @@ flowchart TB
     OK -->|"はい"| Clear["...Error を null → バナーが消える"]
     OK -->|"いいえ"| State
 classDef default fill:#000,stroke:#fff,color:#fff
+classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
 class Fail,Msg,State,Banner,Click,Retry,OK,Clear default
 ```
 
@@ -216,3 +261,4 @@ backend（:8000）を**落としたまま**画面を開くと出る。README の
 | 版 | 日付 | 変更内容 |
 |---|---|---|
 | 1.0 | 2026-09-12 | 初版作成。実装は 2026-08-18 からあったが文書が無かった（`frontend/docs/README.md` の索引が無く欠落を検知できていなかった） |
+| 1.1 | 2026-09-24 | `a_react_page_md_format.md` v1.1 に追随（2026-09-24）。概要に「各責務対応のモジュール」（主な責務と 1:1）を追加し、`## 1.` を「アーキテクチャ構成図」として **1.1 システム全体での位置づけ（3 層）** と 1.2 コンポーネントツリー図の 2 枚構成にした。Mermaid の `classDef subgraphStyle` の欠落を補った |

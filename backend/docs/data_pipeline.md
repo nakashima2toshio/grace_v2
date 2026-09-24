@@ -1,6 +1,6 @@
 # データ準備パイプライン（チャンキング / Q/A 生成 / 登録 / 削除） ドキュメント
 
-**Version 1.3** | 最終更新: 2026-09-15
+**Version 1.4** | 最終更新: 2026-09-24
 
 ---
 
@@ -67,11 +67,10 @@ SSE による進捗配信・HITL CONFIRM・ジョブ管理を新規に実装し�
 | 1 | チャンク化 | `core/data_jobs.py::_chunking_runner` → `chunking/csv_text_to_chunks_text_csv.py` | `chunks_all_async` を同期ラップして呼ぶ |
 | 2 | Q/A 生成 | `core/data_jobs.py::_qa_runner` → `qa_generation/pipeline.py::QAPipeline` | CLI（Phase 1）と同じ経路。パイプライン本体は無改修 |
 | 3 | Qdrant 登録 | `core/data_jobs.py::_register_runner` → `qa_qdrant/register_to_qdrant.py` | `register_to_qdrant()` は元から純関数 |
-| 4 | 削除 | `core/data_jobs.py::_delete_runner` → `services/data_pipeline_service.py::delete_collection` | CLI に直書きだった処理を関数化 |
-| 5 | 参照 | `api/qdrant.py` → `services/qdrant_service.py` | `QdrantDataFetcher` の DataFrame を JSON 化 |
-| 6 | 承認 | `core/intervention_bridge.py`（既存） | Support / Review と同一の仕組み |
-| 7 | 進捗 | `core/job_logs.py` | `logging.Handler` で横取り |
-| 8 | パス検証 | `services/data_pipeline_service.py` | ホワイトリスト ＋ `resolve()` の二段 |
+| 4 | コレクション管理 | `api/qdrant.py` → `services/qdrant_service.py`（参照）／ `core/data_jobs.py::_delete_runner` → `services/data_pipeline_service.py::delete_collection`（削除） | 参照は `QdrantDataFetcher` の DataFrame を JSON 化。削除は CLI に直書きだった処理を関数化 |
+| 5 | 破壊的操作の承認 | `core/intervention_bridge.py`（既存） | Support / Review と同一の仕組み |
+| 6 | 入力ファイルの安全な選択 | `services/data_pipeline_service.py` | ホワイトリスト ＋ `resolve()` の二段 |
+| 7 | 進捗の可視化 | `core/job_logs.py` | `logging.Handler` で横取り |
 
 ### 主要機能一覧
 
@@ -519,6 +518,7 @@ CHUNKING_STEP_LABELS, QA_STEP_LABELS, REGISTER_STEP_LABELS, DELETE_STEP_LABELS
 | 1.1 | 2026-08-05 | 再購読（タブ離脱後の進捗復元）の節を追加。`stream_events()` が先頭からリプレイする性質に依存することを明記 |
 | 1.2 | 2026-09-12 | **Q/A 生成を追加**（`_qa_runner` / `POST /api/qa/generate` / サブタブ「② Q/A 作成」）。runner は 4 種になり、サブタブは ①〜④ へ繰り下げ |
 | 1.3 | 2026-09-15 | **`review_rules_collection.md`（255 行・v1.0）を付録A として統合**。内容が「CSV → Qdrant コレクションを作る手順」であり本書のパイプラインそのものだったため、Review 文書ではなくデータ準備文書へ移した。依存関係図は付録B へ繰り下げ |
+| 1.4 | 2026-09-24 | 概要の「各責務対応のモジュール」を主な責務と 1:1（7 行）に揃えた（8 行で、1 つの責務が複数行に割れていた。基本フォーマット §2.4。2026-09-24） |
 
 ---
 
