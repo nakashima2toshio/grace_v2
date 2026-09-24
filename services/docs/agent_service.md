@@ -1,6 +1,6 @@
 # agent_service.py - ReAct + Reflection エージェント（Anthropic Tool Use ネイティブ）ドキュメント
 
-**Version 2.2** | 最終更新: 2026-09-24
+**Version 2.3** | 最終更新: 2026-09-24
 
 ---
 
@@ -276,7 +276,7 @@ ReActAgent(
 | パラメータ | 型 | デフォルト | 説明 |
 |------------|------|-----------|------|
 | `selected_collections` | List[str] | - | 検索対象とするコレクション名のリスト（system_instruction に埋め込む） |
-| `model_name` | str | None | 使用モデル。未指定時は `get_config("models.default", "claude-sonnet-5")`（`config.yml` の `models.default` が優先。現状の値は `claude-sonnet-4-6`） |
+| `model_name` | str | None | 使用モデル。未指定時は `get_config("models.default", "claude-sonnet-5")`（`config.yml` の `models.default` が優先。値は `claude-sonnet-5` で、`ModelConfig.DEFAULT_MODEL` との一致をテストで検査している） |
 | `session_id` | Optional[str] | None | セッションID。未指定時は `uuid4()` を自動採番 |
 | `use_hybrid_search` | bool | True | RAG 検索で Sparse+Dense のハイブリッド検索を有効化するか |
 
@@ -290,7 +290,7 @@ ReActAgent(
 ```python
 # インスタンス属性（抜粋）
 {
-    "model_name": "claude-sonnet-4-6",
+    "model_name": "claude-sonnet-5",
     "session_id": "3f0c2b1a-...",
     "use_hybrid_search": True,
     "thought_log": []
@@ -533,7 +533,7 @@ TOOLS_MAP: Dict[str, Any] = {
 
 | 設定キー | 既定 | 説明 |
 |---------|------|------|
-| `models.default` | `config.yml` の値（現状 `claude-sonnet-4-6`）。キーが無ければコード側の既定 `claude-sonnet-5` | 既定モデル（未指定時に使用） |
+| `models.default` | `config.yml` の値 `claude-sonnet-5`（`ModelConfig.DEFAULT_MODEL` と一致。`backend/tests/test_model_selection.py` が検査）。キーが無ければコード側の既定 `claude-sonnet-5` | 既定モデル（未指定時に使用） |
 | `agent.max_turns` | 10 | ReAct ループの最大反復回数 |
 | `agent.max_tokens` | 4096 | ReAct ループの 1 回の最大出力トークン |
 | `agent.reflection_max_tokens` | 2048 | Reflection フェーズの最大出力トークン |
@@ -565,6 +565,7 @@ REFLECTION_INSTRUCTION
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 2.3 | 直下 `config.yml` の `models.default` を `claude-sonnet-4-6` → `claude-sonnet-5` へ是正したのに追随（2026-09-24）。「現状は旧モデル」という注記を外し、戻り値例のモデル名も更新 |
 | 2.2 | 使用例を IPO 詳細の冒頭（`### 4.1 使用例`）へ移し、末尾の「## 6. 使用例」章を削除（基本フォーマット `a_class_method_md_format.md` v1.6〜 §6.1 に準拠。2026-09-24）。IPO の小節を 4.2 以降へ繰り下げ、後続の章番号を 1 つ繰り上げた。文書内の `§4.x` 参照も追随。あわせて既定モデルの記述を実装に合わせた（コード側の既定は `claude-sonnet-5`。`config.yml` の `models.default` が優先され、現状はそちらが `claude-sonnet-4-6` である旨を明記） |
 | 2.1 | **Streamlit 残骸の除去。** Streamlit UI（`ui/pages/agent_chat_page.py`）を呼び出し元としていたが、**実際の呼び出し元は `grace/executor.py` と `grace/step_trace/benchmark.py`**（Web からは FastAPI → SSE → React UI）。§6.2 の例も SSE 中継の形へ差し替えた（2026-09-12） |
 | 1.0 | 初版作成（2026-06-17）。Gemini ネイティブ function-calling 版の ReAct + Reflection に整合 |

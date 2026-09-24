@@ -1,15 +1,21 @@
 # config.yml（LLM=Anthropic Claude / Embedding=Gemini）
 
+# ⚠️ models.default は services/config_service.py 経由で services/agent_service.py
+#    （Legacy ReAct）の既定モデルになり、コード側のフォールバックより優先される。
+#    config.py::ModelConfig.DEFAULT_MODEL と必ず揃える
+#    （backend/tests/test_model_selection.py が一致を検査する）。
 models:
-  default: "claude-sonnet-4-6"  # Anthropic デフォルトモデル（推論・生成）
-  available:
-    - "claude-sonnet-4-6"             # 推論・生成（既定）
-    - "claude-haiku-4-5-20251001"     # 高速・文字列処理向け
+  default: "claude-sonnet-5"  # Anthropic デフォルトモデル（推論・生成）
+  available:                  # config.py::ModelConfig.SELECTABLE_MODELS と同じ 4 つ
+    - "claude-fable-5-1"              # 最上位
+    - "claude-opus-5-5"               # 上位
+    - "claude-sonnet-5"               # 推論・生成（既定）
+    - "claude-haiku-4-5"              # 軽量・高速
 
   categories:
-    thinking: ["claude-sonnet-4-6"]              # 高度推論
+    thinking: ["claude-sonnet-5"]                # 高度推論
     fast: ["claude-haiku-4-5-20251001"]          # 高速処理
-    standard: ["claude-sonnet-4-6"]              # 標準処理
+    standard: ["claude-sonnet-5"]                # 標準処理
     embeddings: ["gemini-embedding-001"]         # Embedding（Gemini 継続）
 
 samples:

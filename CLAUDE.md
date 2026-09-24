@@ -208,10 +208,10 @@ cd frontend && npm run lint && npm test && npm run build   # frontend
   Gemini 系の **LLM** 既定は「設計上の意図」ではなく **移植漏れ（負債）**とみなす。
   発見次第 Anthropic へ是正する。「現存コード＝意図」と推論しないこと。
 
-### 3.1 ⚠️ モデル名の解決経路は 4 本ある
+### 3.1 ⚠️ モデル名の解決経路は 5 本ある
 
 「既定モデルを変える」ときに 1 箇所だけ直すと**取り残しが出る**。
-必ず 4 本とも確認すること。
+必ず 5 本とも確認すること。
 
 | # | 経路 | 実体 | 誰が読むか |
 |---|---|---|---|
@@ -219,6 +219,7 @@ cd frontend && npm run lint && npm test && npm run build   # frontend
 | 2 | **モジュール定数** | `backend/app/core/verticals.py::INTENT_MODEL`（リテラル） | 判定系（意図分類・情報なし判定）。**yml を一切見ない** |
 | 3 | **Python 定数** | `config.py::ModelConfig.DEFAULT_MODEL` | 上記以外（チャンキング・Q&A 生成など CLI 側） |
 | 4 | **リクエスト単位の上書き** | UI のモデルセレクタ → `QueryRequest.model` / `ReviewRequest.model` → コアが `config.llm.model` を差し替え | その 1 リクエストの生成・推論・根拠検証・③ Detect |
+| 5 | **直下 `config.yml`** | `config.yml` の `models.default`（`services/config_service.py` が読む） | `services/agent_service.py`（Legacy ReAct）。**ファイルの値がコード側のフォールバックより優先される**。2026-09-24 まで `claude-sonnet-4-6` のまま残っていた（`backend/tests/test_model_selection.py` が経路 3 との一致を検査） |
 
 **経路 4 は経路 1 を「そのリクエストだけ」上書きする**（`copy.deepcopy(get_config())` の
 コピーに対して行うので、他のジョブへは漏れない）。選択肢は
@@ -678,6 +679,6 @@ response = client.responses.create(
       `ReviewPanel` 系）を壊していないか？ 共用部品（`GroundednessVerifier` /
       `InterventionBridge` / `support_actions.py`）を触ったなら
       `backend/tests/test_review_*.py`（18 本）も通したか？（§1）
-- [ ] モデル既定を変えたなら**4 本の解決経路すべて**を確認したか？（§3.1）
+- [ ] モデル既定を変えたなら**5 本の解決経路すべて**を確認したか？（§3.1）
       新しい既定を `SELECTABLE_MODELS` と `MODEL_PRICING` / `MODEL_LIMITS` へ入れたか？
 - [ ] 確信が持てない → **ユーザーに聞く**

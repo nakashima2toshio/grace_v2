@@ -1,6 +1,6 @@
 # config_service.py - 設定管理サービス ドキュメント
 
-**Version 1.2** | 最終更新: 2026-09-24
+**Version 1.3** | 最終更新: 2026-09-24
 
 ---
 
@@ -235,7 +235,7 @@ from services.config_service import (
 # 1. 設定値の取得
 default_model = get_config("models.default")
 logger.info(f"既定モデル: {default_model}")
-# 既定モデル: claude-sonnet-4-6
+# 既定モデル: claude-sonnet-5
 
 # 2. 設定値の更新
 set_config("api.timeout", 60)
@@ -420,7 +420,7 @@ None
 # 使用例
 config.reload()
 print(config.get("models.default"))
-# claude-sonnet-4-6
+# claude-sonnet-5
 ```
 
 #### メソッド: `save`
@@ -470,7 +470,7 @@ def get_all(self) -> Dict[str, Any]
 **戻り値例**:
 ```python
 {
-    "models": {"default": "claude-sonnet-4-6", "available": [...]},
+    "models": {"default": "claude-sonnet-5", "available": [...]},
     "api": {"timeout": 30, "max_retries": 3},
     "llm": {"provider": "anthropic"}
 }
@@ -557,7 +557,7 @@ def _load_config(self) -> Dict[str, Any]
 **戻り値例**:
 ```python
 {
-    "models": {"default": "claude-sonnet-4-6", ...},
+    "models": {"default": "claude-sonnet-5", ...},
     "llm": {"provider": "anthropic"}
 }
 ```
@@ -566,7 +566,7 @@ def _load_config(self) -> Dict[str, Any]
 # 使用例
 conf = config._load_config()
 print(conf["models"]["default"])
-# claude-sonnet-4-6
+# claude-sonnet-5
 ```
 
 #### メソッド: `_apply_env_overrides`
@@ -619,7 +619,7 @@ def _get_default_config(self) -> Dict[str, Any]
 **戻り値例**:
 ```python
 {
-    "models": {"default": "claude-sonnet-4-6", "available": ["claude-sonnet-4-6", "claude-haiku-4-5-20251001"]},
+    "models": {"default": "claude-sonnet-5", "available": ["claude-fable-5-1", "claude-opus-5-5", "claude-sonnet-5", "claude-haiku-4-5"]},
     "llm": {"provider": "anthropic"}
 }
 ```
@@ -628,7 +628,7 @@ def _get_default_config(self) -> Dict[str, Any]
 # 使用例
 defaults = config._get_default_config()
 print(defaults["models"]["default"])
-# claude-sonnet-4-6
+# claude-sonnet-5
 ```
 
 ### 4.3 ショートカット関数
@@ -813,7 +813,7 @@ reload_config()
 | `config` | ConfigManager | `ConfigManager("config.yml")` のシングルトン |
 | `logger` | logging.Logger | `config.logger`（`Gemini_helper` ロガー） |
 
-> 📝 **注意**: LLMはAnthropic Claude（コード側の既定 `claude-sonnet-5`。ただし `config.yml` の `models.default` は現状 `claude-sonnet-4-6` で、ファイルがあればこちらが優先される、鍵 `ANTHROPIC_API_KEY`）、EmbeddingはGemini（`gemini-embedding-001`、鍵 `GOOGLE_API_KEY`）を用います。
+> 📝 **注意**: LLMはAnthropic Claude（既定 `claude-sonnet-5`。`config.yml` の `models.default` がコード側より優先されるため、両者の一致を `backend/tests/test_model_selection.py` で検査している、鍵 `ANTHROPIC_API_KEY`）、EmbeddingはGemini（`gemini-embedding-001`、鍵 `GOOGLE_API_KEY`）を用います。
 
 
 ---
@@ -842,6 +842,7 @@ __all__ = [
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 1.3 | 直下 `config.yml` の `models.default` を `claude-sonnet-5` へ是正したのに追随（2026-09-24）。`get_config("models.default")` などの出力例・`_get_default_config()` の戻り値例を現行の値へ更新 |
 | 1.2 | 使用例を IPO 詳細の冒頭（`### 4.1 使用例`）へ移し、末尾の「## 6. 使用例」章を削除（基本フォーマット `a_class_method_md_format.md` v1.6〜 §6.1 に準拠。2026-09-24）。IPO の小節を 4.2 以降へ繰り下げ、後続の章番号を 1 つ繰り上げた。文書内の `§4.x` 参照も追随。あわせて`_get_default_config()` の `models.default` / `models.available` を実装（`claude-sonnet-5` ほか 4 モデル）に合わせた。`config.yml` を読んだときの出力例（`claude-sonnet-4-6`）は実値なのでそのまま |
 | 1.1 | **Streamlit 残骸の除去。** Mermaid のクライアント層ノードを `React UI + FastAPI` へ是正（2026-09-12） |
 | 1.0 | 初版作成（2026-06-17） |
