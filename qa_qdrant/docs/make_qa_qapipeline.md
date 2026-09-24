@@ -1,6 +1,6 @@
 # QAPipeline & SmartQAGenerator - Q/Aペア生成システム ドキュメント
 
-**Version 1.0** | 最終更新: 2025-01-30
+**Version 1.1** | 最終更新: 2026-09-24
 
 ---
 
@@ -12,9 +12,8 @@
 4. [クラス・関数一覧表](#3-クラス関数一覧表)
 5. [クラス・関数 IPO詳細](#4-クラス関数-ipo詳細)
 6. [設定・定数](#5-設定定数)
-7. [使用例](#6-使用例)
-8. [変更履歴](#7-変更履歴)
-9. [付録: 依存関係図](#付録-依存関係図)
+7. [変更履歴](#6-変更履歴)
+8. [付録: 依存関係図](#付録-依存関係図)
 
 ---
 
@@ -29,10 +28,21 @@
 
 - チャンク済みCSVファイルの読み込みと検証
 - チャンクデータの分析とQ/A数の動的決定
-- LLM（Anthropic API）を使用したQ/Aペアの生成
+- LLM（Anthropic Claude）を使用したQ/Aペアの生成
 - 生成結果の保存（CSV、JSONサマリー）
 - オプションでカバレージ分析の実行
 - Celery並列処理のサポート（オプション）
+
+### 各責務対応のモジュール
+
+| # | 責務 | 対応モジュール | 説明 |
+|---|---|---|---|
+| 1 | チャンク済みCSVファイルの読み込みと検証 | `qa_generation/pipeline.py`（`QAPipeline.load_data()` / `_load_chunks_from_csv()`） | 読み込み自体は `qa_generation/data_io.py` へ委譲 |
+| 2 | チャンクデータの分析とQ/A数の動的決定 | `qa_generation/smart_qa_generator.py`（`SmartQAGenerator.analyze_and_generate()`） | 情報密度・重要度・複雑さから 0〜5 件を決める |
+| 3 | LLM（Anthropic Claude）を使用したQ/Aペアの生成 | `qa_generation/smart_qa_generator.py` ＋ `helper/helper_llm.py` | `create_llm_client(provider="anthropic")`（Anthropic Claude） の `generate_structured()` で分析と生成を 1 回で行う |
+| 4 | 生成結果の保存（CSV、JSONサマリー） | `qa_generation/pipeline.py`（`save()`）→ `qa_generation/data_io.py` | `save_results()` が出力ファイルを書く |
+| 5 | オプションでカバレージ分析の実行 | `qa_generation/pipeline.py`（`evaluate_coverage()`）→ `qa_generation/evaluation.py` | Embedding は Gemini |
+| 6 | Celery並列処理のサポート（オプション） | `qa_generation/pipeline.py`（`_generate_with_celery()`）→ `celery_tasks.py` | ワーカー側でも `SmartQAGenerator.process_chunk()` を呼ぶ |
 
 ### 主要機能一覧
 
@@ -45,13 +55,13 @@
 | `QAPipeline.generate_qa()` | Q/Aペアの生成（メインメソッド） |
 | `QAPipeline.run()` | パイプライン全体の実行 |
 | `SmartQAGenerator` | インテリジェントQ/A生成クラス |
-| `SmartQAGenerator.analyze_chunk()` | チャンクを分析してQ/A数を決定 |
-| `SmartQAGenerator.generate_qa_pairs()` | Q/Aペアを生成 |
-| `SmartQAGenerator.process_chunk()` | 分析と生成を一括実行 |
+| `SmartQAGenerator.analyze_and_generate()` | チャンク分析と Q/A 生成を構造化出力 1 回（`SmartQAResult`）で実行 |
+| `SmartQAGenerator.process_chunk()` | `analyze_and_generate()` の結果を辞書へ整形（失敗時は `success=False`） |
 
 ### 前提条件
 
-- `GOOGLE_API_KEY` 環境変数が設定されていること
+- `ANTHROPIC_API_KEY`: Q/A 生成の LLM（Anthropic Claude）に必要
+- `GOOGLE_API_KEY`: カバレージ分析（Gemini Embedding）を使う場合のみ必要
 - 入力CSVは既にチャンク済み（`csv_text_to_chunks_text_csv.py`で処理済み）
 - チャンクCSVには `text` または `Combined_Text` カラムが必要
 
@@ -78,7 +88,7 @@ flowchart TB
     end
 
     subgraph EXTERNAL["外部サービス層"]
-        GEMINI[Anthropic API<br>claude-sonnet-4-6]
+        LLMAPI["Anthropic Claude API<br>claude-sonnet-5"]
     end
 
     subgraph STORAGE["ストレージ層"]
@@ -91,10 +101,18 @@ flowchart TB
     SCRIPT --> SMART_GEN
     QA_PIPE --> SMART_GEN
     QA_PIPE -.->|use_celery=True| CELERY
-    CELERY --> GEMINI
-    SMART_GEN --> GEMINI
+    CELERY --> LLMAPI
+    SMART_GEN --> LLMAPI
     INPUT --> QA_PIPE
     QA_PIPE --> OUTPUT
+classDef default fill:#000,stroke:#fff,color:#fff
+classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
+class CLI,SCRIPT,QA_PIPE,SMART_GEN,CELERY,LLMAPI,INPUT,OUTPUT default
+style CLIENT fill:#1a1a1a,stroke:#fff,color:#fff
+style PIPELINE fill:#1a1a1a,stroke:#fff,color:#fff
+style WORKER fill:#1a1a1a,stroke:#fff,color:#fff
+style EXTERNAL fill:#1a1a1a,stroke:#fff,color:#fff
+style STORAGE fill:#1a1a1a,stroke:#fff,color:#fff
 ```
 
 ### 1.2 データフロー
@@ -105,11 +123,14 @@ flowchart LR
     B --> C[_load_chunks_from_csv]
     C --> D[generate_qa]
     D --> E[SmartQAGenerator]
-    E --> F[analyze_chunk]
-    F --> G[generate_qa_pairs]
+    E --> F["analyze_and_generate<br>構造化出力 1 回"]
+    F --> G["process_chunk<br>辞書へ整形"]
     G --> H[Q/Aペアリスト]
     H --> I[save]
     I --> J[CSV + JSON出力]
+classDef default fill:#000,stroke:#fff,color:#fff
+classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
+class A,B,C,D,E,F,G,H,I,J default
 ```
 
 ### 1.3 処理の流れ
@@ -120,8 +141,8 @@ flowchart LR
 4. `_load_chunks_from_csv()`でチャンクリストに変換
 5. `generate_qa()`でQ/Aペアを生成
    - 内部で`SmartQAGenerator.process_chunk()`を呼び出し
-   - 各チャンクを`analyze_chunk()`で分析
-   - `generate_qa_pairs()`でQ/Aペアを生成
+   - `analyze_and_generate()` が分析（Q/A 数の決定）と Q/A 生成を構造化出力 1 回（`SmartQAResult`）で行う
+   - `process_chunk()` が結果を辞書へ整形する（失敗時は `success=False` でそのチャンクをスキップ）
 6. `save()`で結果をファイルに保存
 7. サマリーをログ出力
 
@@ -168,6 +189,14 @@ flowchart TB
     GEN_QA -.-> CELERY_GEN
     SYNC --> EVAL
     EVAL --> SAVE
+classDef default fill:#000,stroke:#fff,color:#fff
+classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
+class VALIDATE,LOAD_CFG,INIT_GEN,LOAD,CONVERT,GEN_QA,SYNC,CELERY_GEN,EVAL,SAVE,RUN_METHOD default
+style INIT fill:#1a1a1a,stroke:#fff,color:#fff
+style DATA fill:#1a1a1a,stroke:#fff,color:#fff
+style GENERATE fill:#1a1a1a,stroke:#fff,color:#fff
+style OUTPUT fill:#1a1a1a,stroke:#fff,color:#fff
+style RUN fill:#1a1a1a,stroke:#fff,color:#fff
 ```
 
 ### 2.2 SmartQAGenerator 内部構成
@@ -175,33 +204,40 @@ flowchart TB
 ```mermaid
 flowchart TB
     subgraph INIT["初期化"]
-        INIT_CLIENT[__init__]
-        GEN_CONTENT[_generate_content]
+        INIT_CLIENT["__init__<br>create_llm_client('anthropic')"]
     end
 
-    subgraph ANALYZE["分析フェーズ"]
-        ANALYZE_CHUNK[analyze_chunk]
+    subgraph SCHEMA["構造化出力スキーマ"]
+        RESULT_SCHEMA["SmartQAResult<br>qa_count / key_topics / importance_score / complexity / reasoning"]
+        PAIR_SCHEMA["SmartQAPair<br>question / answer / topic"]
     end
 
-    subgraph GENERATE["生成フェーズ"]
-        GEN_QA[generate_qa_pairs]
+    subgraph GENERATE["分析 ＋ 生成（1 回）"]
+        ANALYZE_GEN["analyze_and_generate<br>generate_structured(COMBINED_PROMPT)"]
     end
 
-    subgraph COMBINED["統合処理"]
+    subgraph COMBINED["入口"]
         PROCESS[process_chunk]
     end
 
-    INIT_CLIENT --> GEN_CONTENT
-    PROCESS --> ANALYZE_CHUNK
-    ANALYZE_CHUNK --> GEN_QA
-    GEN_QA --> PROCESS
+    PROCESS --> ANALYZE_GEN
+    INIT_CLIENT --> ANALYZE_GEN
+    ANALYZE_GEN --> RESULT_SCHEMA
+    RESULT_SCHEMA --> PAIR_SCHEMA
+classDef default fill:#000,stroke:#fff,color:#fff
+classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
+class INIT_CLIENT,RESULT_SCHEMA,PAIR_SCHEMA,ANALYZE_GEN,PROCESS default
+style INIT fill:#1a1a1a,stroke:#fff,color:#fff
+style SCHEMA fill:#1a1a1a,stroke:#fff,color:#fff
+style GENERATE fill:#1a1a1a,stroke:#fff,color:#fff
+style COMBINED fill:#1a1a1a,stroke:#fff,color:#fff
 ```
 
 ### 2.3 外部依存関係
 
 | ライブラリ | バージョン | 用途 |
 |-----------|-----------|------|
-| `anthropic` | 最新 | **Q/A 生成の LLM**（`claude-sonnet-4-6`・鍵 `ANTHROPIC_API_KEY`） |
+| `anthropic` | 最新 | **Q/A 生成の LLM**（`claude-sonnet-5`・鍵 `ANTHROPIC_API_KEY`） |
 | `google-genai` | 最新 | **Embedding 専用**（`gemini-embedding-001`・3072 次元・鍵 `GOOGLE_API_KEY`） |
 | `pandas` | - | DataFrame処理 |
 | `pathlib` | 標準 | パス操作 |
@@ -231,7 +267,7 @@ flowchart TB
 | `load_data()` | チャンク済みCSVを読み込み |
 | `_load_chunks_from_csv(df)` | DataFrameをチャンクリストに変換 |
 | `generate_qa(chunks, use_celery, ...)` | Q/Aペアを生成 |
-| `_generate_sync(chunks, batch_size, use_smart_generation)` | 同期処理でQ/A生成 |
+| `_generate_sync(chunks, batch_size)` | 同期処理でQ/A生成 |
 | `_generate_with_celery(chunks, workers, concurrency, ...)` | Celery並列処理でQ/A生成 |
 | `evaluate_coverage(chunks, qa_pairs, threshold)` | カバレージを評価 |
 | `save(qa_pairs, coverage_results)` | 結果を保存 |
@@ -242,10 +278,10 @@ flowchart TB
 | メソッド | 概要 |
 |---------|------|
 | `__init__(model, api_key)` | ジェネレーターを初期化 |
-| `_generate_content(prompt, temperature)` | LLMでコンテンツ生成 |
-| `analyze_chunk(chunk_text)` | チャンクを分析してQ/A数を決定 |
-| `generate_qa_pairs(chunk_text, analysis)` | Q/Aペアを生成 |
-| `process_chunk(chunk_text)` | 分析と生成を一括実行 |
+| `analyze_and_generate(chunk_text)` | 分析と Q/A 生成を構造化出力 1 回で実行し `SmartQAResult` を返す |
+| `process_chunk(chunk_text)` | `analyze_and_generate()` の結果を辞書へ整形（パイプライン・Celery の入口） |
+| `COMBINED_PROMPT`（クラス定数） | 分析基準と生成ガイドラインを 1 つにまとめたプロンプト |
+| `SmartQAPair` / `SmartQAResult`（Pydantic） | 構造化出力のスキーマ |
 
 ### 3.3 ユーティリティ関数
 
@@ -257,7 +293,105 @@ flowchart TB
 
 ## 4. クラス・関数 IPO詳細
 
-### 4.1 QAPipeline クラス
+### 4.1 使用例
+
+#### 4.1.1 SmartQAGenerator 単体使用
+
+```python
+from qa_generation.smart_qa_generator import SmartQAGenerator
+
+# 初期化
+generator = SmartQAGenerator(model="claude-sonnet-5")
+
+# チャンクテキスト
+chunk_text = """
+AES-256暗号化アルゴリズムは、対称鍵暗号方式の一種で、
+256ビットの鍵長を持ちます。NISTにより承認されており、
+機密情報の保護に広く使用されています。
+"""
+
+# 一括処理（推奨）
+result = generator.process_chunk(chunk_text)
+
+if result['success']:
+    print(f"Q/A数: {len(result['qa_pairs'])}")
+    for qa in result['qa_pairs']:
+        print(f"Q: {qa['question']}")
+        print(f"A: {qa['answer']}")
+```
+
+#### 4.1.2 QAPipeline 基本使用
+
+```python
+from qa_generation.pipeline import QAPipeline
+
+# パイプライン初期化
+pipeline = QAPipeline(
+    input_file="output_chunked/data_chunks.csv",
+    model="claude-sonnet-5",
+    output_dir="qa_output/pipeline",
+    max_docs=10  # テスト用に制限
+)
+
+# パイプライン実行（同期処理）
+result = pipeline.run(
+    use_celery=False,
+    use_smart_generation=True,
+    analyze_coverage=True
+)
+
+print(f"生成Q/A数: {result['qa_count']}")
+print(f"出力ファイル: {result['saved_files']['qa_csv']}")
+```
+
+#### 4.1.3 Celery並列処理
+
+```bash
+# 1. Celeryワーカーを起動（別ターミナル）
+./start_celery.sh -c 8
+
+# 2. パイプライン実行
+python qa_qdrant/make_qa.py \
+  --input-file output_chunked/data_chunks.csv \
+  --use-celery \
+  -c 8 \
+  --analyze-coverage
+```
+
+#### 4.1.4 ステップバイステップ処理
+
+```python
+from qa_generation.pipeline import QAPipeline
+
+# 初期化
+pipeline = QAPipeline(
+    input_file="output_chunked/data_chunks.csv",
+    max_docs=5
+)
+
+# Step 1: データ読み込み
+df = pipeline.load_data()
+print(f"読み込み行数: {len(df)}")
+
+# Step 2: チャンク変換
+chunks = pipeline._load_chunks_from_csv(df)
+print(f"チャンク数: {len(chunks)}")
+
+# Step 3: Q/A生成
+qa_pairs = pipeline.generate_qa(
+    chunks,
+    use_celery=False,
+    use_smart_generation=True
+)
+print(f"生成Q/A数: {len(qa_pairs)}")
+
+# Step 4: 保存
+coverage_results = {"coverage_rate": 0, "total_chunks": len(chunks)}
+saved_files = pipeline.save(qa_pairs, coverage_results)
+print(f"保存先: {saved_files['qa_csv']}")
+```
+
+### 4.2 QAPipeline クラス
 
 Q/A生成パイプライン全体を制御するクラス。チャンク済みCSVの読み込みからQ/A生成、保存までを一括管理する。
 
@@ -269,7 +403,7 @@ Q/A生成パイプライン全体を制御するクラス。チャンク済みCS
 QAPipeline(
     dataset_name: Optional[str] = None,
     input_file: Optional[str] = None,
-    model: str = "claude-sonnet-4-6",
+    model: str = "claude-sonnet-5",
     output_dir: str = "qa_output/pipeline",
     max_docs: Optional[int] = None,
     client: Optional[LLMClient] = None
@@ -280,7 +414,7 @@ QAPipeline(
 |------------|------|-----------|------|
 | `dataset_name` | Optional[str] | None | 事前定義データセット名（cc_news, wikipedia_ja等） |
 | `input_file` | Optional[str] | None | チャンク済みCSVファイルのパス |
-| `model` | str | "claude-sonnet-4-6" | 使用する LLM モデル（Anthropic Claude） |
+| `model` | str | "claude-sonnet-5" | 使用する LLM モデル（Anthropic Claude） |
 | `output_dir` | str | "qa_output/pipeline" | 出力ディレクトリ |
 | `max_docs` | Optional[int] | None | 処理する最大チャンク数 |
 | `client` | Optional[LLMClient] | None | LLMクライアント（DI用） |
@@ -453,40 +587,42 @@ def run(
 
 ---
 
-### 4.2 SmartQAGenerator クラス
+### 4.3 SmartQAGenerator クラス
 
 コンテンツを考慮したインテリジェントQ/A生成クラス。LLMでチャンクを分析し、適切なQ/A数を動的に決定する。
+**分析と生成は構造化出力 1 回**で行う（旧実装の `analyze_chunk()` ＋ `generate_qa_pairs()` の 2 段階は v3.0 で廃止）。
+モジュール単位の正本は [`qa_generation/docs/smart_qa_generator.md`](../../qa_generation/docs/smart_qa_generator.md)。
 
 #### コンストラクタ: `__init__`
 
-**概要**: SmartQAGeneratorを初期化し、統一 LLM クライアント（`create_llm_client("anthropic")`）を準備する。
+**概要**: SmartQAGeneratorを初期化し、統一 LLM クライアント（`create_llm_client(provider="anthropic")`（Anthropic Claude））を準備する。
 
 ```python
 SmartQAGenerator(
-    model: str = "claude-sonnet-4-6",
+    model: str = "claude-sonnet-5",
     api_key: Optional[str] = None
 )
 ```
 
 | パラメータ | 型 | デフォルト | 説明 |
 |------------|------|-----------|------|
-| `model` | str | "claude-sonnet-4-6" | 使用する LLM モデル（Anthropic Claude） |
-| `api_key` | Optional[str] | None | API Key（Noneの場合は環境変数から取得） |
+| `model` | str | `"claude-sonnet-5"` | 使用する LLM モデル（Anthropic Claude） |
+| `api_key` | Optional[str] | None | 未使用（統一クライアントが環境変数からキーを解決する） |
 
 | 項目 | 内容 |
 |------|------|
-| **Input** | `model`, `api_key`（オプション） |
-| **Process** | 1. 新API（google.genai）を優先的に使用<br>2. 旧API（google.generativeai）にフォールバック<br>3. クライアントを初期化 |
+| **Input** | `model`, `api_key`（未使用） |
+| **Process** | 1. `create_llm_client(provider="anthropic", default_model=model)` でクライアントを生成<br>2. トークン使用量 `last_usage` を 0 で初期化 |
 | **Output** | `SmartQAGenerator`インスタンス |
 
 ---
 
-#### メソッド: `analyze_chunk`
+#### メソッド: `analyze_and_generate`
 
-**概要**: チャンクを分析してQ/A生成計画を立てる。情報密度、重要度、複雑さを評価し、適切なQ/A数（0-5個）を決定する。
+**概要**: チャンクを分析して Q/A 数（0〜5）を決め、その数の Q/A ペアを生成する。**LLM 呼び出しは 1 回**（`generate_structured()` ＋ `response_schema=SmartQAResult`）。
 
 ```python
-def analyze_chunk(self, chunk_text: str) -> Dict
+def analyze_and_generate(self, chunk_text: str) -> SmartQAResult
 ```
 
 | パラメータ | 型 | デフォルト | 説明 |
@@ -496,21 +632,26 @@ def analyze_chunk(self, chunk_text: str) -> Dict
 | 項目 | 内容 |
 |------|------|
 | **Input** | `chunk_text: str` |
-| **Process** | 1. LLMにチャンク分析プロンプトを送信<br>2. 情報密度、重要度、複雑さを評価<br>3. Q/A数（0-5）を決定<br>4. エラー時は文字数ベースでフォールバック |
-| **Output** | `Dict`: 分析結果 |
+| **Process** | 1. `COMBINED_PROMPT` にチャンクを埋め込む<br>2. `generate_structured(response_schema=SmartQAResult, max_output_tokens=4096, temperature=0.2)` を呼ぶ<br>3. 空応答なら `ValueError`<br>4. クライアントの `last_usage` を取り込む |
+| **Output** | `SmartQAResult`（分析結果＋`qa_pairs`） |
 
-**戻り値例**:
+**戻り値例**（`SmartQAResult` を辞書で表したもの）:
 ```python
 {
     'qa_count': 3,              # 生成すべきQ/A数（0-5）
     'key_topics': ['バレエ団', '引退', '共演'],  # 主要トピック
     'importance_score': 0.75,   # 重要度（0.0-1.0）
     'complexity': 'medium',     # 複雑さ（low/medium/high）
-    'reasoning': '複数の関連情報を含む標準的な説明パラグラフ'
+    'reasoning': '複数の関連情報を含む標準的な説明パラグラフ',
+    'qa_pairs': [
+        {'question': 'レジーナ・ウィロビーは何歳で引退しますか？',
+         'answer': 'レジーナは40歳で、3月に舞台から引退します。', 'topic': '引退'},
+        # ... qa_count 件
+    ]
 }
 ```
 
-**Q/A数の判断基準**:
+**Q/A数の判断基準**（`COMBINED_PROMPT` の Step 1）:
 
 | Q/A数 | 判断基準 |
 |-------|---------|
@@ -522,50 +663,9 @@ def analyze_chunk(self, chunk_text: str) -> Dict
 
 ---
 
-#### メソッド: `generate_qa_pairs`
-
-**概要**: 分析結果に基づいてQ/Aペアを生成する。
-
-```python
-def generate_qa_pairs(
-    self,
-    chunk_text: str,
-    analysis: Optional[Dict] = None
-) -> List[Dict]
-```
-
-| パラメータ | 型 | デフォルト | 説明 |
-|------------|------|-----------|------|
-| `chunk_text` | str | - | チャンクテキスト |
-| `analysis` | Optional[Dict] | None | `analyze_chunk()`の結果（Noneの場合は自動分析） |
-
-| 項目 | 内容 |
-|------|------|
-| **Input** | `chunk_text`, `analysis`（オプション） |
-| **Process** | 1. `analysis`がNoneなら`analyze_chunk()`を実行<br>2. `qa_count=0`なら空リストを返す<br>3. LLMにQ/A生成プロンプトを送信<br>4. JSON形式でQ/Aペアを取得 |
-| **Output** | `List[Dict]`: Q/Aペアのリスト |
-
-**戻り値例**:
-```python
-[
-    {
-        'question': 'レジーナ・ウィロビーは何歳で引退しますか？',
-        'answer': 'レジーナは40歳で、3月に舞台から引退します。',
-        'topic': '引退'
-    },
-    {
-        'question': 'レジーナとメリーナはどの作品で共演しますか？',
-        'answer': 'くるみ割り人形の雪の場面とアラビアのディヴェルティスマンで共演します。',
-        'topic': '共演'
-    }
-]
-```
-
----
-
 #### メソッド: `process_chunk`
 
-**概要**: チャンクの分析とQ/A生成を一括実行する統合メソッド。実際のパイプラインではこのメソッドが使用される。
+**概要**: `analyze_and_generate()` を呼び、結果を辞書へ整形する。実際のパイプライン（`_generate_sync()`）と Celery ワーカーはこのメソッドを使う。
 
 ```python
 def process_chunk(self, chunk_text: str) -> Dict
@@ -578,8 +678,8 @@ def process_chunk(self, chunk_text: str) -> Dict
 | 項目 | 内容 |
 |------|------|
 | **Input** | `chunk_text: str` |
-| **Process** | 1. `analyze_chunk()`で分析<br>2. `generate_qa_pairs()`でQ/A生成<br>3. 結果をまとめて返す |
-| **Output** | `Dict`: 処理結果 |
+| **Process** | 1. `analyze_and_generate()` を実行<br>2. 分析 5 項目と `qa_pairs` を辞書へ詰め替え（`topic` が空なら「その他」）<br>3. 例外時は `success=False` と空の結果を返す（呼び出し側がそのチャンクをスキップ） |
+| **Output** | `Dict`: 処理結果（`analysis` / `qa_pairs` / `usage` / `success`） |
 
 **戻り値例**:
 ```python
@@ -595,13 +695,14 @@ def process_chunk(self, chunk_text: str) -> Dict
         {'question': '...', 'answer': '...', 'topic': '...'},
         # ...
     ],
+    'usage': {'input_tokens': 812, 'output_tokens': 356},
     'success': True
 }
 ```
 
 ```python
 # 使用例
-generator = SmartQAGenerator(model="claude-sonnet-4-6")
+generator = SmartQAGenerator(model="claude-sonnet-5")
 result = generator.process_chunk("チャンクテキスト...")
 
 if result['success']:
@@ -613,7 +714,7 @@ if result['success']:
 
 ---
 
-### 4.3 ユーティリティ関数
+### 4.4 ユーティリティ関数
 
 #### `analyze_qa_statistics`
 
@@ -686,118 +787,20 @@ def analyze_qa_statistics(results: List[Dict]) -> Dict
 
 | 設定項目 | 値 | 説明 |
 |---------|-----|------|
-| デフォルトモデル | `claude-sonnet-4-6` | 使用する LLM モデル（Anthropic Claude） |
-| 分析時temperature | 0.1 | 分析プロンプトの温度 |
-| 生成時temperature | 0.3 | Q/A生成プロンプトの温度 |
+| デフォルトモデル | `claude-sonnet-5` | 使用する LLM モデル（Anthropic Claude） |
+| temperature | 0.2 | 分析＋生成（構造化出力 1 回）の温度 |
+| max_output_tokens | 4096 | 構造化出力の上限トークン数 |
 | Q/A数範囲 | 0-5 | 1チャンクあたりの生成Q/A数 |
 
----
-
-## 6. 使用例
-
-### 6.1 SmartQAGenerator 単体使用
-
-```python
-from qa_generation.smart_qa_generator import SmartQAGenerator
-
-# 初期化
-generator = SmartQAGenerator(model="claude-sonnet-4-6")
-
-# チャンクテキスト
-chunk_text = """
-AES-256暗号化アルゴリズムは、対称鍵暗号方式の一種で、
-256ビットの鍵長を持ちます。NISTにより承認されており、
-機密情報の保護に広く使用されています。
-"""
-
-# 一括処理（推奨）
-result = generator.process_chunk(chunk_text)
-
-if result['success']:
-    print(f"Q/A数: {len(result['qa_pairs'])}")
-    for qa in result['qa_pairs']:
-        print(f"Q: {qa['question']}")
-        print(f"A: {qa['answer']}")
-```
-
-### 6.2 QAPipeline 基本使用
-
-```python
-from qa_generation.pipeline import QAPipeline
-
-# パイプライン初期化
-pipeline = QAPipeline(
-    input_file="output_chunked/data_chunks.csv",
-    model="claude-sonnet-4-6",
-    output_dir="qa_output/pipeline",
-    max_docs=10  # テスト用に制限
-)
-
-# パイプライン実行（同期処理）
-result = pipeline.run(
-    use_celery=False,
-    use_smart_generation=True,
-    analyze_coverage=True
-)
-
-print(f"生成Q/A数: {result['qa_count']}")
-print(f"出力ファイル: {result['saved_files']['qa_csv']}")
-```
-
-### 6.3 Celery並列処理
-
-```bash
-# 1. Celeryワーカーを起動（別ターミナル）
-./start_celery.sh -c 8
-
-# 2. パイプライン実行
-python qa_qdrant/make_qa.py \
-  --input-file output_chunked/data_chunks.csv \
-  --use-celery \
-  -c 8 \
-  --analyze-coverage
-```
-
-### 6.4 ステップバイステップ処理
-
-```python
-from qa_generation.pipeline import QAPipeline
-
-# 初期化
-pipeline = QAPipeline(
-    input_file="output_chunked/data_chunks.csv",
-    max_docs=5
-)
-
-# Step 1: データ読み込み
-df = pipeline.load_data()
-print(f"読み込み行数: {len(df)}")
-
-# Step 2: チャンク変換
-chunks = pipeline._load_chunks_from_csv(df)
-print(f"チャンク数: {len(chunks)}")
-
-# Step 3: Q/A生成
-qa_pairs = pipeline.generate_qa(
-    chunks,
-    use_celery=False,
-    use_smart_generation=True
-)
-print(f"生成Q/A数: {len(qa_pairs)}")
-
-# Step 4: 保存
-coverage_results = {"coverage_rate": 0, "total_chunks": len(chunks)}
-saved_files = pipeline.save(qa_pairs, coverage_results)
-print(f"保存先: {saved_files['qa_csv']}")
-```
 
 ---
 
-## 7. 変更履歴
+## 6. 変更履歴
 
 | バージョン | 変更内容 |
 |-----------|---------|
 | 1.0 | 初版作成（QAPipeline v3.0、SmartQAGenerator v2.5 対応） |
+| 1.1 | 使用例を IPO 詳細の冒頭（`### 4.1 使用例`）へ移し、末尾の「## 6. 使用例」章を削除（基本フォーマット `a_class_method_md_format.md` v1.6〜 §6.1 に準拠。2026-09-24）。IPO の小節を 4.2 以降へ繰り下げ、後続の章番号を 1 つ繰り上げた。文書内の `§4.x` 参照も追随。あわせて **SmartQAGenerator の記述を現行実装（v3.0・構造化出力 1 回方式）へ是正**した: 廃止済みの `analyze_chunk()` / `generate_qa_pairs()` / `_generate_content()` を `analyze_and_generate()` に置き換え（§4.3 全面改稿・§1.2/§1.3/§2.2/§3.2/付録 A.2・B.2）、既定モデルを `claude-sonnet-4-6` → `claude-sonnet-5`、前提条件の API キー記述（`GOOGLE_API_KEY` のみ）を是正。概要に「各責務対応のモジュール」（1:1）を追加 |
 
 ---
 
@@ -840,6 +843,12 @@ flowchart LR
     PIPELINE --> DATA_IO
     PIPELINE --> EVAL
     PIPELINE --> CELERY
+classDef default fill:#000,stroke:#fff,color:#fff
+classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
+class PIPELINE,SYS,LOGGING,TYPING,PATHLIB,PANDAS,CONFIG,HELPER_LLM,SMART_GEN,DATA_IO,EVAL,CELERY default
+style STDLIB fill:#1a1a1a,stroke:#fff,color:#fff
+style EXTERNAL fill:#1a1a1a,stroke:#fff,color:#fff
+style INTERNAL fill:#1a1a1a,stroke:#fff,color:#fff
 ```
 
 ### A.2 SmartQAGenerator 依存関係
@@ -849,21 +858,28 @@ flowchart LR
     SMART_GEN[smart_qa_generator.py]
 
     subgraph STDLIB["標準ライブラリ"]
-        JSON[json]
         LOGGING[logging]
         TYPING[typing]
     end
 
     subgraph EXTERNAL["外部ライブラリ"]
-        GENAI_NEW[google.genai]
-        GENAI_OLD[google.generativeai]
+        PYDANTIC[pydantic]
     end
 
-    SMART_GEN --> JSON
+    subgraph INTERNAL["内部モジュール"]
+        HELPER_LLM["helper.helper_llm（create_llm_client）"]
+    end
+
     SMART_GEN --> LOGGING
     SMART_GEN --> TYPING
-    SMART_GEN --> GENAI_NEW
-    SMART_GEN -.->|フォールバック| GENAI_OLD
+    SMART_GEN --> PYDANTIC
+    SMART_GEN --> HELPER_LLM
+classDef default fill:#000,stroke:#fff,color:#fff
+classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
+class SMART_GEN,LOGGING,TYPING,PYDANTIC,HELPER_LLM default
+style STDLIB fill:#1a1a1a,stroke:#fff,color:#fff
+style EXTERNAL fill:#1a1a1a,stroke:#fff,color:#fff
+style INTERNAL fill:#1a1a1a,stroke:#fff,color:#fff
 ```
 
 ---
@@ -901,21 +917,25 @@ flowchart TD
     SAVE --> RESULT[結果を返す]
     RESULT --> END([終了])
     ERROR1 --> END
+classDef default fill:#000,stroke:#fff,color:#fff
+classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
+class START,LOAD,CONVERT,CHECK_CHUNKS,ERROR1,GEN_QA,CHECK_CELERY,CELERY,SYNC,CHECK_QA,WARN,COVERAGE,EVAL,SKIP_EVAL,SAVE,RESULT,END default
 ```
 
 ### B.2 SmartQAGenerator.process_chunk() フローチャート
 
 ```mermaid
 flowchart TD
-    START([開始]) --> ANALYZE[analyze_chunk]
-    ANALYZE --> CHECK_COUNT{qa_count > 0?}
-    
-    CHECK_COUNT -->|No| SKIP[空リストを返す]
-    CHECK_COUNT -->|Yes| GENERATE[generate_qa_pairs]
-    
-    SKIP --> RESULT[結果をまとめる]
-    GENERATE --> RESULT
-    
-    RESULT --> RETURN[Dict を返す]
+    START([開始]) --> CALL["analyze_and_generate<br>構造化出力 1 回"]
+    CALL --> CHECK_OK{成功?}
+
+    CHECK_OK -->|No（例外）| FAIL["success=False<br>空の結果"]
+    CHECK_OK -->|Yes| SHAPE["analysis / qa_pairs / usage へ整形"]
+
+    SHAPE --> RETURN[Dict を返す]
+    FAIL --> RETURN
     RETURN --> END([終了])
+classDef default fill:#000,stroke:#fff,color:#fff
+classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
+class START,CALL,CHECK_OK,FAIL,SHAPE,RETURN,END default
 ```
