@@ -1,25 +1,37 @@
+## chunking/ コマンドメモ（2026-09-24 に現行 CLI へ書き直し）
+## 正本は `python -m chunking.csv_text_to_chunks_text_csv --help` と
+## chunking/docs/csv_text_to_chunks_text_csv.md（IPO）。本メモは早見表。
+
 ## 依存パッケージのインストール
 pip install -r chunking/requirements.txt
 
-## 基本的な実行
-python -m chunking.csv_to_chunks_text_para -i input.txt -o output.txt
+## 基本的な実行（出力は <output>/<入力名>_chunks.csv）
+python -m chunking.csv_text_to_chunks_text_csv --input-file input.txt --output output_chunked
 
-## 基本的な実行、並列数を3に変更
-python -m chunking.csv_to_chunks_text_para -i ./OUTPUT/wikipedia_ja_5per.csv -o ./OUTPUT/wikipedia_ja_5per_chunked.csv -w 3
+## CSV を入力にする（テキスト列を指定・先頭 20 行だけで試す）
+python -m chunking.csv_text_to_chunks_text_csv --input-file OUTPUT/wikipedia_ja_5per.csv --output output_chunked --text-column Combined_Text --max-rows 20
+
+## 並列数を 3 に変更
+python -m chunking.csv_text_to_chunks_text_csv --input-file OUTPUT/wikipedia_ja_5per.csv --output output_chunked --workers 3
+
+## モデル・ブロックサイズを変える（既定: claude-haiku-4-5 / 1000 文字）
+python -m chunking.csv_text_to_chunks_text_csv --input-file input.txt --output output_chunked --model claude-sonnet-5 --block-size 800
 
 ## 詳細ログ出力
-python -m chunking.csv_to_chunks_text_para -i input.txt -o output.txt -v
+python -m chunking.csv_text_to_chunks_text_csv --input-file input.txt --output output_chunked --verbose
 
-## 中断したジョブを再開
-python -m chunking.csv_to_chunks_text_para --resume JOB_ID -i input.txt -o output.txt
+## 中断したジョブを再開（JOB_ID は ./checkpoints/ 配下のディレクトリ名）
+python -m chunking.csv_text_to_chunks_text_csv --resume JOB_ID --input-file input.txt --output output_chunked
 
-## ジョブ一覧表示
-python -m chunking.csv_to_chunks_text_para --list-jobs
-
----
-実装した機能
-機能説明並列処理asyncio + Semaphore で最大8並列（変更可能）動的並列数調整429エラー時に自動で並列数を減少リトライ3回リトライ、
-指数バックオフ不完全JSON対策max_output_tokens=4096 + JSON検証 + フォールバックチェックポイント各ステップ完了時に保存、
-再開可能プログレスバーtqdmで進捗表示ログ機能ファイル+コンソールに出力
+## ジョブ一覧表示（専用の CLI オプションは無い）
+ls ./checkpoints/
+python -c "from chunking.checkpoint_manager import CheckpointManager as C; print(C.list_jobs())"
 
 ---
+実装している機能（chunking/async_api_client.py ほか）
+- 並列処理: asyncio + Semaphore で並列数を制御（--workers、既定 8。固定で、動的には変えない）
+- リトライ: 最大 3 回。通常は 2^attempt 秒、レート制限（429）は 30×(attempt+1) 秒待つ
+- 構造化出力: generate_structured() でスキーマ準拠の JSON を受け取る（旧版の JSON 検証・切断検出は不要になった）
+- 中断: LLM 呼び出しが連続で失敗したら ChunkingAbortedError で止める（フォールバックで「成功」にしない）
+- チェックポイント: 各ステップ完了時に ./checkpoints/<JOB_ID>/ へ保存し、--resume で再開できる
+- 進捗表示: tqdm / ログはファイル＋コンソール
