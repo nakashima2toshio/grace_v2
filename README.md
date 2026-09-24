@@ -1,17 +1,20 @@
-## GRACE アプリ（`./run_dev.sh`）- 画面・操作・プログラム対応 ドキュメント
+# GRACE アプリ（`./run_dev.sh`）- 画面・操作・プログラム対応 ドキュメント
 
-**Version 3.2** | 最終更新: 2026-09-23
+**Version 3.3** | 最終更新: 2026-09-24
 
 ![B-01 起動直後（基本版）](docs/images/b-01-basic-initial.png)
 
 `./run_dev.sh` で起動するローカル開発アプリの README。**画面で何ができるか**、
 **操作がどのプログラム（コンポーネント・API・関数）に対応するか**、
 **押してから結果が出るまで何が起きるか**を、実装と 1:1 で対応づけて記述する。
-## 「目標を与えれば、自分で道具を選び、エラーが出たら自己修正しながらゴールまで走り切るエージェント」
+
+> **「目標を与えれば、自分で道具を選び、エラーが出たら自己修正しながらゴールまで走り切るエージェント」**
+
 ---
 
 ## 目次
 
+0. [grace_v2 で実装した機構](#grace_v2-で実装した機構)
 1. [概要](#概要)
    - [主な責務](#主な責務)
    - [各責務対応のモジュール](#各責務対応のモジュール)
@@ -1545,6 +1548,8 @@ from backend.app.core.jobs import job_manager, JobParams
 | 3.0 | **実装との事実突き合わせで記述のずれを是正した。** (1) §3.3 の Support ステップ表が **8 行**で、先頭の `analyze`（0-(A) 入力・質問分析／複数質問の検知）が欠けていた——`support_agent.py::STEP_IDS` と `jobReducer.ts::STEP_IDS` はどちらも **9 個**であり、「`step` イベントと 1:1 で対応する」という同節の記述自体と矛盾していたため行を追加し、表示ラベルを `STEP_LABELS` / `REVIEW_STEP_LABELS` の逐語へ揃えた。(2) §5.3 の `STEP_IDS` を **8 個 → 9 個**へ。「`support_agent.py::STEP_IDS` と一致必須」と書きながら不一致だった。(3) §5.4「UI に出ないが固定で送られる値」から Support の `use_web` / `do_action` を削除——実際は `QueryForm` のトグルで、`state/queryParams.ts::buildQueryParams()` が `state.useWeb` / `state.doAction` を送っている。固定なのは `ReviewForm.tsx` にリテラルで書かれた Review の `do_action: true` **だけ**なので、節名を「送信ペイロードの既定値」に変えフォーム別のトグル数（Support 4 / Review 3）を明記した。(4) **`QuestionSelectModal` の記載が 0 件**だった——0-(A) で複数質問を検知したとき主質問を選ばせるモーダルで、`SupportPanel` が `state/interventionKind.ts` の判定で `ConfirmModal` と出し分けている。§2 の画面レイアウト図と対比表へ追加した。(5) §2 の `StepTimeline` を 8 → **9 ステップ**、`QueryForm` の「問い合わせ 1 行」を **textarea（複数行・Ctrl+Enter / ⌘+Enter で送信）**へ。(6) フロントのテスト表を実測へ更新（**189 件 / 13 ファイル → 276 件 / 19 ファイル**）。`citations` / `dataParams` / `documentLimit` / `interventionKind` / `serverTiming` / `submitKey` / `ReviewForm.examples` の 7 ファイルが表から漏れていた。(7) §4.3 のステップ詳細の例を `ルール 21 件` → **23 件**へ（`len(EC_AD.rules)` を実行して確認。keihyo 12 / tokusho 6 / yakki 4 / policy 1）。(8) §8 の **`2.8` が重複**し、並びが 2.6 → 2.8 → 2.9 → 2.7 → 2.8 と崩れていたので、詳細な方の 2.8 を残して 2.6 → 2.7 → 2.8 → 2.9 の昇順へ直した |
 | 3.1 | §5.2 に `run_dev.sh` の使用中ポートの解放（:8000 / :5173。`RUN_DEV_FREE_PORTS=0` で無効）と、Ctrl+C で子プロセスまで止めるようにした変更を追記（grace_v2_local と同じ変更） |
 | 3.2 | **詳細ログの既定を ON へ変更**（基本版 / GRACE-Support / GRACE-Review は `DEFAULT_QUERY_FORM` / `DEFAULT_REVIEW_FORM` の `verbose`、データ管理は `DataJobPanel` の `useState`） |
+| 3.3 | **フォーマット仕様の共通骨格に合わせた**（2026-09-24）。1 行目のタイトルが `##`（H2）になっていたのを H1 へ直し、目次の前に `##` 見出しで置かれていたスローガンを引用行へ改めた（見出し階層から外す）。目次に「grace_v2 で実装した機構」を追加 |
+
 ---
 
 ## 付録: 依存関係図

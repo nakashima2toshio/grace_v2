@@ -1,6 +1,6 @@
 # docs 棚卸し（リポジトリ直下 `docs/`）
 
-**Version 1.0** | 最終更新: 2026-09-15
+**Version 1.2** | 最終更新: 2026-09-24
 
 リポジトリ直下 `docs/` の一覧と、**どのディレクトリに何を置くかの境界**をまとめる。
 各領域の棚卸しは [`backend/docs/README.md`](../backend/docs/README.md) /
@@ -67,6 +67,19 @@ CLAUDE.md §9.1 の表を、判断に使える形へ具体化したもの。
 `core_gates.md` は `gates.py` 1 ファイルの IPO なので `backend/docs/`。
 **両者は重複ではない** — 前者は「機構 ID（GA〜G9）で横断的に見る」、後者は「関数の仕様」。
 
+### 2.2 書式（フォーマット仕様）
+
+直下 `docs/` の文書は、まず**種別**を決め、種別に応じた仕様で書く
+（`.claude/skills/grace-agent-docs/a_cross_doc_md_format.md` §1）。§3 の各表の「種別」列がそれである。
+
+| 種別 | 内容 | 仕様 |
+|---|---|---|
+| A 横断文書 | 2 領域以上にまたがる機構の説明 | `a_cross_doc_md_format.md` §2〜§5（**概要に主な責務・各責務対応のモジュール・3 層の構成図**） |
+| B 調査メモ・設計案 | 調査結果・提案 | 同 §6 |
+| C TODO・索引 | 進行中タスク・本書 | 同 §7.1 |
+| D 資材 | ログ・画像・外部レビュー原文 | 同 §7.2（書式不問。空ファイル・空白入りファイル名は禁止） |
+| E モジュール IPO | トップレベル `.py` の IPO | `a_class_method_md_format.md` |
+
 > ⚠️ **トップレベル `.py` の IPO は直下 `docs/` が現状の置き場所**である
 > （`agent_parallel_search.md`）。パッケージに属さないため `<package>/docs/` が作れない。
 > 横断文書と混ざるが、これを分けるために 1 ファイルのためのディレクトリは切らない。
@@ -75,31 +88,33 @@ CLAUDE.md §9.1 の表を、判断に使える形へ具体化したもの。
 
 ## 3. 文書一覧
 
-> 行数・Ver は 2026-09-15 の実測値（`wc -l` と各文書の Version ヘッダー）。
+> 行数・Ver は 2026-09-24 の実測値（`wc -l` と各文書の Version ヘッダー）。
 
 ### 3.1 横断文書（2 つ以上の領域にまたがる）
 
-| 文書 | 内容 | またがる領域 | 行数 | Ver |
-|---|---|---|---:|---|
-| `pipelines.md` | **3 モード対照のハブ**（基本版 / Support / Review）。ステップ対照表・実行順・基本版との差・ガードレール有効表 | backend + frontend | 162 | — |
-| `guardrails.md` | ガードレール GA〜G9 の機構 → 実装 → **失敗時の既定** | backend + grace + ルート | 278 | — |
-| `reasoning_flow.md` | 生成の 2 ステップ（Support の `reasoning` / Review の `detect`） | grace + backend | 320 | 2.0 |
-| `performance_levers.md` | 回答品質・レイテンシ・コストを決めている箇所と未実装レバー | 全域 | 489 | 2.0 |
-| `agent_layers.md` | **一般エージェント用語 → 実装の対応表**（L0〜L4）。実装を読む前の見取り図 | 全域 | 338 | 1.0 |
+| 文書 | 種別 | 内容 | またがる領域 | 行数 | Ver |
+|---|:--:|---|---|---:|---|
+| `pipelines.md` | A | **3 モード対照のハブ**（基本版 / Support / Review）。ステップ対照表・実行順・基本版との差・ガードレール有効表 | backend + frontend | 246 | 1.1 |
+| `guardrails.md` | A | ガードレール GA〜G9 の機構 → 実装 → **失敗時の既定** | backend + grace + ルート | 378 | 1.0 |
+| `reasoning_flow.md` | A | 生成の 2 ステップ（Support の `reasoning` / Review の `detect`） | grace + backend | 387 | 2.1 |
+| `performance_levers.md` | A | 回答品質・レイテンシ・コストを決めている箇所と未実装レバー | 全域 | 564 | 2.1 |
+| `agent_layers.md` | A | **一般エージェント用語 → 実装の対応表**（L0〜L4）。実装を読む前の見取り図 | 全域 | 415 | 1.1 |
 
 ### 3.2 モジュール IPO（トップレベル `.py`）
 
-| 文書 | 対象 | 行数 | Ver |
-|---|---|---:|---|
-| `agent_parallel_search.md` | `agent_parallel_search.py` — 並列検索エンジン（`ThreadPoolExecutor`）。⚠️ Legacy ReAct 経路専用で Web アプリからは未稼働（同文書「稼働範囲」参照） | 723 | 1.1 |
+| 文書 | 種別 | 対象 | 行数 | Ver |
+|---|:--:|---|---:|---|
+| `agent_parallel_search.md` | E | `agent_parallel_search.py` — 並列検索エンジン（`ThreadPoolExecutor`）。⚠️ Legacy ReAct 経路専用で Web アプリからは未稼働（同文書「稼働範囲」参照） | 732 | 1.2 |
 
 ### 3.3 進行中の TODO
 
-| 文書 | 内容 | 行数 | Ver |
-|---|---|---:|---|
-| `doc_modernization_todo.md` | ドキュメント最新化 TODO。**①〜⑧ は完了、§10 に未完 3 件が残る**（スクリーンショット 14 枚・`ReviewForm` / `ReviewPanel` のアクセシビリティ） | 465 | 2.0 |
+| 文書 | 種別 | 内容 | 行数 | Ver |
+|---|:--:|---|---:|---|
+| `doc_modernization_todo.md` | C | ドキュメント最新化 TODO。**①〜⑧ は完了、§10 に未完 3 件が残る**（スクリーンショット 14 枚・`ReviewForm` / `ReviewPanel` のアクセシビリティ） | 486 | 2.3 |
 
 ### 3.4 資材ディレクトリ
+
+種別はすべて D（書式不問）。
 
 | ディレクトリ | 内容 |
 |---|---|
@@ -186,7 +201,8 @@ EOF
 |---|---|---|---|
 | 1 | スクリーンショット 14 枚 | `doc_modernization_todo.md` §10 の残タスク #1。`ANTHROPIC_API_KEY` ＋ Qdrant のある環境で撮影 | ⏳ 環境 |
 | 2 | `ReviewForm` / `ReviewPanel` のアクセシビリティ | 同 #5 / #6。`<label>` の欠落・`aria-live` / `role` の欠落 | ⏳ 実装変更 |
-| 3 | `pipelines.md` / `guardrails.md` の Version ヘッダー | この 2 件だけ `**Version X.X**` ヘッダーが無い（他の 5 文書にはある） | ⏳ |
+| 3 | `pipelines.md` / `guardrails.md` の Version ヘッダー | この 2 件だけ `**Version X.X**` ヘッダーが無かった | ✅ 2026-09-24（v1.2） |
+| 4 | `frontend/docs/` を React 仕様 v1.1 の共通骨格へ | `a_react_page_md_format.md` v1.1 で概要に「各責務対応のモジュール」、`## 1.` に「1.1 システム全体での位置づけ（3 層）」が加わった。既存のコンポーネント文書（20 件）は未追随 | ⏳ |
 
 ---
 
@@ -194,5 +210,6 @@ EOF
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 1.2 | **`a_cross_doc_md_format.md`（横断文書フォーマット）を新設し、直下 `docs/` を準拠させた**（2026-09-24）。§2.2 に種別 A〜E と仕様の対応を追加し、§3 の各表に「種別」列を足して行数・Ver を実測へ更新。種別 A の 5 文書へ概要（主な責務／各責務対応のモジュール／3 層のアーキテクチャ構成図）を追加（本文の章番号は不変）、`pipelines.md` / `guardrails.md` の Version ヘッダーを追加（§6 残タスク 3 を完了）。本書のヘッダーが 1.0 のまま変更履歴だけ 1.1 に進んでいた不一致も解消した。§6 に残タスク 4（`frontend/docs/` の React 仕様 v1.1 追随）を追加 |
 | 1.1 | `agent_layers.md`（一般エージェント用語と実装の L0〜L4 対応表）を §3.1 へ追加し、§4 の正本一覧に「一般用語 → 実装の対応」を登録（2026-09-17）。同書はステップ表・ガードレール表を持たず `pipelines.md` / `guardrails.md` へリンクする |
 | 1.0 | 初版作成（2026-09-15）。直下 `docs/` だけ棚卸しの索引が無く、**どこに何を置くかの境界が明文化されていなかった**ため、同じ内容が別の場所へ書かれる事故が繰り返されていた（`grace/docs/` の 4 本重複・`backend/docs/` の IPO 3〜4 重管理・`pipelines.md` §3 の複製）。§2 に配置の判定基準、§4 に重複禁止ルールと正本の一覧、§5 に**全 docs ディレクトリを横断する検出スクリプト**を置いた。あわせて完了済みの `qa_tab_port_todo.md` を `archive/` へ移動し、`guardrails.md` §2 の表見出し「実装（ファイル:行）」を実態（行番号は書かない規則。実際に行番号は 1 つも無い）に合わせて「実装（ファイル・シンボル）」へ是正した |
