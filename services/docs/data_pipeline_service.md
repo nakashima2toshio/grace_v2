@@ -1,6 +1,6 @@
 # data_pipeline_service.py - データ準備パイプラインの Web 向けラッパ層 ドキュメント
 
-**Version 1.0** | 最終更新: 2026-09-12
+**Version 1.1** | 最終更新: 2026-09-24
 
 ---
 
@@ -12,10 +12,9 @@
 4. [クラス・関数一覧表](#3-クラス関数一覧表)
 5. [クラス・関数 IPO詳細](#4-クラス関数-ipo詳細)
 6. [設定・定数](#5-設定定数)
-7. [使用例](#6-使用例)
-8. [エクスポート](#7-エクスポート)
-9. [変更履歴](#8-変更履歴)
-10. [付録: 依存関係図](#付録-依存関係図)
+7. [エクスポート](#6-エクスポート)
+8. [変更履歴](#7-変更履歴)
+9. [付録: 依存関係図](#付録-依存関係図)
 
 ---
 
@@ -31,10 +30,11 @@
 
 ### 主な責務
 
-- CLI の `main()` に直書きされていた処理を**関数**として提供する
-- pandas DataFrame を返す既存 API を、JSON 化できる素の `dict` / `list` へ変換する
-- async なチャンキング処理を、同期のジョブ runner から呼べるようにラップする
 - 入力ファイルのブラウズを、**許可ディレクトリ内に限定**して提供する
+- async なチャンキング処理を、同期のジョブ runner から呼べるようにラップする
+- Q/A 生成パイプラインを CLI と同じ経路で同期呼び出しする
+- CLI の `main()` に直書きされていた Qdrant コレクションの一覧・削除を**関数**として提供する
+- pandas DataFrame を返す既存 API を、JSON 化できる素の `dict` / `list` へ変換する
 
 ### 各責務対応のモジュール
 
@@ -226,7 +226,54 @@ API 層はこれを 400 / error イベントへ変換する。
 
 ## 4. クラス・関数 IPO詳細
 
-### 4.1 パス検証
+### 4.1 使用例
+
+#### 4.1.1 基本的なワークフロー（ファイル選択 → チャンク化）
+
+```python
+from services.data_pipeline_service import (
+    list_input_files,
+    load_input_text,
+    resolve_input_file,
+    run_chunking_sync,
+)
+
+# 画面に出す候補
+files = list_input_files("OUTPUT")
+print(files[0]["path"])          # 'OUTPUT/cc_news_1per.csv'
+
+# ジョブ側（ワーカースレッド）
+path = resolve_input_file("OUTPUT/cc_news_1per.csv")
+text = load_input_text(path, text_column=None, max_rows=20)
+chunks = run_chunking_sync(
+    text,
+    model="claude-haiku-4-5",
+    max_workers=8,
+    block_size=1000,
+    output_file="output_chunked/cc_news_1per_chunks.csv",
+    dataset_type="cc_news_1per",
+)
+print(len(chunks))
+```
+
+#### 4.1.2 応用ワークフロー（チャンク済み CSV → Q/A 生成）
+
+```python
+from services.data_pipeline_service import run_qa_generation_sync
+
+result = run_qa_generation_sync(
+    "output_chunked/cc_news_1per_chunks.csv",
+    model="claude-sonnet-5",
+    output_dir="qa_output",      # ← 入れ子にしない（§4.2 の list_input_files 参照）
+    max_docs=50,
+    analyze_coverage=True,
+)
+
+if result.get("qa_count"):
+    print(result["saved_files"]["qa_csv"])   # そのまま Qdrant 登録の入力になる
+```
+
+### 4.2 パス検証
 
 #### `resolve_allowed_dir`
 
@@ -294,7 +341,7 @@ def resolve_input_file(rel_path: str, base: Optional[Path] = None) -> Path
 | **Process** | ① `/` で 2 分割できるか検証<br>② ファイル名側に区切りが混ざっていないか検証<br>③ ディレクトリをホワイトリスト照合<br>④ `resolve()` 後に基点配下か検証<br>⑤ 実ファイルの存在確認 |
 | **Output** | 絶対パス（`Path`）。違反は `PathNotAllowedError`、不在は `FileNotFoundError` |
 
-### 4.2 実行ラッパ
+### 4.3 実行ラッパ
 
 #### `run_chunking_sync`
 
@@ -360,7 +407,7 @@ def run_qa_generation_sync(
 > 📝 `celery_workers=1` を固定で渡しているが、これは**ワーカー数のチェック用**であって
 > 並列度ではない。実際の並列数は `concurrency` が決める。
 
-### 4.3 JSON 化
+### 4.4 JSON 化
 
 #### `dataframe_to_records`
 
@@ -398,58 +445,10 @@ ALLOWED_INPUT_DIRS: tuple[str, ...] = (
 フロントの `INPUT_DIRS`（`frontend/src/state/dataParams.ts`）と **1:1** で対応する。
 片方だけ足すと画面に出ないか 400 になるので、**必ず両方に足す**。
 
----
-
-## 6. 使用例
-
-### 6.1 基本的なワークフロー（ファイル選択 → チャンク化）
-
-```python
-from services.data_pipeline_service import (
-    list_input_files,
-    load_input_text,
-    resolve_input_file,
-    run_chunking_sync,
-)
-
-# 画面に出す候補
-files = list_input_files("OUTPUT")
-print(files[0]["path"])          # 'OUTPUT/cc_news_1per.csv'
-
-# ジョブ側（ワーカースレッド）
-path = resolve_input_file("OUTPUT/cc_news_1per.csv")
-text = load_input_text(path, text_column=None, max_rows=20)
-chunks = run_chunking_sync(
-    text,
-    model="claude-haiku-4-5",
-    max_workers=8,
-    block_size=1000,
-    output_file="output_chunked/cc_news_1per_chunks.csv",
-    dataset_type="cc_news_1per",
-)
-print(len(chunks))
-```
-
-### 6.2 応用ワークフロー（チャンク済み CSV → Q/A 生成）
-
-```python
-from services.data_pipeline_service import run_qa_generation_sync
-
-result = run_qa_generation_sync(
-    "output_chunked/cc_news_1per_chunks.csv",
-    model="claude-sonnet-4-6",
-    output_dir="qa_output",      # ← 入れ子にしない（§4.1 の list_input_files 参照）
-    max_docs=50,
-    analyze_coverage=True,
-)
-
-if result.get("qa_count"):
-    print(result["saved_files"]["qa_csv"])   # そのまま Qdrant 登録の入力になる
-```
 
 ---
 
-## 7. エクスポート
+## 6. エクスポート
 
 `__all__` の定義は無い。公開要素は以下のとおり。
 
@@ -472,11 +471,12 @@ run_chunking_sync, run_qa_generation_sync, load_input_text
 
 ---
 
-## 8. 変更履歴
+## 7. 変更履歴
 
 | バージョン | 変更内容 |
 |-----------|---------|
 | 1.0 | 初版作成。`services/docs/` で唯一欠けていた本モジュールを IPO 形式で記述。`run_qa_generation_sync()`（2026-09-12 追加）を含む（2026-09-12） |
+| 1.1 | 使用例を IPO 詳細の冒頭（`### 4.1 使用例`）へ移し、末尾の「## 6. 使用例」章を削除（基本フォーマット `a_class_method_md_format.md` v1.6〜 §6.1 に準拠。2026-09-24）。IPO の小節を 4.2 以降へ繰り下げ、後続の章番号を 1 つ繰り上げた。文書内の `§4.x` 参照も追随。あわせて主な責務を各責務対応のモジュール（5 行）と 1:1 に並べ直した。使用例の `model` を現行の既定 `claude-sonnet-5` へ |
 
 ---
 

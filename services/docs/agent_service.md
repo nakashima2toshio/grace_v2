@@ -1,6 +1,6 @@
 # agent_service.py - ReAct + Reflection エージェント（Anthropic Tool Use ネイティブ）ドキュメント
 
-**Version 2.1** | 最終更新: 2026-09-12
+**Version 2.2** | 最終更新: 2026-09-24
 
 ---
 
@@ -12,10 +12,9 @@
 4. [クラス・関数一覧表](#3-クラス関数一覧表)
 5. [クラス・関数 IPO詳細](#4-クラス関数-ipo詳細)
 6. [設定・定数](#5-設定定数)
-7. [使用例](#6-使用例)
-8. [エクスポート](#7-エクスポート)
-9. [変更履歴](#8-変更履歴)
-10. [付録: 依存関係図](#付録-依存関係図)
+7. [エクスポート](#6-エクスポート)
+8. [変更履歴](#7-変更履歴)
+9. [付録: 依存関係図](#付録-依存関係図)
 
 ---
 
@@ -23,7 +22,7 @@
 
 `agent_service.py` は、Anthropic Messages API の **ネイティブ Tool Use**（`generate_with_tools()` / `stop_reason == "tool_use"`）を用いた **ReAct エージェント**（`ReActAgent`）を提供するモジュールです。ユーザーの質問に対し「Thought（思考）→ Action（ツール実行）→ Observation（観察）」のサイクルを回して RAG 検索ツールを呼び出し、回答案を作成したのち **Reflection（自己評価・推敲）** フェーズで最終回答に仕上げます。進捗はジェネレータでイベントとして逐次 `yield` され、**呼び出し元がそれを配信**します。実際の呼び出し元は `grace/executor.py`（ReAct 実行経路）と `grace/step_trace/benchmark.py`（A/B 計測）の 2 つで、Web からは FastAPI（`/api/support/stream/{job_id}`）が SSE として React UI（`frontend/`）へ中継します。
 
-> 📝 **注意（Anthropic ネイティブ）**: 本モジュールの LLM は **Anthropic Claude**（既定 `claude-sonnet-4-6`、`create_llm_client("anthropic")` 経由）です。Embedding（検索）は **Gemini**（`gemini-embedding-001`）を維持します。会話履歴は Anthropic のステートレス設計に合わせ `self._messages`（dict のリスト）で自前管理し、`execute_turn()` の先頭でリセットします。GRACE 本体（Plan→Execute 型）の現行実装は `grace/executor.py` 側にあり、本 ReAct は `run_legacy_agent` ステップから内部呼び出しされることもあります。
+> 📝 **注意（Anthropic ネイティブ）**: 本モジュールの LLM は **Anthropic Claude**（既定 `claude-sonnet-5`、`create_llm_client("anthropic")` 経由）です。Embedding（検索）は **Gemini**（`gemini-embedding-001`）を維持します。会話履歴は Anthropic のステートレス設計に合わせ `self._messages`（dict のリスト）で自前管理し、`execute_turn()` の先頭でリセットします。GRACE 本体（Plan→Execute 型）の現行実装は `grace/executor.py` 側にあり、本 ReAct は `run_legacy_agent` ステップから内部呼び出しされることもあります。
 
 ### 主な責務
 
@@ -207,7 +206,57 @@ style FUNC fill:#1a1a1a,stroke:#fff,color:#fff
 
 ## 4. クラス・関数 IPO詳細
 
-### 4.1 ReActAgent クラス
+### 4.1 使用例
+
+#### 4.1.1 基本的なワークフロー
+
+```python
+from services.agent_service import (
+    ReActAgent,
+    get_available_collections_from_qdrant_helper,
+)
+
+# 1. 利用可能コレクションを取得
+collections = get_available_collections_from_qdrant_helper()
+
+# 2. エージェント初期化（ハイブリッド検索 ON）
+agent = ReActAgent(
+    selected_collections=collections,
+    use_hybrid_search=True,
+)
+
+# 3. ターン実行（進捗をストリーミング）
+for event in agent.execute_turn("Tech Mountain はどんな事業ですか？"):
+    if event["type"] == "final_answer":
+        print("最終回答:", event["content"])
+```
+
+#### 4.1.2 応用的なワークフロー（イベントを SSE へ中継する）
+
+```python
+# 特定コレクション・Dense のみ検索・セッション固定・モデル明示
+agent = ReActAgent(
+    selected_collections=["wikipedia_ja_5per"],
+    model_name="claude-sonnet-5",
+    session_id="user-123",
+    use_hybrid_search=False,
+)
+
+# `execute_turn()` はジェネレータなので、受け取った側が好きな形へ変換できる。
+# Web 経路では backend/app/core/jobs.py の Job.emit() が SSE イベントにして流す。
+for event in agent.execute_turn(user_query):
+    etype = event["type"]
+    if etype == "log":
+        job.log(event["content"], step="execute")
+    elif etype == "tool_call":
+        job.log(f"🛠️ {event['name']}({event['args']})", step="execute")
+    elif etype == "tool_result":
+        job.log(event["content"], step="execute")
+    elif etype == "final_answer":
+        answer = event["content"]
+```
+
+### 4.2 ReActAgent クラス
 
 Anthropic Tool Use を用いた ReAct + Reflection 型の対話エージェント。1インスタンス = 1セッション（`session_id`）。会話履歴は `self._messages`（dict のリスト）で自前管理する。
 
@@ -227,14 +276,14 @@ ReActAgent(
 | パラメータ | 型 | デフォルト | 説明 |
 |------------|------|-----------|------|
 | `selected_collections` | List[str] | - | 検索対象とするコレクション名のリスト（system_instruction に埋め込む） |
-| `model_name` | str | None | 使用モデル。未指定時は `get_config("models.default", "claude-sonnet-4-6")` |
+| `model_name` | str | None | 使用モデル。未指定時は `get_config("models.default", "claude-sonnet-5")`（`config.yml` の `models.default` が優先。現状の値は `claude-sonnet-4-6`） |
 | `session_id` | Optional[str] | None | セッションID。未指定時は `uuid4()` を自動採番 |
 | `use_hybrid_search` | bool | True | RAG 検索で Sparse+Dense のハイブリッド検索を有効化するか |
 
 | 項目 | 内容 |
 |------|------|
 | **Input** | `selected_collections: List[str]`, `model_name: str = None`, `session_id: Optional[str] = None`, `use_hybrid_search: bool = True` |
-| **Process** | 1. `model_name` を解決（既定 `claude-sonnet-4-6`）<br>2. `session_id` 採番<br>3. `create_llm_client("anthropic", default_model=...)` で `self.llm` を生成<br>4. `self._messages = []` を初期化（履歴自前管理）<br>5. `_build_system_instruction()` / `_build_tools()` を事前構築<br>6. `KeywordExtractor` を初期化（失敗時は None） |
+| **Process** | 1. `model_name` を解決（`config.yml` の `models.default`、無ければ `claude-sonnet-5`）<br>2. `session_id` 採番<br>3. `create_llm_client("anthropic", default_model=...)` で `self.llm` を生成<br>4. `self._messages = []` を初期化（履歴自前管理）<br>5. `_build_system_instruction()` / `_build_tools()` を事前構築<br>6. `KeywordExtractor` を初期化（失敗時は None） |
 | **Output** | `ReActAgent` インスタンス |
 
 **戻り値例**:
@@ -424,7 +473,7 @@ print(clean)
 # 出力: 〇〇です。
 ```
 
-### 4.2 ヘルパー関数
+### 4.3 ヘルパー関数
 
 #### `get_available_collections_from_qdrant_helper`
 
@@ -484,68 +533,17 @@ TOOLS_MAP: Dict[str, Any] = {
 
 | 設定キー | 既定 | 説明 |
 |---------|------|------|
-| `models.default` | `claude-sonnet-4-6` | 既定モデル（未指定時に使用） |
+| `models.default` | `config.yml` の値（現状 `claude-sonnet-4-6`）。キーが無ければコード側の既定 `claude-sonnet-5` | 既定モデル（未指定時に使用） |
 | `agent.max_turns` | 10 | ReAct ループの最大反復回数 |
 | `agent.max_tokens` | 4096 | ReAct ループの 1 回の最大出力トークン |
 | `agent.reflection_max_tokens` | 2048 | Reflection フェーズの最大出力トークン |
 
 > 📝 **注意**: LLM は **Anthropic Claude** を使用します。API キーは `create_llm_client("anthropic")` 内部で `ANTHROPIC_API_KEY` を参照します（旧 `api.google_api_key` / `models.legacy_default` は不要）。Embedding（検索）は Gemini を維持します。
 
----
-
-## 6. 使用例
-
-### 6.1 基本的なワークフロー
-
-```python
-from services.agent_service import (
-    ReActAgent,
-    get_available_collections_from_qdrant_helper,
-)
-
-# 1. 利用可能コレクションを取得
-collections = get_available_collections_from_qdrant_helper()
-
-# 2. エージェント初期化（ハイブリッド検索 ON）
-agent = ReActAgent(
-    selected_collections=collections,
-    use_hybrid_search=True,
-)
-
-# 3. ターン実行（進捗をストリーミング）
-for event in agent.execute_turn("Tech Mountain はどんな事業ですか？"):
-    if event["type"] == "final_answer":
-        print("最終回答:", event["content"])
-```
-
-### 6.2 応用的なワークフロー（イベントを SSE へ中継する）
-
-```python
-# 特定コレクション・Dense のみ検索・セッション固定・モデル明示
-agent = ReActAgent(
-    selected_collections=["wikipedia_ja_5per"],
-    model_name="claude-sonnet-4-6",
-    session_id="user-123",
-    use_hybrid_search=False,
-)
-
-# `execute_turn()` はジェネレータなので、受け取った側が好きな形へ変換できる。
-# Web 経路では backend/app/core/jobs.py の Job.emit() が SSE イベントにして流す。
-for event in agent.execute_turn(user_query):
-    etype = event["type"]
-    if etype == "log":
-        job.log(event["content"], step="execute")
-    elif etype == "tool_call":
-        job.log(f"🛠️ {event['name']}({event['args']})", step="execute")
-    elif etype == "tool_result":
-        job.log(event["content"], step="execute")
-    elif etype == "final_answer":
-        answer = event["content"]
-```
 
 ---
 
-## 7. エクスポート
+## 6. エクスポート
 
 本モジュールに `__all__` は定義されていません。外部から利用される主な要素は次のとおりです。
 
@@ -563,10 +561,11 @@ REFLECTION_INSTRUCTION
 
 ---
 
-## 8. 変更履歴
+## 7. 変更履歴
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 2.2 | 使用例を IPO 詳細の冒頭（`### 4.1 使用例`）へ移し、末尾の「## 6. 使用例」章を削除（基本フォーマット `a_class_method_md_format.md` v1.6〜 §6.1 に準拠。2026-09-24）。IPO の小節を 4.2 以降へ繰り下げ、後続の章番号を 1 つ繰り上げた。文書内の `§4.x` 参照も追随。あわせて既定モデルの記述を実装に合わせた（コード側の既定は `claude-sonnet-5`。`config.yml` の `models.default` が優先され、現状はそちらが `claude-sonnet-4-6` である旨を明記） |
 | 2.1 | **Streamlit 残骸の除去。** Streamlit UI（`ui/pages/agent_chat_page.py`）を呼び出し元としていたが、**実際の呼び出し元は `grace/executor.py` と `grace/step_trace/benchmark.py`**（Web からは FastAPI → SSE → React UI）。§6.2 の例も SSE 中継の形へ差し替えた（2026-09-12） |
 | 1.0 | 初版作成（2026-06-17）。Gemini ネイティブ function-calling 版の ReAct + Reflection に整合 |
 | 2.0 | 2026-06-21。**Anthropic Tool Use ネイティブ**へ全面改修（`create_llm_client("anthropic")` + `generate_with_tools` / `stop_reason=="tool_use"`、会話履歴 `self._messages` 自前管理）。`_setup_client()`/`_create_chat()` 廃止、`_build_system_instruction()`/`_build_tools()` を追加。設定キー・依存関係・図を Anthropic に更新（Embedding は Gemini 維持） |

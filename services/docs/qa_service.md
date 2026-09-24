@@ -1,6 +1,6 @@
 # qa_service.py - Q/A生成サービス ドキュメント
 
-**Version 1.1** | 最終更新: 2026-09-12
+**Version 1.2** | 最終更新: 2026-09-24
 
 ---
 
@@ -12,16 +12,15 @@
 4. [クラス・関数一覧表](#3-クラス関数一覧表)
 5. [クラス・関数 IPO詳細](#4-クラス関数-ipo詳細)
 6. [設定・定数](#5-設定定数)
-7. [使用例](#6-使用例)
-8. [エクスポート](#7-エクスポート)
-9. [変更履歴](#8-変更履歴)
-10. [付録: 依存関係図](#付録-依存関係図)
+7. [エクスポート](#6-エクスポート)
+8. [変更履歴](#7-変更履歴)
+9. [付録: 依存関係図](#付録-依存関係図)
 
 ---
 
 ## 概要
 
-`qa_service.py` は、Q/Aペアの生成と保存に関するビジネスロジックを提供するサービスモジュールです。LLM には **Anthropic Claude**（既定モデル `claude-sonnet-4-6`）を使用し、`create_llm_client(provider="anthropic")` 経由でクライアントを生成します。構造化出力 API でテキストからQ/Aペアを生成し、CSV/JSON 形式でファイルに保存します。
+`qa_service.py` は、Q/Aペアの生成と保存に関するビジネスロジックを提供するサービスモジュールです。LLM には **Anthropic Claude**（既定モデル `claude-sonnet-5`）を使用し、`create_llm_client(provider="anthropic")` 経由でクライアントを生成します。構造化出力 API でテキストからQ/Aペアを生成し、CSV/JSON 形式でファイルに保存します。
 
 > ⚠️ **Q/A 生成パイプライン（`QAPipeline`）の実行口は本モジュールではない。**
 > CLI は `qa_qdrant/make_qa_register_qdrant.py`、Web（データ管理タブ「② Q/A 作成」）は
@@ -73,7 +72,7 @@ flowchart TB
     end
 
     subgraph EXTERNAL["外部サービス層"]
-        CLAUDE["Anthropic Claude (claude-sonnet-4-6)"]
+        CLAUDE["Anthropic Claude (claude-sonnet-5)"]
         FS["ファイルシステム (qa_output/)"]
         MODELS["models.py (QAPair / QAPairsResponse)"]
     end
@@ -193,7 +192,62 @@ style PERSIST fill:#1a1a1a,stroke:#fff,color:#fff
 
 ## 4. クラス・関数 IPO詳細
 
-### 4.1 QAPair クラス
+### 4.1 使用例
+
+#### 4.1.1 基本的なワークフロー
+
+```python
+from services.qa_service import (
+    generate_qa_pairs,
+    save_qa_pairs_to_file,
+)
+
+# 1. テキストからQ/Aペアを生成（Anthropic Claude）
+pairs = generate_qa_pairs(
+    text="RAGは検索拡張生成の略で、外部知識を検索して生成します。",
+    dataset_type="faq",
+    chunk_id="chunk_001",
+    model="claude-sonnet-5",
+    qa_per_chunk=3,
+    log_callback=print,
+)
+
+# 2. ファイルに保存
+saved = save_qa_pairs_to_file(
+    qa_pairs=pairs,
+    dataset_type="faq",
+    log_callback=print,
+)
+
+print(f"CSV: {saved['csv']}")
+print(f"JSON: {saved['json']}")
+```
+
+#### 4.1.2 パイプライン一括実行はここではない
+
+チャンク済み CSV から Q/A を一括生成するのは `QAPipeline` の仕事で、
+本モジュールは通らない。
+
+```python
+# CLI（大規模バッチ・--resume つき）
+#   python qa_qdrant/make_qa_register_qdrant.py --input-file ... --collection ...
+
+# Web（データ管理タブ「② Q/A 作成」と同じ経路）
+from services.data_pipeline_service import run_qa_generation_sync
+
+result = run_qa_generation_sync(
+    "output_chunked/cc_news_chunks.csv",
+    model="claude-sonnet-5",
+    output_dir="qa_output",
+    max_docs=100,
+    analyze_coverage=True,
+)
+print(result["qa_count"], result["saved_files"]["qa_csv"])
+```
+
+詳細は [`backend/docs/data_pipeline.md`](../../backend/docs/data_pipeline.md)。
+
+### 4.2 QAPair クラス
 
 Q/Aペアのデータモデル。基本的なQ/Aペア情報に加え、品質・難易度のメタデータを含みます（`models.py` 定義）。
 
@@ -247,7 +301,7 @@ print(qa.question_type)
 
 ---
 
-### 4.2 QAPairsResponse クラス
+### 4.3 QAPairsResponse クラス
 
 Q/Aペア生成レスポンス。構造化出力（structured output）で使用します（`models.py` 定義）。
 
@@ -289,7 +343,7 @@ print(len(resp.qa_pairs))
 
 ---
 
-### 4.3 Q/A生成関数
+### 4.4 Q/A生成関数
 
 #### `generate_qa_pairs`
 
@@ -300,7 +354,7 @@ def generate_qa_pairs(
     text: str,
     dataset_type: str,
     chunk_id: str,
-    model: str = "claude-sonnet-4-6",
+    model: str = "claude-sonnet-5",
     qa_per_chunk: int = 3,
     log_callback=None,
 ) -> List[QAPair]
@@ -311,13 +365,13 @@ def generate_qa_pairs(
 | `text` | str | - | 対象テキスト |
 | `dataset_type` | str | - | データセットタイプ |
 | `chunk_id` | str | - | チャンクID |
-| `model` | str | "claude-sonnet-4-6" | 使用するモデル（Anthropic Claude） |
+| `model` | str | "claude-sonnet-5" | 使用するモデル（Anthropic Claude） |
 | `qa_per_chunk` | int | 3 | チャンクあたりのQ/A数 |
 | `log_callback` | Optional[Callable] | None | ログコールバック関数 |
 
 | 項目 | 内容 |
 |------|------|
-| **Input** | `text: str`, `dataset_type: str`, `chunk_id: str`, `model: str = "claude-sonnet-4-6"`, `qa_per_chunk: int = 3`, `log_callback=None` |
+| **Input** | `text: str`, `dataset_type: str`, `chunk_id: str`, `model: str = "claude-sonnet-5"`, `qa_per_chunk: int = 3`, `log_callback=None` |
 | **Process** | 1. `create_llm_client(provider="anthropic")` でクライアント生成<br>2. Q/A生成プロンプトを構築<br>3. `client.generate_structured()` で構造化出力（`QAPairsResponse`）を取得<br>4. 各Q/Aに `chunk_id`・`dataset_type`・`auto_generated=True` を付与<br>5. 例外時は空リストを返却 |
 | **Output** | `List[QAPair]`: 生成されたQ/Aペアのリスト（エラー時は `[]`） |
 
@@ -341,7 +395,7 @@ pairs = generate_qa_pairs(
     text="RAGは検索拡張生成の略で...",
     dataset_type="faq",
     chunk_id="chunk_001",
-    model="claude-sonnet-4-6",
+    model="claude-sonnet-5",
     qa_per_chunk=3,
     log_callback=print,
 )
@@ -351,7 +405,7 @@ print(f"生成数: {len(pairs)}")
 
 ---
 
-### 4.4 保存関数
+### 4.5 保存関数
 
 #### `save_qa_pairs_to_file`
 
@@ -404,73 +458,17 @@ print(saved["csv"])
 
 | 項目 | 値 | 説明 |
 |------|------|------|
-| 既定モデル | `claude-sonnet-4-6` | `generate_qa_pairs()` の `model` デフォルト（Anthropic Claude） |
+| 既定モデル | `claude-sonnet-5` | `generate_qa_pairs()` の `model` デフォルト（Anthropic Claude） |
 | LLM プロバイダ | `anthropic` | `create_llm_client(provider="anthropic")` |
 | 出力ディレクトリ | `qa_output/` | CSV・JSON保存先 |
 | 既定Q/A数 | `3` | `qa_per_chunk` のデフォルト |
 
 > 📝 **注意**: LLM 用APIキーは環境変数 `ANTHROPIC_API_KEY` で設定します。
 
----
-
-## 6. 使用例
-
-### 6.1 基本的なワークフロー
-
-```python
-from services.qa_service import (
-    generate_qa_pairs,
-    save_qa_pairs_to_file,
-)
-
-# 1. テキストからQ/Aペアを生成（Anthropic Claude）
-pairs = generate_qa_pairs(
-    text="RAGは検索拡張生成の略で、外部知識を検索して生成します。",
-    dataset_type="faq",
-    chunk_id="chunk_001",
-    model="claude-sonnet-4-6",
-    qa_per_chunk=3,
-    log_callback=print,
-)
-
-# 2. ファイルに保存
-saved = save_qa_pairs_to_file(
-    qa_pairs=pairs,
-    dataset_type="faq",
-    log_callback=print,
-)
-
-print(f"CSV: {saved['csv']}")
-print(f"JSON: {saved['json']}")
-```
-
-### 6.2 パイプライン一括実行はここではない
-
-チャンク済み CSV から Q/A を一括生成するのは `QAPipeline` の仕事で、
-本モジュールは通らない。
-
-```python
-# CLI（大規模バッチ・--resume つき）
-#   python qa_qdrant/make_qa_register_qdrant.py --input-file ... --collection ...
-
-# Web（データ管理タブ「② Q/A 作成」と同じ経路）
-from services.data_pipeline_service import run_qa_generation_sync
-
-result = run_qa_generation_sync(
-    "output_chunked/cc_news_chunks.csv",
-    model="claude-sonnet-4-6",
-    output_dir="qa_output",
-    max_docs=100,
-    analyze_coverage=True,
-)
-print(result["qa_count"], result["saved_files"]["qa_csv"])
-```
-
-詳細は [`backend/docs/data_pipeline.md`](../../backend/docs/data_pipeline.md)。
 
 ---
 
-## 7. エクスポート
+## 6. エクスポート
 
 `qa_service.py` には `__all__` の定義はありません。公開要素は以下のとおりです。
 
@@ -486,12 +484,13 @@ QAPairsResponse              # Q/Aペア生成レスポンスモデル
 
 ---
 
-## 8. 変更履歴
+## 7. 変更履歴
 
 | バージョン | 変更内容 |
 |-----------|---------|
 | 1.0 | 初版作成（2026-06-17） |
 | 1.1 | `run_advanced_qa_generation()` の削除に追随（存在しない `qa_generator_runner` を import する死にコードだった）。Streamlit UI の記述を削除し、Q/A 生成パイプラインの実際の実行口（CLI / `run_qa_generation_sync()`）を明記（2026-09-12） |
+| 1.2 | 使用例を IPO 詳細の冒頭（`### 4.1 使用例`）へ移し、末尾の「## 6. 使用例」章を削除（基本フォーマット `a_class_method_md_format.md` v1.6〜 §6.1 に準拠。2026-09-24）。IPO の小節を 4.2 以降へ繰り下げ、後続の章番号を 1 つ繰り上げた。文書内の `§4.x` 参照も追随。あわせて`generate_qa_pairs()` の `model` 既定値を実装（`claude-sonnet-5`）に合わせた |
 
 ---
 

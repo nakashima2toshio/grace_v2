@@ -1,6 +1,6 @@
 # config_service.py - 設定管理サービス ドキュメント
 
-**Version 1.1** | 最終更新: 2026-09-12
+**Version 1.2** | 最終更新: 2026-09-24
 
 ---
 
@@ -12,10 +12,9 @@
 4. [クラス・関数一覧表](#3-クラス関数一覧表)
 5. [クラス・関数 IPO詳細](#4-クラス関数-ipo詳細)
 6. [設定・定数](#5-設定定数)
-7. [使用例](#6-使用例)
-8. [エクスポート](#7-エクスポート)
-9. [変更履歴](#8-変更履歴)
-10. [付録: 依存関係図](#付録-依存関係図)
+7. [エクスポート](#6-エクスポート)
+8. [変更履歴](#7-変更履歴)
+9. [付録: 依存関係図](#付録-依存関係図)
 
 ---
 
@@ -220,7 +219,58 @@ style FUNC fill:#1a1a1a,stroke:#fff,color:#fff
 
 ## 4. クラス・関数 IPO詳細
 
-### 4.1 ConfigManager クラス
+### 4.1 使用例
+
+#### 4.1.1 基本的なワークフロー
+
+```python
+from services.config_service import (
+    config,
+    logger,
+    get_config,
+    set_config,
+    reload_config,
+)
+
+# 1. 設定値の取得
+default_model = get_config("models.default")
+logger.info(f"既定モデル: {default_model}")
+# 既定モデル: claude-sonnet-4-6
+
+# 2. 設定値の更新
+set_config("api.timeout", 60)
+print(get_config("api.timeout"))
+# 60
+
+# 3. 全設定の取得
+all_conf = config.get_all()
+print(all_conf["llm"]["provider"])
+# anthropic
+
+# 4. 設定の保存と再読み込み
+config.save("config.yml")
+reload_config()
+```
+
+#### 4.1.2 応用的なワークフロー（環境変数オーバーライド）
+
+```python
+import os
+from services.config_service import ConfigManager
+
+# 環境変数で設定を上書き
+os.environ["LOG_LEVEL"] = "DEBUG"
+os.environ["LLM_PROVIDER"] = "anthropic"
+
+# シングルトンのため初回生成時に環境変数が反映される
+config = ConfigManager("config.yml")
+print(config.get("logging.level"))
+# DEBUG
+print(config.get("llm.provider"))
+# anthropic
+```
+
+### 4.2 ConfigManager クラス
 
 設定ファイルを管理するシングルトンクラス。YAML読み込み、環境変数オーバーライド、キャッシュ付き設定取得、ロガー設定を提供する。
 
@@ -581,7 +631,7 @@ print(defaults["models"]["default"])
 # claude-sonnet-4-6
 ```
 
-### 4.2 ショートカット関数
+### 4.3 ショートカット関数
 
 #### `get_config`
 
@@ -683,8 +733,8 @@ reload_config()
 ```python
 {
     "models": {
-        "default": "claude-sonnet-4-6",
-        "available": ["claude-sonnet-4-6", "claude-haiku-4-5-20251001"]
+        "default": "claude-sonnet-5",
+        "available": ["claude-fable-5-1", "claude-opus-5-5", "claude-sonnet-5", "claude-haiku-4-5"]
     },
     "api": {
         "timeout": 30,
@@ -726,8 +776,8 @@ reload_config()
 
 | キー | デフォルト値 | 説明 |
 |-----|-------------|------|
-| `models.default` | "claude-sonnet-4-6" | 既定のLLMモデル（Anthropic Claude） |
-| `models.available` | ["claude-sonnet-4-6", "claude-haiku-4-5-20251001"] | 利用可能なモデル一覧 |
+| `models.default` | "claude-sonnet-5" | 既定のLLMモデル（Anthropic Claude） |
+| `models.available` | ["claude-fable-5-1", "claude-opus-5-5", "claude-sonnet-5", "claude-haiku-4-5"] | 利用可能なモデル一覧 |
 | `api.timeout` | 30 | APIタイムアウト（秒） |
 | `api.max_retries` | 3 | 最大リトライ回数 |
 | `api.openai_api_key` | None | OpenAI APIキー（既定では未設定） |
@@ -763,64 +813,12 @@ reload_config()
 | `config` | ConfigManager | `ConfigManager("config.yml")` のシングルトン |
 | `logger` | logging.Logger | `config.logger`（`Gemini_helper` ロガー） |
 
-> 📝 **注意**: LLMはAnthropic Claude（既定 `claude-sonnet-4-6`、鍵 `ANTHROPIC_API_KEY`）、EmbeddingはGemini（`gemini-embedding-001`、鍵 `GOOGLE_API_KEY`）を用います。
+> 📝 **注意**: LLMはAnthropic Claude（コード側の既定 `claude-sonnet-5`。ただし `config.yml` の `models.default` は現状 `claude-sonnet-4-6` で、ファイルがあればこちらが優先される、鍵 `ANTHROPIC_API_KEY`）、EmbeddingはGemini（`gemini-embedding-001`、鍵 `GOOGLE_API_KEY`）を用います。
+
 
 ---
 
-## 6. 使用例
-
-### 6.1 基本的なワークフロー
-
-```python
-from services.config_service import (
-    config,
-    logger,
-    get_config,
-    set_config,
-    reload_config,
-)
-
-# 1. 設定値の取得
-default_model = get_config("models.default")
-logger.info(f"既定モデル: {default_model}")
-# 既定モデル: claude-sonnet-4-6
-
-# 2. 設定値の更新
-set_config("api.timeout", 60)
-print(get_config("api.timeout"))
-# 60
-
-# 3. 全設定の取得
-all_conf = config.get_all()
-print(all_conf["llm"]["provider"])
-# anthropic
-
-# 4. 設定の保存と再読み込み
-config.save("config.yml")
-reload_config()
-```
-
-### 6.2 応用的なワークフロー（環境変数オーバーライド）
-
-```python
-import os
-from services.config_service import ConfigManager
-
-# 環境変数で設定を上書き
-os.environ["LOG_LEVEL"] = "DEBUG"
-os.environ["LLM_PROVIDER"] = "anthropic"
-
-# シングルトンのため初回生成時に環境変数が反映される
-config = ConfigManager("config.yml")
-print(config.get("logging.level"))
-# DEBUG
-print(config.get("llm.provider"))
-# anthropic
-```
-
----
-
-## 7. エクスポート
+## 6. エクスポート
 
 `__all__`で公開される要素：
 
@@ -840,10 +838,11 @@ __all__ = [
 
 ---
 
-## 8. 変更履歴
+## 7. 変更履歴
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 1.2 | 使用例を IPO 詳細の冒頭（`### 4.1 使用例`）へ移し、末尾の「## 6. 使用例」章を削除（基本フォーマット `a_class_method_md_format.md` v1.6〜 §6.1 に準拠。2026-09-24）。IPO の小節を 4.2 以降へ繰り下げ、後続の章番号を 1 つ繰り上げた。文書内の `§4.x` 参照も追随。あわせて`_get_default_config()` の `models.default` / `models.available` を実装（`claude-sonnet-5` ほか 4 モデル）に合わせた。`config.yml` を読んだときの出力例（`claude-sonnet-4-6`）は実値なのでそのまま |
 | 1.1 | **Streamlit 残骸の除去。** Mermaid のクライアント層ノードを `React UI + FastAPI` へ是正（2026-09-12） |
 | 1.0 | 初版作成（2026-06-17） |
 
