@@ -1,6 +1,6 @@
 # GRACE-Review 処理フローと設計 ドキュメント
 
-**Version 2.0** | 最終更新: 2026-09-16
+**Version 2.1** | 最終更新: 2026-09-24
 
 > **本書の位置づけ**: GRACE-Review（文書 → 指摘）の**処理フロー（HOW）と設計判断（WHY）を
 > 1 本にまとめた正本**。v2.0 で `review_spec.md`（1,080 行）を統合した。
@@ -76,13 +76,12 @@ Support（`support_agent.py`）が「問い合わせ → 回答」なのに対�
 
 | # | 責務 | 対応モジュール | 説明 |
 |---|------|--------------|------|
-| 1 | パイプライン統括 | `core/review_agent.py` | `run_review_agent_core()` が S1・①〜⑦ を実行 |
-| 2 | 文書分割 | `core/review_agent.py` | `split_segments()`（LLM 不使用・決定的） |
-| 3 | 規程検索 | `core/review_agent.py` | `_retrieve_evidence()`（`rag_search` を無改造で使用） |
-| 4 | 判定ロジック | `core/review_gates.py` | 二段判定・抑止・救済・重大度（純関数＋ファクトリ） |
-| 5 | ルール定義 | `core/rulesets.py` | `RuleSet` / `RULESETS`（`ec_ad`・23 ルール） |
-| 6 | 根拠検証 | `grace.confidence` | `GroundednessVerifier`（Support と共用） |
-| 7 | HITL・実行 | `core/support_agent.py` / `support_actions.py` | `_perform_action` / `ActionBackend` を再利用 |
+| 1 | 文書分割とオフセット保持 | `core/review_agent.py` | `split_segments()`（LLM 不使用・決定的） |
+| 2 | 規程検索と二段判定 | `core/review_agent.py` / `core/review_gates.py` / `core/rulesets.py` | `_retrieve_evidence()`（`rag_search` を無改造で使用）→ 二段判定。ルールは `RULESETS`（`ec_ad`・23 ルール） |
+| 3 | 裏付け検証・誤検知抑止・救済 | `grace/confidence.py` / `core/review_gates.py` | `GroundednessVerifier`（Support と共用）と抑止・救済の純関数 |
+| 4 | 重大度の確定と強制 high | `core/review_gates.py` | 重大リスク語による強制 high（`should_force_high`） |
+| 5 | レポートと HITL・実行 | `core/review_agent.py` / `core/support_agent.py` / `support_actions.py` | `_perform_action` / `ActionBackend` を再利用 |
+| 6 | 組合せ爆発のガードと KPI | `core/review_agent.py` | `MAX_SEGMENTS` による打ち切り（`truncated`）と KPI メタの計測 |
 
 ### 主要機能一覧
 
@@ -1050,6 +1049,7 @@ _emit(SupportEvent(
 
 | Version | 変更内容 |
 |---|---|
+| 2.1 | 概要の「各責務対応のモジュール」を主な責務と 1:1（6 行）に揃えた（7 行で、1 つの責務が複数行に割れていた。基本フォーマット §2.4。2026-09-24） |
 | 2.0 | **`review_spec.md`（1,080 行・v1.4）を統合し、処理フローと設計判断を 1 本にした**（2026-09-16）。設計方針を **§1** へ、各ステップの設計仕様を **§4 の該当ステップ直下（`#### 設計仕様`）** へ、組合せ爆発ガードを **§5.4**、データモデルを **§8**、未決事項を **§9**、実装時の構成と影響範囲を**付録B**へ移した。ルールセット定義（旧 §5）は [`verticals_and_rulesets.md` §2](./verticals_and_rulesets.md) へ、ジョブ基盤の汎用化（旧 §6）は [`job_runtime.md` §3](./job_runtime.md) へ、API 設計（旧 §7.1/§7.2）は [`api_contract.md`](./api_contract.md) へ、テスト方針（旧 §9）は [`testing.md`](./testing.md) へ移送した。旧 §3「クラス・関数一覧表」は `reference/core_review_*.md` と重複するため**削除してリンクに置換**した。S1 と ⑦ の設計仕様は IPO 本文と同内容だったため取り込んでいない |
 | 1.1 | ステップ番号を `CLAUDE.md` §1 の体系へ統一し、実行順の注記（⑥ Web が ⑤ Severity より先）を追加 |
 | 1.0 | 初版作成（S1・①〜⑦ を IPO 形式でステップ別に詳細化） |

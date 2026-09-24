@@ -1,6 +1,6 @@
 # schemas.py - API スキーマ（Pydantic）ドキュメント
 
-**Version 1.7** | 最終更新: 2026-09-16
+**Version 1.8** | 最終更新: 2026-09-24
 
 > **本書の位置づけ**: `backend/app/schemas.py`（API のリクエスト / レスポンス / イベントの Pydantic スキーマ）の **IPO リファレンス**。
 > 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。
@@ -21,10 +21,9 @@
 3. [モジュール構成図](#2-モジュール構成図)
 4. [クラス・関数一覧表](#3-クラス関数一覧表)
 5. [クラス・関数 IPO詳細](#4-クラス関数-ipo詳細)
-6. [使用例](#5-使用例)
-7. [エクスポート](#6-エクスポート)
-8. [変更履歴](#7-変更履歴)
-9. [付録: 依存関係図](#付録-依存関係図)
+6. [エクスポート](#5-エクスポート)
+7. [変更履歴](#6-変更履歴)
+8. [付録: 依存関係図](#付録-依存関係図)
 
 ---
 
@@ -257,7 +256,24 @@ style DATA fill:#1a1a1a,stroke:#fff,color:#fff
 
 ## 4. クラス・関数 IPO詳細
 
-### 4.1 QueryRequest
+### 4.1 使用例
+
+#### 4.1.1 基本的なワークフロー（API 層での利用）
+
+```python
+from backend.app.schemas import QueryRequest, QueryAccepted, JobStatusResponse
+
+# 1. リクエスト検証（FastAPI が自動で行う）
+req = QueryRequest(query="返品したい", vertical="ec")
+
+# 2. 受付レスポンス
+accepted = QueryAccepted(job_id="a1b2c3", stream_url="/api/support/stream/a1b2c3")
+
+# 3. 結果取得
+status = JobStatusResponse(job_id="a1b2c3", status="completed", result=None)
+```
+
+### 4.2 QueryRequest
 
 **概要**: `POST /api/support/query` のリクエストボディ。CLI 引数と 1:1 対応。
 
@@ -306,7 +322,7 @@ class QueryRequest(BaseModel):
 req = QueryRequest(query="返品したい", vertical="ec")
 ```
 
-### 4.2 QueryAccepted
+### 4.3 QueryAccepted
 
 **概要**: ジョブ受付レスポンス（202 Accepted）。
 
@@ -337,7 +353,7 @@ class QueryAccepted(BaseModel):
 QueryAccepted(job_id=job.job_id, stream_url=f"/api/support/stream/{job.job_id}")
 ```
 
-### 4.3 ConfirmRequest / ConfirmResponse
+### 4.4 ConfirmRequest / ConfirmResponse
 
 **概要**: HITL CONFIRM への応答リクエストと結果。
 
@@ -375,7 +391,7 @@ class ConfirmResponse(BaseModel):
 ConfirmResponse(status="resolved")
 ```
 
-### 4.4 ActionRequestModel
+### 4.5 ActionRequestModel
 
 **概要**: アクション情報（`SupportResultModel.action`）。core の `ActionRequest` に対応。
 
@@ -409,7 +425,7 @@ class ActionRequestModel(BaseModel):
 ActionRequestModel(action_type="create_ticket", args={"query": "返品したい"})
 ```
 
-### 4.5 SupportResultModel
+### 4.6 SupportResultModel
 
 **概要**: `core.SupportResult` の JSON 表現（`GET /api/support/result/{job_id}` の `result`）。
 
@@ -474,7 +490,7 @@ class SupportResultModel(BaseModel):
 SupportResultModel(**result_to_dict(support))
 ```
 
-### 4.6 JobStatusResponse
+### 4.7 JobStatusResponse
 
 **概要**: `GET /api/support/result/{job_id}`。ジョブ状態と最終結果。
 
@@ -516,7 +532,7 @@ class JobStatusResponse(BaseModel):
 JobStatusResponse(job_id=job.job_id, status=job.status, result=job.result)
 ```
 
-### 4.7 SupportEventModel
+### 4.8 SupportEventModel
 
 **概要**: SSE で配信される進捗イベント（`core.SupportEvent` に `seq` / `ts` を付与）。
 
@@ -559,7 +575,7 @@ class SupportEventModel(BaseModel):
 SupportEventModel(seq=0, ts=..., type="log", step="plan", message="❓ 問い合わせ: …")
 ```
 
-### 4.8 VerticalInfo
+### 4.9 VerticalInfo
 
 **概要**: `GET /api/verticals` の 1 要素（UI のプロファイルセレクタ用）。
 
@@ -608,7 +624,7 @@ VerticalInfo(id=key, name=profile.name, collections=list(profile.collections), .
 
 ---
 
-### 4.9 ReviewRequest
+### 4.10 ReviewRequest
 
 **概要**: `POST /api/review/submit` のボディ。CLI 引数と 1:1 対応する。
 
@@ -656,7 +672,7 @@ class ReviewRequest(BaseModel):
 
 ---
 
-### 4.10 SegmentModel / ReviewFindingModel / FindingSummaryModel
+### 4.11 SegmentModel / ReviewFindingModel / FindingSummaryModel
 
 **概要**: レビュー結果の構成要素。`core/review_agent.py` の同名 dataclass と 1:1 対応する。
 
@@ -712,7 +728,7 @@ class FindingSummaryModel(BaseModel):
 
 ---
 
-### 4.11 ReviewResultModel / ReviewJobStatusResponse
+### 4.12 ReviewResultModel / ReviewJobStatusResponse
 
 **概要**: レビュー結果と、そのジョブ状態レスポンス。
 
@@ -770,7 +786,7 @@ class ReviewJobStatusResponse(BaseModel):
 
 ---
 
-### 4.12 RuleSetInfo
+### 4.13 RuleSetInfo
 
 **概要**: `GET /api/rulesets` の 1 要素。`VerticalInfo` と同じ位置づけ。
 
@@ -812,7 +828,7 @@ class RuleSetInfo(BaseModel):
 
 ---
 
-### 4.12b ModelChoice / ModelInfo
+### 4.13b ModelChoice / ModelInfo
 
 **概要**: `GET /api/models` の 1 要素と、`GET /api/model` のレスポンス。
 ヘッダーのモデルセレクタが読む。
@@ -849,7 +865,7 @@ class ModelInfo(BaseModel):
 
 ---
 
-### 4.13 データ準備・リクエスト系
+### 4.14 データ準備・リクエスト系
 
 #### `ChunkingRequest`
 
@@ -955,7 +971,7 @@ class DataJobStatusResponse(BaseModel):
 
 ---
 
-### 4.14 データ準備・参照系（読み取り専用）
+### 4.15 データ準備・参照系（読み取り専用）
 
 #### `QdrantHealth`
 
@@ -1025,7 +1041,7 @@ class InputFileListResponse(BaseModel):
 
 ---
 
-### 4.15 `QuestionClusterModel`（0-(A) 質問分析）
+### 4.16 `QuestionClusterModel`（0-(A) 質問分析）
 
 ```python
 class QuestionClusterModel(BaseModel):
@@ -1037,28 +1053,10 @@ class QuestionClusterModel(BaseModel):
 関連質問。`0-(A) 入力・質問分析` の出力で、`reconstruct_query()` がこの 2 つから
 再構成クエリを作る。
 
----
-
-## 5. 使用例
-
-### 5.1 基本的なワークフロー（API 層での利用）
-
-```python
-from backend.app.schemas import QueryRequest, QueryAccepted, JobStatusResponse
-
-# 1. リクエスト検証（FastAPI が自動で行う）
-req = QueryRequest(query="返品したい", vertical="ec")
-
-# 2. 受付レスポンス
-accepted = QueryAccepted(job_id="a1b2c3", stream_url="/api/support/stream/a1b2c3")
-
-# 3. 結果取得
-status = JobStatusResponse(job_id="a1b2c3", status="completed", result=None)
-```
 
 ---
 
-## 6. エクスポート
+## 5. エクスポート
 
 本モジュールに `__all__` 定義はない。`api/support.py` / `api/meta.py` が個別に import する。
 
@@ -1076,7 +1074,7 @@ ReviewResultModel, ReviewJobStatusResponse, RuleSetInfo
 
 ---
 
-## 7. 変更履歴
+## 6. 変更履歴
 
 | バージョン | 日付 | 変更内容 |
 |-----------|------|---------|
@@ -1087,6 +1085,7 @@ ReviewResultModel, ReviewJobStatusResponse, RuleSetInfo
 | 1.7 | 2026-09-16 | モデルセレクタ対応。`QueryRequest` / `ReviewRequest` に `model` を追加、`ModelChoice` / `ModelInfo` を新設、`model` 用バリデータ 2 本（§3.2）を追記。Q/A 生成の既定を `claude-sonnet-5` へ更新 |
 | 1.6 | 2026-09-16 | 3 階建て再編（`reference/` へ移設）に伴い、冒頭へ**位置づけと上位文書への導線**を追加した |
 | 1.5 | 2026-09-12 | 3 つの状態レスポンス（`JobStatusResponse` / `ReviewJobStatusResponse` / `DataJobStatusResponse`）に `created_at` / `finished_at`（サーバ時計・エポック秒）を追加。SSE を購読していない経路でも所要時間を出せるようにするもの |
+| 1.8 | 2026-09-24 | 使用例を IPO 詳細の冒頭（`### 4.1 使用例`）へ移し、末尾の「## 5. 使用例」章を削除（基本フォーマット `a_class_method_md_format.md` v1.6〜 §6.1 に準拠。2026-09-24）。IPO の小節を 4.2 以降へ繰り下げ、後続の章番号を 1 つ繰り上げた。文書内の `§4.x` 参照も追随 |
 
 ---
 

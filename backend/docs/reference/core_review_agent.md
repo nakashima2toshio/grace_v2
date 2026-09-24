@@ -180,6 +180,7 @@ flowchart TB
     ST5 --> ST7
     ST7 --> RESULT
 classDef default fill:#000,stroke:#fff,color:#fff
+classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
 class START,KEY,S1,ST1,LOOP,ST2,ST3A,ST3B,ST4,ST4D,ST6,ST5,ST7,RESULT default
 ```
 
@@ -855,6 +856,7 @@ flowchart LR
     API --> RA
     API --> JOBS
 classDef default fill:#000,stroke:#fff,color:#fff
+classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
 class RA,JOBS,RG,RS,SA,VT,GR,GC,SACT,API default
 ```
 
