@@ -1,6 +1,6 @@
 # \_\_init\_\_.py - qa_generation パッケージ公開 API ドキュメント
 
-**Version 1.0** | 最終更新: 2026-09-24
+**Version 1.1** | 最終更新: 2026-09-24
 
 ---
 
@@ -9,7 +9,7 @@
 1. [概要](#概要)
 2. [アーキテクチャ構成図](#1-アーキテクチャ構成図)
 3. [モジュール構成図](#2-モジュール構成図)
-4. [⚠️ import 副作用の実測](#3-️-import-副作用の実測)
+4. [import 副作用の実測](#3-import-副作用の実測)
 5. [`qa_qdrant/__init__.py` との違い](#4-qa_qdrant__init__py-との違い)
 6. [エクスポート](#5-エクスポート)
 7. [使用例](#6-使用例)
@@ -23,7 +23,7 @@
 
 `qa_generation/__init__.py` は、**`qa_generation` パッケージの公開 API を定義する再エクスポート専用モジュール**です。自前のロジックは持たず、4 つのサブモジュールから 11 シンボルを取り込んで `__all__` に並べます。
 
-⚠️ **この再エクスポートには重い import 副作用がある。** `pipeline.py` が `celery_tasks` をモジュールレベルで import しているため、パッケージ内の**どのモジュールを import しても** Celery が読み込まれる（[実測](#3-️-import-副作用の実測)）。対処は [`README.md`](README.md) §6 の残タスク 2。
+かつては**この再エクスポートに重い import 副作用があった**（`pipeline.py` が `celery_tasks` をモジュールレベルで import していたため、パッケージ内のどのモジュールを import しても Celery が読み込まれた）。2026-09-24 に `pipeline.py` 側を遅延 import へ移して解消した（[実測](#3-import-副作用の実測)）。
 
 ### 主な責務
 
@@ -87,7 +87,7 @@ style EXTERNAL fill:#1a1a1a,stroke:#fff,color:#fff
 
 1. 利用側が `from qa_generation import QAPipeline` のようにパッケージから import する
 2. `__init__.py` が 4 つのサブモジュールを import し、11 シンボルを名前空間へ載せる
-3. ⚠️ `pipeline.py` がモジュール先頭で `celery_tasks` を import するため、**この時点で Celery 一式が読み込まれる**（§3）
+3. `pipeline.py` は `celery_tasks` を `_generate_with_celery()` の中で遅延 import するため、この時点では Celery は読み込まれない（§3）
 
 ---
 
@@ -127,7 +127,7 @@ flowchart TB
     Init --> Pipe
     Init --> Sem
     Init --> Smart
-    Pipe -->|"モジュール先頭で import"| Celery
+    Pipe -.->|"遅延 import"| Celery
     Pipe --> Eval
     Pipe --> Smart
     Smart --> LLM
@@ -139,12 +139,11 @@ style Pkg fill:#1a1a1a,stroke:#fff,color:#fff
 style Ext fill:#1a1a1a,stroke:#fff,color:#fff
 ```
 
-破線は `QAPipeline.load_data()` / `save()` の中で行う遅延 import を表す。
-`celery_tasks` だけは実線（モジュール先頭の import）で、これが §3 の副作用の原因である。
+破線は関数の中で行う遅延 import を表す（`data_io` は `QAPipeline.load_data()` / `save()`、`celery_tasks` は `_generate_with_celery()`）。
 
 ---
 
-## 3. ⚠️ import 副作用の実測
+## 3. import 副作用の実測
 
 **パッケージ内のどのモジュールを import しても `__init__.py` が先に実行される。**
 `data_io`（pandas とファイル I/O しか使わないモジュール）で測った値（2026-09-24）。
@@ -152,47 +151,50 @@ style Ext fill:#1a1a1a,stroke:#fff,color:#fff
 | 測定 | ロード済みモジュール数 | Celery |
 |---|---:|:--:|
 | `data_io.py` が実際に必要とする依存だけ（`pandas` / `config` / `helper.helper_rag`） | 1,616 | 読まれない |
-| `import qa_generation.data_io` | **1,733（+117）** | **読まれる** |
+| **修正前** `import qa_generation.data_io` | 1,733（+117） | 読まれた |
+| **修正後** `import qa_generation.data_io` | **1,623（+7）** | **読まれない** |
 
-余計に読み込まれるトップレベルモジュール:
+修正前に余計に読み込まれていたトップレベルモジュール:
 
 ```
 amqp, billiard, celery, celery_config, celery_tasks, cffi,
 kombu, resource, shelve, tzlocal, vine
 ```
 
-経路は `__init__.py` → `pipeline.py` → `celery_tasks` → `celery_config` → `celery` 本体である。
+経路は `__init__.py` → `pipeline.py` → `celery_tasks` → `celery_config` → `celery` 本体だった。
 `celery_config` は import 時にログを出すため、**`qa_generation` を触るだけで
-Celery のログ（`✅ celery_tasks.pyのインポート成功` など）が出る**。
+Celery のログ（`✅ celery_tasks.pyのインポート成功` など）が出ていた**。
+修正後の +7 は `qa_generation` パッケージ自身のサブモジュールである。
 
 > 📌 測定は `uv run --no-sync python -c ...` を**別プロセスで 1 回ずつ**実行した実測値。
-> 所要時間はどちらも 2.5〜2.8 秒で、この測り方では差が見えなかった（ディスクキャッシュの状態で動く）。
-> モジュール数の差は安定する。
+> 所要時間はディスクキャッシュの状態で動くので記録していない。モジュール数の差は安定する。
 
-### 3.1 対処案（未実施）
+### 3.1 修正（2026-09-24）
 
-`pipeline.py` の `celery_tasks` import を、実際に使う `_generate_with_celery()` の中へ移す。
+`pipeline.py` の `celery_tasks` import を、実際に使う `_generate_with_celery()` の中へ移した。
 3 シンボル（`check_celery_workers` / `collect_results` / `submit_unified_qa_generation`）は
 このメソッドでしか使っていないので、**Celery を使う経路の動作は変わらない**。
-`data_io` / `evaluation` と同じ遅延 import の方針に揃う形である。
+`data_io` / `evaluation` と同じ遅延 import の方針に揃えた形である
+（姉妹リポジトリ `grace_v2_local` が 2026-09-21 に行ったものと同じ修正）。
 
-姉妹リポジトリ `grace_v2_local` はこの対処を 2026-09-21 に済ませ、回帰テスト
-（`backend/tests/qa_generation/test_import_side_effects.py`）で固定している。
+回帰は `backend/tests/test_qa_generation_import_side_effects.py`（3 件）で固定した。
+**修正前のコードに当てて 3 件とも fail することを確認済み**。
 
-### 3.2 対処するときの落とし穴: 隠れた import 順序依存
+### 3.2 同時に直した隠れた import 順序依存
 
-`celery_tasks.py` は import 時に **`helper/` ディレクトリを `sys.path` へ挿入**している。
-`helper/helper_rag_qa.py` はパッケージ名なしの裸 import
-（`from helper_embedding import ...` / `from helper_llm import ...`）で書かれており、
-**`celery_tasks` が先に読まれていることに依存している可能性が高い**。
+`celery_tasks.py` / `celery_config.py` は import 時に **`helper/` ディレクトリを `sys.path` へ挿入**する。
+これに頼ってパッケージ名なしの裸 import（`from helper_llm import ...` など）で書かれた
+モジュールは、**Celery が先に読まれたときだけ動いていた**。遅延 import 化でこの偶然が無くなるため、
+`helper/` 配下の裸 import をすべて `from helper.helper_xxx import ...` へ直した。
 
-`grace_v2_local` では、遅延 import 化で `celery_tasks` が自動で読まれなくなった途端に
-`ModuleNotFoundError: No module named 'helper_embedding'` が露見した。
-**遅延 import 化するときは、`helper_rag_qa.py` の import を `helper.helper_embedding` /
-`helper.helper_llm` へ直すのとセットで行うこと。**
+| モジュール | 裸 import | 修正前の状態（実測） |
+|---|---|---|
+| `helper/helper_rag_qa.py` | `helper_embedding` / `helper_llm` | **単体では import できなかった**（`No module named 'helper_embedding'`） |
+| `helper/helper_embedding.py` | `helper_embedding_fastembed`（`fastembed` プロバイダ選択時） | `create_embedding_client("fastembed")` が `No module named 'helper_embedding_fastembed'` で失敗し、「fastembed が未導入」と誤ったメッセージを出していた |
+| `helper/helper_embedding_fastembed.py` | `helper_embedding` | 同上の連鎖 |
+| `helper/helper_api.py` | `helper_llm` | 本番の import 元は無い（後方互換モジュール）。同じ理由で直した |
 
-> ⚠️ 本リポジトリのこの環境では `helper.helper_rag_qa` 自体が `spacy` 未導入で import できず、
-> 依存を直接は確認できていない（上の記述は裸 import と `sys.path` 挿入のコードを読んだ判断）。
+裸 import が戻らないことは、上のテストの 3 件目（`helper/*.py` を `ast` で走査する静的検査）で固定した。
 
 ---
 
@@ -205,7 +207,7 @@ Celery のログ（`✅ celery_tasks.pyのインポート成功` など）が出
 | 中身 | `make_qa.py` の**陳腐化したコピー 236 行**（`main()` まで含む。`make_qa.py` は 265 行） | 再エクスポート 65 行 |
 | 公開 API | **誰も使っていない**（`from qa_qdrant import` の参照ゼロ・2026-09-24 grep） | `__all__` に 11 件。パッケージの公開 API そのもの |
 | いつ実行されるか | `from qa_qdrant.register_to_qdrant import ...`（データ管理タブの ③ Qdrant 登録）のたびに | `qa_generation` 配下の import のたびに |
-| 取りうる対処 | docstring のみに置き換えられる（`grace_v2_local` は 2026-09-21 に実施） | **空にはできない**（消すと公開 API が消える）。§3.1 の遅延 import で副作用だけを消す |
+| 取りうる対処 | docstring のみに置き換えられる（`grace_v2_local` は 2026-09-21 に実施）。**本リポジトリでは未対応** | **空にはできない**（消すと公開 API が消える）。§3.1 の遅延 import で副作用だけを消した |
 
 ---
 
@@ -252,9 +254,9 @@ from qa_generation.evaluation import analyze_coverage
 
 ### 6.3 Celery が読み込まれるかどうか
 
-**読み込まれる**（2026-09-24 時点）。`qa_generation.data_io` のように Celery と無関係な
-サブモジュールだけを import しても、`__init__.py` → `pipeline.py` 経由で Celery 一式が載る（§3）。
-`QAPipeline.run(use_celery=False)` で使う場合も同じである。
+**読み込まれない**（2026-09-24 以降）。`__init__.py` は依然として走るが、
+`pipeline.py` が `celery_tasks` を遅延 import するようになったため、
+`QAPipeline.run(use_celery=True)` を実際に呼ぶまで Celery は載らない。
 
 ---
 
@@ -263,7 +265,7 @@ from qa_generation.evaluation import analyze_coverage
 | # | 内容 |
 |---|---|
 | 1 | **`__init__.py` が公開 API を決めている。** 中身を空にすると `from qa_generation import QAPipeline` が壊れる |
-| 2 | ⚠️ **import 副作用で Celery が読み込まれる**（§3・+117 モジュール）。直すときは §3.2 の import 順序依存も同時に直す |
+| 2 | ~~import 副作用で Celery が読み込まれる~~ → **解消済み**（2026-09-24・§3）。`pipeline.py` へモジュールレベルの `celery_tasks` import を戻さないこと。`helper/` 配下に裸 import（`from helper_xxx import`）を書かないこと |
 | 3 | **`evaluation` / `data_io` は再エクスポートされない。** docstring の 6 モジュールと `__all__` の 4 モジュールを混同しない |
 | 4 | **`QAPair` は直下の `models.py` にも別定義がある。** `from qa_generation import QAPair` と `from models import QAPair` は別クラス（[`models.md`](./models.md)） |
 | 5 | **循環 import には今のところなっていない。** サブモジュール側は `qa_generation.xxx` をフルパスで import しており、`from . import` を使っていない |
@@ -275,11 +277,11 @@ from qa_generation.evaluation import analyze_coverage
 | モジュール | 関係 |
 |---|---|
 | [`models.md`](./models.md) | 再エクスポートするモデル 8 件の定義元 |
-| [`pipeline.md`](./pipeline.md) | `QAPipeline` の定義元。`celery_tasks` を読み込む張本人 |
+| [`pipeline.md`](./pipeline.md) | `QAPipeline` の定義元。`_generate_with_celery()` の中でだけ `celery_tasks` を読み込む |
 | [`semantic.md`](./semantic.md) | `SemanticCoverage` の定義元 |
 | [`smart_qa_generator.md`](./smart_qa_generator.md) | `SmartQAGenerator` の定義元 |
 | [`data_io.md`](./data_io.md) | 再エクスポートされない入出力モジュール |
-| `celery_config.py` / `celery_tasks.py` | import 副作用の到達先 |
+| `celery_config.py` / `celery_tasks.py` | かつての import 副作用の到達先。import 時に `helper/` を `sys.path` へ挿入する（§3.2） |
 
 ---
 
@@ -288,3 +290,4 @@ from qa_generation.evaluation import analyze_coverage
 | Version | 日付 | 内容 |
 |---|---|---|
 | 1.0 | 2026-09-24 | 初版作成。再エクスポート 11 件を実装（65 行）から起こし、**import 副作用を実測**（`data_io` の依存だけ 1,616 → パッケージ経由 1,733・+117 モジュール、Celery 一式が載る）して記録した。対処案（遅延 import）と、対処時に露見しうる `helper_rag_qa.py` の import 順序依存、`qa_qdrant/__init__.py`（236 行の陳腐化コピー）との違いを整理した。索引 `qa_generation/docs/README.md` §6 の残タスク 1（文書欠落）に対応。再エクスポート専用で IPO 対象を持たないため、一覧表・IPO 詳細の代わりに「エクスポート」「使用例」章を置いた |
+| 1.1 | 2026-09-24 | **import 副作用を解消**。`pipeline.py` の `celery_tasks` import を `_generate_with_celery()` 内の遅延 import へ移し、`import qa_generation.data_io` のモジュール数を 1,733 → **1,623** に（Celery は載らない）。あわせて `celery_tasks` の `sys.path` 挿入に依存していた `helper/` 配下の裸 import 4 モジュールを是正（§3.2）。回帰テスト 3 件を追加。§1.2・§2 の図・§6.3・§7・§8 を更新 |

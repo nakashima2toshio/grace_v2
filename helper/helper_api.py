@@ -23,16 +23,6 @@ from functools import wraps
 from pathlib import Path
 from typing import Any, Dict, List, Literal, Union
 
-from helper_llm import (
-    LLMClient,
-    OpenAIClient,  # 後方互換性のため再エクスポート
-)
-
-# LLM 抽象化レイヤー（既定プロバイダー: Anthropic Claude）
-from helper_llm import (
-    create_llm_client as create_unified_llm_client,
-)
-
 # ===================================================================
 # 外部ライブラリ
 # ===================================================================
@@ -41,6 +31,15 @@ from helper_llm import (
 # -----------------------------------------------------
 from openai.types.responses import EasyInputMessageParam, Response
 
+from helper.helper_llm import (
+    LLMClient,
+    OpenAIClient,  # 後方互換性のため再エクスポート
+)
+
+# LLM 抽象化レイヤー（既定プロバイダー: Anthropic Claude）
+from helper.helper_llm import (
+    create_llm_client as create_unified_llm_client,
+)
 from services.cache_service import (
     MemoryCache,
     cache,
