@@ -264,3 +264,23 @@ def test_core_rejects_unknown_model(monkeypatch):
     """スキーマを通らない経路（CLI・直接呼び出し）でも弾く。"""
     with pytest.raises(ValueError, match="未対応のモデル"):
         _run_core_capturing_config(monkeypatch, "claude-sonnet-4-6")
+
+
+def test_top_level_config_yml_default_matches_model_config():
+    """直下 `config.yml`（経路 5）の既定が `ModelConfig` と食い違っていない。
+
+    `services/config_service.py` がこのファイルを読み、`services/agent_service.py`
+    （Legacy ReAct）は `get_config("models.default")` を既定モデルに使う。ファイルの値は
+    コード側のフォールバックより優先されるため、ここが古いと旧モデルで動く
+    （2026-09-24 に `claude-sonnet-4-6` のまま残っていたのを是正）。
+    """
+    from pathlib import Path
+
+    import yaml
+
+    data = yaml.safe_load(
+        (Path(__file__).resolve().parents[2] / "config.yml").read_text(encoding="utf-8")
+    )
+    models = data["models"]
+    assert models["default"] == ModelConfig.DEFAULT_MODEL
+    assert set(models["available"]) <= set(ModelConfig.AVAILABLE_MODELS)
