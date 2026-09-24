@@ -1,6 +1,6 @@
 # AnswerCard.tsx - 回答カード（GRACE-Support の最終結果表示） ドキュメント
 
-**Version 1.3** | 最終更新: 2026-09-24
+**Version 1.4** | 最終更新: 2026-09-24
 
 ---
 
@@ -141,12 +141,20 @@ style Presentational fill:#1a1a1a,stroke:#fff,color:#fff
 実コードは `interface Props` を切らずインライン型で受けている。
 
 ```typescript
-export function AnswerCard({ result }: { result: SupportResult }) { ... }
+export function AnswerCard({
+  result,
+  timing,
+}: {
+  result: SupportResult;
+  /** 実行の開始・完了時刻。カード末尾に「完了 … ／ 所要 …」を出す。 */
+  timing?: JobTiming;
+}) { ... }
 ```
 
 | Prop | 型 | 必須 | 既定値 | 説明 |
 |---|---|:---:|---|---|
 | `result` | `SupportResult` | ✅ | — | `result` SSE イベントで届いた最終結果。reducer の `state.result` |
+| `timing` | `JobTiming` | — | `undefined` | 実行の開始・完了時刻（`useJobTiming()` が返す）。あるときだけカード末尾に `JobFinishLine`（完了時刻・所要時間）を描画する |
 
 ### コールバックの契約
 
@@ -161,6 +169,16 @@ function Citation({ text }: { text: string })
 | Prop | 型 | 必須 | 既定値 | 説明 |
 |---|---|:---:|---|---|
 | `text` | `string` | ✅ | — | `"[社内] xxx"` / `"[Web] タイトル（URL）"` 形式の出典 1 行 |
+
+### ローカルコンポーネント `MultiQuestionNotice`
+
+```typescript
+function MultiQuestionNotice({ result }: { result: SupportResult })
+```
+
+| Prop | 型 | 必須 | 既定値 | 説明 |
+|---|---|:---:|---|---|
+| `result` | `SupportResult` | ✅ | — | 0-(A) 入力・質問分析の結果（主質問・保留した質問・再構成後クエリ）を表示する。保留した質問は必ず出す |
 
 ---
 
@@ -179,6 +197,7 @@ function Citation({ text }: { text: string })
 | 値 | 供給元 | 本コンポーネントでの扱い |
 |---|---|---|
 | `result` | `SupportPanel` の `state.result`（`jobReducer` が `result` イベントで設定） | 読み取りのみ。変更しない |
+| `timing` | `SupportPanel` の `useJobTiming()` | 読み取りのみ。`JobFinishLine` へそのまま渡す |
 
 > **不変条件**: `result` は変更しない。表示の分岐に使うだけで、派生値（`isAnswer`）も
 > レンダリング内のローカル定数に留める。
@@ -411,6 +430,7 @@ JSX のレンダリングテストが書けず、`tsc --noEmit` の型検査で�
 
 | 版 | 日付 | 変更内容 |
 |---|---|---|
+| 1.4 | 2026-09-24 | §2 の Props を実装に合わせた。コードブロックが `result` だけの旧シグネチャのままで、`timing?: JobTiming`（完了時刻・所要時間の表示）が欠けていた。表と §3.3 にも `timing` を追加し、ローカルコンポーネント `MultiQuestionNotice` の節を足した |
 | 1.3 | 2026-09-24 | `a_react_page_md_format.md` v1.1 に追随（2026-09-24）。概要に「各責務対応のモジュール」（主な責務と 1:1）を追加し、`## 1.` を「アーキテクチャ構成図」として **1.1 システム全体での位置づけ（3 層）** と 1.2 コンポーネントツリー図の 2 枚構成にした。Mermaid の `classDef subgraphStyle` の欠落を補った。概要の「主な依存」を実装の import に合わせた（`JobClock` / `state/citations` / `state/elapsed` が抜けていた） |
 | 1.1 | 2026-08-29 | 0-(A) 入力・質問分析の結果表示（`MultiQuestionNotice`）を追加。再構成後クエリ・**保留した質問**・**担当範囲外の質問＋窓口案内**を出す。保留と範囲外は見出しを分ける（利用者が取る行動が違う） |
 | 1.2 | 2026-08-30 | 担当範囲外の欄に**案内文（`out_of_scope_guidance`）をその場で出す**。「回答の末尾にご案内しています」だけにしていたら、実測で利用者が長い本文を読み飛ばし「案内がない」と報告した（実際には末尾にあった）。URL 付きの完全な案内は本文末尾が持つ |
