@@ -1,6 +1,6 @@
 # async_api_client.py - チャンク化用 非同期APIクライアント ドキュメント
 
-**Version 2.0** | 最終更新: 2026-09-12
+**Version 2.1** | 最終更新: 2026-09-24
 
 ---
 
@@ -12,10 +12,9 @@
 4. [クラス・関数一覧表](#3-クラス関数一覧表)
 5. [クラス・関数 IPO詳細](#4-クラス関数-ipo詳細)
 6. [設定・定数](#5-設定定数)
-7. [使用例](#6-使用例)
-8. [エクスポート](#7-エクスポート)
-9. [変更履歴](#8-変更履歴)
-10. [付録: 依存関係図](#付録-依存関係図)
+7. [エクスポート](#6-エクスポート)
+8. [変更履歴](#7-変更履歴)
+9. [付録: 依存関係図](#付録-依存関係図)
 
 ---
 
@@ -44,11 +43,11 @@ LLM は **Anthropic Claude**（既定 `claude-sonnet-4-6`・`ANTHROPIC_API_KEY`�
 
 | # | 責務 | 対応モジュール | 説明 |
 |---|------|--------------|------|
-| 1 | LLM 呼び出し | `helper/helper_llm.py` | `create_llm_client("anthropic")` |
-| 2 | 非同期化 | 本モジュール | 同期 API を `asyncio.to_thread()` で包む |
-| 3 | 並列制御 | 本モジュール | `asyncio.Semaphore(max_workers)` |
-| 4 | 中断判断 | 本モジュール | 連続失敗のカウントと `ChunkingAbortedError` |
-| 5 | エラー表示 | `backend/app/core/data_jobs.py` | 中断を error イベントへ変換 |
+| 1 | 構造化出力を非同期で生成する | 本モジュール（`generate_content()`）＋ `helper/helper_llm.py` | `create_llm_client("anthropic")` の `generate_structured()` を `asyncio.to_thread()` で包む |
+| 2 | 並列実行数を絞る | 本モジュール（`__init__()` / `generate_content()`） | `asyncio.Semaphore(max_workers)` |
+| 3 | 指数バックオフでリトライする | 本モジュール（`_execute_with_retry()`） | 通常 `2^attempt` 秒、レート制限は `30×(attempt+1)` 秒待つ |
+| 4 | 連続失敗が続いたらチャンク化を中断する | 本モジュール（`ChunkingAbortedError`）→ `backend/app/core/data_jobs.py` | 連続失敗数で中断し、ジョブ側が error イベントへ変換する |
+| 5 | 呼び出し統計を収集する | 本モジュール（`get_stats()` / `reset_stats()`） | 総数・失敗数などを集計 |
 
 ### 主要機能一覧
 
@@ -205,7 +204,47 @@ style CLS fill:#1a1a1a,stroke:#fff,color:#fff
 
 ## 4. クラス・関数 IPO詳細
 
-### 4.1 `AsyncAPIClient.__init__`
+### 4.1 使用例
+
+#### 4.1.1 基本（チャンク化の 3 段階から）
+
+```python
+from chunking.async_api_client import AsyncAPIClient
+
+client = AsyncAPIClient(max_workers=8, max_retries=3, max_output_tokens=16384)
+
+json_text = await client.generate_content(
+    model="claude-sonnet-4-6",
+    contents=prompt,
+    response_schema=Step1Response,
+    task_id="step1_block_3",
+)
+if json_text is None:
+    ...   # このブロックだけ失敗 → 機械的分割へフォールバック
+else:
+    result = Step1Response.model_validate_json(json_text)
+```
+
+#### 4.1.2 中断を捕まえる（ジョブ runner 側）
+
+```python
+from chunking.async_api_client import ChunkingAbortedError
+
+try:
+    chunks = run_chunking_sync(text, model=model, ...)
+except ChunkingAbortedError as e:
+    # 原因と対処はメッセージ側が持っている。型名を前置きしない
+    error(f"❌ {e}")
+    return None
+```
+
+#### 4.1.3 中断を無効にする
+
+```bash
+CHUNKING_ABORT_AFTER_FAILURES=0 python -m chunking.csv_text_to_chunks_text_csv
+```
+
+### 4.2 `AsyncAPIClient.__init__`
 
 **概要**: LLM クライアント・Semaphore・中断しきい値・統計カウンタを用意する。
 
@@ -247,7 +286,7 @@ AsyncAPIClient(
 | `_consecutive_failures` | `int` | **連続**失敗回数。成功で 0 に戻る |
 | `_total_requests` / `_failed_requests` / `_truncated_responses` | `int` | 統計 |
 
-### 4.2 `AsyncAPIClient._resolve_model`
+### 4.3 `AsyncAPIClient._resolve_model`
 
 **概要**: 渡されたモデル名が Claude 系でなければ既定モデルへ回避する。
 
@@ -265,7 +304,7 @@ def _resolve_model(model: Optional[str], default_model: str) -> str
 > 📝 チャンク化の呼び出し側にはレガシーで Gemini モデル名を渡す経路が残っている。
 > Anthropic エンドポイントへ非 Claude 名を投げて失敗しないための保護である。
 
-### 4.3 `AsyncAPIClient.generate_content`
+### 4.4 `AsyncAPIClient.generate_content`
 
 **概要**: セマフォで並列数を絞りつつ構造化出力を生成する。
 
@@ -293,7 +332,7 @@ async def generate_content(
 > 📝 **戻り値は Pydantic インスタンスではなく JSON 文字列。** 呼び出し側が
 > `model_validate_json()` でパースする契約を、Gemini 時代から維持している。
 
-### 4.4 `AsyncAPIClient._execute_with_retry`
+### 4.5 `AsyncAPIClient._execute_with_retry`
 
 **概要**: リトライと**中断判断**。本モジュールの中核。
 
@@ -330,7 +369,7 @@ async def generate_content(
 
 回帰は `backend/tests/test_chunking_abort.py` で固定している。
 
-### 4.5 `AsyncAPIClient.get_stats` / `reset_stats`
+### 4.6 `AsyncAPIClient.get_stats` / `reset_stats`
 
 | 項目 | 内容 |
 |------|------|
@@ -380,51 +419,10 @@ DEFAULT_ABORT_AFTER_CONSECUTIVE_FAILURES = int(
 エラーメッセージ（小文字化）に `429` / `rate` / `quota` のいずれかが含まれるとき、
 レート制限として待ち時間を延ばす。
 
----
-
-## 6. 使用例
-
-### 6.1 基本（チャンク化の 3 段階から）
-
-```python
-from chunking.async_api_client import AsyncAPIClient
-
-client = AsyncAPIClient(max_workers=8, max_retries=3, max_output_tokens=16384)
-
-json_text = await client.generate_content(
-    model="claude-sonnet-4-6",
-    contents=prompt,
-    response_schema=Step1Response,
-    task_id="step1_block_3",
-)
-if json_text is None:
-    ...   # このブロックだけ失敗 → 機械的分割へフォールバック
-else:
-    result = Step1Response.model_validate_json(json_text)
-```
-
-### 6.2 中断を捕まえる（ジョブ runner 側）
-
-```python
-from chunking.async_api_client import ChunkingAbortedError
-
-try:
-    chunks = run_chunking_sync(text, model=model, ...)
-except ChunkingAbortedError as e:
-    # 原因と対処はメッセージ側が持っている。型名を前置きしない
-    error(f"❌ {e}")
-    return None
-```
-
-### 6.3 中断を無効にする
-
-```bash
-CHUNKING_ABORT_AFTER_FAILURES=0 python -m chunking.csv_text_to_chunks_text_csv
-```
 
 ---
 
-## 7. エクスポート
+## 6. エクスポート
 
 `__all__` の定義はない。公開要素は以下のとおり。
 
@@ -436,12 +434,13 @@ AsyncAPIClient                             # 非同期クライアント
 
 ---
 
-## 8. 変更履歴
+## 7. 変更履歴
 
 | バージョン | 変更内容 |
 |-----------|---------|
 | 1.0 | 初版作成（Gemini `genai.Client` 前提）（2025-01-29） |
 | 2.0 | **実装と突き合わせて全面改訂。** v1.0 は Gemini 時代のままで、現在は存在しない `_is_valid_json()` / `_is_truncated_response()` / `genai.Client` を載せていた。あわせて `ChunkingAbortedError` と `DEFAULT_ABORT_AFTER_CONSECUTIVE_FAILURES` を追加記述（2026-09-12） |
+| 2.1 | 使用例を IPO 詳細の冒頭（`### 4.1 使用例`）へ移し、末尾の「## 6. 使用例」章を削除（基本フォーマット `a_class_method_md_format.md` v1.6〜 §6.1 に準拠。2026-09-24）。IPO の小節を 4.2 以降へ繰り下げ、後続の章番号を 1 つ繰り上げた。文書内の `§4.x` 参照も追随。あわせて「各責務対応のモジュール」を主な責務と同じ順・同じ粒度に並べ直した（行数は一致していたが、2〜5 行目の対応がずれていた） |
 
 ---
 
