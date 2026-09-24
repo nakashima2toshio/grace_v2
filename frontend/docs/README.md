@@ -1,6 +1,6 @@
 # frontend — 責務・構成・モジュール構造
 
-**Version 2.0** | 最終更新: 2026-09-24
+**Version 2.1** | 最終更新: 2026-09-24
 
 `frontend/`（Vite + React 18 + TypeScript）の**入口文書**である。
 前半（§1〜§7）で frontend の責務・構成・モジュール構造・データの流れを説明し、
@@ -48,7 +48,7 @@ GRACE のローカル開発用 Web UI。**唯一のエージェント実行入�
 | **HITL（Human-In-The-Loop）の窓口** | バックエンドから届く承認待ち（`intervention`）に対し、承認 / 拒否（⑥ アクション・データ削除・`recreate`）や主質問の選択（0-(A)）を利用者に求め、結果を POST で返す |
 | **データ準備の操作** | チャンキング → Q/A 作成 → Qdrant 登録 → コレクション管理を、CLI と同じ関数経由で画面から実行する |
 | **実行条件の選択** | モデル（ヘッダー・**単価つき**）・業界プロファイル / ルールセット・Web フォールバック・アクション実行・dry-run・詳細ログを選ぶ |
-| **アクセシビリティ** | tablist の矢印キー移動、`aria-live` による進捗の読み上げ、banner 系への `role` 付与、IME 変換中は送信しない等 |
+| **アクセシビリティ** | tablist の矢印キー移動、モーダルのフォーカストラップ、指摘選択のキーボード操作、`aria-live` による進捗の読み上げ、banner 系への `role` 付与、IME 変換中は送信しない等 |
 
 ### 1.2 やらないこと（バックエンドの責務）
 
@@ -75,7 +75,7 @@ GRACE のローカル開発用 Web UI。**唯一のエージェント実行入�
 | 型設定 | `tsconfig.json` — `strict` / `noUnusedLocals` / `noUnusedParameters` / `jsx: react-jsx` / `noEmit` |
 | dev サーバ | `vite`（:5173）。**`/api` を `http://127.0.0.1:8000` へプロキシ**（SSE も同経路） |
 | テスト | vitest。`environment: 'node'`・`include: ['src/**/*.test.ts']`（**`.test.tsx` は収集されない**・DOM なし） |
-| スタイル | `src/styles.css`（1,329 行）1 枚のグローバル CSS |
+| スタイル | `src/styles.css`（1,342 行）1 枚のグローバル CSS |
 | エントリ | `index.html`（`lang="ja"`）→ `src/main.tsx` → `<App />`（`React.StrictMode`） |
 
 > ⚠️ **プロキシ先は `localhost` ではなく `127.0.0.1`。** Node 18+ は `localhost` を
@@ -105,11 +105,11 @@ frontend/
     ├── main.tsx              # ReactDOM.createRoot → <App/>（10 行）
     ├── App.tsx               # 4 タブの切替・ヘッダーのモデル選択（169 行）
     ├── types.ts              # API スキーマの型（backend/app/schemas.py と 1:1・431 行）
-    ├── styles.css            # グローバル CSS（1,329 行）
+    ├── styles.css            # グローバル CSS（1,342 行）
     ├── api/
     │   └── client.ts         # fetch / EventSource を包む唯一の通信層（301 行）
     ├── components/           # 19 コンポーネント（.tsx）+ ReviewForm の例文テスト
-    ├── state/                # 判断ロジックの純関数・reducer・ストア（19 モジュール）+ テスト
+    ├── state/                # 判断ロジックの純関数・reducer・ストア（21 モジュール）+ テスト
     └── markdown/
         └── parseMarkdown.ts  # 依存なしの Markdown → ブロック AST（250 行）+ テスト
 ```
@@ -266,7 +266,7 @@ App
     │   ├── ReviewForm             文書 textarea・ルールセット・オプション
     │   ├── JobClock
     │   ├── ReviewTimeline → Timeline
-    │   ├── DocumentView ⇄ FindingList   原文ハイライトと指摘カード（左右 2 ペイン・クリックで相互ジャンプ）
+    │   ├── DocumentView ⇄ FindingList   原文ハイライトと指摘カード（左右 2 ペイン・クリック / Enter / Space で相互ジャンプ）
     │   └── ConfirmModal           ⑦ アクションの HITL 承認
     └── DataPanel（サブタブ）
         ├── ① チャンキング   DataJobPanel variant=chunking
@@ -281,11 +281,13 @@ App
 
 | 部品 | 使う側 | 共用の理由 |
 |---|---|---|
-| `ConfirmModal` | Support / Review / DataJob / Collection の 4 か所 | HITL 承認の UI は 1 つに揃える（承認なしに不可逆操作をさせない） |
+| `ConfirmModal` | Support / Review / DataJob / Collection の 4 か所 | HITL 承認の UI は 1 つに揃える（承認なしに不可逆操作をさせない）。フォーカストラップもここ 1 か所で全画面に効く |
 | `Timeline` | `StepTimeline` / `ReviewTimeline` / `DataJobPanel` / `CollectionPanel` | マークアップと `aria-live` は共通、ステップ ID 集合とバッジは呼び出し側が渡す |
 | `JobClock` | 4 つのコンテナ・`AnswerCard` | 開始 / 完了時刻と所要時間を同じ書式で出す |
 | `MetaErrorBanner` | Support / Review | メタ取得失敗を無言で握りつぶさない |
 | `state/formMemory.ts` | `QueryForm` / `ReviewForm` | アンマウントで入力が消えないよう退避 |
+| `state/submitKey.ts` | `QueryForm` / `ReviewForm` | Ctrl+Enter / ⌘+Enter 送信・IME 変換中は送らない |
+| `state/selectionKeys.ts` | `DocumentView` / `FindingList` | 指摘の選択を Enter / Space でも行い、トグル規則を 1 か所にそろえる |
 
 ---
 
@@ -434,8 +436,8 @@ result の型が違うため**無理にジェネリック化しない**方針で
 | 文書 | 対象 | 実装行数 | 版 | 重要度 |
 |---|---|---:|---|:--:|
 | `QueryForm.md` | `components/QueryForm.tsx` | 272 | 1.6 | ★★★ |
-| `ReviewForm.md` | `components/ReviewForm.tsx` | 237 | 1.5 | ★★ |
-| `ConfirmModal.md` | `components/ConfirmModal.tsx` — HITL アクション承認 | 95 | 1.1 | ★★ |
+| `ReviewForm.md` | `components/ReviewForm.tsx` | 254 | 1.6 | ★★ |
+| `ConfirmModal.md` | `components/ConfirmModal.tsx` — HITL アクション承認 | 142 | 1.2 | ★★ |
 | `QuestionSelectModal.md` | `components/QuestionSelectModal.tsx` — 0-(A) 主質問の選択 | 76 | 1.0 | ★★ |
 
 ### 8.3 表示コンポーネント
@@ -443,12 +445,12 @@ result の型が違うため**無理にジェネリック化しない**方針で
 | 文書 | 対象 | 実装行数 | 版 | 重要度 |
 |---|---|---:|---|:--:|
 | `AnswerCard.md` | `components/AnswerCard.tsx` | 226 | 1.2 | ★★★ |
-| `FindingList.md` | `components/FindingList.tsx` | 128 | 1.1 | ★★ |
+| `FindingList.md` | `components/FindingList.tsx` | 141 | 1.2 | ★★ |
 | `Markdown.md` | `components/Markdown.tsx`（`markdown/parseMarkdown.ts`） | 114 | 1.1 | ★★ |
 | `Timeline.md` | `components/Timeline.tsx` | 77 | 1.1 | ★★ |
 | `StepTimeline.md` | `components/StepTimeline.tsx` | 45 | 1.1 | ★★ |
 | `ReviewTimeline.md` | `components/ReviewTimeline.tsx` | 64 | 1.1 | ★ |
-| `DocumentView.md` | `components/DocumentView.tsx` | 49 | 1.1 | ★ |
+| `DocumentView.md` | `components/DocumentView.tsx` | 62 | 1.2 | ★ |
 | `JobClock.md` | `components/JobClock.tsx` — 開始行 / 完了行 | 47 | 1.0 | ★ |
 | `MetaErrorBanner.md` | `components/MetaErrorBanner.tsx` — メタ取得失敗の表示 | 24 | 1.0 | ★ |
 
@@ -456,8 +458,8 @@ result の型が違うため**無理にジェネリック化しない**方針で
 
 | 文書 | 内容 | 版 | 備考 |
 |---|---|---|---|
-| `README.md` | 本書（責務・構成・モジュール構造・棚卸し） | 2.0 | — |
-| `review_ui.md` | GRACE-Review 画面全体の設計を俯瞰する**横断文書** | 1.5 | 対応する `.tsx` は無い。個別仕様は各 `<Component>.md` が正 |
+| `README.md` | 本書（責務・構成・モジュール構造・棚卸し） | 2.1 | — |
+| `review_ui.md` | GRACE-Review 画面全体の設計を俯瞰する**横断文書** | 1.6 | 対応する `.tsx` は無い。個別仕様は各 `<Component>.md` が正 |
 
 ---
 
@@ -466,7 +468,7 @@ result の型が違うため**無理にジェネリック化しない**方針で
 `frontend/src/components/*.tsx` は **19 件**、`App.tsx` を加えて **20 件**。
 対応する `<Component>.md` も **20 件**で、**欠落は無い**。
 
-> 📌 `main.tsx`（10 行）・`types.ts`（431 行）・`api/client.ts`（301 行）・`styles.css`（1,329 行）には個別文書が無い。
+> 📌 `main.tsx`（10 行）・`types.ts`（431 行）・`api/client.ts`（301 行）・`styles.css`（1,342 行）には個別文書が無い。
 > `types.ts` はバックエンドのスキーマと 1:1 で `backend/docs/reference/schemas.md` が正、
 > `api/client.ts` は本書 §6 と各パネル文書の「API 通信」節が実質の記述である。**意図的に持たない。**
 
@@ -482,7 +484,7 @@ result の型が違うため**無理にジェネリック化しない**方針で
 
 ## 10. state/ 純関数の一覧
 
-`state/` は 19 モジュール（テストを除く）。役割で分類する。
+`state/` は 21 モジュール（テストを除く）。役割で分類する。
 
 | 分類 | モジュール | 行数 | 切り出した判断 |
 |---|---|---:|---|
@@ -502,15 +504,17 @@ result の型が違うため**無理にジェネリック化しない**方針で
 | | `metaFetch.ts` | 53 | メタ取得失敗 → 対処可能な文言 |
 | | `timelineAnnounce.ts` | 43 | 支援技術へ読み上げる 1 行 |
 | | `interventionKind.ts` | 36 | 承認待ちが action（⑥）か question（0-(A)）か |
-| **キー操作** | `submitKey.ts` | 49 | `QueryForm` の送信キー（Ctrl+Enter / ⌘+Enter・IME 変換中は送信しない） |
+| **キー操作・a11y** | `submitKey.ts` | 49 | `QueryForm` / `ReviewForm` の送信キー（Ctrl+Enter / ⌘+Enter・IME 変換中は送信しない） |
 | | `tabKeys.ts` | 49 | タブの矢印キー移動（roving tabindex） |
+| | `selectionKeys.ts` | 63 | 指摘の選択キー（Enter / Space・IME 変換中は発火しない）と選択トグル |
+| | `focusTrap.ts` | 62 | モーダル内の Tab 移動先（端で巻き戻す） |
 | **フック（例外）** | `useJobTiming.ts` | 56 | **判断は持たず** `elapsed.ts` に委ねる。ここに分岐を足さない |
 
 > `markdown/parseMarkdown.ts`（250 行）も同じ方針の純関数（`Markdown.md` が担当）。
 >
-> 📌 grace_v2_local にしかない `state/focusTrap.ts`（`ConfirmModal` のフォーカストラップ）/
-> `state/selectionKeys.ts`（指摘選択のキーボード操作）は**本リポジトリには無い**（CLAUDE.md §5）。
-> 取り込む場合は `diff -u` で目的の差分だけを移植すること。
+> 📌 `focusTrap.ts` / `selectionKeys.ts` は 2026-09-24 に grace_v2_local から移植した。
+> これで `frontend/src/` の**ファイル集合は両リポジトリで一致**したが、`modelLabel.ts` /
+> `headerModel.ts` などは**中身が別物**なので、コピーで行き来させないこと（CLAUDE.md §5）。
 
 ---
 
@@ -519,8 +523,8 @@ result の型が違うため**無理にジェネリック化しない**方針で
 **2026-09-24 に `cd frontend && npx vitest run` を実行した実測値。記憶で書かないこと。**
 
 ```
-Test Files  21 passed (21)
-     Tests  297 passed (297)
+Test Files  23 passed (23)
+     Tests  318 passed (318)
 ```
 
 | テストファイル | 件数 |
@@ -538,10 +542,12 @@ Test Files  21 passed (21)
 | `state/highlight.test.ts` | 13 |
 | `state/citations.test.ts` | 13 |
 | `state/tabKeys.test.ts` | 12 |
+| `state/focusTrap.test.ts` | 12 |
 | `state/documentLimit.test.ts` | 10 |
 | `state/metaFetch.test.ts` | 10 |
 | `state/submitKey.test.ts` | 10 |
 | `state/timelineAnnounce.test.ts` | 9 |
+| `state/selectionKeys.test.ts` | 9 |
 | `state/activeJobs.test.ts` | 8 |
 | `state/jobReducer.test.ts` | 7 |
 | `state/interventionKind.test.ts` | 4 |
@@ -574,10 +580,8 @@ npm run build    # 本番ビルド
 | # | 内容 | 優先 |
 |---|---|:--:|
 | 1 | ルート `README.md` のスクリーンショット残り 14 枚（`ANTHROPIC_API_KEY` と Qdrant のある環境が必要） | 中 |
-| 2 | `ConfirmModal` にフォーカストラップが無い／`DocumentView` ⇄ `FindingList` の相互ジャンプがクリックのみ／`ReviewForm` に Ctrl+Enter 送信が無い。いずれも **grace_v2_local では対応済み**（`focusTrap.ts` / `selectionKeys.ts` / `submitKey.ts` の共用） | 低 |
+| 2 | `ConfirmModal` の a11y ❌ 2 件（`Escape` で閉じない・閉じたあとのフォーカス復帰） | ⚠️ **判断のうえで未対応**（`ConfirmModal.md` §8）。実装漏れではない |
 
-> 📌 #2 は本書の最新化（2026-09-24）で grace_v2_local と突き合わせて見つけた差分であり、
-> 本リポジトリで不具合として報告されたものではない。移植する場合は CLAUDE.md §5 の手順に従う。
 >
 > 📌 `.running-banner` に `role` を足さないのは**意図的**である。実行中であることは
 > `Timeline` の `aria-live` が読み上げており、バナーにも付けると二重読み上げになる。
@@ -585,7 +589,7 @@ npm run build    # 本番ビルド
 詳細と根拠は [`docs/doc_modernization_todo.md`](../../docs/doc_modernization_todo.md) を参照。
 
 <details>
-<summary>完了済み（2026-09-12〜23）</summary>
+<summary>完了済み（2026-09-12〜24）</summary>
 
 | 内容 | 完了 |
 |---|---|
@@ -597,6 +601,7 @@ npm run build    # 本番ビルド
 | `ReviewForm` のアクセシビリティ（`.sr-only` ラベル・`aria-invalid`・ライブ領域） | 2026-09-12 |
 | `ReviewPanel` の打ち切り警告・`CollectionPanel` の中止バナーに `role`（banner 系すべてに付与） | 2026-09-12 |
 | 未使用になった `ModelSelect.tsx` / `ModelSelect.md` と `modelLabel.ts` の未使用関数を削除 | 2026-09-23 |
+| `ConfirmModal` のフォーカストラップ（`state/focusTrap.ts`）・指摘選択のキーボード操作（`state/selectionKeys.ts`）・`ReviewForm` の Ctrl+Enter 送信（grace_v2_local から移植） | 2026-09-24 |
 
 </details>
 
@@ -606,6 +611,7 @@ npm run build    # 本番ビルド
 
 | 版 | 日付 | 変更内容 |
 |---|---|---|
+| 2.1 | 2026-09-24 | **a11y 3 点を grace_v2_local から移植したのに追随**（残タスク #2 を完了）。`state/focusTrap.ts` / `selectionKeys.ts` を §3・§5.4・§10 へ追加（21 モジュール）、§8 の版・行数を更新（`ConfirmModal` 1.2 / 142・`DocumentView` 1.2 / 62・`FindingList` 1.2 / 141・`ReviewForm` 1.6 / 254・`review_ui` 1.6）、テスト件数を **23 ファイル / 318 件**（実測）へ更新。§13 には `ConfirmModal` の判断済み未対応 2 件を残した |
 | 2.0 | 2026-09-24 | **棚卸し索引から frontend の入口文書へ再構成**（grace_v2_local 側 README v2.0 と同じ構成）。§1 責務（やること / やらないこと）・§2 技術スタックとビルド構成・§3 ディレクトリ構成・§4 レイヤー構造と依存の向き（Mermaid）・§5 画面構成（タブ・ヘッダーのモデル選択と単価つきラベル・コンポーネントツリー・共用部品）・§6 バックエンドとの通信（SSE シーケンス図・エンドポイント一覧・取得失敗時の方針）・§7 状態管理の設計方針を新設。§8 の版・行数を実測で更新（`ReviewForm` 1.5・`review_ui` 1.5・`DataJobPanel` 1.5 / 739 行・`dataParams.ts` 201 行・`queryParams.ts` 128 行・`formMemory.ts` 120 行・`citations.ts` 76 行・`types.ts` 431 行・`api/client.ts` 301 行）。§10 を役割別に分類。§11 のテスト件数を再実測（**21 ファイル / 297 件**・変化なし）。§13 に grace_v2_local との a11y 差分（低優先）を追記し、完了済みを折りたたみへ移動。旧 §3.1（日付遅れ 6 件の検証記録）は §9 の注記へ要約 |
 | 1.8 | 2026-09-23 | **`modelLabel.ts` の未使用関数を削除**（`formatModelLabel` / `defaultOptionLabel` / `DEFAULT_OPTION_FALLBACK`）。テスト件数を **21 ファイル / 297 件**（実測）へ更新 |
 | 1.7 | 2026-09-23 | **未使用になった `ModelSelect.tsx` と `ModelSelect.md` を削除**し、文書一覧・実装カバレッジから外した（残タスク 8 を完了） |

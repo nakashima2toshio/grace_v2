@@ -1,6 +1,6 @@
 # components/ReviewPanel ほか - GRACE-Review UI ドキュメント
 
-**Version 1.5** | 最終更新: 2026-09-23
+**Version 1.6** | 最終更新: 2026-09-24
 
 ---
 
@@ -535,13 +535,13 @@ document.slice(finding.start, finding.end) === finding.excerpt
 | 観点 | 状態 |
 |---|---|
 | フォーム要素に `label` が対応しているか | ✅（セレクタ・チェックボックスは `<label>` で囲んでいる） |
-| textarea に `label` が対応しているか | ❌（`placeholder` のみ。`aria-label` を付けるべき） |
+| textarea に `label` が対応しているか | ✅（`.sr-only` の `<label htmlFor>` を付与済み。`ReviewForm.md` §7） |
 | タブに `role="tablist"` / `role="tab"` / `aria-selected` があるか | ✅ |
-| タブに `aria-controls` / パネルの `role="tabpanel"` があるか | ❌ |
-| モーダルにフォーカストラップがあるか | ❌（`role="dialog"` / `aria-modal` は付与済み） |
+| タブに `aria-controls` / パネルの `role="tabpanel"` があるか | ✅（`App.tsx`。`aria-controls` ↔ `aria-labelledby` で対応） |
+| モーダルにフォーカストラップがあるか | ✅（2026-09-24。`state/focusTrap.ts`。開いたとき承認ボタンへ焦点を移す） |
 | 重大度が色のみに依存していないか（記号・文言併用） | ✅（`重大` / `中` / `軽微` のテキストバッジを併記） |
-| ハイライトがキーボードで選択できるか | ❌（`<mark>` の `onClick` のみ。`tabIndex` / `onKeyDown` が無い） |
-| キーボードのみで送信・承認できるか | ✅（フォーム submit と `<button>` のみ） |
+| ハイライトがキーボードで選択できるか | ✅（2026-09-24。`<mark>` と指摘カードに `role="button"` / `tabIndex={0}` / `aria-pressed`、Enter / Space で発火。`state/selectionKeys.ts`） |
+| キーボードのみで送信・承認できるか | ✅（フォーム submit・textarea の Ctrl+Enter / ⌘+Enter・`<button>`） |
 
 > ❌ の項目は**実装できていないことが分かっている状態**として残している。消すと再発見できない。
 
@@ -578,4 +578,5 @@ document.slice(finding.start, finding.end) === finding.excerpt
 | 1.1 | 2026-08-05 | **ルールセット取得の失敗を握りつぶしていた不具合を修正。** バックエンド停止時にセレクタが空になるだけで理由が出なかったため、`MetaErrorBanner` で復旧手順を表示し再取得できるようにした |
 | 1.2 | 2026-08-05 | **タブを切り替えると入力が既定値へ戻る不具合を修正。** 貼り付けた文書・タイトル・ルールセット・チェックを `state/formMemory.ts` へ退避し、再マウント時に復元する |
 | 1.4 | 2026-09-23 | ReviewForm の既定値を変更（Web 裏取り ON・dry-run OFF）。state 表を追随 |
+| 1.6 | 2026-09-24 | **§8 のアクセシビリティ・チェックを実装へ追随。** grace_v2_local から移植したフォーカストラップ・指摘選択のキーボード操作・`ReviewForm` の Ctrl+Enter を反映し、❌ 2 行を ✅ に。あわせて、実装済みなのに ❌ のまま残っていた 2 行（textarea の `.sr-only` ラベル・`aria-controls` / `role="tabpanel"`）を実装と突き合わせて ✅ に訂正 |
 | 1.5 | 2026-09-23 | **詳細ログの既定を ON へ変更**（基本版 / GRACE-Support / GRACE-Review は `DEFAULT_QUERY_FORM` / `DEFAULT_REVIEW_FORM` の `verbose`、データ管理は `DataJobPanel` の `useState`） |

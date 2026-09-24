@@ -1,6 +1,6 @@
 # FindingList.tsx - 指摘カード一覧＋サマリバー ドキュメント
 
-**Version 1.1** | 最終更新: 2026-09-12
+**Version 1.2** | 最終更新: 2026-09-24
 
 ---
 
@@ -28,7 +28,7 @@
 | 種別 | `FindingList` = 状態保持コンポーネント（`useRef` + `useEffect`）／ `FindingSummaryBar` = 表示コンポーネント（ステートレス） |
 | 親 | `ReviewPanel.tsx`（`FindingSummaryBar` は結果直下、`FindingList` は `.review-panes` の右ペイン） |
 | 子 | なし |
-| 主な依存 | `../types`（`FindingSummary` / `ReviewFinding` / `Severity`）、`react`（`useEffect` / `useRef`） |
+| 主な依存 | `../state/selectionKeys`（`isActivationKey` / `toggleSelection`）、`../types`（`FindingSummary` / `ReviewFinding` / `Severity`）、`react`（`useEffect` / `useRef`） |
 | 対応バックエンド | `backend/app/core/review_agent.py`（`ReviewFinding` / `FindingSummary`） |
 
 **1 ファイルに 2 つの export** がある。`ReviewPanel` は両方を別々の位置に配置する
@@ -58,7 +58,7 @@
 | severity ラベル | `SEVERITY_LABEL` | `high` → 重大 / `medium` → 中 / `low` → 軽微 |
 | ステータスラベル | `STATUS_LABEL` | `confirmed` → 確定 / `review_required` → 要確認 / `suppressed` → 抑止。**未知の値はそのまま表示**（`?? finding.status`） |
 | 自動スクロール | `useEffect` + `selectedRef` | `scrollIntoView({ behavior: 'smooth', block: 'nearest' })` |
-| 選択トグル | `onSelect(selected ? null : finding.finding_id)` | 同じカードを再クリックで解除 |
+| 選択トグル | `onSelect(toggleSelection(selectedFindingId, finding.finding_id))` | 同じカードをもう一度選ぶと解除（クリック / Enter / Space で同じ規則・`DocumentView` と共用） |
 | 空表示 | `findings.length === 0` の早期リターン | 「ルールに抵触する記述が見つかりませんでした」 |
 | 根拠の折りたたみ | `<details>` / `<summary>` | 件数付き。既定は閉じる |
 | 強制フラグ | `finding.forced` | 「重大リスク語」バッジ＋ツールチップ |
@@ -252,7 +252,8 @@ class B,R,Sum,FSB,Fnd,Sort,Cards,Sel,R2,Eff,DV default
 
 | 要素 | イベント | ハンドラ | 効果 | 無効化条件 |
 |---|---|---|---|---|
-| `<li className="finding-card">` | `click` | インライン `() => onSelect(selected ? null : finding.finding_id)` | 選択のトグル → 親の reducer 更新 → 原文ハイライトが選択色に | なし |
+| `<li className="finding-card">` | `click` | インライン `() => onSelect(toggleSelection(selectedFindingId, finding.finding_id))` | 選択のトグル → 親の reducer 更新 → 原文ハイライトが選択色に | なし |
+| `<li className="finding-card">` | `keydown`（Enter / Space・修飾キーなし・IME 変換中を除く） | `isActivationKey(event)` → `preventDefault()` → クリックと同じ `onSelect(...)` | 同上 | なし |
 | `<details className="finding-citations">` | `toggle`（ネイティブ） | なし（ブラウザ標準） | 根拠リストの開閉。React state を持たない | なし |
 | `<span className="sum-badge sum-muted" title="...">` | ホバー | なし | 「抑止」の説明ツールチップ | なし |
 
@@ -374,16 +375,19 @@ def _summarize(findings: List[ReviewFinding], suppressed: int) -> FindingSummary
 | フォーム要素に `label` が対応しているか | 該当なし（フォーム要素を持たない） |
 | モーダルにフォーカストラップがあるか | 該当なし（モーダルではない） |
 | 状態表示が色のみに依存していないか（記号併用） | ✅ severity は `重大` / `中` / `軽微` の**文字ラベル**を併記。ステータスも `確定` / `要確認` / `抑止` の文字。バッジ色は補助 |
-| キーボードのみで送信・承認できるか | ❌ `<li onClick>` に `tabIndex` も `onKeyDown` も無いため、**キーボードではカードを選択できない**（`DocumentView` の `<mark>` と同じ問題） |
-| クリック可能であることが支援技術に伝わるか | ❌ `role="button"` を付けていない |
-| 選択状態が支援技術に伝わるか | ❌ `aria-selected` / `aria-current` を付けていない。`selected` クラスのみ |
+| キーボードのみで操作できるか | ✅ `tabIndex={0}` で到達でき、**Enter / Space** で選択・解除できる（2026-09-24）。判定は `state/selectionKeys.ts::isActivationKey` |
+| クリック可能であることが支援技術に伝わるか | ✅ `role="button"`（2026-09-24） |
+| 選択状態が支援技術に伝わるか | ✅ `aria-pressed={selected}`（2026-09-24。`DocumentView` の `<mark>` と同じ属性で揃えた） |
+| 焦点が見えるか | ✅ `.finding-card:focus-visible` に**破線**のアウトライン。選択中（`.finding-card.selected` の実線）と見分けられる |
 | リスト構造になっているか | ✅ `<ul>` / `<li>`。折りたたみもネイティブの `<details>` / `<summary>` |
 | 引用が意味的にマークされているか | ✅ `<blockquote>` を使用 |
 | 見出しがあるか | ✅ `<h2>指摘（N）</h2>` / 空時は `<h2>指摘</h2>` |
 | `scrollIntoView` が `prefers-reduced-motion` を尊重しているか | ❌ `behavior: 'smooth'` を無条件で指定している。動きを減らす設定のユーザーにも滑らかスクロールが起きる |
 
-> 上記 ❌ は既知の未対応であり、消さずに残す。`<li>` を
-> `role="button" tabIndex={0} aria-pressed={selected} onKeyDown={...}` にするのが最小の改善。
+> ⚠️ **Space の既定動作（ページスクロール）は `preventDefault()` で止めている。**
+
+> 📌 `scrollIntoView` の `prefers-reduced-motion` は**未対応のまま**（❌ 行）。
+> これはキーボード到達性とは別の話（動きの量の話）なので、今回の範囲に含めていない。
 
 ---
 
@@ -393,6 +397,7 @@ def _summarize(findings: List[ReviewFinding], suppressed: int) -> FindingSummary
 |---|---|---|
 | `src/state/reviewReducer.test.ts` | `selectedFindingId` の遷移を含む reducer の畳み込み（13 ケース） | `npm test` |
 | `src/state/highlight.test.ts` | `SEVERITY_RANK` を共有する側の並べ替え・重なり解消（13 ケース） | `npm test` |
+| `src/state/selectionKeys.test.ts` | `isActivationKey` / `toggleSelection`（**9 ケース**） | `npm test` |
 | （コンポーネント本体の専用テストなし） | — | — |
 
 **`sortFindings()` は未テスト。** `FindingList.tsx` 内のモジュール private 関数で
@@ -421,5 +426,6 @@ export されていないため、現状 vitest から触れない。
 
 | 版 | 日付 | 変更内容 |
 |---|---|---|
+| 1.2 | 2026-09-24 | **指摘カードをキーボードで操作できるようにした**（grace_v2_local から移植）。`role="button"` / `tabIndex={0}` / `aria-pressed` を付け、Enter・Space での発火と選択トグルを `state/selectionKeys.ts` の純関数へ切り出した（`DocumentView` と共用）。焦点表示（`.finding-card:focus-visible` の破線）も追加。§8 の ❌ 3 行が ✅ になった |
 | 1.1 | 2026-09-12 | **実装と突き合わせて差分が無いことを確認**（Props の TS ブロック・ステップ数・export シグネチャ）。内容の修正は不要で、遅れていたのはヘッダーの日付だけだった。検証した事実を残すため版を上げる |
 | 1.0 | 2026-08-01 | 初版作成 |

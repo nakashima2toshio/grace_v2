@@ -2,9 +2,12 @@
 //
 // ⚠️ 入力内容は `state/formMemory.ts` へ退避する。タブ切替はアンマウントなので、
 //    退避しないと貼り付けた文書もチェックも既定値へ戻る（詳細はそちらの冒頭）。
-import { FormEvent, useEffect, useState } from 'react';
+// ⚠️ 送信キー（Ctrl+Enter / ⌘+Enter・IME 変換中は送らない）の判定は
+//    `state/submitKey.ts` の純関数。`QueryForm` と共用する。
+import { FormEvent, KeyboardEvent, useEffect, useState } from 'react';
 import { documentLimit } from '../state/documentLimit';
 import { recallReviewForm, rememberReviewForm } from '../state/formMemory';
+import { isSubmitKey } from '../state/submitKey';
 import type { ReviewParams, RuleSetInfo } from '../types';
 
 // backend/app/schemas.py の MAX_DOCUMENT_CHARS と一致させる（超過は API が 422）。
@@ -101,8 +104,7 @@ export function ReviewForm({ rulesets, model, running, onSubmit }: Props) {
   const limit = documentLimit(document, MAX_DOCUMENT_CHARS);
   const canSubmit = !!document.trim() && !limit.over && !running;
 
-  const submit = (e: FormEvent) => {
-    e.preventDefault();
+  const submitIfReady = () => {
     if (!canSubmit) return;
     onSubmit({
       document,
@@ -114,6 +116,20 @@ export function ReviewForm({ rulesets, model, running, onSubmit }: Props) {
       dry_run: dryRun,
       verbose,
     });
+  };
+
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    submitIfReady();
+  };
+
+  // textarea では Enter が改行になり、フォームの暗黙送信が効かない。
+  // Ctrl+Enter / ⌘+Enter を送信に割り当てる（判定は state/submitKey.ts）。
+  // `QueryForm` と同じ操作にそろえてある。
+  const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (!isSubmitKey(e)) return;
+    e.preventDefault();
+    submitIfReady();
   };
 
   const selected = rulesets.find((r) => r.id === ruleset);
@@ -146,9 +162,10 @@ export function ReviewForm({ rulesets, model, running, onSubmit }: Props) {
         id="review-document"
         className="review-document"
         value={document}
-        placeholder="点検したい広告文・LP・バナー原稿を貼り付けてください"
+        placeholder="点検したい広告文・LP・バナー原稿を貼り付けてください（Ctrl+Enter / ⌘+Enter で実行）"
         rows={12}
         onChange={(e) => setDocument(e.target.value)}
+        onKeyDown={handleKeyDown}
         disabled={running}
         // 上限超過を支援技術へ伝える。カウンタを説明として紐づけるので、
         // フォーカスした時点で「N / M 文字」が読まれる。
