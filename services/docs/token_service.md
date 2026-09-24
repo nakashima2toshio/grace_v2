@@ -1,6 +1,6 @@
 # token_service.py - トークン管理サービス ドキュメント
 
-**Version 1.1** | 最終更新: 2026-09-12
+**Version 1.2** | 最終更新: 2026-09-24
 
 ---
 
@@ -14,7 +14,7 @@
 >
 > | 用途 | プロバイダ | 既定 |
 > |---|---|---|
-> | LLM 全般 | **Anthropic** | `claude-sonnet-4-6`（軽量 `claude-haiku-4-5-20251001`） |
+> | LLM 全般 | **Anthropic** | `claude-sonnet-5`（軽量 `claude-haiku-4-5-20251001`） |
 > | Embedding のみ | **Gemini** | `gemini-embedding-001`（3072 次元） |
 >
 > 表に OpenAI / Gemini のモデルが並んでいるのは、**過去に扱ったモデルの
@@ -22,9 +22,9 @@
 > 使っている」という意味ではない。参照はすべて `.get(model, <既定>)` なので、
 > 表に無いモデルを渡しても落ちずに既定値へフォールバックする。
 >
-> ⚠️ **そのフォールバックが実害を出している箇所がある。** チャンキングの既定
-> `claude-haiku-4-5` は `config.py` の価格表・上限表に無く、コストと上限が
-> 既定値で計算される（`docs/doc_modernization_todo.md` T6-5）。
+> ✅ **かつてはフォールバックが実害を出していた**（チャンキングの既定 `claude-haiku-4-5` が
+> 価格表・上限表に無く、既定値で計算されていた・`docs/doc_modernization_todo.md` T6-5）。
+> 2026-09-12 に `config.py` と本モジュールの表へ追加して解消済み（§5.2・§5.3・§5.5 の表は実装どおり）。
 
 ---
 
@@ -36,10 +36,9 @@
 4. [クラス・関数一覧表](#3-クラス関数一覧表)
 5. [クラス・関数 IPO詳細](#4-クラス関数-ipo詳細)
 6. [設定・定数](#5-設定定数)
-7. [使用例](#6-使用例)
-8. [エクスポート](#7-エクスポート)
-9. [変更履歴](#8-変更履歴)
-10. [付録: 依存関係図](#付録-依存関係図)
+7. [エクスポート](#6-エクスポート)
+8. [変更履歴](#7-変更履歴)
+9. [付録: 依存関係図](#付録-依存関係図)
 
 ---
 
@@ -47,7 +46,7 @@
 
 `token_service.py`は、トークンカウント・コスト推定・テキスト切り詰めを統合的に提供するサービスモジュールです。`tiktoken`を用いたトークン数算出を中核とし、複数モデルのエンコーディング・価格・トークン制限を一元管理します。複数の旧ヘルパー（`helper_api.py::TokenManager`、`helper_rag.py::TokenManager`、`helper_text.py::count_tokens`）を統合した後継実装です。
 
-技術スタックではLLMに **Anthropic Claude**（既定 `claude-sonnet-4-6` / 軽量 `claude-haiku-4-5-20251001`）、Embedding に **Gemini**（`gemini-embedding-001`）を採用します。本モジュールの定数表（`MODEL_ENCODINGS` / `LLM_PRICING` / `EMBEDDING_PRICING` / `MODEL_LIMITS`）には既定 LLM の Claude を先頭に定義し、Gemini / OpenAI 系のエントリは後方互換のため残置しています。
+技術スタックではLLMに **Anthropic Claude**（既定 `claude-sonnet-5` / 軽量 `claude-haiku-4-5-20251001`）、Embedding に **Gemini**（`gemini-embedding-001`）を採用します。本モジュールの定数表（`MODEL_ENCODINGS` / `LLM_PRICING` / `EMBEDDING_PRICING` / `MODEL_LIMITS`）には既定 LLM の Claude を先頭に定義し、Gemini / OpenAI 系のエントリは後方互換のため残置しています。
 
 ### 主な責務
 
@@ -230,7 +229,59 @@ style UTIL fill:#1a1a1a,stroke:#fff,color:#fff
 
 ## 4. クラス・関数 IPO詳細
 
-### 4.1 TokenManager クラス
+### 4.1 使用例
+
+#### 4.1.1 基本的なワークフロー
+
+```python
+from services.token_service import (
+    TokenManager,
+    count_tokens,
+    truncate_text,
+    get_llm_pricing,
+)
+
+# 1. トークン数をカウント
+text = "RAGシステムで使用する長い日本語の文章..."
+n_tokens = count_tokens(text, model="gpt-4o")
+print(f"トークン数: {n_tokens}")
+
+# 2. プロンプト上限に合わせて切り詰め
+trimmed = truncate_text(text, max_tokens=100, model="gpt-4o")
+
+# 3. コストを推定
+cost = TokenManager.estimate_cost(
+    input_tokens=n_tokens,
+    output_tokens=200,
+    model="gpt-4o",
+)
+print(f"推定コスト: ${cost:.4f}")
+
+# 4. モデル制限の確認
+limits = TokenManager.get_model_limits("gpt-4o")
+print(f"最大トークン: {limits['max_tokens']}")
+```
+
+#### 4.1.2 応用ワークフロー（Embeddingコスト計算）
+
+```python
+from services.token_service import TokenManager, count_tokens
+
+# Embedding対象テキストのトークン数を集計
+chunks = ["チャンク1...", "チャンク2...", "チャンク3..."]
+total_tokens = sum(count_tokens(c) for c in chunks)
+
+# Embeddingコストを推定（output_tokensは0）
+embed_cost = TokenManager.estimate_cost(
+    input_tokens=total_tokens,
+    output_tokens=0,
+    model="gemini-embedding-001",
+    is_embedding=True,
+)
+print(f"Embedding推定コスト: ${embed_cost:.6f}")
+```
+
+### 4.2 TokenManager クラス
 
 トークンカウント・テキスト切り詰め・コスト推定・モデル制限取得を提供する統合クラスです。すべてのメソッドはクラスメソッドであり、定数（`MODEL_ENCODINGS` / `LLM_PRICING` / `EMBEDDING_PRICING` / `MODEL_LIMITS`）をクラス変数として公開します。
 
@@ -375,7 +426,7 @@ print(limits)
 # 出力: {"max_tokens": 200000, "max_output": 100000}
 ```
 
-### 4.2 トークン処理関数
+### 4.3 トークン処理関数
 
 #### `get_encoding`
 
@@ -505,7 +556,7 @@ print(truncate_text("非常に長い文章...", max_tokens=5, add_ellipsis=True)
 # 出力: 先頭5トークン相当 + "..."
 ```
 
-### 4.3 価格・制限取得関数
+### 4.4 価格・制限取得関数
 
 #### `get_llm_pricing`
 
@@ -596,8 +647,8 @@ def get_model_limits(model: str) -> Dict[str, int]
 
 ```python
 # 使用例
-print(get_model_limits("claude-sonnet-4-6"))
-# 出力: {"max_tokens": 200000, "max_output": 8192}
+print(get_model_limits("claude-sonnet-5"))
+# 出力: {"max_tokens": 1000000, "max_output": 128000}
 ```
 
 ---
@@ -619,8 +670,13 @@ DEFAULT_ENCODING = "cl100k_base"
 ```python
 MODEL_ENCODINGS = {
     # Anthropic Claude（本プロジェクト既定 LLM。tiktokenでは近似）
-    "claude-sonnet-4-6": "cl100k_base",
+    "claude-sonnet-5": "cl100k_base",
+    "claude-fable-5-1": "cl100k_base",
+    "claude-opus-5-5": "cl100k_base",
+    "claude-opus-5": "cl100k_base",
+    "claude-haiku-4-5": "cl100k_base",
     "claude-haiku-4-5-20251001": "cl100k_base",
+    "claude-sonnet-4-6": "cl100k_base",
     # OpenAI GPT-4o系
     "gpt-4o": "cl100k_base",
     "gpt-4o-mini": "cl100k_base",
@@ -651,8 +707,13 @@ LLMモデル価格表（$/1000トークン）。本プロジェクト既定 LLM 
 ```python
 LLM_PRICING = {
     # Anthropic Claude（本プロジェクト既定 LLM）
-    "claude-sonnet-4-6": {"input": 0.003, "output": 0.015},
+    "claude-sonnet-5": {"input": 0.002, "output": 0.010},
+    "claude-fable-5-1": {"input": 0.010, "output": 0.050},
+    "claude-opus-5-5": {"input": 0.004, "output": 0.020},
+    "claude-opus-5": {"input": 0.005, "output": 0.025},
+    "claude-haiku-4-5": {"input": 0.001, "output": 0.005},
     "claude-haiku-4-5-20251001": {"input": 0.001, "output": 0.005},
+    "claude-sonnet-4-6": {"input": 0.003, "output": 0.015},
     # Gemini系（後方互換）
     "gemini-2.0-flash": {"input": 0.0001, "output": 0.0002},
     "gemini-2.0-pro": {"input": 0.002, "output": 0.004},
@@ -666,8 +727,13 @@ LLM_PRICING = {
 
 | モデル | input ($/1K) | output ($/1K) |
 |--------|-------------|---------------|
-| `claude-sonnet-4-6` | 0.003 | 0.015 |
+| `claude-sonnet-5` | 0.002 | 0.010 |
+| `claude-fable-5-1` | 0.010 | 0.050 |
+| `claude-opus-5-5` | 0.004 | 0.020 |
+| `claude-opus-5` | 0.005 | 0.025 |
+| `claude-haiku-4-5` | 0.001 | 0.005 |
 | `claude-haiku-4-5-20251001` | 0.001 | 0.005 |
+| `claude-sonnet-4-6` | 0.003 | 0.015 |
 | `gemini-2.0-flash` | 0.0001 | 0.0002 |
 | `gemini-2.0-pro` | 0.002 | 0.004 |
 | `gemini-1.5-pro-latest` | 0.0035 | 0.0105 |
@@ -700,8 +766,13 @@ EMBEDDING_PRICING = {
 ```python
 MODEL_LIMITS = {
     # Anthropic Claude（本プロジェクト既定 LLM）
+    "claude-sonnet-5": {"max_tokens": 1000000, "max_output": 128000},
+    "claude-fable-5-1": {"max_tokens": 1000000, "max_output": 128000},
+    "claude-opus-5-5": {"max_tokens": 1000000, "max_output": 128000},
+    "claude-opus-5": {"max_tokens": 1000000, "max_output": 128000},
+    "claude-haiku-4-5": {"max_tokens": 200000, "max_output": 64000},
+    "claude-haiku-4-5-20251001": {"max_tokens": 200000, "max_output": 64000},
     "claude-sonnet-4-6": {"max_tokens": 200000, "max_output": 8192},
-    "claude-haiku-4-5-20251001": {"max_tokens": 200000, "max_output": 8192},
     "gpt-4o": {"max_tokens": 128000, "max_output": 4096},
     "gpt-4o-mini": {"max_tokens": 128000, "max_output": 4096},
     "gpt-4.1": {"max_tokens": 128000, "max_output": 4096},
@@ -719,8 +790,13 @@ MODEL_LIMITS = {
 
 | モデル | max_tokens | max_output |
 |--------|-----------|------------|
+| `claude-sonnet-5` | 1000000 | 128000 |
+| `claude-fable-5-1` | 1000000 | 128000 |
+| `claude-opus-5-5` | 1000000 | 128000 |
+| `claude-opus-5` | 1000000 | 128000 |
+| `claude-haiku-4-5` | 200000 | 64000 |
+| `claude-haiku-4-5-20251001` | 200000 | 64000 |
 | `claude-sonnet-4-6` | 200000 | 8192 |
-| `claude-haiku-4-5-20251001` | 200000 | 8192 |
 | `gpt-4o` | 128000 | 4096 |
 | `gpt-4o-mini` | 128000 | 4096 |
 | `gpt-4.1` | 128000 | 4096 |
@@ -734,63 +810,10 @@ MODEL_LIMITS = {
 | `gemini-2.0-flash` | 1048576 | 8192 |
 | `gemini-2.0-pro` | 1048576 | 8192 |
 
----
-
-## 6. 使用例
-
-### 6.1 基本的なワークフロー
-
-```python
-from services.token_service import (
-    TokenManager,
-    count_tokens,
-    truncate_text,
-    get_llm_pricing,
-)
-
-# 1. トークン数をカウント
-text = "RAGシステムで使用する長い日本語の文章..."
-n_tokens = count_tokens(text, model="gpt-4o")
-print(f"トークン数: {n_tokens}")
-
-# 2. プロンプト上限に合わせて切り詰め
-trimmed = truncate_text(text, max_tokens=100, model="gpt-4o")
-
-# 3. コストを推定
-cost = TokenManager.estimate_cost(
-    input_tokens=n_tokens,
-    output_tokens=200,
-    model="gpt-4o",
-)
-print(f"推定コスト: ${cost:.4f}")
-
-# 4. モデル制限の確認
-limits = TokenManager.get_model_limits("gpt-4o")
-print(f"最大トークン: {limits['max_tokens']}")
-```
-
-### 6.2 応用ワークフロー（Embeddingコスト計算）
-
-```python
-from services.token_service import TokenManager, count_tokens
-
-# Embedding対象テキストのトークン数を集計
-chunks = ["チャンク1...", "チャンク2...", "チャンク3..."]
-total_tokens = sum(count_tokens(c) for c in chunks)
-
-# Embeddingコストを推定（output_tokensは0）
-embed_cost = TokenManager.estimate_cost(
-    input_tokens=total_tokens,
-    output_tokens=0,
-    model="gemini-embedding-001",
-    is_embedding=True,
-)
-print(f"Embedding推定コスト: ${embed_cost:.6f}")
-```
 
 ---
 
-## 7. エクスポート
+## 6. エクスポート
 
 `__all__`の内容：
 
@@ -817,10 +840,11 @@ __all__ = [
 
 ---
 
-## 8. 変更履歴
+## 7. 変更履歴
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 1.2 | 使用例を IPO 詳細の冒頭（`### 4.1 使用例`）へ移し、末尾の「## 6. 使用例」章を削除（基本フォーマット `a_class_method_md_format.md` v1.6〜 §6.1 に準拠。2026-09-24）。IPO の小節を 4.2 以降へ繰り下げ、後続の章番号を 1 つ繰り上げた。文書内の `§4.x` 参照も追随。あわせて`MODEL_ENCODINGS` / `LLM_PRICING` / `MODEL_LIMITS` の Claude 行を実装に同期（`claude-sonnet-5` など 5 モデルが欠落、`claude-haiku-4-5-20251001` の上限が 8192 のままだった）。2026-09-12 に解消済みの `claude-haiku-4-5` 欠落の警告を「解消済み」へ更新 |
 | 1.1 | 本モジュールが**トークン計算の互換テーブル**であることを冒頭に明記。表に並ぶ `gpt-4o` / `gemini-*` / `text-embedding-3-*` は実装どおりで変更していない（プロジェクトの既定 LLM は `claude-sonnet-4-6`）（2026-09-12） |
 | 1.0 | 初版作成（2026-06-17） |
 

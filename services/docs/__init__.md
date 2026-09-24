@@ -1,6 +1,6 @@
 # __init__.py - services パッケージ ドキュメント
 
-**Version 1.3** | 最終更新: 2026-09-12
+**Version 1.4** | 最終更新: 2026-09-24
 
 ---
 
@@ -12,10 +12,9 @@
 4. [クラス・関数一覧表](#3-クラス関数一覧表)
 5. [クラス・関数 IPO詳細](#4-クラス関数-ipo詳細)
 6. [設定・定数](#5-設定定数)
-7. [使用例](#6-使用例)
-8. [エクスポート](#7-エクスポート)
-9. [変更履歴](#8-変更履歴)
-10. [付録: 依存関係図](#付録-依存関係図)
+7. [エクスポート](#6-エクスポート)
+8. [変更履歴](#7-変更履歴)
+9. [付録: 依存関係図](#付録-依存関係図)
 
 ---
 
@@ -25,16 +24,25 @@
 
 このモジュールは **再エクスポート専用** であり、独自のクラス・関数・実行ロジックを一切定義しません。すべての実体は各サブモジュール側に存在し、本ファイルは `import` 文と `__all__` リストのみで構成されます。したがって本ドキュメントの「IPO詳細」セクションは、再エクスポートされる各シンボルとその由来サブモジュールの対応表を中心に据えます。
 
-技術スタックとして、LLM は Anthropic Claude（`claude-sonnet-4-6`、鍵 `ANTHROPIC_API_KEY`）、Embedding は Gemini `gemini-embedding-001`（3072次元、鍵 `GOOGLE_API_KEY`）、ベクトルDB は Qdrant を用います。
+技術スタックとして、LLM は Anthropic Claude（既定 `claude-sonnet-5`、鍵 `ANTHROPIC_API_KEY`）、Embedding は Gemini `gemini-embedding-001`（3072次元、鍵 `GOOGLE_API_KEY`）、ベクトルDB は Qdrant を用います。
 
 ### 主な責務
 
 - 各サブモジュールの公開シンボルを単一名前空間へ集約（再エクスポート）
 - `__all__` による公開APIの明示的な定義
-- 設定・キャッシュ・JSON・トークン・データセット・Qdrant・ファイル・Q/A の各サービスへの統一アクセス入口の提供
+- 設定・キャッシュ・JSON・トークン・Qdrant・Q/A の 6 サービスへの統一アクセス入口の提供
 - パッケージ利用側のインポート経路の簡素化
 
 ### 各責務対応のモジュール
+
+| # | 責務 | 対応モジュール | 説明 |
+|---|------|--------------|------|
+| 1 | 公開シンボルの集約（再エクスポート） | `services/__init__.py`（`from services.<sub> import ...` × 6） | cache / config / json / qa / qdrant / token の公開シンボルを取り込む |
+| 2 | `__all__` による公開 API の定義 | `services/__init__.py`（`__all__`） | 公開範囲を列挙する |
+| 3 | 6 サービスへの統一アクセス入口 | 再エクスポート元の 6 サブモジュール | 下の「サブモジュール一覧」を参照 |
+| 4 | インポート経路の簡素化 | 利用側の `from services import ...` | サブモジュール名を意識せずに import できる |
+
+### サブモジュール一覧（うち再エクスポート元は 6 件）
 
 | # | 責務 | 対応モジュール | 説明 |
 |---|------|--------------|------|
@@ -43,10 +51,10 @@
 | 3 | JSON処理（シリアライズ・ファイルI/O） | `json_service.py` | 安全なJSON入出力・整形ユーティリティ |
 | 4 | トークン管理（カウント・コスト推定） | `token_service.py` | `TokenManager`・価格表・モデル制限を提供 |
 | 5 | Qdrant操作（CRUD・ヘルスチェック） | `qdrant_service.py` | 登録・検索・統計・コレクション管理 |
-| 6 | データ準備（パス検証・データ変換） | `data_pipeline_service.py` | 入力ファイル解決・Qdrant 操作・DataFrame 変換 |
+| 6 | データ準備（パス検証・データ変換） | `data_pipeline_service.py` | 入力ファイル解決・Qdrant 操作・DataFrame 変換。※ `__init__.py` からは再エクスポートしない（`from services.data_pipeline_service import ...` で直接使う） |
 | 7 | Q/A生成（Anthropic Claude・サブプロセス実行） | `qa_service.py` | Q/Aペア生成とファイル保存 |
-| 8 | ReAct + Reflection エージェント | `agent_service.py` | `ReActAgent`（`grace/executor.py` から利用） |
-| 9 | 未回答質問ログ | `log_service.py` | `log_unanswered_question` ほか |
+| 8 | ReAct + Reflection エージェント | `agent_service.py` | `ReActAgent`（`grace/executor.py` から利用）。※ `__init__.py` からは再エクスポートしない（`from services.agent_service import ...` で直接使う） |
+| 9 | 未回答質問ログ | `log_service.py` | `log_unanswered_question` ほか。※ `__init__.py` からは再エクスポートしない（`from services.log_service import ...` で直接使う） |
 
 ### 主要機能一覧
 
@@ -230,7 +238,47 @@ style SERVICES fill:#1a1a1a,stroke:#fff,color:#fff
 
 > 📝 **注意**: `services/__init__.py` は再エクスポート専用のアグリゲータであり、**独自のクラス・関数を一切定義していません**。実行可能なロジック（IPO を持つ関数・メソッド）は存在しないため、ここでは IPO 詳細の代わりに「再エクスポートされる各シンボル → 由来サブモジュール」の完全な対応表を提示します。各シンボルの詳細仕様は、対応するサブモジュールのドキュメントを参照してください。
 
-### 4.1 再エクスポート対応表（シンボル → 由来サブモジュール）
+### 4.1 使用例
+
+#### 4.1.1 基本的なワークフロー
+
+```python
+# 使用例: 集約入口から各サービスを一括インポート
+from services import (
+    config,
+    get_config,
+    TokenManager,
+    QdrantHealthChecker,
+    generate_qa_pairs,
+)
+
+# 1. 設定取得
+value = get_config("qdrant.host", default="localhost")
+
+# 2. トークン管理
+tm = TokenManager()
+
+# 3. Qdrant ヘルスチェック
+checker = QdrantHealthChecker()
+
+# 4. Q/A生成（Anthropic Claude: claude-sonnet-5）
+# qa = generate_qa_pairs(...)
+print(f"設定値: {value}")
+```
+
+#### 4.1.2 応用的なワークフロー
+
+```python
+# 使用例: ワイルドカードインポート（__all__ に列挙されたシンボルのみ取得）
+from services import *
+
+# Qdrant コレクション一覧の取得とキャッシュ利用
+collections = get_all_collections()
+stats = get_collection_stats(collections[0]) if collections else {}
+print(f"コレクション数: {len(collections)}")
+```
+
+### 4.2 再エクスポート対応表（シンボル → 由来サブモジュール）
 
 | シンボル | 種別 | 由来サブモジュール |
 |---------|------|------------------|
@@ -304,51 +352,10 @@ style SERVICES fill:#1a1a1a,stroke:#fff,color:#fff
 | `EMBEDDING_PRICING` | `token_service` | Embedding（Gemini）価格表 |
 | `MODEL_LIMITS` | `token_service` | モデル別トークン上限 |
 
----
-
-## 6. 使用例
-
-### 6.1 基本的なワークフロー
-
-```python
-# 使用例: 集約入口から各サービスを一括インポート
-from services import (
-    config,
-    get_config,
-    TokenManager,
-    QdrantHealthChecker,
-    generate_qa_pairs,
-)
-
-# 1. 設定取得
-value = get_config("qdrant.host", default="localhost")
-
-# 2. トークン管理
-tm = TokenManager()
-
-# 3. Qdrant ヘルスチェック
-checker = QdrantHealthChecker()
-
-# 4. Q/A生成（Anthropic Claude: claude-sonnet-4-6）
-# qa = generate_qa_pairs(...)
-print(f"設定値: {value}")
-```
-
-### 6.2 応用的なワークフロー
-
-```python
-# 使用例: ワイルドカードインポート（__all__ に列挙されたシンボルのみ取得）
-from services import *
-
-# Qdrant コレクション一覧の取得とキャッシュ利用
-collections = get_all_collections()
-stats = get_collection_stats(collections[0]) if collections else {}
-print(f"コレクション数: {len(collections)}")
-```
 
 ---
 
-## 7. エクスポート
+## 6. エクスポート
 
 `__init__.py` でエクスポートされる要素（`__all__` の実体・実装どおり）：
 
@@ -417,10 +424,11 @@ __all__ = [
 
 ---
 
-## 8. 変更履歴
+## 7. 変更履歴
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 1.4 | 使用例を IPO 詳細の冒頭（`### 4.1 使用例`）へ移し、末尾の「## 6. 使用例」章を削除（基本フォーマット `a_class_method_md_format.md` v1.6〜 §6.1 に準拠。2026-09-24）。IPO の小節を 4.2 以降へ繰り下げ、後続の章番号を 1 つ繰り上げた。文書内の `§4.x` 参照も追随。あわせて概要の「各責務対応のモジュール」を主な責務と 1:1 に作り直し（従来のサブモジュール表は「サブモジュール一覧」として残し、再エクスポート対象外の 3 件を明記）。主な責務の削除済みサービス（データセット・ファイル）を外し、既定モデルの記述を `claude-sonnet-5` へ是正 |
 | 1.3 | **`dataset_service.py` / `file_service.py` の削除に追随。** 呼び出し元が `services/__init__.py` の再エクスポートしか無い死にコード（Streamlit 版アプリの名残）だったため実装ごと削除し、本書の一覧・Mermaid・エクスポート表から除いた。あわせて実在する `data_pipeline_service` / `agent_service` / `log_service` を一覧へ追加（2026-09-12） |
 | 1.2 | **Streamlit 残骸の除去。** Mermaid のクライアント層ノードを `React UI + FastAPI` へ是正（2026-09-12） |
 | 1.0 | 初版作成（2026-06-17） |
