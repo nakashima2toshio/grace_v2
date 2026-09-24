@@ -1,13 +1,13 @@
 # config.py - GRACE 設定管理 ドキュメント
 
-**Version 1.3** | 最終更新: 2026-09-12
+**Version 1.4** | 最終更新: 2026-09-24
 
 > 📌 **`config.GeminiConfig` の LLM モデル一覧は後方互換である。**
 > `config.py:411` のコメントにあるとおり、`GeminiConfig` は
 > **Embedding 用途（`EMBEDDING_MODEL` / `EMBEDDING_DIMS`）に限って参照してよい**。
 > 同クラスが持つ `DEFAULT_MODEL = "gemini-2.5-flash"` などの **LLM** 既定は
 > 後方互換のために残っているだけで、**現行の LLM 既定は
-> `config.ModelConfig.DEFAULT_MODEL`（`claude-sonnet-4-6`）**である（CLAUDE.md §3）。
+> `config.ModelConfig.DEFAULT_MODEL`（`claude-sonnet-5`）**である（CLAUDE.md §3）。
 
 ---
 
@@ -19,10 +19,9 @@
 4. [クラス・関数一覧表](#3-クラス関数一覧表)
 5. [クラス・関数 IPO詳細](#4-クラス関数-ipo詳細)
 6. [設定・定数](#5-設定定数)
-7. [使用例](#6-使用例)
-8. [エクスポート](#7-エクスポート)
-9. [変更履歴](#8-変更履歴)
-10. [付録: 依存関係図](#付録-依存関係図)
+7. [エクスポート](#6-エクスポート)
+8. [変更履歴](#7-変更履歴)
+9. [付録: 依存関係図](#付録-依存関係図)
 
 ---
 
@@ -253,7 +252,46 @@ style LOGGING fill:#1a1a1a,stroke:#fff,color:#fff
 
 ## 4. クラス・関数 IPO詳細
 
-### 4.1 GraceConfig クラス
+### 4.1 使用例
+
+#### 4.1.1 基本的なワークフロー
+
+```python
+from grace.config import get_config
+
+# 1. 設定取得（シングルトン）
+config = get_config()
+
+# 2. LLM/Embedding 設定の参照
+print(config.llm.model)          # claude-sonnet-5
+print(config.embedding.model)    # gemini-embedding-001
+
+# 3. Qdrant設定の参照
+print(config.qdrant.url)         # http://localhost:6333
+print(config.qdrant.search_limit)  # 5
+```
+
+#### 4.1.2 応用的なワークフロー
+
+```python
+import os
+from grace.config import get_config, reset_config, reload_config
+
+# 環境変数で軽量モデルに切り替え
+os.environ["GRACE_LLM_MODEL"] = "claude-haiku-4-5-20251001"
+os.environ["GRACE_QDRANT_SEARCH_LIMIT"] = "10"
+
+# 既存シングルトンをリセットして再構築
+reset_config()
+config = get_config()
+print(config.llm.model)          # claude-haiku-4-5-20251001
+print(config.qdrant.search_limit)  # 10
+
+# 設定ファイル変更後に再読み込み
+config = reload_config()
+```
+
+### 4.2 GraceConfig クラス
 
 GRACE Agent の全設定を統合するトップレベルの Pydantic モデル。各ドメイン設定を `Field(default_factory=...)` でネストして保持する。
 
@@ -288,7 +326,7 @@ GRACE Agent の全設定を統合するトップレベルの Pydantic モデル�
 ```python
 {
     "version": "1.0",
-    "llm": {"provider": "anthropic", "model": "claude-sonnet-4-6", "temperature": 0.7, "max_tokens": 4096, "timeout": 30},
+    "llm": {"provider": "anthropic", "model": "claude-sonnet-5", "temperature": 0.7, "max_tokens": 4096, "timeout": 30},
     "embedding": {"provider": "gemini", "model": "gemini-embedding-001", "dimensions": 3072},
     "qdrant": {"url": "http://localhost:6333", "collection_name": "customer_support_faq"}
 }
@@ -300,7 +338,7 @@ from grace.config import GraceConfig
 
 config = GraceConfig()
 print(config.llm.model)
-# claude-sonnet-4-6
+# claude-sonnet-5
 ```
 
 #### `CodeExecuteConfig`
@@ -317,7 +355,7 @@ print(config.llm.model)
 > ⚠️ **セキュリティ上、既定では `tools.enabled` に含めず opt-in。**
 > 実体はサブプロセス分離＋`resource` 制限＋isolated mode による **best-effort** サンドボックスで、
 > 決定的な攻撃者に対する境界ではない。真の隔離が必要ならコンテナ / gVisor 等を併用する。
-> 詳細は [`tools.md` §4.7](./tools.md)。
+> 詳細は [`tools.md` §4.8](./tools.md)。
 
 #### `MemoryConfig`
 
@@ -333,7 +371,7 @@ print(config.llm.model)
 > 📝 **`min_count=3` は「最初の数回は手探り、貯まってきたら絞る」ための下限。**
 > 実績が薄いコレクションへ早まって固定しないためにある。詳細は [`memory.md`](./memory.md)。
 
-### 4.2 ConfigLoader クラス
+### 4.3 ConfigLoader クラス
 
 YAMLファイルと環境変数から `GraceConfig` を構築する設定ローダー。読み込んだ設定をインスタンス内にキャッシュする。
 
@@ -371,7 +409,7 @@ def load(self) -> GraceConfig
 
 **戻り値例**:
 ```python
-GraceConfig(version="1.0", llm=LLMConfig(model="claude-sonnet-4-6"), ...)
+GraceConfig(version="1.0", llm=LLMConfig(model="claude-sonnet-5"), ...)
 ```
 
 ```python
@@ -472,7 +510,7 @@ loader.load()
 config = loader.reload()
 ```
 
-### 4.3 ロギング関数
+### 4.4 ロギング関数
 
 #### `init_grace_logging`
 
@@ -499,7 +537,7 @@ from grace.config import init_grace_logging
 init_grace_logging()
 ```
 
-### 4.4 シングルトン管理関数
+### 4.5 シングルトン管理関数
 
 #### `get_config`
 
@@ -521,7 +559,7 @@ def get_config(config_path: Optional[str] = None) -> GraceConfig
 
 **戻り値例**:
 ```python
-GraceConfig(version="1.0", llm=LLMConfig(model="claude-sonnet-4-6"), ...)
+GraceConfig(version="1.0", llm=LLMConfig(model="claude-sonnet-5"), ...)
 ```
 
 ```python
@@ -583,7 +621,7 @@ from grace.config import reset_config
 reset_config()
 ```
 
-### 4.5 論理層モデルの解決関数（M-1）
+### 4.6 論理層モデルの解決関数（M-1）
 
 計画生成（planner）・claim 分解・支持判定（confidence）は**論理層**として、
 標準層より強いモデルを割り当てられる。両モジュールがこの 2 関数を通してモデルと
@@ -609,7 +647,7 @@ def resolve_heavy_model(config: Any) -> str
 
 **戻り値例**:
 ```python
-"claude-sonnet-4-6"   # heavy_model 未設定 → llm.model と同じ
+"claude-sonnet-5"   # heavy_model 未設定 → llm.model と同じ
 ```
 
 ```python
@@ -659,7 +697,7 @@ LLM（本プロジェクトは Anthropic Claude を使用）の設定。
 | キー | 型 | デフォルト値 | 説明 |
 |-----|------|-------------|------|
 | `provider` | str | `"anthropic"` | LLMプロバイダー |
-| `model` | str | `"claude-sonnet-4-6"` | 既定の LLM モデル |
+| `model` | str | `"claude-sonnet-5"` | 既定の LLM モデル |
 | `temperature` | float | `0.7` | 生成温度 |
 | `max_tokens` | int | `4096` | 最大出力トークン数 |
 | `timeout` | int | `30` | タイムアウト秒数 |
@@ -667,7 +705,7 @@ LLM（本プロジェクトは Anthropic Claude を使用）の設定。
 | `heavy_model` | str | `""` | **論理層モデル**（M-1）。計画生成・claim 分解・支持判定に使う。空なら `model` と同じ |
 | `heavy_thinking_budget_tokens` | int | `0` | 論理層の**拡張思考**トークン予算。0=無効 |
 
-> 📝 **注意**: 既定 LLM は `claude-sonnet-4-6`。軽量用途では `claude-haiku-4-5-20251001` を環境変数 `GRACE_LLM_MODEL` で指定できます。APIキーは `ANTHROPIC_API_KEY`。
+> 📝 **注意**: 既定 LLM は `claude-sonnet-5`。軽量用途では `claude-haiku-4-5-20251001` を環境変数 `GRACE_LLM_MODEL` で指定できます。APIキーは `ANTHROPIC_API_KEY`。
 
 > ⚠️ **`heavy_thinking_budget_tokens` は `heavy_model` を設定していない間は効きません。**
 > `heavy_thinking_budget()` が `heavy_model` 未設定時に 0 を返すためです
@@ -845,50 +883,10 @@ Embedding（Gemini）の設定。
 | `DEFAULT_CONFIG_PATH` | `"config/grace_config.yml"` | デフォルト設定ファイルパス |
 | `ENV_PREFIX` | `"GRACE_"` | 環境変数上書きのプレフィックス |
 
----
-
-## 6. 使用例
-
-### 6.1 基本的なワークフロー
-
-```python
-from grace.config import get_config
-
-# 1. 設定取得（シングルトン）
-config = get_config()
-
-# 2. LLM/Embedding 設定の参照
-print(config.llm.model)          # claude-sonnet-4-6
-print(config.embedding.model)    # gemini-embedding-001
-
-# 3. Qdrant設定の参照
-print(config.qdrant.url)         # http://localhost:6333
-print(config.qdrant.search_limit)  # 5
-```
-
-### 6.2 応用的なワークフロー
-
-```python
-import os
-from grace.config import get_config, reset_config, reload_config
-
-# 環境変数で軽量モデルに切り替え
-os.environ["GRACE_LLM_MODEL"] = "claude-haiku-4-5-20251001"
-os.environ["GRACE_QDRANT_SEARCH_LIMIT"] = "10"
-
-# 既存シングルトンをリセットして再構築
-reset_config()
-config = get_config()
-print(config.llm.model)          # claude-haiku-4-5-20251001
-print(config.qdrant.search_limit)  # 10
-
-# 設定ファイル変更後に再読み込み
-config = reload_config()
-```
 
 ---
 
-## 7. エクスポート
+## 6. エクスポート
 
 `config.py` の `__all__`：
 
@@ -924,13 +922,14 @@ __all__ = [
 
 ---
 
-## 8. 変更履歴
+## 7. 変更履歴
 
 | バージョン | 日付 | 変更内容 |
 |-----------|------|---------|
 | 1.0 | 2026-06-16 | 初版作成（`config.py` の実装に基づく全設定モデル・ローダー・シングルトン関数を文書化） |
 | 1.2 | 2026-09-04 | **`CodeExecuteConfig` と `MemoryConfig` が未記載**だった（AST 照合）ので追加。`GraceConfig` のフィールド表にも 2 行が欠けており、実装は 15 フィールドなのに文書は 13 しか載せていなかった。§3.1 に「ネストされたドメイン設定モデル」の一覧を新設し、§4.1 の直後に両モデルのフィールド表を追加した |
 | 1.1 | 2026-08-01 | 実装（07-26〜27）へ追随。`LLMConfig` に `heavy_model` / `heavy_thinking_budget_tokens`（M-1 論理層）、`ConfidenceConfig` に `groundedness_coverage_strength` / `groundedness_coverage_target`（支持率の網羅度減衰）、`WebSearchConfig` に `preferred_domains` / `preferred_domain_boost`（W-1・**加点であって絞り込みではない**）、`ExecutorConfig` に `relevance_check_model`（M-3 軽量モデル）を追加。§3.2 と §4.5 に `resolve_heavy_model` / `heavy_thinking_budget` を追記し、`heavy_model` 未設定時に思考予算が 0 になる意図的な仕様を明記 |
+| 1.4 | 2026-09-24 | 使用例を IPO 詳細の冒頭（`### 4.1 使用例`）へ移し、末尾の「## 6. 使用例」章を削除（基本フォーマット `a_class_method_md_format.md` v1.6〜 §6.1 に準拠。2026-09-24）。IPO の小節を 4.2 以降へ繰り下げ、後続の章番号を 1 つ繰り上げた。文書内の `§4.x` 参照も追随。現在の既定モデルの記載 `claude-sonnet-4-6` を実装（`grace/config.py` の `LLMConfig.model` = `claude-sonnet-5`）に合わせて是正した（CLAUDE.md §9.3。旧既定は履歴の記述にだけ残す） |
 
 ---
 

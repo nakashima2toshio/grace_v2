@@ -1,11 +1,11 @@
 # grace/docs 棚卸し
 
-**Version 1.6** | 最終更新: 2026-09-14
+**Version 1.7** | 最終更新: 2026-09-24
 
 `grace/` パッケージのドキュメント一覧と、実装への追随状況・残タスク・検証手順をまとめる。
 新しく文書を書く／直す前に、まずここを見る。
 
-> ⚠️ **本リポジトリは Anthropic 版。** LLM は `claude-sonnet-4-6`（軽量 `claude-haiku-4-5-20251001`）、
+> ⚠️ **本リポジトリは Anthropic 版。** LLM は `claude-sonnet-5`（軽量 `claude-haiku-4-5-20251001`）、
 > Embedding のみ Gemini `gemini-embedding-001`（3072 次元）。
 > 姉妹リポジトリ `grace_v2_local` は Ollama 版で、**プロバイダ表記はあちらと逆**である。
 > 「Anthropic と書いてあるから誤記」ではない。CLAUDE.md §3 を参照。
@@ -63,43 +63,43 @@ A と B の線引きは思いつきではなく、**実測した依存の向き*
 
 ### 2.1 A. コアモジュール（8）— 1 周を回す能力
 
-IPO 形式・`a_class_method_md_format.md` 準拠。**実行順ではなく役割**で束ねている
+**種別 E**（IPO 形式・`a_class_method_md_format.md` 準拠。使用例は IPO 詳細の冒頭 `### 4.1`）。**実行順ではなく役割**で束ねている
 （理由は §2.4 の注記を参照）。
 
 | 役割 | 文書 | 対象 | 行数 | Ver | 重要度 |
 |---|---|---|---:|---|---|
-| 計画 | `planner.md` | `grace/planner.py` | 1183 | 3.7 | ★★★ |
-| 実行 | `executor.md` | `grace/executor.py` | 2179 | 4.4 | ★★★ |
-| 実行 | `tools.md` | `grace/tools.py`（`WebSearchTool` を含む全ツール） | 1678 | 3.1 | ★★★ |
-| 評価 | `confidence.md` | `grace/confidence.py` | 1735 | 2.4 | ★★★ |
+| 計画 | `planner.md` | `grace/planner.py` | 1184 | 3.8 | ★★★ |
+| 実行 | `executor.md` | `grace/executor.py` | 2182 | 4.6 | ★★★ |
+| 実行 | `tools.md` | `grace/tools.py`（`WebSearchTool` を含む全ツール） | 1679 | 3.3 | ★★★ |
+| 評価 | `confidence.md` | `grace/confidence.py` | 1734 | 2.5 | ★★★ |
 | 評価 | `calibration.md` | `grace/calibration.py` | 763 | 1.1 | ★★ |
-| 制御 | `intervention.md` | `grace/intervention.py` | 1611 | 1.5 | ★★ |
-| 制御 | `replan.md` | `grace/replan.py` | 1131 | 2.2 | ★★ |
-| 学習 | `memory.md` | `grace/memory.py` | 546 | 1.1 | ★★ |
+| 制御 | `intervention.md` | `grace/intervention.py` | 1612 | 1.6 | ★★ |
+| 制御 | `replan.md` | `grace/replan.py` | 1132 | 2.3 | ★★ |
+| 学習 | `memory.md` | `grace/memory.py` | 544 | 1.2 | ★★ |
 
-> 行数は `wc -l` の実測値（2026-09-14）。
+> 行数・Ver は `wc -l` と各文書の Version ヘッダーの実測値（2026-09-24）。
 
 ### 2.2 B. 基盤層（3）— A が共通に依存する土台
 
-いずれも **`grace` 内への依存がゼロ**で、被依存が多い。
+**種別 E**（IPO 形式）。いずれも **`grace` 内への依存がゼロ**で、被依存が多い。
 
 | 文書 | 対象 | 行数 | Ver | 重要度 |
 |---|---|---:|---|---|
-| `config.md` | `grace/config.py` | 972 | 1.3 | ★★★ |
-| `schemas.md` | `grace/schemas.py` | 1314 | 2.0 | ★★★ |
-| `llm_compat.md` | `grace/llm_compat.py` | 806 | 1.1 | ★★★ |
+| `config.md` | `grace/config.py` | 971 | 1.4 | ★★★ |
+| `schemas.md` | `grace/schemas.py` | 1326 | 2.2 | ★★★ |
+| `llm_compat.md` | `grace/llm_compat.py` | 805 | 1.2 | ★★★ |
 
 ### 2.3 C. 横断・アーキテクチャ文書（4）
 
-特定の 1 モジュールに紐づかない設計文書。**WHY / WHAT / HOW の 3 本立て**で、
+**種別 A**（`a_cross_doc_md_format.md`。概要に主な責務・各責務対応のモジュール・構成図）。特定の 1 モジュールに紐づかない設計文書。**WHY / WHAT / HOW の 3 本立て**で、
 同じ表・同じ図を 2 箇所に持たないことを規約とする（2026-09-14 の統合。§2.6）。
 
 | 文書 | 問い | 内容 | 行数 | Ver | 重要度 |
 |---|---|---|---:|---|---|
-| `grace.md` | **WHY** | 設計思想。ReAct → Reflection → GRACE の経緯と **5 段階設計の定義（正本）** | 322 | 2.0 | ★★★ |
-| `grace_core.md` | **WHAT** | 実装アーキテクチャ。**構成図・依存関係・モジュール役割サマリー（§3.0）の正本**。§4 に実行メモリの実例、§7 に最小実行サンプル | 1100 | 3.0 | ★★★ |
-| `grace_runtime.md` | **HOW** | 実行時に発行される API とプロンプト全文（**正本**）。旧 `grace_core_flow.md` | 415 | 3.0 | ★★★ |
-| `confidence_calibration.md` | — | `confidence.py` × `calibration.py` の処理順 | 355 | 1.1 | ★★ |
+| `grace.md` | **WHY** | 設計思想。ReAct → Reflection → GRACE の経緯と **5 段階設計の定義（正本）** | 373 | 2.1 | ★★★ |
+| `grace_core.md` | **WHAT** | 実装アーキテクチャ。**構成図・依存関係・モジュール役割サマリー（§3.0）の正本**。§4 に実行メモリの実例、§7 に最小実行サンプル | 1110 | 3.1 | ★★★ |
+| `grace_runtime.md` | **HOW** | 実行時に発行される API とプロンプト全文（**正本**）。旧 `grace_core_flow.md` | 479 | 3.1 | ★★★ |
+| `confidence_calibration.md` | — | `confidence.py` × `calibration.py` の処理順 | 366 | 1.2 | ★★ |
 
 **どこに何を書くか**（迷ったらこの表を見る）:
 
@@ -399,6 +399,7 @@ PY
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 1.7 | `grace/docs/` を基本フォーマット・横断文書フォーマットへ追随させた（2026-09-24）。IPO 文書は使用例を IPO 詳細の冒頭へ移し（`config` / `llm_compat` / `schemas` / `tools`）、各責務対応のモジュールを主な責務と 1:1 に揃えた（`confidence` / `memory` / `tools` / `schemas`）。横断文書（`grace` / `grace_runtime` / `confidence_calibration`）の概要へ共通骨格を追加。現在の既定モデルの記載 `claude-sonnet-4-6` を `claude-sonnet-5` へ是正。§2 の各節へ種別を明記し、行数・Ver を実測へ更新 |
 | 1.6 | **見出しアンカーの解決確認を §4.5 として追加し、壊れていた 9 件を是正**（2026-09-14・問題 #15）。`executor.md` 6 件（v4.4 で `4.1 使用例` を挿入し `### 4.N` を繰り下げた際、目次だけ旧番号のまま残った。あわせて移動前の「## 6. 使用例」配下に取り残されていた使用例 3 件を §4.1 の下へ移した）、`backend/docs/README.md` 1 件・`backend/docs/support_spec.md` 1 件（見出しを言い換えたが目次は旧題のまま）、`docs/support_spec.md` 1 件。**この種の腐りは §4.3 のリンク存在チェックでは捕まらない**（ファイルは実在し、壊れているのは `#` 以降だけ）ため、検証手順を 4 つから 5 つへ増やした |
 | 1.5 | **横断文書 4 本を WHY/WHAT/HOW の 3 本へ統合**（2026-09-14・問題 #13）。`grace.md` / `grace_core.md` / `grace_core_flow.md` は**同じ表と同じ図を重複して持って**いた（構成図 Mermaid 68 行と依存関係テーブルは `grace_core.md` と `grace_core_flow.md` で**バイト単位で一致**、11 行役割サマリー表は `grace.md` と `grace_core_flow.md` で一致、5 段階設計の ASCII 図・使用例コードも重複）。正本を 1 箇所ずつ決め、**`grace.md`＝5 段階設計の定義（WHY）／ `grace_core.md`＝構成図・依存関係・役割サマリー §3.0・最小実行サンプル §7（WHAT）／ `grace_runtime.md`（旧 `grace_core_flow.md` から改称）＝プロンプトと API 発行部（HOW）** に整理した。重複禁止ルールを §2.6、検出スクリプトを §2.7 として明文化。あわせて §2.1〜§2.3 の行数・Ver を `wc -l` と Version ヘッダーで**実測し直した**（問題 #14。`planner.md` 1139→1183 等がずれていた）。外部からのリンク（`backend/docs/support_spec.md` / `support_spec.md` / `backend/docs/README.md` / `docs/doc_modernization_todo.md`）も張り替えた |
 | 1.4 | **文書一覧を A/B/C の 3 区分へ再編**（2026-09-14）。従来は「モジュール単位 / 横断」の 2 区分で、コア（A）と基盤層（B）の別が読み取れなかった。`grace_core.md` の依存関係図に合わせ **A. コアモジュール 8 / B. 基盤層 3 / C. 横断 4** とし、線引きの根拠を §2.4 に**実測**で載せた（`grace/*.py` を AST 解析。B は依存ゼロ・被依存 6/4/4、`tools.py` は config / llm_compat に依存する側なので A）。あわせて **A を「実行順 1〜8」で並べない**理由を明記——`memory` は planner が読み executor が書く両端モジュール、`calibration` は confidence の後処理、`executor` は `planner` に依存しない（逆に `replan` が依存する）ため。`benchmark.md` は `grace/step_trace/docs/` へ移動（§2.5・問題 #11）。`grace.md` に Version ヘッダーを追加し残タスク #3 を解消 |

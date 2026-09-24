@@ -1,41 +1,44 @@
 # tools.py - ツール定義モジュール ドキュメント
 
-**Version 3.1** | 最終更新: 2026-09-04
+**Version 3.3** | 最終更新: 2026-09-24
 
 ---
 
 ## 目次
 
-1. [概要](#概要)
-   - [主な責務](#主な責務)
-   - [各責務対応のモジュール](#各責務対応のモジュール)
-   - [主要機能一覧](#主要機能一覧)
-2. [アーキテクチャ構成図](#1-アーキテクチャ構成図)
-   - [システム全体構成](#11-システム全体構成)
-   - [データフロー](#12-データフロー)
-3. [モジュール構成図](#2-モジュール構成図)
-   - [内部モジュール構成](#21-内部モジュール構成)
-   - [外部依存関係](#22-外部依存関係)
-   - [内部依存モジュール](#23-内部依存モジュール)
-4. [クラス・関数一覧表](#3-クラス関数一覧表)
-   - [データクラス一覧](#31-データクラス一覧)
-   - [クラス一覧](#32-クラス一覧)
-   - [ファクトリ関数一覧](#33-ファクトリ関数一覧)
-5. [クラス・関数 IPO詳細](#4-クラス関数-ipo詳細)
-   - [ToolResult データクラス](#41-toolresult-データクラス)
-   - [BaseTool クラス（抽象基底）](#42-basetool-クラス抽象基底)
-   - [RAGSearchTool クラス](#43-ragsearchtool-クラス)
-   - [ReasoningTool クラス](#44-reasoningtool-クラス)
-   - [AskUserTool クラス](#45-askusertool-クラス)
-   - [WebSearchTool クラス](#46-websearchtool-クラス)
-   - [CodeExecuteTool クラス（opt-in）](#47-codeexecutetool-クラスopt-in)
-   - [ToolRegistry クラス](#48-toolregistry-クラス)
-   - [ファクトリ関数](#49-ファクトリ関数)
-6. [設定・定数](#5-設定定数)
-7. [使用例](#6-使用例)
-8. [エクスポート](#7-エクスポート)
-9. [変更履歴](#8-変更履歴)
-10. [付録: 依存関係図](#付録-依存関係図)
+- [概要](#概要)
+  - [主な責務](#主な責務)
+  - [各責務対応のモジュール](#各責務対応のモジュール)
+  - [主要機能一覧](#主要機能一覧)
+- [1. アーキテクチャ構成図](#1-アーキテクチャ構成図)
+  - [1.1 システム全体構成](#11-システム全体構成)
+  - [1.2 データフロー](#12-データフロー)
+- [2. モジュール構成図](#2-モジュール構成図)
+  - [2.1 内部モジュール構成](#21-内部モジュール構成)
+  - [2.2 外部依存関係](#22-外部依存関係)
+  - [2.3 内部依存モジュール](#23-内部依存モジュール)
+- [3. クラス・関数一覧表](#3-クラス関数一覧表)
+  - [3.1 データクラス一覧](#31-データクラス一覧)
+  - [3.2 クラス一覧](#32-クラス一覧)
+  - [3.3 ファクトリ関数一覧](#33-ファクトリ関数一覧)
+- [4. クラス・関数 IPO詳細](#4-クラス関数-ipo詳細)
+  - [4.1 使用例](#41-使用例)
+  - [4.2 ToolResult データクラス](#42-toolresult-データクラス)
+  - [4.3 BaseTool クラス（抽象基底）](#43-basetool-クラス抽象基底)
+  - [4.4 RAGSearchTool クラス](#44-ragsearchtool-クラス)
+  - [4.5 ReasoningTool クラス](#45-reasoningtool-クラス)
+  - [4.6 AskUserTool クラス](#46-askusertool-クラス)
+  - [4.7 WebSearchTool クラス](#47-websearchtool-クラス)
+  - [4.8 CodeExecuteTool クラス（opt-in）](#48-codeexecutetool-クラスopt-in)
+  - [4.9 ToolRegistry クラス](#49-toolregistry-クラス)
+  - [4.10 ファクトリ関数](#410-ファクトリ関数)
+- [5. 設定・定数](#5-設定定数)
+  - [5.1 ツール関連設定](#51-ツール関連設定)
+  - [5.2 クラス定数](#52-クラス定数)
+  - [5.3 動的閾値（RAGSearchTool）](#53-動的閾値ragsearchtool)
+- [6. エクスポート](#6-エクスポート)
+- [7. 変更履歴](#7-変更履歴)
+- [付録: 依存関係図](#付録-依存関係図)
 
 ---
 
@@ -43,7 +46,7 @@
 
 `tools.py` は、GRACE エージェントが実行計画の各ステップで呼び出す **ツール群** を定義するモジュールです。RAG 検索・Web 検索・LLM 推論・ユーザーへの問い合わせ（HITL）という4種のツールを統一インターフェース（`BaseTool` / `ToolResult`）の下に実装し、`ToolRegistry` を通じて名前ベースで呼び出せるようにします。
 
-LLM 推論は Anthropic Claude（既定 `claude-sonnet-4-6`）を使用しますが、GRACE 本体は当初 google-genai 形式（`client.models.generate_content(...)`）で実装されているため、`grace/llm_compat.py` の互換アダプター（`create_chat_client`）を介して Anthropic API を呼び出します。Embedding（Qdrant 検索）は Gemini `gemini-embedding-001`（3072次元）を継続利用します。
+LLM 推論は Anthropic Claude（既定 `claude-sonnet-5`）を使用しますが、GRACE 本体は当初 google-genai 形式（`client.models.generate_content(...)`）で実装されているため、`grace/llm_compat.py` の互換アダプター（`create_chat_client`）を介して Anthropic API を呼び出します。Embedding（Qdrant 検索）は Gemini `gemini-embedding-001`（3072次元）を継続利用します。
 
 ### 主な責務
 
@@ -52,19 +55,20 @@ LLM 推論は Anthropic Claude（既定 `claude-sonnet-4-6`）を使用します
 - 外部 Web 検索（SerpAPI / DuckDuckGo / Google CSE の切り替え）
 - 収集情報を統合した LLM 推論による回答生成
 - ユーザーへの追加情報要求（Human-in-the-Loop）
+- Python コードのサンドボックス実行（`CodeExecuteTool`・opt-in）
 - ツールのレジストリ管理と名前ベースの実行ディスパッチ
 
 ### 各責務対応のモジュール
 
 | # | 責務 | 対応モジュール | 説明 |
 |---|------|--------------|------|
-| 1 | ツール結果・基底IFの提供 | `grace/tools.py` | `ToolResult` データクラスと `BaseTool` 抽象基底クラス |
-| 2 | Qdrant RAG 検索 | `grace/tools.py` | `RAGSearchTool` が `agent_tools.search_rag_knowledge_base_structured` へ委譲 |
-| 3 | 外部 Web 検索 | `grace/tools.py` | `WebSearchTool` が SerpAPI/DDG/Google CSE を切替 |
-| 4 | LLM 推論による回答生成 | `grace/tools.py` | `ReasoningTool` が `grace/llm_compat.create_chat_client`（Anthropic 互換）を使用 |
+| 1 | ツール結果・基底 IF の提供 | `grace/tools.py` | `ToolResult` データクラスと `BaseTool` 抽象基底クラス |
+| 2 | Qdrant RAG 検索 | `grace/tools.py` / `agent_tools.py` | `RAGSearchTool` が `search_rag_knowledge_base_structured` へ委譲 |
+| 3 | 外部 Web 検索 | `grace/tools.py` | `WebSearchTool` が SerpAPI / DDG / Google CSE を切り替える |
+| 4 | LLM 推論による回答生成 | `grace/tools.py` / `grace/llm_compat.py` | `ReasoningTool` が `create_chat_client()`（Anthropic 互換）を使う |
 | 5 | ユーザーへの追加情報要求 | `grace/tools.py` | `AskUserTool`（HITL、Function Calling 定義付き） |
-| 6 | サンドボックス Python 実行 | `grace/tools.py` | `CodeExecuteTool`（**opt-in**。別プロセス＋`resource` 制限＋AST 静的検査） |
-| 7 | レジストリ管理・実行ディスパッチ | `grace/tools.py` | `ToolRegistry` と `create_tool_registry()` |
+| 6 | サンドボックス実行 | `grace/tools.py` | `CodeExecuteTool`（opt-in。別プロセス＋`resource` 制限＋AST 静的検査） |
+| 7 | レジストリ管理と実行ディスパッチ | `grace/tools.py` | `ToolRegistry` と `create_tool_registry()` |
 
 ### 主要機能一覧
 
@@ -327,7 +331,56 @@ style REG fill:#1a1a1a,stroke:#fff,color:#fff
 
 ## 4. クラス・関数 IPO詳細
 
-### 4.1 ToolResult データクラス
+### 4.1 使用例
+
+#### 4.1.1 基本的なワークフロー
+
+```python
+from grace.tools import create_tool_registry
+
+# 1. レジストリ生成（デフォルトツールを自動登録）
+registry = create_tool_registry()
+
+# 2. RAG 検索
+rag_result = registry.execute("rag_search", query="退職手続きについて教えて")
+
+# 3. 検索結果を使って推論
+if rag_result.success:
+    answer = registry.execute(
+        "reasoning",
+        query="退職手続きについて教えて",
+        sources=rag_result.output,
+    )
+    print(answer.output)
+```
+
+#### 4.1.2 応用的なワークフロー（フォールバック）
+
+```python
+from grace.tools import create_tool_registry
+
+registry = create_tool_registry()
+
+# RAG が不十分なら Web 検索へフォールバック
+rag = registry.execute("rag_search", query="最新の為替レート")
+if not rag.success or rag.confidence_factors.get("avg_score", 0) < 0.7:
+    web = registry.execute("web_search", query="最新の為替レート")
+    sources = web.output
+else:
+    sources = rag.output
+
+# それでも曖昧ならユーザーに確認（HITL）
+if not sources:
+    ask = registry.execute(
+        "ask_user",
+        question="どの通貨ペアの為替レートですか？",
+        reason="検索結果が見つからなかったため",
+        urgency="blocking",
+        options=["USD/JPY", "EUR/JPY"],
+    )
+```
+
+### 4.2 ToolResult データクラス
 
 ツール実行結果を統一表現するデータクラス。全ツールの `execute()` はこの型を返します。
 
@@ -379,7 +432,7 @@ print(result.success)
 
 ---
 
-### 4.2 BaseTool クラス（抽象基底）
+### 4.3 BaseTool クラス（抽象基底）
 
 全ツールの抽象基底クラス。クラス属性 `name`・`description` と抽象メソッド `execute()` を定義します。
 
@@ -417,7 +470,7 @@ class MyTool(BaseTool):
 
 ---
 
-### 4.3 RAGSearchTool クラス
+### 4.4 RAGSearchTool クラス
 
 Qdrant ベクトルDBから関連情報を検索するツール。`agent_tools.search_rag_knowledge_base_structured` に委譲し、コレクションの動的フォールバックと動的閾値調整を行います。
 
@@ -721,9 +774,9 @@ def _apply_allowed_collections(candidates: List[str], allowed: List[str]) -> Lis
 
 ---
 
-### 4.4 ReasoningTool クラス
+### 4.5 ReasoningTool クラス
 
-収集した情報を統合して回答を生成する LLM 推論ツール。`grace/llm_compat.create_chat_client` 経由で Anthropic Claude（既定 `claude-sonnet-4-6`）を genai 互換インターフェースで呼び出します。
+収集した情報を統合して回答を生成する LLM 推論ツール。`grace/llm_compat.create_chat_client` 経由で Anthropic Claude（既定 `claude-sonnet-5`）を genai 互換インターフェースで呼び出します。
 
 #### コンストラクタ: `__init__`
 
@@ -750,14 +803,14 @@ def __init__(
 
 **戻り値例**:
 ```python
-ReasoningTool(config=<GraceConfig>, model_name="claude-sonnet-4-6")
+ReasoningTool(config=<GraceConfig>, model_name=None)  # None → resolve_heavy_model(config)（heavy_model 未設定なら llm.model＝既定 claude-sonnet-5）
 ```
 
 ```python
 # 使用例
 tool = ReasoningTool()
 print(tool.model_name)
-# claude-sonnet-4-6
+# claude-sonnet-5
 ```
 
 #### メソッド: `execute`
@@ -906,7 +959,7 @@ print(prompt[:30])
 
 ---
 
-### 4.5 AskUserTool クラス
+### 4.6 AskUserTool クラス
 
 ユーザーに追加情報や確認を求める HITL ツール。クラス属性 `FUNCTION_DECLARATION` に Function Calling 用の関数定義（`ask_user_for_clarification`）を持ちます。
 
@@ -964,7 +1017,7 @@ print(result.output["awaiting_response"])
 
 ---
 
-### 4.6 WebSearchTool クラス
+### 4.7 WebSearchTool クラス
 
 Web 検索で最新情報を取得するツール。SerpAPI / DuckDuckGo / Google CSE のバックエンドを設定で切り替え、結果を rag_search 互換フォーマットに変換します。
 
@@ -1223,7 +1276,7 @@ def _calculate_confidence_factors(self, scores: list,
 
 ---
 
-### 4.7 CodeExecuteTool クラス（opt-in）
+### 4.8 CodeExecuteTool クラス（opt-in）
 
 Python コードを**サンドボックスで実行**し標準出力を返すツール（P2）。
 
@@ -1350,7 +1403,7 @@ print(result.output)
 
 ---
 
-### 4.8 ToolRegistry クラス
+### 4.9 ToolRegistry クラス
 
 ツールを名前で登録・取得・実行するレジストリ。設定の `tools.enabled` に基づきデフォルトツールを自動登録します。
 
@@ -1417,7 +1470,7 @@ print(result.success)
 
 ---
 
-### 4.9 ファクトリ関数
+### 4.10 ファクトリ関数
 
 #### `create_tool_registry`
 
@@ -1461,7 +1514,7 @@ result = registry.execute("reasoning", query="...", sources=[...])
 | `tools.enabled` | `["rag_search", "web_search", "reasoning", "ask_user"]` | レジストリが自動登録するツール。**`code_execute` は既定に含まれない**（opt-in） |
 | `tools.disabled` | `[]` | 恒久的に禁止するツール |
 | `llm.provider` | `"anthropic"` | LLM プロバイダー |
-| `llm.model` | `"claude-sonnet-4-6"` | ReasoningTool が使用するモデル |
+| `llm.model` | `"claude-sonnet-5"` | ReasoningTool が使用するモデル |
 | `llm.temperature` | `0.7` | 生成温度 |
 | `llm.max_tokens` | `4096` | 最大出力トークン |
 | `qdrant.url` | `"http://localhost:6333"` | Qdrant 接続先 |
@@ -1534,60 +1587,10 @@ result = registry.execute("reasoning", query="...", sources=[...])
 |------|----|------|
 | Dynamic Thresholding | `top_score >= 0.98` | 1位スコアが 0.98 以上かつ複数件のとき、上位1件のみ残す |
 
----
-
-## 6. 使用例
-
-### 6.1 基本的なワークフロー
-
-```python
-from grace.tools import create_tool_registry
-
-# 1. レジストリ生成（デフォルトツールを自動登録）
-registry = create_tool_registry()
-
-# 2. RAG 検索
-rag_result = registry.execute("rag_search", query="退職手続きについて教えて")
-
-# 3. 検索結果を使って推論
-if rag_result.success:
-    answer = registry.execute(
-        "reasoning",
-        query="退職手続きについて教えて",
-        sources=rag_result.output,
-    )
-    print(answer.output)
-```
-
-### 6.2 応用的なワークフロー（フォールバック）
-
-```python
-from grace.tools import create_tool_registry
-
-registry = create_tool_registry()
-
-# RAG が不十分なら Web 検索へフォールバック
-rag = registry.execute("rag_search", query="最新の為替レート")
-if not rag.success or rag.confidence_factors.get("avg_score", 0) < 0.7:
-    web = registry.execute("web_search", query="最新の為替レート")
-    sources = web.output
-else:
-    sources = rag.output
-
-# それでも曖昧ならユーザーに確認（HITL）
-if not sources:
-    ask = registry.execute(
-        "ask_user",
-        question="どの通貨ペアの為替レートですか？",
-        reason="検索結果が見つからなかったため",
-        urgency="blocking",
-        options=["USD/JPY", "EUR/JPY"],
-    )
-```
 
 ---
 
-## 7. エクスポート
+## 6. エクスポート
 
 `grace/tools.py` の `__all__`：
 
@@ -1623,7 +1626,7 @@ __all__ = [
 
 ---
 
-## 8. 変更履歴
+## 7. 変更履歴
 
 | バージョン | 変更内容 |
 |-----------|---------|
@@ -1633,6 +1636,8 @@ __all__ = [
 | 3.1 | **未記載シンボル 10 件を追加**（2026-09-04）。AST 照合で `grace/tools.py` の公開シンボル 37 件中 10 件が本書に無いことが判明していた。(1) **`CodeExecuteTool` はクラスごと欠落**していたため §4.7 を新設（サンドボックス構成 5 層・`_static_check` / `_apply_limits` / `execute` の IPO・`CodeExecuteConfig` 4 フィールド）し、以降を §4.8 / §4.9 へ繰り下げ。(2) `RAGSearchTool` の 5 メソッド（`_collection_dense_dim` / `clear_collections_cache` / `_embed_query_once` / `_apply_excluded_collections` / `_apply_allowed_collections`）を追加。(3) `ReasoningTool` の 2 メソッド（`_now_text` / `_source_origin`）を追加。あわせて **§3.2 の `RAGSearchTool._calculate_confidence_factors` 行に付いていた注記が WebSearchTool 用のものだった**のを是正（RAG 側は正準キーのみを返し `backend` 引数も無い） |
 | 3.0 | **`web_search.md`（1123 行）を統合し、同ファイルを削除**（2026-09-04）。`WebSearchTool` は `grace/tools.py` 内のクラスであり、モジュール単位の文書は本書が正であるため。§4.6 に未記載だった 6 メソッド（`_search_with_backend` / `_search_ddg` / `_search_google` / `_search_serpapi` / `_parse_to_rag_format` / `_calculate_confidence_factors`）を IPO 形式で追加し、`WebSearchConfig` の全 12 フィールドとバックエンド別の必要設定表を §5.1 へ追加。`execute` の Process を実装どおり（主 → `fallback_backend` の試行連鎖）に書き直し、戻り値例の `confidence_factors` に**正準キー `max_score` / `score_variance`** を追記した（旧例は旧ログ互換の `top_score` / `score_spread` しか載せておらず、Executor が実際に読むキーが見えなかった）。⚠️ 統合は `web_search.md` からの転記ではなく**実装から書き起こした**（`grace_v2_local` で同じ統合をした際、`web_search.md` が `_calculate_confidence_factors` を修正前の姿で保存しており、転記すれば直ったバグを文書化するところだった） |
 | 2.2 | 実装（07-27）へ追随（2026-08-01）。`WebSearchTool._prefer_domains`（W-1・優先ドメインの**加点並べ替え**）とモジュール関数 `_url_host` を追加。絞り込みにすると 0 件化 → 情報なし回答 → 誤エスカレへ連鎖するため順位付けだけを変えること、スコアが 1.0 で頭打ちになるため `preferred_domain` フラグを第 1 ソートキーにしていることを明記 |
+| 3.2 | 使用例を IPO 詳細の冒頭（`### 4.1 使用例`）へ移し、末尾の「## 6. 使用例」章を削除（基本フォーマット `a_class_method_md_format.md` v1.6〜 §6.1 に準拠。2026-09-24）。IPO の小節を 4.2 以降へ繰り下げ、後続の章番号を 1 つ繰り上げた。文書内の `§4.x` 参照も追随。現在の既定モデルの記載 `claude-sonnet-4-6` を実装（`grace/config.py` の `LLMConfig.model` = `claude-sonnet-5`）に合わせて是正した（CLAUDE.md §9.3。旧既定は履歴の記述にだけ残す） |
+| 3.3 | 概要の「各責務対応のモジュール」を主な責務と 1:1 に揃えた（基本フォーマット §2.4。2026-09-24）。表にだけあった `CodeExecuteTool`（サンドボックス実行）を主な責務にも加えた |
 
 ---
 

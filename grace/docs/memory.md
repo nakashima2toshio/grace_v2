@@ -1,6 +1,6 @@
 # memory.py - GRACE 実行メモリ層（P4） ドキュメント
 
-**Version 1.1** | 最終更新: 2026-09-14
+**Version 1.2** | 最終更新: 2026-09-24
 
 > **参考ドキュメント**
 > - [`grace/docs/grace_core.md`](./grace_core.md) — コアモジュール群の横断アーキテクチャ（§4 に「実行メモリが貯まるまで」の実例あり）
@@ -41,16 +41,13 @@ LLM も外部サービスも使わない。**外部依存なし・決定的**な
 
 ### 各責務対応のモジュール
 
-| # | 責務 | 対応する要素 |
-|---|------|------------|
-| 1 | キーワード抽出 | `extract_keywords()` |
-| 2 | 1 レコードの表現と JSON 変換 | `MemoryRecord` / `to_dict()` / `from_dict()` |
-| 3 | 集計単位の表現とスコア算出 | `CollectionStat` / `success_rate` / `score()` |
-| 4 | 書き込み | `ExecutionMemory.record()` / `record_many()` |
-| 5 | 読み込み（破損耐性つき） | `ExecutionMemory.load()` |
-| 6 | 事前分布の算出 | `ExecutionMemory.collection_priors()` |
-| 7 | 採用判定（除外の考慮を含む） | `ExecutionMemory.best_collection()` |
-| 8 | 生成 | `create_execution_memory()` |
+| # | 責務 | 対応モジュール | 説明 |
+|---|------|--------------|------|
+| 1 | JSONL への追記 | `grace/memory.py` | `ExecutionMemory.record()` / `record_many()`。レコードは `MemoryRecord`、キーワードは `extract_keywords()` |
+| 2 | 破損行を飛ばした読み込み | `grace/memory.py` | `ExecutionMemory.load()` |
+| 3 | コレクションごとの集計 | `grace/memory.py` | `ExecutionMemory.collection_priors()` と `CollectionStat`（`success_rate` / `score()`） |
+| 4 | 実績が十分なときだけ 1 つ選ぶ | `grace/memory.py` / `grace/planner.py` | `ExecutionMemory.best_collection()`。呼び出し側は `Planner._prioritized_collection()` |
+| 5 | 除外対象を飛ばして次点を採る | `grace/memory.py` | `best_collection(exclude=...)` の述語で候補から外す |
 
 ### 主要機能一覧
 
@@ -506,6 +503,7 @@ def create_execution_memory(path: str = DEFAULT_MEMORY_PATH) -> ExecutionMemory
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 1.2 | 概要の「各責務対応のモジュール」を主な責務と 1:1 に揃えた（基本フォーマット §2.4。2026-09-24）（「対応する要素」2 列・8 行を、基本フォーマットの 4 列・5 行へ置き換えた） |
 | 1.1 | 使用例を「## 6. 使用例」から IPO 詳細セクション冒頭の `4.1 使用例` へ移動（フォーマット仕様 v1.6 §6.1）。これに伴い既存の `### 4.N` を 1 つずつ繰り下げ、章番号を 落とし穴 → `## 6.` / 変更履歴 → `## 7.` へ繰り上げ（2026-09-14）。あわせて `best_collection` の注記の内部参照を §4.8 → §4.9 へ是正 |
 | 1.0 | 初版作成。実装（`grace/memory.py` 全 247 行）と突き合わせ、公開シンボル 11 件（`extract_keywords` / `MemoryRecord`＋2 メソッド / `CollectionStat`＋2 / `ExecutionMemory`＋5 / `create_execution_memory`）を IPO 形式で網羅。`best_collection(exclude=...)` の「飛ばして次点を採る」設計意図、`collection_priors` の overlap 0 件フォールバック、`load()` の行単位の破損耐性、Laplace 平滑化の理由を実コードのコメントから起こして記載 |
 

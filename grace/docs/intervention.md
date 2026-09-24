@@ -1,6 +1,6 @@
 # intervention.py - HITL介入システム ドキュメント
 
-**Version 1.5** | 最終更新: 2026-09-14
+**Version 1.6** | 最終更新: 2026-09-24
 
 ---
 
@@ -22,7 +22,7 @@
 
 `intervention.py`は、GRACE（GRaded Autonomy and Confidence-based Escalation）フレームワークにおけるHITL（Human-in-the-Loop）介入システムを提供するモジュールです。信頼度に応じた4段階の介入レベル（SILENT、NOTIFY、CONFIRM、ESCALATE）を管理し、人間とAIの協調的な意思決定を実現します。
 
-本モジュールは純粋な介入制御ロジックであり、LLM（Anthropic Claude `claude-sonnet-4-6`）やEmbedding（Gemini `gemini-embedding-001`）のAPIを直接呼び出しません。信頼度スコアやアクション決定（`ActionDecision`）は上流の `confidence.py` から受け取り、本モジュールはそれに応じた人間への介入要求とレスポンス処理に専念します。
+本モジュールは純粋な介入制御ロジックであり、LLM（Anthropic Claude `claude-sonnet-5`）やEmbedding（Gemini `gemini-embedding-001`）のAPIを直接呼び出しません。信頼度スコアやアクション決定（`ActionDecision`）は上流の `confidence.py` から受け取り、本モジュールはそれに応じた人間への介入要求とレスポンス処理に専念します。
 
 ### 主な責務
 
@@ -1556,6 +1556,7 @@ __all__ = [
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 1.6 | 現在の既定モデルの記載 `claude-sonnet-4-6` を実装（`grace/config.py` の `LLMConfig.model` = `claude-sonnet-5`）に合わせて是正した（CLAUDE.md §9.3。旧既定は履歴の記述にだけ残す）（2026-09-24） |
 | 1.5 | 使用例を「## 6. 使用例」から IPO 詳細セクション冒頭の `4.1 使用例` へ移動（フォーマット仕様 v1.6 §6.1）。これに伴い既存の `### 4.N` を 1 つずつ繰り下げ、章番号を エクスポート → `## 6.` / 変更履歴 → `## 7.` へ繰り上げ（2026-09-14）。過去の変更履歴行に書かれた旧節番号（§4.x / §6.x）は当時の記録としてそのまま残している |
 | 1.4 | **Streamlit 残骸の除去。** §6.4 の Streamlit 統合例を、実装されている経路（`backend/app/core/intervention_bridge.py` と `ConfirmModal` / `QuestionSelectModal`）の説明へ全面差し替え（2026-09-12） |
 | 1.0 | 初版作成 |
