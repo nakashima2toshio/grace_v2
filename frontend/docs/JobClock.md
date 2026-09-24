@@ -1,13 +1,13 @@
 # JobClock.tsx - 開始行・完了行（所要時間） ドキュメント
 
-**Version 1.0** | 最終更新: 2026-09-12
+**Version 1.1** | 最終更新: 2026-09-24
 
 ---
 
 ## 目次
 
 1. [概要](#概要)
-2. [コンポーネントツリー図](#1-コンポーネントツリー図)
+2. [コンポーネントツリー図](#12-コンポーネントツリー図)
 3. [Props インターフェース](#2-props-インターフェース)
 4. [状態管理](#3-状態管理)
 5. [データフロー・副作用](#4-データフロー副作用)
@@ -49,6 +49,14 @@
 > **開始時刻を知らない**状態がありうる。そのとき `elapsedMs()` は `null` を返し、
 > **完了時刻だけ**を出す。ここで `Date.now() - 何か` のような推測をしないこと。
 
+### 各責務対応のモジュール
+
+| # | 責務 | 対応モジュール | 説明 |
+|---|---|---|---|
+| 1 | 時刻の整形 | `JobClock.tsx` / `state/elapsed.ts` | `formatClock` / `formatDuration` |
+| 2 | 出せない情報を省く | `state/elapsed.ts` | `elapsedMs` が開始時刻不明なら `null` を返す |
+| 3 | `<time dateTime>` | `JobClock.tsx` | 機械可読な時刻を併記 |
+
 ### 主要機能一覧
 
 | 機能 | 実装 | 説明 |
@@ -60,7 +68,44 @@
 
 ---
 
-## 1. コンポーネントツリー図
+## 1. アーキテクチャ構成図
+
+### 1.1 システム全体での位置づけ
+
+```mermaid
+flowchart TB
+    subgraph CALLER["呼び出し側"]
+        P["SupportPanel / ReviewPanel<br>DataJobPanel / CollectionPanel"]
+        AC["AnswerCard.tsx"]
+    end
+    subgraph TARGET["対象コンポーネント"]
+        JC["JobClock.tsx<br>JobStartLine / JobFinishLine"]
+        EL["state/elapsed.ts"]
+    end
+    subgraph EXTERNAL["外部（API・バックエンド）"]
+        UT["state/useJobTiming.ts"]
+        BE["backend core/jobs.py<br>SSE の ts"]
+    end
+    P -->|"timing"| JC
+    AC -->|"timing"| JC
+    JC --> EL
+    P --> UT
+    BE -->|"SSE ts"| UT
+classDef default fill:#000,stroke:#fff,color:#fff
+classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
+class P,AC,JC,EL,UT,BE default
+style CALLER fill:#1a1a1a,stroke:#fff,color:#fff
+style TARGET fill:#1a1a1a,stroke:#fff,color:#fff
+style EXTERNAL fill:#1a1a1a,stroke:#fff,color:#fff
+```
+
+**データフロー**:
+
+1. 各パネルが `useJobTiming` で開始・完了時刻（サーバの `ts` を優先）を保持する
+2. `timing` を prop で受け取り、`state/elapsed.ts` の純関数で表示用に整形する
+3. 開始時刻が分からない経路では所要時間を出さず、完了時刻だけを出す
+
+### 1.2 コンポーネントツリー図
 
 ```mermaid
 flowchart TB
@@ -167,6 +212,7 @@ flowchart TB
     Elapsed -->|"はい（開始時刻が無い）"| OnlyEnd["完了時刻だけ出す"]
     Elapsed -->|"いいえ"| Both["完了時刻＋所要時間を出す"]
 classDef default fill:#000,stroke:#fff,color:#fff
+classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
 class Click,Begin,Start,SSE,Obs,Timing,Phase,Fin,Elapsed,OnlyEnd,Both default
 ```
 
@@ -243,3 +289,4 @@ class Click,Begin,Start,SSE,Obs,Timing,Phase,Fin,Elapsed,OnlyEnd,Both default
 | 版 | 日付 | 変更内容 |
 |---|---|---|
 | 1.0 | 2026-09-12 | 初版作成。実装は 2026-08-18 からあり、ルート `README.md` の対応表に 1 行あるだけで単体の文書が無かった |
+| 1.1 | 2026-09-24 | `a_react_page_md_format.md` v1.1 に追随（2026-09-24）。概要に「各責務対応のモジュール」（主な責務と 1:1）を追加し、`## 1.` を「アーキテクチャ構成図」として **1.1 システム全体での位置づけ（3 層）** と 1.2 コンポーネントツリー図の 2 枚構成にした。Mermaid の `classDef subgraphStyle` の欠落を補った |

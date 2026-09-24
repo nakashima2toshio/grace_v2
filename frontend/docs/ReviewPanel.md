@@ -1,13 +1,13 @@
 # ReviewPanel.tsx - 文書 → 指摘 パネル ドキュメント
 
-**Version 1.4** | 最終更新: 2026-09-23
+**Version 1.5** | 最終更新: 2026-09-24
 
 ---
 
 ## 目次
 
 1. [概要](#概要)
-2. [コンポーネントツリー図](#1-コンポーネントツリー図)
+2. [コンポーネントツリー図](#12-コンポーネントツリー図)
 3. [Props インターフェース](#2-props-インターフェース)
 4. [状態管理](#3-状態管理)
 5. [データフロー・副作用](#4-データフロー副作用)
@@ -50,6 +50,17 @@ GRACE-Review（**文書 → 指摘**）のタブ本体。
 - 指摘の選択状態（`selectedFindingId`）を持ち、左右ペインで共有する
 - 打ち切り（`truncated`）と KPI を表示する
 
+### 各責務対応のモジュール
+
+| # | 責務 | 対応モジュール | 説明 |
+|---|---|---|---|
+| 1 | レビュージョブの起動 | `ReviewPanel.tsx` / `api/client.ts` | `startReview` → `POST /api/review/submit` |
+| 2 | SSE 購読と状態の畳み込み | `ReviewPanel.tsx` / `state/reviewReducer.ts` | `subscribeStream` の戻り値を `useEffect` のクリーンアップで返す |
+| 3 | HITL の承認 / 拒否 | `ReviewPanel.tsx` / `ConfirmModal.tsx` | `confirmReviewIntervention` |
+| 4 | ルールセット取得と失敗通知 | `ReviewPanel.tsx` / `state/metaFetch.ts` / `MetaErrorBanner.tsx` | `fetchRuleSets`。失敗理由は `metaErrorMessage` |
+| 5 | 指摘の選択状態の共有 | `ReviewPanel.tsx` | `selectedFindingId` を `DocumentView` と `FindingList` へ渡す |
+| 6 | 打ち切りと KPI の表示 | `ReviewPanel.tsx` / `FindingList.tsx`（`FindingSummaryBar`） | `truncated` と件数サマリ |
+
 ### 主要機能一覧
 
 | 機能 | 実装 | 説明 |
@@ -64,7 +75,46 @@ GRACE-Review（**文書 → 指摘**）のタブ本体。
 
 ---
 
-## 1. コンポーネントツリー図
+## 1. アーキテクチャ構成図
+
+### 1.1 システム全体での位置づけ
+
+```mermaid
+flowchart TB
+    subgraph CALLER["呼び出し側"]
+        APP["App.tsx<br>tab = review, model"]
+    end
+    subgraph TARGET["対象コンポーネント"]
+        RP["ReviewPanel.tsx<br>useReducer(reviewReducer)"]
+        RR["state/reviewReducer.ts"]
+        CH["ReviewForm / ReviewTimeline<br>DocumentView / FindingList<br>ConfirmModal / MetaErrorBanner / JobClock"]
+    end
+    subgraph EXTERNAL["外部（API・バックエンド）"]
+        CL["api/client.ts"]
+        API["backend api/review.py"]
+        CORE["core/review_agent.py<br>run_review_agent_core"]
+    end
+    APP -->|"model"| RP
+    RP --> RR
+    RP --> CH
+    RP --> CL
+    CL -->|"POST / SSE"| API
+    API --> CORE
+classDef default fill:#000,stroke:#fff,color:#fff
+classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
+class APP,RP,RR,CH,CL,API,CORE default
+style CALLER fill:#1a1a1a,stroke:#fff,color:#fff
+style TARGET fill:#1a1a1a,stroke:#fff,color:#fff
+style EXTERNAL fill:#1a1a1a,stroke:#fff,color:#fff
+```
+
+**データフロー**:
+
+1. フォームの送信で `startReview` を呼び、`job_id` を受け取る
+2. `subscribeStream` で SSE を購読し、イベントを `reviewReducer` へ流して各子コンポーネントへ配る
+3. 承認待ちは `ConfirmModal` で処理し、結果は `DocumentView` と `FindingList` の 2 ペインで表示する
+
+### 1.2 コンポーネントツリー図
 
 ```mermaid
 flowchart TB
@@ -299,6 +349,7 @@ flowchart TB
     Red --> UI["ReviewTimeline / DocumentView / FindingList"]
     Start -.失敗.-> Fail["dispatch('failed')"]
 classDef default fill:#000,stroke:#fff,color:#fff
+classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
 class User,Form,Unsub,Begin,Start,JobId,Started,Sub,Ev,Obs,Red,UI,Fail default
 ```
 
@@ -443,6 +494,7 @@ flowchart TB
     M --> D
     D --> Sel["指摘をクリック → 左右ペインが連動"]
 classDef default fill:#000,stroke:#fff,color:#fff
+classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
 class S,V,R,Go,Err,Fail,Stream,I,M,D,Sel default
 ```
 
@@ -520,6 +572,7 @@ class S,V,R,Go,Err,Fail,Stream,I,M,D,Sel default
 
 | 版 | 日付 | 変更内容 |
 |---|---|---|
+| 1.5 | 2026-09-24 | `a_react_page_md_format.md` v1.1 に追随（2026-09-24）。概要に「各責務対応のモジュール」（主な責務と 1:1）を追加し、`## 1.` を「アーキテクチャ構成図」として **1.1 システム全体での位置づけ（3 層）** と 1.2 コンポーネントツリー図の 2 枚構成にした。Mermaid の `classDef subgraphStyle` の欠落を補った |
 | 1.4 | 2026-09-23 | **モデル選択をヘッダー（`App`）へ移した。** `models` / `modelInfo` の state と取得を削除し、`model` prop を受け取って `ReviewForm` へ渡すだけにした（Props なし → `model` 1 つ） |
 | 1.3 | 2026-09-16 | **モデルセレクタに追随。** `models` / `modelInfo` の取得を副作用へ追加し、`ReviewForm` へ `models` / `defaultModel` を渡すようにした |
 | 1.2 | 2026-09-12 | **アクセシビリティ記述の訂正。** 「点検中であることが伝わるか」を ❌ としていたが誤りだった。`Timeline` が `sr-only` の `aria-live="polite"` で「実行中: <ステップ名>」を読み上げており（`state/timelineAnnounce.ts`）、実行中であることは支援技術へ伝わっている。`.running-banner` にライブ領域を足すと二重読み上げになるため、あえて付けない |

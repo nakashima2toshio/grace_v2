@@ -1,13 +1,13 @@
 # ReviewForm.tsx - 文書レビュー入力フォーム ドキュメント
 
-**Version 1.6** | 最終更新: 2026-09-24
+**Version 1.7** | 最終更新: 2026-09-24
 
 ---
 
 ## 目次
 
 1. [概要](#概要)
-2. [コンポーネントツリー図](#1-コンポーネントツリー図)
+2. [コンポーネントツリー図](#12-コンポーネントツリー図)
 3. [Props インターフェース](#2-props-インターフェース)
 4. [状態管理](#3-状態管理)
 5. [データフロー・副作用](#4-データフロー副作用)
@@ -40,6 +40,15 @@ GRACE-Review の入力フォーム。**文書 textarea・ルールセットセ�
 - タブ切替で入力が消えないよう `formMemory` へ退避・復元する
 - 例文チップで「押せば期待どおりの結果が出る」サンプルを流し込む
 
+### 各責務対応のモジュール
+
+| # | 責務 | 対応モジュール | 説明 |
+|---|---|---|---|
+| 1 | `ReviewParams` の組み立て | `ReviewForm.tsx` | 文書・タイトル・ルールセット・オプション |
+| 2 | 文字数上限の判定 | `ReviewForm.tsx` / `state/documentLimit.ts` | `documentLimit`（上限はバックエンドの `MAX_DOCUMENT_CHARS` と一致） |
+| 3 | 入力の退避と復元 | `ReviewForm.tsx` / `state/formMemory.ts` | `recallReviewForm` / `rememberReviewForm` |
+| 4 | 例文チップと送信キー | `ReviewForm.tsx` / `state/submitKey.ts` | `EXAMPLES` の流し込み。Ctrl+Enter は `isSubmitKey` |
+
 ### 主要機能一覧
 
 | 機能 | 実装 | 説明 |
@@ -57,7 +66,46 @@ GRACE-Review の入力フォーム。**文書 textarea・ルールセットセ�
 
 ---
 
-## 1. コンポーネントツリー図
+## 1. アーキテクチャ構成図
+
+### 1.1 システム全体での位置づけ
+
+```mermaid
+flowchart TB
+    subgraph CALLER["呼び出し側"]
+        RP["ReviewPanel.tsx<br>ruleSets, running, model"]
+    end
+    subgraph TARGET["対象コンポーネント"]
+        RF["ReviewForm.tsx<br>useState × 入力項目"]
+        DL["state/documentLimit.ts"]
+        FM["state/formMemory.ts"]
+        SK["state/submitKey.ts"]
+    end
+    subgraph EXTERNAL["外部（API・バックエンド）"]
+        CL["api/client.ts<br>startReview（親が呼ぶ）"]
+        BE["backend schemas.py<br>ReviewRequest / MAX_DOCUMENT_CHARS"]
+    end
+    RP -->|"ruleSets, running / onSubmit"| RF
+    RF --> DL
+    RF --> FM
+    RF --> SK
+    RP -->|"ReviewParams"| CL
+    CL -->|"POST /api/review/submit"| BE
+classDef default fill:#000,stroke:#fff,color:#fff
+classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
+class RP,RF,DL,FM,SK,CL,BE default
+style CALLER fill:#1a1a1a,stroke:#fff,color:#fff
+style TARGET fill:#1a1a1a,stroke:#fff,color:#fff
+style EXTERNAL fill:#1a1a1a,stroke:#fff,color:#fff
+```
+
+**データフロー**:
+
+1. 入力を `useState` で保持し、`documentLimit` で文字数上限を送信前に判定する
+2. 送信時に `ReviewParams` を組み立てて親（`ReviewPanel`）へ渡す
+3. 親が `startReview` で `POST /api/review/submit` を送り、バックエンドが `ReviewRequest` として検証する
+
+### 1.2 コンポーネントツリー図
 
 ```mermaid
 flowchart TB
@@ -195,6 +243,7 @@ flowchart TB
     Submit -->|"はい"| Params["ReviewParams を組み立て"]
     Params --> Parent["onSubmit(params) → ReviewPanel"]
 classDef default fill:#000,stroke:#fff,color:#fff
+classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
 class Mount,Recall,State,Input,Remember,Derive,Submit,Stop,Params,Parent default
 ```
 
@@ -352,6 +401,7 @@ onSubmit({
 
 | 版 | 日付 | 変更内容 |
 |---|---|---|
+| 1.7 | 2026-09-24 | `a_react_page_md_format.md` v1.1 に追随（2026-09-24）。概要に「各責務対応のモジュール」（主な責務と 1:1）を追加し、`## 1.` を「アーキテクチャ構成図」として **1.1 システム全体での位置づけ（3 層）** と 1.2 コンポーネントツリー図の 2 枚構成にした。Mermaid の `classDef subgraphStyle` の欠落を補った |
 | 1.6 | 2026-09-24 | **文書 textarea に Ctrl+Enter / ⌘+Enter の送信を追加**（grace_v2_local から移植）。判定は `QueryForm` と同じ `state/submitKey.ts::isSubmitKey`（IME 変換中は送らない）。送信処理を `submitIfReady()` へ切り出して form submit とキー操作で共用し、placeholder に操作を明記した。grace_v2 にだけある `.sr-only` のタイトルラベルは温存。§8 の `headerModel.test.ts` の件数を実測（16）へ訂正 |
 | 1.5 | 2026-09-23 | **詳細ログの既定を ON へ変更**（基本版 / GRACE-Support / GRACE-Review は `DEFAULT_QUERY_FORM` / `DEFAULT_REVIEW_FORM` の `verbose`、データ管理は `DataJobPanel` の `useState`） |
 | 1.4 | 2026-09-23 | **モデルセレクタをヘッダー（`App`）へ移した。** フォーム内の `ModelSelect` と `model` state を削除し、`models` / `defaultModel` prop を `model` prop へ置き換えた。`formMemory` からも `model` を外した。`useState` は 8 → 7 個 |

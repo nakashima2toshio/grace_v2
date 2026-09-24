@@ -1,13 +1,13 @@
 # App.tsx - 4 タブのルートコンテナ ドキュメント
 
-**Version 1.5** | 最終更新: 2026-09-23
+**Version 1.6** | 最終更新: 2026-09-24
 
 ---
 
 ## 目次
 
 1. [概要](#概要)
-2. [コンポーネントツリー図](#1-コンポーネントツリー図)
+2. [コンポーネントツリー図](#12-コンポーネントツリー図)
 3. [Props インターフェース](#2-props-インターフェース)
 4. [状態管理](#3-状態管理)
 5. [データフロー・副作用](#4-データフロー副作用)
@@ -54,6 +54,17 @@
 - **ヘッダー（タイトル横）でモデルを選ばせる**（基本版 / Support / Review）。選択は
   タブごとに持ち、`SupportPanel` / `ReviewPanel` へ `model` prop で渡す
 
+### 各責務対応のモジュール
+
+| # | 責務 | 対応モジュール | 説明 |
+|---|---|---|---|
+| 1 | 4 タブの提示と描画 | `App.tsx` | `TABS` と `tab` の `useState` |
+| 2 | 非アクティブパネルのアンマウント | `App.tsx` | 条件レンダリングでアンマウントし、各パネルの `EventSource` を閉じさせる |
+| 3 | `SupportPanel` の共用 | `App.tsx` / `SupportPanel.tsx` | `variant="basic"` / `"vertical"` で振り分け |
+| 4 | `key={tab}` による作り直し | `App.tsx` | 基本版 ⇄ Support の切替で state を持ち越さない |
+| 5 | `h1` のタブ名 | `App.tsx` | アクティブなタブのラベルを見出しへ |
+| 6 | ヘッダーのモデル選択 | `App.tsx` / `state/headerModel.ts` / `api/client.ts` | 選択肢は `fetchModels`、既定値は `fetchModelInfo`。並べ方・表示値は `headerModel.ts` |
+
 ### 主要機能一覧
 
 | 機能 | 実装 | 説明 |
@@ -67,7 +78,46 @@
 
 ---
 
-## 1. コンポーネントツリー図
+## 1. アーキテクチャ構成図
+
+### 1.1 システム全体での位置づけ
+
+```mermaid
+flowchart TB
+    subgraph CALLER["呼び出し側"]
+        MAIN["main.tsx<br>createRoot"]
+    end
+    subgraph TARGET["対象コンポーネント"]
+        APP["App.tsx<br>useState(tab, models)"]
+        HM["state/headerModel.ts"]
+        TK["state/tabKeys.ts"]
+    end
+    subgraph EXTERNAL["外部（API・バックエンド）"]
+        PANELS["SupportPanel / ReviewPanel / DataPanel"]
+        CL["api/client.ts<br>fetchModels / fetchModelInfo"]
+        BE["GET /api/models<br>GET /api/model"]
+    end
+    MAIN --> APP
+    APP --> HM
+    APP --> TK
+    APP -->|"variant / model"| PANELS
+    APP --> CL
+    CL --> BE
+classDef default fill:#000,stroke:#fff,color:#fff
+classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
+class MAIN,APP,HM,TK,PANELS,CL,BE default
+style CALLER fill:#1a1a1a,stroke:#fff,color:#fff
+style TARGET fill:#1a1a1a,stroke:#fff,color:#fff
+style EXTERNAL fill:#1a1a1a,stroke:#fff,color:#fff
+```
+
+**データフロー**:
+
+1. マウント時に `fetchModels` / `fetchModelInfo` でモデルの選択肢と既定値を取得する
+2. タブ選択とタブごとのモデル選択を `useState` で保持し、ヘッダーに表示する
+3. 選択中のタブのパネルだけを描画し、`model` を prop で渡す（ジョブ系 API はパネル側が呼ぶ）
+
+### 1.2 コンポーネントツリー図
 
 ```mermaid
 flowchart TB
@@ -210,6 +260,7 @@ flowchart TB
     Set --> Unmount["直前のパネルをアンマウント"]
     Unmount --> Cleanup["useEffect クリーンアップ<br>EventSource を close"]
 classDef default fill:#000,stroke:#fff,color:#fff
+classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
 class Click,Set,Render,RP,SP,Unmount,Cleanup default
 ```
 
@@ -240,6 +291,7 @@ flowchart TB
     Swap --> New["新パネルをマウント<br>（状態は初期化される）"]
     New --> Show
 classDef default fill:#000,stroke:#fff,color:#fff
+classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
 class Start,Show,Tab,Same,Swap,New default
 ```
 
@@ -314,3 +366,4 @@ JSX のレンダリングテストは持たない。ガードは以下 2 つ。
 | 1.3 | 2026-09-16 | **ヘッダーに既定の利用モデル名を表示**（`GET /api/model` → `state/modelLabel.ts::formatModelLabel`）。論理層（`heavy_model`）だけ別モデルのときは併記する。取得失敗時は何も出さない（画面は壊さない） |
 | 1.4 | 2026-09-23 | **モデルの選択をヘッダーへ移した**（基本版 / Support / Review）。「利用モデル名：」の表示をセレクタに置き換え、選択をタブごとに `headerModels` で持って `SupportPanel` / `ReviewPanel` へ `model` prop で渡す。判断は `state/headerModel.ts`（純関数・vitest 13 件）。データ管理タブは従来どおり既定値の表示のみ |
 | 1.5 | 2026-09-23 | **データ管理タブもヘッダーでモデルを選ぶ**ようにした。工程ごとに「① チャンキング」「② Q/A 作成」の 2 つを並べ（既定は `chunking_model` / `qa_model`）、`DataPanel` へ `chunkingModel` / `qaModel` prop で渡す。並べる内容は `headerSlots()` が決める（vitest 16 件） |
+| 1.6 | 2026-09-24 | `a_react_page_md_format.md` v1.1 に追随（2026-09-24）。概要に「各責務対応のモジュール」（主な責務と 1:1）を追加し、`## 1.` を「アーキテクチャ構成図」として **1.1 システム全体での位置づけ（3 層）** と 1.2 コンポーネントツリー図の 2 枚構成にした。Mermaid の `classDef subgraphStyle` の欠落を補った |
