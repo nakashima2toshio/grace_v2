@@ -1,6 +1,6 @@
 # grace_runtime.md - GRACE 実行時に発行される API とプロンプト
 
-**Version 3.0** | 最終更新: 2026-09-14
+**Version 3.1** | 最終更新: 2026-09-24
 
 > **参考ドキュメント**
 > - [`grace/docs/grace.md`](./grace.md) — 設計思想（**なぜ**この形か。ReAct → Reflection → GRACE 5 段階の経緯）
@@ -30,9 +30,71 @@
 
 GRACE 本体は google-genai 形式の `client.models.generate_content(...)` のまま書かれており、`grace/llm_compat.py` がそれを Anthropic の `messages.create(...)` に変換している点が要となる。
 
-> 📝 **技術スタック**: LLM 用途はすべて **Anthropic Claude**（既定 `claude-sonnet-4-6`、軽量 `claude-haiku-4-5-20251001`、鍵 `ANTHROPIC_API_KEY`）。検索の Embedding のみ **Gemini** `gemini-embedding-001`（3072 次元、鍵 `GOOGLE_API_KEY`）を継続利用する。
+> 📝 **技術スタック**: LLM 用途はすべて **Anthropic Claude**（既定 `claude-sonnet-5`、軽量 `claude-haiku-4-5-20251001`、鍵 `ANTHROPIC_API_KEY`）。検索の Embedding のみ **Gemini** `gemini-embedding-001`（3072 次元、鍵 `GOOGLE_API_KEY`）を継続利用する。
 
 実行の入口は Web API（`uvicorn backend.app.main:app` → `run_support_agent_core`）。CLI（`agent_support_example.py`）と S0〜S9 のステップ別トレース（`grace/step_trace/s*.py`）は 2026-09-19 に削除した。最小実行サンプルとその解説は [`grace_core.md` §7](./grace_core.md#7-使用例最小実行サンプル) にある。
+
+### 主な責務
+
+- GRACE 本体の genai 形式の呼び出しを Anthropic Messages API へ変換して発行する
+- 計画生成と複雑度推定のプロンプトを組み立てて発行する
+- 推論（reasoning）のプロンプトを組み立てて発行する
+- 信頼度評価のプロンプト群（自己評価・網羅度・根拠検証）を発行する
+- 検索クエリを Gemini Embedding でベクトル化して Qdrant を検索する
+
+### 各責務対応のモジュール
+
+| # | 責務 | 対応モジュール | 説明 |
+|---|------|--------------|------|
+| 1 | genai 形式 → Anthropic の変換 | `grace/llm_compat.py` | `create_chat_client()` → `AnthropicGenaiClient`（§2） |
+| 2 | 計画生成・複雑度推定 | `grace/planner.py` | `Planner.create_plan()` / `estimate_complexity_with_llm()`（§4.1・§4.2） |
+| 3 | 推論 | `grace/tools.py` | `ReasoningTool._build_prompt()` → `execute()`（§4.3） |
+| 4 | 信頼度評価 | `grace/confidence.py` | `LLMSelfEvaluator` / `QueryCoverageCalculator` / `GroundednessVerifier`（§4.4） |
+| 5 | 検索のベクトル化 | `grace/tools.py` / `agent_tools.py` | `RAGSearchTool` が Gemini Embedding でクエリをベクトル化して Qdrant を検索（§3） |
+
+### アーキテクチャ構成図
+
+```mermaid
+flowchart TB
+    subgraph CALLER["呼び出し側"]
+        SUP["backend/app/core/support_agent.py<br>run_support_agent_core"]
+        EXE["grace/executor.py<br>Executor"]
+    end
+    subgraph MECH["本書が扱う機構（実行時の API 発行部）"]
+        PL["grace/planner.py<br>計画・複雑度"]
+        TL["grace/tools.py<br>ReasoningTool / RAGSearchTool"]
+        CF["grace/confidence.py<br>評価プロンプト群"]
+        LC["grace/llm_compat.py<br>AnthropicGenaiClient"]
+    end
+    subgraph EXTERNAL["外部・下位"]
+        ANT["Anthropic Messages API<br>ANTHROPIC_API_KEY"]
+        GEM["Gemini Embedding<br>GOOGLE_API_KEY"]
+        QD["Qdrant"]
+    end
+    SUP --> PL
+    SUP --> EXE
+    EXE --> TL
+    EXE --> CF
+    PL --> LC
+    TL --> LC
+    CF --> LC
+    LC -->|"messages.create"| ANT
+    TL -->|"embed_content"| GEM
+    TL --> QD
+classDef default fill:#000,stroke:#fff,color:#fff
+classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
+class SUP,EXE,PL,TL,CF,LC,ANT,GEM,QD default
+style CALLER fill:#1a1a1a,stroke:#fff,color:#fff
+style MECH fill:#1a1a1a,stroke:#fff,color:#fff
+style EXTERNAL fill:#1a1a1a,stroke:#fff,color:#fff
+```
+
+**データフロー**:
+
+1. コアが ① Plan を呼ぶと、`Planner` が計画生成（と必要なら複雑度推定）のプロンプトを発行する
+2. ② Execute では RAG 検索が Gemini Embedding → Qdrant を叩き、推論ツールが回答生成のプロンプトを発行する
+3. ③ Confidence で評価プロンプト群が発行される
+4. LLM 呼び出しはすべて `llm_compat.py` が Anthropic の `messages.create(...)` へ変換する
 
 ---
 
@@ -71,7 +133,7 @@ def generate_content(self, model=None, contents=None, config=None, **_kwargs):
 
     max_tokens = cfg.get("max_output_tokens") or 2048     # Anthropic は max_tokens 必須
     kwargs = {
-        "model": model_name,                              # 既定 claude-sonnet-4-6
+        "model": model_name,                              # 既定 claude-sonnet-5
         "max_tokens": int(max_tokens),
         "messages": [{"role": "user", "content": prompt}],
     }
@@ -389,6 +451,7 @@ flowchart TB
 
     Q --> PLAN --> EMB --> QD --> REA --> CONF --> OUT
 classDef default fill:#000,stroke:#fff,color:#fff
+classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
 class Q,PLAN,EMB,QD,REA,CONF,OUT default
 ```
 
@@ -409,6 +472,7 @@ class Q,PLAN,EMB,QD,REA,CONF,OUT default
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 3.1 | `a_cross_doc_md_format.md` v1.2（種別 A）に準拠（2026-09-24）。概要に主な責務・各責務対応のモジュール・アーキテクチャ構成図を追加。本文の章番号は変えていない。現在の既定モデルの記載 `claude-sonnet-4-6` を実装（`grace/config.py` の `LLMConfig.model` = `claude-sonnet-5`）に合わせて是正した（CLAUDE.md §9.3。旧既定は履歴の記述にだけ残す）。Mermaid の `classDef subgraphStyle` の欠落を補った |
 | 3.0 | **`grace_core_flow.md` から改称し、役割を「実行時に飛ぶ API とプロンプト」へ絞った**（2026-09-14）。旧 §A（5 段階設計）/ §C（役割サマリー）は `grace.md` と、旧 §B（モジュール構成図・依存関係テーブル）/ §D（最小実行サンプル）は `grace_core.md` と**完全重複**していたため（構成図 Mermaid 68 行と依存関係テーブルはバイト単位で一致）、それぞれの正本へ集約して本書からは削除した。旧 §F（補足説明）も `grace.md` 第3部・`grace_core.md` §1.2 の言い換えだったため削除。残した旧 §E を `1.`〜`5.` へ採番し直している。旧 §D.3 の行番号による逐行解説は、**リポジトリに存在しないコード片への行番号**だったため引き継がなかった（行番号参照は腐る。`README.md` §6） |
 | 2.0 | 実装との突き合わせによる訂正。(1) **§D が題材にしていた `agent_example.py` はリポジトリに存在しない**（git 全履歴 0 件）ため、「本書内の解説用コード片」と明示し、実物のエントリポイント（`agent_support_example.py` / `grace/step_trace/s0_arg.py`〜`s9_render.py`）を §D.4 で案内する形へ改めた。(2) §F の `agent_rag.py` / Streamlit（本リポジトリに存在しない）参照を、`execute_plan_generator()` と FastAPI SSE の説明へ差し替え。(3) `grace/doc/`（単数形）リンクを `grace/docs/` へ是正（CLAUDE.md §9.1） |
 | 1.1 | D の直後に「E. プロンプトと API 発行部」を追加（API 発行部の実コード、利用プロンプト全文＝計画生成／複雑度推定／推論／信頼度評価群、既定クエリの API 発行順フロー図）。旧 E「理解のための補足説明」を F に繰り下げ |

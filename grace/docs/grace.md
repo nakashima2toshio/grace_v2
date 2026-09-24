@@ -1,6 +1,21 @@
 # GRACE 自律型エージェント アーキテクチャ概説書
 
-**Version 2.0** | 最終更新: 2026-09-14
+**Version 2.1** | 最終更新: 2026-09-24
+
+---
+
+## 目次
+
+- [概要](#概要)
+- [第1部. ReAct → Reflection → GRACE 改善の時系列](#第1部-react--reflection--grace-改善の時系列)
+- [第2部. `grace/` 各ファイル → 1行のコードに凝縮](#第2部-grace-各ファイル--1行のコードに凝縮)
+- [第3部. 各段階の説明（A→B→C の改善がどこに宿ったか）](#第3部-各段階の説明abc-の改善がどこに宿ったか)
+- [まとめ（A→B→C 対応）](#まとめabc-対応)
+- [変更履歴](#変更履歴)
+
+---
+
+## 概要
 
 > **本書の位置づけ（前振り）**
 >
@@ -75,6 +90,40 @@
 **(A) ReAct → (B) ReAct + Reflection → (C) GRACE 5段階設計**
 へと改善されてきた過程と、その 5 段階設計が `grace/` パッケージの各モジュールへ
 どのように対応づけられているかをまとめる。
+
+### 主な責務
+
+本書が扱う「機構」は GRACE の 5 段階設計そのものである。
+
+- ① Plan: 質問から実行計画（ステップ列）を作る
+- ② Execute: 計画の各ステップをツールで実行する
+- ③ Confidence: 結果の信頼度を多軸で測り、較正する
+- ④ Intervention: 信頼度に応じて人への確認・エスカレーションを決める
+- ⑤ Replan: 失敗・低信頼のときに計画を立て直す
+- 5 段階が共通に使う土台（設定・型・LLM 互換層）を提供する
+
+### 各責務対応のモジュール
+
+| # | 責務 | 対応モジュール | 説明 |
+|---|------|--------------|------|
+| 1 | ① Plan | `grace/planner.py` / `grace/memory.py` | `Planner.create_plan()`。過去の実績から優先コレクションを選ぶ |
+| 2 | ② Execute | `grace/executor.py` / `grace/tools.py` | `Executor` が `ToolRegistry` のツール（RAG 検索・Web 検索・推論・ask_user）を呼ぶ |
+| 3 | ③ Confidence | `grace/confidence.py` / `grace/calibration.py` | 多軸信頼度・根拠検証（`GroundednessVerifier`）と温度スケーリング較正 |
+| 4 | ④ Intervention | `grace/intervention.py` | `InterventionHandler`（CONFIRM / ESCALATE / NOTIFY / SILENT） |
+| 5 | ⑤ Replan | `grace/replan.py` / `grace/planner.py` | `ReplanManager` が戦略を決め、`Planner` で計画を作り直す |
+| 6 | 共通の土台 | `grace/config.py` / `grace/schemas.py` / `grace/llm_compat.py` | 設定（yml → 環境変数 → pydantic）・Pydantic スキーマ・genai 互換クライアント |
+
+### アーキテクチャ構成図
+
+構成図（呼び出し側 → GRACE コアモジュール群 → 基盤層）の**正本は [`grace_core.md` §1.1](./grace_core.md#11-システム全体構成3層)** にある。
+本書は図を重複させず、正本を参照する（`a_cross_doc_md_format.md` §4）。
+
+**データフロー**:
+
+1. 呼び出し側（`backend/app/core/support_agent.py` ほか）が質問を渡し、① Plan が `ExecutionPlan` を作る
+2. ② Execute がステップごとにツールを呼び、`StepResult` を積み上げる
+3. ③ Confidence が結果の信頼度と根拠の支持率を測り、④ Intervention が人の関与を決める
+4. 失敗や低信頼のときは ⑤ Replan が計画を作り直し、② へ戻る
 
 ---
 
@@ -190,6 +239,7 @@ flowchart TB
     MEM -. 事前分布(優先コレクション) .-> P1
     P2 -. 実行実績を記録 .-> MEM
 classDef default fill:#000,stroke:#fff,color:#fff
+classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
 class START,P1,P2,P3,P4,P5,MEM,DONE default
 ```
 
@@ -318,5 +368,6 @@ ReAct の神髄＝Thought へ戻る工程を制度化。`should_replan()`（失�
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 2.1 | `a_cross_doc_md_format.md` v1.2（種別 A）に準拠（2026-09-24）。目次と `## 概要`（冒頭の位置づけ・一言要約・改善サマリを収め、主な責務／各責務対応のモジュール／構成図の正本 `grace_core.md` §1.1 へのリンクを追加）を設けた。本文の部・章は変えていない。Mermaid の `classDef subgraphStyle` の欠落を補った |
 | 2.0 | **横断 4 文書の整理・統合に伴う役割の絞り込み**（2026-09-14）。(1) 旧 `grace_core_flow.md` §A（5 段階設計）と重複していたため、**5 段階設計の定義を本書へ一本化**し、`memory.py` を横串として描いた 5 段階フロー図を第1部 (C) へ吸収した。(2) **第2部の 11 行役割サマリー表と第3部（5 段階→モジュール対応表・フロー図）を削除**し、[`grace_core.md` §3.0](./grace_core.md#30-モジュール役割サマリー11-モジュール) へのリンクに置換——同じ表が `grace.md` / `grace_core_flow.md` の 2 本に重複しており、片方だけ腐る状態だった。旧第4部を第3部へ繰り上げ。(3) 冒頭に横断 3 文書（WHY / WHAT / HOW）の役割分担を明示 |
 | 1.0 | 初版作成。ReAct → Reflection → GRACE の改善経緯、`grace/` 11 ファイルの 1 行凝縮、5 段階設計への対応一覧、各段階の意味づけを整備 |

@@ -1,6 +1,6 @@
 # llm_compat.py - GRACE LLM 互換クライアント ドキュメント
 
-**Version 1.1** | 最終更新: 2026-08-01
+**Version 1.2** | 最終更新: 2026-09-24
 
 ---
 
@@ -12,10 +12,9 @@
 4. [クラス・関数一覧表](#3-クラス関数一覧表)
 5. [クラス・関数 IPO詳細](#4-クラス関数-ipo詳細)
 6. [設定・定数](#5-設定定数)
-7. [使用例](#6-使用例)
-8. [エクスポート](#7-エクスポート)
-9. [変更履歴](#8-変更履歴)
-10. [付録: 依存関係図](#付録-依存関係図)
+7. [エクスポート](#6-エクスポート)
+8. [変更履歴](#7-変更履歴)
+9. [付録: 依存関係図](#付録-依存関係図)
 
 ---
 
@@ -249,7 +248,58 @@ style RESPONSE fill:#1a1a1a,stroke:#fff,color:#fff
 
 ## 4. クラス・関数 IPO詳細
 
-### 4.1 AnthropicGenaiClient クラス
+### 4.1 使用例
+
+#### 4.1.1 基本的なワークフロー
+
+```python
+from grace.llm_compat import create_chat_client
+
+# 1. config に基づきクライアントを生成（provider 未指定なら Anthropic）
+client = create_chat_client(config)
+
+# 2. genai 互換インターフェースで生成
+response = client.models.generate_content(
+    model="claude-sonnet-5",
+    contents="次の文章を1行で要約してください: ...",
+)
+
+# 3. 結果とトークン使用量を確認
+print(response.text)
+print(response.usage_metadata.prompt_token_count)
+print(response.usage_metadata.candidates_token_count)
+```
+
+#### 4.1.2 応用的なワークフロー（JSON 構造化出力）
+
+```python
+from google.genai import types  # GenerateContentConfig 互換
+from pydantic import BaseModel
+
+class Answer(BaseModel):
+    answer: str
+    confidence: float
+
+config = types.GenerateContentConfig(
+    temperature=0.0,
+    max_output_tokens=512,
+    response_mime_type="application/json",
+    response_schema=Answer,
+)
+
+client = create_chat_client(grace_config)
+response = client.models.generate_content(
+    model="claude-sonnet-5",
+    contents="日本の首都を JSON で答えてください。",
+    config=config,
+)
+
+# response.text は Markdown フェンスが除去された純粋な JSON 本体
+parsed = Answer.model_validate_json(response.text)
+print(parsed.answer, parsed.confidence)
+```
+
+### 4.2 AnthropicGenaiClient クラス
 
 `genai.Client` 互換の Anthropic クライアント。`.models.generate_content(...)` のみをサポートする。
 
@@ -282,7 +332,7 @@ client.models  # -> _AnthropicModels
 # 使用例
 from grace.llm_compat import AnthropicGenaiClient
 
-client = AnthropicGenaiClient(default_model="claude-sonnet-4-6")
+client = AnthropicGenaiClient(default_model="claude-sonnet-5")
 # 構築時点では anthropic SDK は import されない
 ```
 
@@ -313,10 +363,10 @@ def _ensure_client(self) -> Any
 ```python
 # 使用例（内部呼び出し）
 anthropic_client = client._ensure_client()
-message = anthropic_client.messages.create(model="claude-sonnet-4-6", max_tokens=1024, messages=[...])
+message = anthropic_client.messages.create(model="claude-sonnet-5", max_tokens=1024, messages=[...])
 ```
 
-### 4.2 _AnthropicModels クラス
+### 4.3 _AnthropicModels クラス
 
 genai の `client.models` 互換ラッパー（generate_content のみ）。
 
@@ -346,7 +396,7 @@ _AnthropicModels(client_getter: Any, default_model: str)
 
 ```python
 # 使用例（AnthropicGenaiClient 内部で生成される）
-models = _AnthropicModels(client._ensure_client, "claude-sonnet-4-6")
+models = _AnthropicModels(client._ensure_client, "claude-sonnet-5")
 ```
 
 #### メソッド: `generate_content`
@@ -388,7 +438,7 @@ response.usage_metadata.candidates_token_count  # 340
 ```python
 # 使用例
 response = client.models.generate_content(
-    model="claude-sonnet-4-6",
+    model="claude-sonnet-5",
     contents="日本の首都はどこですか？",
     config=None,
 )
@@ -396,7 +446,7 @@ print(response.text)
 # 東京です。
 ```
 
-### 4.3 _GenaiCompatResponse クラス
+### 4.4 _GenaiCompatResponse クラス
 
 genai の generate_content レスポンス互換オブジェクト。呼び出しサイトが参照する属性のみを提供する。
 
@@ -435,7 +485,7 @@ print(resp.text)    # hello
 print(resp.parsed)  # None
 ```
 
-### 4.4 _UsageMetadata クラス
+### 4.5 _UsageMetadata クラス
 
 genai の usage_metadata 互換オブジェクト。
 
@@ -472,7 +522,7 @@ usage = _UsageMetadata(prompt_token_count=120, candidates_token_count=340)
 print(usage.prompt_token_count)  # 120
 ```
 
-### 4.5 ファクトリ関数
+### 4.6 ファクトリ関数
 
 #### `create_chat_client`
 
@@ -495,7 +545,7 @@ def create_chat_client(config: Any = None) -> Any
 **戻り値例**:
 ```python
 # provider="anthropic"（既定）の場合
-# -> AnthropicGenaiClient(default_model="claude-sonnet-4-6")
+# -> AnthropicGenaiClient(default_model="claude-sonnet-5")
 
 # provider="gemini" の場合
 # -> genai.Client()
@@ -507,13 +557,13 @@ from grace.llm_compat import create_chat_client
 
 client = create_chat_client(config)  # config.llm.provider に従う
 response = client.models.generate_content(
-    model="claude-sonnet-4-6",
+    model="claude-sonnet-5",
     contents="要約してください: ...",
 )
 print(response.text)
 ```
 
-### 4.6 内部ヘルパー関数
+### 4.7 内部ヘルパー関数
 
 #### `_extract_config`
 
@@ -633,12 +683,12 @@ _GEMINI_PROVIDERS = {"gemini", "google", "google-genai", "genai"}
 config 未指定時にフォールバックする Anthropic デフォルトモデル名。
 
 ```python
-DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-4-6"
+DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-5"
 ```
 
 | 定数名 | 値 | 説明 |
 |-------|-----|------|
-| `DEFAULT_ANTHROPIC_MODEL` | `"claude-sonnet-4-6"` | provider=anthropic かつ model 未指定時の既定モデル |
+| `DEFAULT_ANTHROPIC_MODEL` | `"claude-sonnet-5"` | provider=anthropic かつ model 未指定時の既定モデル |
 
 ### 5.3 拡張思考の下限（M-1）
 
@@ -669,7 +719,7 @@ _MIN_THINKING_BUDGET = 1024  # Anthropic が要求する thinking budget の下�
 
 > ⚠️ **思考予算をいくつにしても、`llm.heavy_model` が未設定なら拡張思考は走りません。**
 > `config.heavy_thinking_budget()` が 0 を返すためです
-> （[`config.md`](./config.md) §4.5）。
+> （[`config.md`](./config.md) §4.6）。
 
 ### 5.4 関連環境変数
 
@@ -678,62 +728,10 @@ _MIN_THINKING_BUDGET = 1024  # Anthropic が要求する thinking budget の下�
 | `ANTHROPIC_API_KEY` | Anthropic API キー（`_ensure_client` で解決） |
 | `ANTHROPIC_BASE_URL` | Anthropic ベース URL（任意） |
 
----
-
-## 6. 使用例
-
-### 6.1 基本的なワークフロー
-
-```python
-from grace.llm_compat import create_chat_client
-
-# 1. config に基づきクライアントを生成（provider 未指定なら Anthropic）
-client = create_chat_client(config)
-
-# 2. genai 互換インターフェースで生成
-response = client.models.generate_content(
-    model="claude-sonnet-4-6",
-    contents="次の文章を1行で要約してください: ...",
-)
-
-# 3. 結果とトークン使用量を確認
-print(response.text)
-print(response.usage_metadata.prompt_token_count)
-print(response.usage_metadata.candidates_token_count)
-```
-
-### 6.2 応用的なワークフロー（JSON 構造化出力）
-
-```python
-from google.genai import types  # GenerateContentConfig 互換
-from pydantic import BaseModel
-
-class Answer(BaseModel):
-    answer: str
-    confidence: float
-
-config = types.GenerateContentConfig(
-    temperature=0.0,
-    max_output_tokens=512,
-    response_mime_type="application/json",
-    response_schema=Answer,
-)
-
-client = create_chat_client(grace_config)
-response = client.models.generate_content(
-    model="claude-sonnet-4-6",
-    contents="日本の首都を JSON で答えてください。",
-    config=config,
-)
-
-# response.text は Markdown フェンスが除去された純粋な JSON 本体
-parsed = Answer.model_validate_json(response.text)
-print(parsed.answer, parsed.confidence)
-```
 
 ---
 
-## 7. エクスポート
+## 6. エクスポート
 
 `llm_compat.py` には `__all__` 定義はありません。GRACE 本体は各サブモジュールから直接 import します。
 
@@ -751,12 +749,13 @@ from .llm_compat import create_chat_client
 
 ---
 
-## 8. 変更履歴
+## 7. 変更履歴
 
 | バージョン | 変更内容 |
 |-----------|---------|
 | 1.0 | 初版作成（llm_compat.py のソースに基づくドキュメント化） |
 | 1.1 | 実装（07-27）へ追随（2026-08-01）。`_thinking_budget()` と `_MIN_TEXT_TOKENS` / `_MIN_THINKING_BUDGET`（M-1 拡張思考）を §3.2 と §5.3 に追加。0 / None / 不正値は無効、有効時は API 下限 1024 まで引き上げるという正規化の表を付け、`heavy_model` 未設定ならそもそも走らない点を明記。旧 §5.3（関連環境変数）を §5.4 へ繰り下げ |
+| 1.2 | 使用例を IPO 詳細の冒頭（`### 4.1 使用例`）へ移し、末尾の「## 6. 使用例」章を削除（基本フォーマット `a_class_method_md_format.md` v1.6〜 §6.1 に準拠。2026-09-24）。IPO の小節を 4.2 以降へ繰り下げ、後続の章番号を 1 つ繰り上げた。文書内の `§4.x` 参照も追随。現在の既定モデルの記載 `claude-sonnet-4-6` を実装（`grace/config.py` の `LLMConfig.model` = `claude-sonnet-5`）に合わせて是正した（CLAUDE.md §9.3。旧既定は履歴の記述にだけ残す） |
 
 ---
 

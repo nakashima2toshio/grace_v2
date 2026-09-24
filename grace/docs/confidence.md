@@ -1,6 +1,6 @@
 # confidence.py - 信頼度計算システム ドキュメント
 
-**Version 2.4** | 最終更新: 2026-09-14
+**Version 2.5** | 最終更新: 2026-09-24
 
 ---
 
@@ -22,7 +22,7 @@
 
 `confidence.py` は、GRACE（Guided Reasoning with Adaptive Confidence Execution）における信頼度計算システムを実装するモジュールです。ハイブリッド方式（重み付き平均 + LLM 自己評価 + 根拠妥当性検証）による多軸の信頼度算出と、その結果に基づく介入レベル（自動進行〜ユーザー入力要求）の判定を担います。
 
-LLM 呼び出しは `llm_compat.create_chat_client()` が返す genai 互換クライアント経由で行われ、本プロジェクトでは Anthropic Claude（既定 `claude-sonnet-4-6`）が実体となります。一方、ソース一致度計算の Embedding は Gemini（`gemini-embedding-001`、3072次元）を継続利用します。
+LLM 呼び出しは `llm_compat.create_chat_client()` が返す genai 互換クライアント経由で行われ、本プロジェクトでは Anthropic Claude（既定 `claude-sonnet-5`）が実体となります。一方、ソース一致度計算の Embedding は Gemini（`gemini-embedding-001`、3072次元）を継続利用します。
 
 ### 主な責務
 
@@ -37,14 +37,12 @@ LLM 呼び出しは `llm_compat.create_chat_client()` が返す genai 互換ク�
 
 | # | 責務 | 対応モジュール | 説明 |
 |---|------|--------------|------|
-| 1 | 多軸信頼度の計算 | `confidence.py` | `ConfidenceCalculator` が検索品質・ツール成功率等を統合 |
-| 2 | LLM 自己評価 | `confidence.py` | `LLMSelfEvaluator` が確信度・網羅度を LLM で評価 |
-| 3 | 複数ソース一致度 | `confidence.py` | `SourceAgreementCalculator` が Gemini Embedding で類似度算出 |
-| 4 | 根拠妥当性検証 | `confidence.py` | `GroundednessVerifier` が主張ごとの支持/矛盾を判定 |
-| 5 | 介入レベル決定 | `confidence.py` | `ConfidenceCalculator.decide_action()` が閾値で判定 |
-| 6 | 複数ステップ集計 | `confidence.py` | `ConfidenceAggregator` が mean/min/weighted で集計 |
-| 7 | LLM クライアント生成 | `llm_compat.py` | `create_chat_client()` が Anthropic 互換クライアントを返却 |
-| 8 | 設定・閾値の提供 | `config.py` | `GraceConfig.confidence` が重み・閾値を保持 |
+| 1 | 多軸信頼度の計算 | `grace/confidence.py` / `grace/config.py` | `ConfidenceCalculator` が検索品質・ツール成功率等を統合。重み・閾値は `GraceConfig.confidence` |
+| 2 | LLM 自己評価 | `grace/confidence.py` / `grace/llm_compat.py` | `LLMSelfEvaluator` が確信度・網羅度を評価。クライアントは `create_chat_client()` |
+| 3 | 複数ソース一致度 | `grace/confidence.py` | `SourceAgreementCalculator` が Gemini Embedding で類似度を算出 |
+| 4 | 根拠妥当性の検証 | `grace/confidence.py` | `GroundednessVerifier` が主張ごとに支持 / 矛盾 / 中立を判定 |
+| 5 | 介入レベルの決定 | `grace/confidence.py` | `ConfidenceCalculator.decide_action()` が閾値で判定 |
+| 6 | 複数ステップの集計 | `grace/confidence.py` | `ConfidenceAggregator` が mean / min / weighted で集計 |
 
 ### 主要機能一覧
 
@@ -796,12 +794,12 @@ def __init__(
 | 項目 | 内容 |
 |------|------|
 | **Input** | `config`, `model_name` |
-| **Process** | 1. config 解決<br>2. model_name 解決（既定 `claude-sonnet-4-6`）<br>3. `create_chat_client(config)` でクライアント生成 |
+| **Process** | 1. config 解決<br>2. model_name 解決（既定 `claude-sonnet-5`）<br>3. `create_chat_client(config)` でクライアント生成 |
 | **Output** | `LLMSelfEvaluator` インスタンス |
 
 **戻り値例**:
 ```python
-LLMSelfEvaluator(config=None, model_name="claude-sonnet-4-6")
+LLMSelfEvaluator(config=None, model_name=None)  # None → config.llm.model（既定 claude-sonnet-5）
 ```
 
 ```python
@@ -1021,7 +1019,7 @@ def __init__(
 
 **戻り値例**:
 ```python
-QueryCoverageCalculator(config=None, model_name="claude-sonnet-4-6")
+QueryCoverageCalculator(config=None, model_name=None)  # None → config.llm.model（既定 claude-sonnet-5）
 ```
 
 ```python
@@ -1092,11 +1090,11 @@ def __init__(
 > entailment を取る作業は推論の質が効くため、`llm.heavy_model` を設定していれば
 > そちらを使います。LLM 呼び出し時には `heavy_thinking_budget(config)` を
 > `thinking_budget_tokens` として渡し、**`heavy_model` 未設定なら 0（拡張思考なし）**
-> になります（詳細は [`config.md`](./config.md) §4.5）。
+> になります（詳細は [`config.md`](./config.md) §4.6）。
 
 **戻り値例**:
 ```python
-GroundednessVerifier(config=None, model_name="claude-sonnet-4-6")
+GroundednessVerifier(config=None, model_name=None)  # None → resolve_heavy_model(config)（heavy_model 未設定なら llm.model＝既定 claude-sonnet-5）
 ```
 
 ```python
@@ -1635,7 +1633,7 @@ class ConfidenceThresholds(BaseModel):
 | 設定 | 既定値 | 説明 |
 |-----|-------|------|
 | `LLMConfig.provider` | `"anthropic"` | LLM プロバイダー |
-| `LLMConfig.model` | `"claude-sonnet-4-6"` | 既定 LLM モデル |
+| `LLMConfig.model` | `"claude-sonnet-5"` | 既定 LLM モデル |
 | `EmbeddingConfig.model` | `"gemini-embedding-001"` | Embedding モデル（3072次元） |
 
 > 📝 **注意**: LLM 用 API キーは `ANTHROPIC_API_KEY`、設定クラスは `ModelConfig`/`LLMConfig` 系で管理されます。LLM 呼び出しは `llm_compat.create_chat_client()` の genai 互換アダプター経由で Anthropic を呼び出します。Embedding のみ Gemini を継続利用します。
@@ -1682,6 +1680,7 @@ __all__ = [
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 2.5 | 概要の「各責務対応のモジュール」を主な責務と 1:1 に揃えた（基本フォーマット §2.4。2026-09-24）（8 行 → 6 行。LLM クライアントと設定の行は説明列へ畳んだ）。現在の既定モデルの記載 `claude-sonnet-4-6` を実装（`grace/config.py` の `LLMConfig.model` = `claude-sonnet-5`）に合わせて是正した（CLAUDE.md §9.3。旧既定は履歴の記述にだけ残す） |
 | 2.4 | 使用例を「## 6. 使用例」から IPO 詳細セクション冒頭の `4.1 使用例` へ移動（フォーマット仕様 v1.6 §6.1）。これに伴い既存の `### 4.N` を 1 つずつ繰り下げ、章番号を エクスポート → `## 6.` / 変更履歴 → `## 7.` へ繰り上げ（2026-09-14）。過去の変更履歴行に書かれた旧節番号（§4.x / §6.x）は当時の記録としてそのまま残している |
 | 1.0 | 初版作成 |
 | 2.0 | groundedness（S1）検証・統合評価（evaluate_final）の追加に対応 |
