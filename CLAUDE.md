@@ -350,11 +350,11 @@ cd frontend && npm run lint && npm test && npm run build   # frontend
 | `state/modelLabel.ts` | ✅ | ✅（**中身は別物**） |
 | `state/headerModel.ts`（モデル選択をヘッダーで行う。全タブ） | ✅（2026-09-23） | ✅（2026-09-23 に移植。**既定値の取り方が違う**） |
 | `components/ModelSelect.tsx` | ❌（2026-09-23 に削除） | ❌（同日に削除） |
-| `state/focusTrap.ts` / `state/selectionKeys.ts`（a11y） | ❌ | ✅（local にしかない） |
+| `state/focusTrap.ts` / `state/selectionKeys.ts`（a11y） | ✅（2026-09-24 に移植） | ✅ |
 | LLM プロバイダ | Anthropic | Ollama（ローカル） |
 
 > この表は、**ファイル単位で見た両リポジトリの差分**である。
-> 実測日: 2026-09-23（`frontend/src/` のファイル一覧を両リポジトリの master で突き合わせ）。
+> 実測日: 2026-09-24（`frontend/src/` のファイル一覧を両リポジトリで突き合わせ、**ファイル集合は一致**した）。
 > **ファイル名が同じでも中身が同じとは限らない。** とくに次の 2 つは別物なので、
 > **コピーで持ち込まない**こと。
 > - `modelLabel.ts` — こちらは Anthropic の単価つきラベル、local は Ollama の
@@ -423,6 +423,8 @@ React の型（`KeyboardEvent` 等）に直接依存させず、必要なフィ�
 | `state/metaFetch.ts` | メタ取得失敗を対処可能な文言へ（silent failure を出さない） |
 | `state/modelLabel.ts` | ヘッダーの見出し文字列・単価つき選択肢のラベル |
 | `state/timelineAnnounce.ts` | 支援技術へ読み上げる 1 行の決定 |
+| `state/focusTrap.ts` | `ConfirmModal` 内の Tab 移動先（端で巻き戻す。**Escape では閉じない**） |
+| `state/selectionKeys.ts` | 指摘の選択キー（Enter / Space・IME 変換中は発火しない）と選択トグル |
 | `state/citations.ts` / `highlight.ts` / `elapsed.ts` / `activeJobs.ts` | 表示用の派生値 |
 | `state/jobReducer.ts` / `dataReducer.ts` / `reviewReducer.ts` | ジョブ状態の遷移 |
 

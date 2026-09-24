@@ -1,6 +1,6 @@
 # DocumentView.tsx - 原文表示＋指摘ハイライト ドキュメント
 
-**Version 1.1** | 最終更新: 2026-09-12
+**Version 1.2** | 最終更新: 2026-09-24
 
 ---
 
@@ -28,7 +28,7 @@
 | 種別 | 表示コンポーネント（ステートレス） |
 | 親 | `ReviewPanel.tsx`（`.review-panes` の左ペイン） |
 | 子 | なし（`<span>` / `<mark>` を直接組む） |
-| 主な依存 | `../state/highlight`（`buildHighlights`）、`../types`（`ReviewFinding`） |
+| 主な依存 | `../state/highlight`（`buildHighlights`）、`../state/selectionKeys`（`isActivationKey` / `toggleSelection`）、`../types`（`ReviewFinding`） |
 | 対応バックエンド | `backend/app/core/review_agent.py`（`ReviewFinding.start` / `.end`）、設計は `backend/docs/review_flow.md` §8.2 |
 
 ### 主な責務
@@ -46,7 +46,7 @@
 | 断片列の生成 | `buildHighlights(document, findings)` | 純関数（`state/highlight.ts`）。重なり解消と範囲外除去を含む |
 | 通常テキスト | `<span key={index}>` | 改行の保持は CSS（`white-space: pre-wrap`）側の責務 |
 | ハイライト | `<mark className={hl hl-{severity}}>` | 選択中は `hl-selected` を追加 |
-| 選択トグル | `onSelect(selected ? null : piece.findingId)` | 同じ箇所を再クリックすると解除 |
+| 選択トグル | `onSelect(toggleSelection(selectedFindingId, findingId))` | 同じ箇所をもう一度選ぶと解除（クリック / Enter / Space で同じ規則） |
 | 追跡用属性 | `data-finding-id` | デバッグ・E2E からの参照用 |
 
 ---
@@ -218,7 +218,8 @@ class Doc,BH,Fnd,RO,Pieces,Map,Span,Mark,Sel,Red default
 
 | 要素 | イベント | ハンドラ | 効果 | 無効化条件 |
 |---|---|---|---|---|
-| `<mark className="hl ...">` | `click` | インライン `() => onSelect(selected ? null : piece.findingId)` | 選択のトグル → 親の reducer 更新 → `FindingList` が該当カードへスクロール | なし（実行中でもクリック可） |
+| `<mark className="hl ...">` | `click` | インライン `() => onSelect(toggleSelection(selectedFindingId, findingId))` | 選択のトグル → 親の reducer 更新 → `FindingList` が該当カードへスクロール | なし（実行中でもクリック可） |
+| `<mark className="hl ...">` | `keydown`（Enter / Space・修飾キーなし・IME 変換中を除く） | `isActivationKey(event)` → `preventDefault()` → クリックと同じ `onSelect(...)` | 同上 | なし |
 | `<span>`（通常テキスト） | — | なし | — | — |
 
 ### 6.2 操作フロー図
@@ -285,13 +286,17 @@ class U,Q,Off,On,Red,DV,FL default
 | フォーム要素に `label` が対応しているか | 該当なし（フォーム要素を持たない） |
 | モーダルにフォーカストラップがあるか | 該当なし（モーダルではない） |
 | 状態表示が色のみに依存していないか（記号併用） | ❌ severity の区別が `hl-high` / `hl-medium` / `hl-low` の**背景色のみ**。原文側には記号・文字ラベルが無い（severity 文言は `FindingList` のカード側にのみある） |
-| キーボードのみで送信・承認できるか | ❌ `<mark onClick>` に `tabIndex` も `onKeyDown` も無いため、**キーボードではハイライトを選択できない** |
-| クリック可能であることが支援技術に伝わるか | ❌ `role="button"` を付けていない。`title` 属性（「クリックすると該当の指摘へ移動します」）はマウスホバー時のみ |
-| 選択状態が支援技術に伝わるか | ❌ `aria-pressed` / `aria-current` を付けていない。`hl-selected` クラスのみ |
+| キーボードのみで操作できるか | ✅ `tabIndex={0}` で到達でき、**Enter / Space** で選択・解除できる（2026-09-24）。判定は `state/selectionKeys.ts::isActivationKey` |
+| クリック可能であることが支援技術に伝わるか | ✅ `role="button"`（2026-09-24）。`title` も「クリック（Enter / Space）すると…」へ更新した |
+| 選択状態が支援技術に伝わるか | ✅ `aria-pressed={selected}`（2026-09-24） |
+| 焦点が見えるか | ✅ `.hl:focus-visible` に**破線**のアウトライン。選択中（`.hl-selected` の実線）と見分けられる |
 | 見出しがあるか | ✅ `<h2>原文（N 箇所を指摘）</h2>` |
 
-> 上記 ❌ は既知の未対応であり、消さずに残す。改善するなら
-> `<mark role="button" tabIndex={0} aria-pressed={selected} onKeyDown={...}>` が最小の変更。
+> ⚠️ **Space の既定動作（ページスクロール）は `preventDefault()` で止めている。**
+> 止めないと、ハイライトへ焦点がある状態で Space を押すたびにページが飛ぶ。
+
+> 📌 severity が背景色のみである点は**未対応のまま**（❌ 行）。原文側に記号を足すと
+> 読みづらくなるため、severity の文言は `FindingList` のカード側に置く設計を維持している。
 
 ---
 
@@ -301,6 +306,7 @@ class U,Q,Off,On,Red,DV,FL default
 |---|---|---|
 | `src/state/highlight.test.ts` | `resolveOverlaps` / `buildHighlights`（13 ケース） | `npm test` |
 | `src/state/reviewReducer.test.ts` | `selectedFindingId` を含む reducer の畳み込み（13 ケース） | `npm test` |
+| `src/state/selectionKeys.test.ts` | `isActivationKey` / `toggleSelection`（**9 ケース**） | `npm test` |
 | （コンポーネント本体の専用テストなし） | — | — |
 
 ### テスト方針
@@ -319,5 +325,6 @@ class U,Q,Off,On,Red,DV,FL default
 
 | 版 | 日付 | 変更内容 |
 |---|---|---|
+| 1.2 | 2026-09-24 | **ハイライトをキーボードで操作できるようにした**（grace_v2_local から移植）。`role="button"` / `tabIndex={0}` / `aria-pressed` を付け、Enter・Space での発火を `state/selectionKeys.ts` の純関数（`isActivationKey` / `toggleSelection`・**9 ケース**）へ切り出した。焦点表示（`.hl:focus-visible` の破線）も追加。§8 の ❌ 3 行が ✅ になった |
 | 1.1 | 2026-09-12 | **実装と突き合わせて差分が無いことを確認**（Props の TS ブロック・ステップ数・export シグネチャ）。内容の修正は不要で、遅れていたのはヘッダーの日付だけだった。検証した事実を残すため版を上げる |
 | 1.0 | 2026-08-01 | 初版作成 |

@@ -1,6 +1,6 @@
 # ReviewForm.tsx - 文書レビュー入力フォーム ドキュメント
 
-**Version 1.5** | 最終更新: 2026-09-23
+**Version 1.6** | 最終更新: 2026-09-24
 
 ---
 
@@ -23,11 +23,11 @@
 
 | 項目 | 内容 |
 |---|---|
-| ファイル | `frontend/src/components/ReviewForm.tsx`（246 行） |
+| ファイル | `frontend/src/components/ReviewForm.tsx`（254 行） |
 | 種別 | **状態保持コンポーネント**（`useState` × 7） |
 | 親 | `ReviewPanel.tsx` |
 | 子 | なし（モデルの選択はヘッダー＝`App` に移した） |
-| 主な依存 | `../state/formMemory`（`recallReviewForm` / `rememberReviewForm`）/ `../state/documentLimit`（`documentLimit`） |
+| 主な依存 | `../state/formMemory`（`recallReviewForm` / `rememberReviewForm`）/ `../state/documentLimit`（`documentLimit`）/ `../state/submitKey`（`isSubmitKey`） |
 | 対応バックエンド | `POST /api/review/submit`（`api/review.py`）/ `ReviewRequest`（`schemas.py`） |
 
 GRACE-Review の入力フォーム。**文書 textarea・ルールセットセレクタ・実行オプション・
@@ -47,6 +47,7 @@ GRACE-Review の入力フォーム。**文書 textarea・ルールセットセ�
 | 入力の退避・復元 | `recallReviewForm()` / `rememberReviewForm()` | **タブ切替はアンマウント**なので退避しないと全部消える |
 | 文字数の上限判定 | `documentLimit(document, MAX_DOCUMENT_CHARS)` | 50,000 字。`schemas.py` の `MAX_DOCUMENT_CHARS` と一致させる。**判定・表示文言・アナウンス文言を純関数が返す** |
 | 送信可否 | `canSubmit` | 空白のみ不可・上限超過不可・実行中不可 |
+| 送信ショートカット | textarea の `onKeyDown` → `isSubmitKey(e)` | **Ctrl+Enter / ⌘+Enter** で実行（IME 変換中は送らない）。`QueryForm` と同じ操作・同じ純関数 |
 | 上限超過の通知 | `aria-invalid` ＋ sr-only のライブ領域 | 超過した瞬間に 1 回だけ読み上げる（下記 §7） |
 | ルールセット注記 | `selected` から対象法令・常時チェック件数・支持率を表示 | 選択中のルールセットの中身を見せる |
 | 例文チップ | `EXAMPLES.map(...)` | 3 件。**テストから参照するため `export` している** |
@@ -205,7 +206,8 @@ class Mount,Recall,State,Input,Remember,Derive,Submit,Stop,Params,Parent default
 
 | 要素 | イベント | ハンドラ | 効果 | 無効化条件 |
 |---|---|---|---|---|
-| フォーム | `submit` | `submit(e)` | `preventDefault()` → `onSubmit(params)` | `!canSubmit` なら `return` |
+| フォーム | `submit` | `submit(e)` | `preventDefault()` → `submitIfReady()` → `onSubmit(params)` | `!canSubmit` なら `return` |
+| 文書 textarea | `keydown`（Ctrl+Enter / ⌘+Enter・IME 変換中を除く） | `handleKeyDown(e)` | `isSubmitKey(e)` なら `preventDefault()` → `submitIfReady()` | `!canSubmit` なら `return` |
 | タイトル入力 | `change` | `setTitle` | — | `running` |
 | 文書 textarea | `change` | `setDocument` | — | `running` |
 | ルールセット | `change` | `setRuleset` | — | `running` |
@@ -330,9 +332,10 @@ onSubmit({
 | `src/components/ReviewForm.examples.test.ts` | **`EXAMPLES` の中身**（各例文が満たすべき条件） | 17 |
 | `src/state/formMemory.test.ts` | 入力の退避と復元 | 13 |
 | `src/state/documentLimit.test.ts` | 上限の境界・表示文言・**アナウンス文言の不変性** | 10 |
-| `src/state/headerModel.test.ts` | ヘッダーのモデルセレクタ（`model` prop の供給元） | 13 |
+| `src/state/headerModel.test.ts` | ヘッダーのモデルセレクタ（`model` prop の供給元） | 16 |
+| `src/state/submitKey.test.ts` | 送信キーの判定（`QueryForm` と共用） | 10 |
 
-**2026-09-23 に `npm test` を実行した実測値**（フロント全体は 21 ファイル / 297 件）。
+**2026-09-24 に `npx vitest run` を実行した実測値**（フロント全体は 23 ファイル / 318 件）。
 
 ### テスト方針
 
@@ -349,6 +352,7 @@ onSubmit({
 
 | 版 | 日付 | 変更内容 |
 |---|---|---|
+| 1.6 | 2026-09-24 | **文書 textarea に Ctrl+Enter / ⌘+Enter の送信を追加**（grace_v2_local から移植）。判定は `QueryForm` と同じ `state/submitKey.ts::isSubmitKey`（IME 変換中は送らない）。送信処理を `submitIfReady()` へ切り出して form submit とキー操作で共用し、placeholder に操作を明記した。grace_v2 にだけある `.sr-only` のタイトルラベルは温存。§8 の `headerModel.test.ts` の件数を実測（16）へ訂正 |
 | 1.5 | 2026-09-23 | **詳細ログの既定を ON へ変更**（基本版 / GRACE-Support / GRACE-Review は `DEFAULT_QUERY_FORM` / `DEFAULT_REVIEW_FORM` の `verbose`、データ管理は `DataJobPanel` の `useState`） |
 | 1.4 | 2026-09-23 | **モデルセレクタをヘッダー（`App`）へ移した。** フォーム内の `ModelSelect` と `model` state を削除し、`models` / `defaultModel` prop を `model` prop へ置き換えた。`formMemory` からも `model` を外した。`useState` は 8 → 7 個 |
 | 1.3 | 2026-09-23 | **チェックボックスの既定を変更**: Web 裏取り OFF → ON、dry-run ON → OFF（`DEFAULT_REVIEW_FORM`）。詳細ログは従来どおり OFF。API スキーマ `ReviewRequest` の既定は API 直叩き用で据え置き（UI は常に値を明示送信する） |
