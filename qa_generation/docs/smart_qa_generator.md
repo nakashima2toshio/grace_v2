@@ -1,6 +1,6 @@
 # smart_qa_generator.py - コンテンツ適応型 Q/A 生成 ドキュメント
 
-**Version 1.1** | 最終更新: 2026-09-24
+**Version 1.2** | 最終更新: 2026-09-24
 
 ---
 
@@ -302,7 +302,7 @@ class A,B,C,D,E,F default
 from qa_generation.smart_qa_generator import SmartQAGenerator
 
 # 初期化（既定で Anthropic Claude を使用）
-generator = SmartQAGenerator(model="claude-sonnet-4-6")
+generator = SmartQAGenerator(model="claude-sonnet-5")
 
 # 単一チャンク処理
 result = generator.process_chunk(chunk_text)
@@ -354,7 +354,7 @@ for qa in result.qa_pairs:
 
 | 区分 | 内容 |
 |-----|------|
-| **Input** | `model`: str（使用するClaudeモデル、デフォルト: "claude-sonnet-4-6"）<br>`api_key`: Optional[str]（未使用。統一クライアントが環境変数 `ANTHROPIC_API_KEY` からキーを解決） |
+| **Input** | `model`: str（使用するClaudeモデル、デフォルト: "claude-sonnet-5"）<br>`api_key`: Optional[str]（未使用。統一クライアントが環境変数 `ANTHROPIC_API_KEY` からキーを解決） |
 | **Process** | 1. `create_llm_client(provider="anthropic", default_model=model)` で統一クライアント生成<br>2. モデル名・`last_usage` の初期化 |
 | **Output** | SmartQAGeneratorインスタンス |
 
@@ -520,7 +520,7 @@ class A,B,C,D,E,F,G,H,I default
 
 | パラメータ | 型 | デフォルト | 説明 |
 |----------|---|----------|------|
-| `model` | str | "claude-sonnet-4-6" | 使用するClaudeモデル |
+| `model` | str | "claude-sonnet-5" | 使用するClaudeモデル |
 | `api_key` | Optional[str] | None | 未使用。統一クライアントが環境変数 `ANTHROPIC_API_KEY` からキーを解決 |
 
 ### 8.2 内部設定値
@@ -569,3 +569,4 @@ class A,B,C,D,E,F,G,H,I default
 |---|---|---|
 | 1.0 | 2026-06-21 | 初版（LLM を Anthropic Claude へ統一。分析＋生成を構造化出力 1 回に統合する v3.0 実装へ追従。2026-09-05 に `qa_generation/docs/` へ移設） |
 | 1.1 | 2026-09-24 | 基本フォーマット `a_class_method_md_format.md` の章構成へ組み替え。概要に「主な責務」と「各責務対応のモジュール」（1:1）を置き、`## 1. アーキテクチャ構成図`（3 層＋データフロー）を新設。既存の構成図は `## 2. モジュール構成図` へ、使用方法は IPO 詳細の冒頭（`### 6.1 使用例`）へ移した。固有の解説章（「SmartQAGenerator の優位性」・「判断基準と Q/A 数決定ロジック」）は §1.3 に従い一覧表の前に置き、章・小節に番号を振った。本文の内容は変えていない |
+| 1.2 | 2026-09-24 | `SmartQAGenerator.__init__()` の `model` 既定値の記述（使用例・IPO・設定表の 3 箇所）が旧既定のままだったのを、実装（`smart_qa_generator.py`）の現行既定へ合わせた |
