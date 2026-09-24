@@ -1,6 +1,6 @@
 # data_io.py - 入力読み込み・結果保存 ドキュメント
 
-**Version 1.1** | 最終更新: 2026-09-24
+**Version 1.2** | 最終更新: 2026-09-24
 
 ---
 
@@ -167,7 +167,7 @@ classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
 class Start,Branch,ExtCheck,Err,Upload,Pre,Limit,Df,Gen,SaveN,Files default
 ```
 
-> 📌 **`max_docs` による行数制限は `QAPipeline` 側**（`pipeline.py:153`）で行う。
+> 📌 **`max_docs` による行数制限は `QAPipeline` 側**（`pipeline.py:148`）で行う。
 > `load_uploaded_file()` 自体に上限の概念は無い。
 
 ---
@@ -449,7 +449,7 @@ def save_results(
 
 | # | 内容 |
 |---|---|
-| 1 | **`QAPipeline` からは CSV しか渡ってこない。** `pipeline.py:140` が `.csv` 以外を `ValueError` で弾くため、`txt` / `json` / `jsonl` の分岐は直接呼び出したときだけ通る |
+| 1 | **`QAPipeline` からは CSV しか渡ってこない。** `pipeline.py:135` が `.csv` 以外を `ValueError` で弾くため、`txt` / `json` / `jsonl` の分岐は直接呼び出したときだけ通る |
 | 2 | **2 つのローダで戻り値の形が違う。** `load_uploaded_file()` は `Combined_Text` を保証するが、`load_preprocessed_data()` は `config["text_column"]` を見るだけで `Combined_Text` を作らない |
 | 3 | **`reset_index()` の有無も違う。** 前者はする、後者はしない |
 | 4 | **例外は握りつぶさない。** `load_uploaded_file()` は読み込み中の例外をログに出してから再 raise する（ファイル不在の `FileNotFoundError` は `try` の外で送出）。`load_preprocessed_data()` / `save_results()` はログを出さずにそのまま送出する。いずれも呼び出し元は失敗を検知できる |
@@ -478,3 +478,4 @@ def save_results(
 |---|---|---|
 | 1.0 | 2026-09-24 | 初版作成。実装（162 行）を読み起こして IPO・`Combined_Text` の解決規則・タイムスタンプ自動選択・出力 4 ファイルの仕様を記述。索引 `qa_generation/docs/README.md` §6 の残タスク 1（文書欠落）に対応。章構成は基本フォーマット `a_class_method_md_format.md` に従う（概要の「主な責務」と「各責務対応のモジュール」、3 層のアーキテクチャ構成図、固有の解説章は一覧表の前、使用例は IPO 詳細の冒頭） |
 | 1.1 | 2026-09-24 | **`"nan"` 混入を修正**。`load_uploaded_file()` が候補列の欠損値（`NaN`）を文字列 `"nan"` として残していた不具合と、全列連結のフォールバックが `"nan"` を連結していた不具合を、欠損判定ヘルパー `_is_missing()` で直した。§3 の図・注記、§5 の行番号（実装 162 → 168 行）、§8 の 7 を更新 |
+| 1.2 | 2026-09-24 | `pipeline.py` の行番号参照を更新（先頭の `celery_tasks` import を遅延 import へ移して 5 行ずれた。140 → 135、153 → 148） |

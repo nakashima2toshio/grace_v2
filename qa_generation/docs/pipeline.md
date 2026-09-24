@@ -1,6 +1,6 @@
 # pipeline.py - Q/A 生成パイプライン ドキュメント
 
-**Version 1.2** | 最終更新: 2026-09-24
+**Version 1.3** | 最終更新: 2026-09-24
 
 ---
 
@@ -152,7 +152,7 @@ QAPipeline
 ├── qa_generation.evaluation
 │   └── analyze_coverage()           # カバレッジ分析
 │
-├── celery_tasks
+├── celery_tasks                     # _generate_with_celery() 内で遅延 import
 │   ├── submit_unified_qa_generation() # Celeryタスク投入
 │   ├── collect_results()              # 結果収集
 │   └── check_celery_workers()         # ワーカー確認
@@ -161,6 +161,10 @@ QAPipeline
     └── LLMClient                    # LLM操作
 
 ```
+
+> 📌 **`data_io` と `celery_tasks` は関数の中で遅延 import する。** とくに `celery_tasks` は
+> Celery 本体を連れてくるため、モジュールレベルへ戻すと `qa_generation` 配下のどのモジュールを
+> import しても Celery が読み込まれる（[`__init__.md`](__init__.md) §3・回帰テストあり）。
 
 #### レイヤー構成
 
@@ -800,3 +804,4 @@ for i in range(min(3, len(df))):
 | 1.0 | 2026-06-21 | 初版（v3.0 実装に対応。LLM を Anthropic Claude へ統一・Embedding は Gemini 維持。2026-09-05 に `qa_generation/docs/` へ移設） |
 | 1.1 | 2026-09-24 | 基本フォーマット `a_class_method_md_format.md` の章構成へ組み替え。概要に「主な責務」と「各責務対応のモジュール」（1:1）を置き、`## 1. アーキテクチャ構成図`（3 層＋データフロー）を新設。既存の構成図は `## 2. モジュール構成図` へ、使用方法は IPO 詳細の冒頭（`### 4.1 使用例`）へ移した。章・小節に番号を振った。本文の内容は変えていない |
 | 1.2 | 2026-09-24 | `QAPipeline` の引数の記述を実装に合わせた。削除済みの `use_smart_generation` を `generate_qa()` / `run()` / `_generate_sync()` のシグネチャ・引数表・使用例から外した。主要機能一覧の `batch_size` を実引数名 `batch_chunks` へ直し、v3.0 の変更点表に「その後削除」を注記。`model` の既定値を `claude-sonnet-5` へ |
+| 1.3 | 2026-09-24 | `celery_tasks` を `_generate_with_celery()` 内の遅延 import へ移したのに追随し、依存関係の図に注記を追加（import 副作用の解消。[`__init__.md`](__init__.md) §3） |
