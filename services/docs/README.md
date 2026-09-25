@@ -1,6 +1,6 @@
 # services/docs/ 棚卸し
 
-**Version 1.0** | 最終更新: 2026-09-25
+**Version 1.1** | 最終更新: 2026-09-25
 
 > 📎 **姉妹版**: [`docs/README.md`](../../docs/README.md)（直下・配置の境界） /
 > [`backend/docs/README.md`](../../backend/docs/README.md) /
@@ -12,7 +12,7 @@
 新しく文書を書く／直す前に、まずここを見る。
 
 > ⚠️ **本リポジトリは Anthropic 版。** 姉妹リポジトリ `grace_v2_local`（Ollama 版）にも同じ構成の
-> `services/docs/` と索引があるが、**`agent_service` の位置づけ（§4）とテストの揃い方（§6）が違う**。
+> `services/docs/` と索引があるが、**`agent_service` の位置づけ（§4）とテストの置き場所（§6）が違う**。
 > 索引をコピーで持ち込まないこと（CLAUDE.md §5）。
 
 ---
@@ -119,18 +119,34 @@ Web 経路（`run_support_agent_core` / `run_review_agent_core`）の計画実�
 
 | テストファイル | 件数 | 対象 |
 |---|---:|---|
+| `backend/tests/test_qdrant_service.py` | 19 | `qdrant_service` |
+| `backend/tests/test_config_service.py` | 7 | `config_service`（既定値が `ModelConfig` と一致すること・既定プロバイダが Anthropic であること） |
+| `backend/tests/test_json_service.py` | 6 | `json_service` |
+| `backend/tests/test_token_service.py` | 6 | `token_service`（既定モデルが単価・上限表に載っていること） |
+| `backend/tests/test_agent_service.py` | 5 | `agent_service`（Legacy ReAct。LLM クライアントが Anthropic で作られること） |
+| `backend/tests/test_cache_service.py` | 4 | `cache_service` |
+| `backend/tests/test_log_service.py` | 3 | `log_service` |
+| `backend/tests/test_qa_service.py` | 2 | `qa_service`（LLM クライアントが Anthropic で作られること） |
 | `backend/tests/test_data_pipeline.py` | 30 | `data_pipeline_service`・`qdrant_service` |
 | `backend/tests/test_data_jobs.py` | 43 | データ管理タブのジョブ全体（`data_pipeline_service` / `qdrant_service` 経由・**間接**） |
 | `backend/tests/test_model_selection.py` | 30 | モデル解決の 5 経路。うち 1 件が `config_service` の読む直下 `config.yml`（§4） |
 
 ```bash
-uv run --no-sync pytest backend/tests/test_data_pipeline.py -q
+uv run --no-sync pytest backend/tests/test_*_service.py backend/tests/test_data_pipeline.py -q
 ```
 
-> ⚠️ **本リポジトリには `backend/tests/services/` が無い。** 姉妹リポジトリ `grace_v2_local` は
-> `json_service` / `config_service` / `token_service` / `cache_service` / `agent_service` / `qa_service` /
-> `log_service` / `qdrant_service` の単体テストをここに持つが、こちらでは上の 3 ファイル以外に
-> `services/` を直接検証するテストが無い（§7 の残タスク 1）。
+> 📌 **上の 8 ファイル（52 件）は 2026-09-25 に姉妹リポジトリ `grace_v2_local` の
+> `backend/tests/services/` から移植した。** ファイル丸ごとではなく、実装の差分を見て移した（CLAUDE.md §5）。
+>
+> | 実装の差分 | 扱い |
+> |---|---|
+> | `cache` / `json` / `log` / `qdrant` は実装が同一 | そのまま移植 |
+> | `config` / `token` は既定モデル・単価表だけが違う | 期待値を `config.ModelConfig`（本リポジトリの正本）から引く形へ書き換え |
+> | `agent` / `qa` は生成する LLM クライアントのプロバイダが違う | モデル名を本リポジトリの既定へ替え、Anthropic で生成されることの検査を足した |
+> | `qa_service.run_advanced_qa_generation` | 本リポジトリでは死にコードとして削除済みのため**移植しない** |
+>
+> 本リポジトリの `backend/tests/` はサブディレクトリを切らない構成なので、`services/` 配下ではなく
+> `backend/tests/test_<module>.py` に置いた。書き換えた検査は、実装を壊すと落ちることを確認済み。
 
 ---
 
@@ -138,10 +154,10 @@ uv run --no-sync pytest backend/tests/test_data_pipeline.py -q
 
 | # | 内容 | 優先 |
 |---|---|:--:|
-| 1 | `services/` の単体テストが薄い（§6）。姉妹リポジトリの `backend/tests/services/` から、**プロバイダに依存しないもの**（`json_service` / `cache_service` / `token_service` など）を差分を見ながら移植できる。ファイル丸ごとのコピーはしない（CLAUDE.md §5） | 中 |
+| 1 | ~~`services/` の単体テストが薄い~~ | ✅ **完了**（2026-09-25）。姉妹リポジトリから 8 ファイル・52 件を移植（§6）。専用テストが無いのは `prompts.py`（定数のみ）と `__init__.py`（再エクスポートのみ）だけになった |
 
 > 📌 2026-09-25 に 11 文書を CLAUDE.md §9.3 の表記（`OpenAI GPT` / `gemini-2.5-flash` / 現在の既定としての
-> `claude-sonnet-4-6` など）で grep した。ヒットは変更履歴の記述と §2 の注記のもの（互換辞書・実装どおりの設定キー）
+> 旧既定モデルなど）で grep した。ヒットは変更履歴の記述と §2 の注記のもの（互換辞書・実装どおりの設定キー）
 > だけで、**是正が必要な箇所は無かった**。
 
 ---
@@ -150,4 +166,5 @@ uv run --no-sync pytest backend/tests/test_data_pipeline.py -q
 
 | Version | 日付 | 変更 |
 |---|---|---|
+| 1.1 | 2026-09-25 | 姉妹リポジトリから `services/` の単体テスト 8 ファイル・52 件を移植したのにあわせ、§6 のテスト件数と §7 の残タスクを更新 |
 | 1.0 | 2026-09-25 | 新規作成。`services/docs/` には棚卸し索引が無かった（姉妹リポジトリ `grace_v2_local` にはある）。本リポジトリの実ファイルから、文書一覧・実装カバレッジ・テスト件数（実測）・残タスクを記載。`ReActAgent` の呼び出し元を grep し、`grace/executor.py` の `run_legacy_agent` 分岐が残っていること（プランナは提示しない）を §4 に記録した |
