@@ -1,6 +1,6 @@
 # make_qa_register_qdrant.py - Q/A 生成 → Qdrant 登録 統合 CLI ガイド
 
-**Version 1.4** | 最終更新: 2026-09-25
+**Version 1.5** | 最終更新: 2026-09-25
 
 ---
 
@@ -426,7 +426,7 @@ python make_qa_register_qdrant_modified.py \
 --collection COLLECTION_NAME  # 登録先コレクション名（必須）
 --recreate                    # コレクションを再作成
 --batch-size N                # Embeddingバッチサイズ（デフォルト: 100）
---provider PROVIDER           # Embeddingプロバイダー（デフォルト: gemini）
+--provider gemini             # Embeddingプロバイダー（gemini のみ。他の値は終了コード 2）
 ```
 
 ---
@@ -940,6 +940,7 @@ python -m chunking.csv_to_chunks_text_para_modified \
 | バージョン | 変更内容 |
 |---|---|
 | 1.4 | 概要の「結論」の `.txt` 入力の注記を「修正済み」へ更新（2026-09-25） |
+| 1.5 | `--provider` が `gemini` しか受け付けなくなったのに追随（2026-09-25） |
 | 1.3 | 概要の「結論」に IPO 文書 `make_qa_register_qdrant_ipo.md` へのリンクと、`.txt` 入力が現在は動かない旨を追記（2026-09-25） |
 | 1.2 | 概要の「結論」に、本文の `--model` 既定（`gemini-2.0-flash`）が当時の値で、現在は `claude-sonnet-5` である旨を追記。本文は当時の記録として変えていない（2026-09-25） |
 | 1.1 | `a_cross_doc_md_format.md` の種別 B の骨格へ揃えた（2026-09-24）。H1＋Version ヘッダー、番号なしの「概要」（状態・結論・対象モジュール）、目次の作り直し（装飾絵文字付き見出しのアンカー切れを解消）、本文 H2 の番号付けを行った。本文は当時の記録として変えていない。「バージョン履歴」章はツール自体の版（1.0.0〜1.2.0）なので本文に残した |

@@ -1,6 +1,6 @@
 # make_qa_register_qdrant.py - Q/A 生成 → Qdrant 登録 統合 CLI ドキュメント
 
-**Version 1.2** | 最終更新: 2026-09-25
+**Version 1.3** | 最終更新: 2026-09-25
 
 ---
 
@@ -33,7 +33,7 @@ Embedding と Qdrant 操作は `services/qdrant_service.py`（Gemini `gemini-emb
 > 📌 **データ管理タブ（Web）はこの CLI を呼ばない。** Q/A 生成は `services/data_pipeline_service.py::run_qa_generation_sync()`、
 > 登録は `qa_qdrant/register_to_qdrant.py` を通る。Phase 1 は同じ `QAPipeline` なので生成結果は変わらない。
 >
-> ⚠️ **実装と使い方の説明が食い違っている箇所がある**（`--provider` が効かないなど）。
+> ⚠️ **実装と使い方の説明が食い違っている箇所がある**（`--text-column` が Q/A 生成に渡らない）。
 > [§3.3 既知の問題](#33-既知の問題2026-09-25-実測) を先に読むこと。
 
 ### 主な責務
@@ -120,7 +120,7 @@ style EXTERNAL fill:#1a1a1a,stroke:#fff,color:#fff
 
 ### 1.2 データフロー
 
-1. `main()` が引数を解析し、`--dataset` / `--input-file` のどちらか 1 つだけが指定されていること、`GOOGLE_API_KEY` があることを確かめる
+1. `main()` が引数を解析し、`--dataset` / `--input-file` のどちらか 1 つだけが指定されていること、`GOOGLE_API_KEY` があることを確かめる（Q/A を生成する経路では、生成・チャンク化の前に `ANTHROPIC_API_KEY` も確かめる）
 2. `.txt` 入力なら、まず `chunk_text_file()` が `<--chunk-output>/<入力名>_chunks.csv` を作る（チャンク化にも Anthropic Claude を使う）
 3. **Phase 1**: 入力に応じて `QAPipeline.run()` で Q/A を生成し、`<--output>/qa_pairs_<種別>_<日時>.csv` を得る
    （入力 CSV が既に `question` / `answer` 列を持つ場合は生成を飛ばし、その CSV をそのまま使う）
@@ -256,15 +256,15 @@ class START,DS,EXT,COLS,CHUNK,GEN,SKIP,FAIL,REG default
 ### 3.3 既知の問題（2026-09-25 実測）
 
 本書を書く際に実装を読み、ダミーの API キー（外部 API へは届かない）で CLI を実行して確かめたものです。
-v1.0 では挙動を記録するだけでコードは変えなかった。**1・2 は 2026-09-25 に修正済み**、ほかは未修正。
+v1.0 では挙動を記録するだけでコードは変えなかった。**1・2・3・5 は 2026-09-25 に修正済み**、4 は未修正。
 
 | # | 問題 | 実測・根拠 | 影響 |
 |---|------|-----------|------|
 | 1 | ~~**`.txt` 入力は必ず失敗する。**~~ ✅ **修正済み（2026-09-25）** | 修正前は `.txt` をそのまま `QAPipeline` へ渡し、`QAPipeline.load_data()` が `.csv` しか受け付けないため `ValueError: 未対応のファイル形式: .txt` → **終了コード 1** だった。現在は `chunk_text_file()` で先にチャンク化する（§3.1 の 2。`backend/tests/test_make_qa_register_qdrant_txt_input.py` で固定。修正前の実装で fail することを確認） | —（解消） |
 | 2 | ~~**Qdrant 登録が失敗しても終了コードは 0。**~~ ✅ **修正済み（2026-09-25）** | 修正前は `run_registration()` が `False` を返しても `main()` はエラーログを出すだけで、Q/A 列ありの CSV を Qdrant 未起動の環境で渡すと**終了コード 0** だった。現在は `sys.exit(1)` で止まる（`backend/tests/test_make_qa_register_qdrant_exit_code.py` で固定。修正前の実装で fail することを確認） | —（解消） |
-| 3 | **`--provider` は効かない。** `run_registration(provider=...)` は受け取るだけで使わず、`embed_texts_for_qdrant()` は常に Gemini で Embedding する | 実装の読み取り（`provider` の参照 0 箇所） | 別プロバイダを指定しても Gemini のまま（コレクションも 3072 次元） |
+| 3 | ~~**`--provider` は効かない。**~~ ✅ **修正済み（2026-09-25）** | 修正前は `run_registration(provider=...)` が受け取るだけで使わず、`embed_texts_for_qdrant()` は常に Gemini で Embedding していた（`--provider openai` でも黙って Gemini・3072 次元）。Embedding は Gemini だけという方針（CLAUDE.md §3）に合わせ、`choices=["gemini"]` にして他の値は argparse が**終了コード 2** で拒否する。`provider` は登録開始ログに出すだけ（`backend/tests/test_make_qa_register_qdrant_startup_checks.py` で固定。修正前の実装で fail することを確認） | —（解消） |
 | 4 | **`--text-column` は Q/A 生成に渡らない。** `main()` は判定にだけ使い、`QAPipeline` は `text` → `Combined_Text` → `content` → `chunk_text` の順で**自分で**列を探す | 実装の読み取り（`actual_text_column` は計算されるが未使用） | 独自の列名を指定すると、判定は通っても生成で「テキストカラムが見つかりません」になるか、別の列が使われる |
-| 5 | 起動時に確かめる API キーは `GOOGLE_API_KEY`（Embedding 用）だけ。Q/A 生成に要る `ANTHROPIC_API_KEY` は起動時には確かめない（`.txt` 入力だけはチャンク化の前に確かめる） | 実装の読み取り | キーが無いと Phase 1 の LLM 呼び出しで初めて失敗する（Q/A 済み CSV を登録するだけなら不要） |
+| 5 | ~~起動時に `ANTHROPIC_API_KEY` を確かめない。~~ ✅ **修正済み（2026-09-25）** | 修正前は `.txt` 入力のチャンク化の前だけ確かめ、チャンク済み CSV・`--dataset` からの Q/A 生成は LLM を最初に呼ぶまで失敗しなかった。現在は Q/A を生成する経路（§3.1 の 1・2・4）で `require_anthropic_key()` が生成の前に確かめ、無ければ**終了コード 1**。Q/A 済み CSV の登録（§3.1 の 3）では確かめない（`backend/tests/test_make_qa_register_qdrant_startup_checks.py` で固定。修正前の実装で fail することを確認） | —（解消） |
 
 > 📝 `normalize_source_filename()` の docstring は「UI（agent_rag.py）での参照を安定させるため」と書くが、
 > `agent_rag.py` は本リポジトリに存在しない（CLAUDE.md §9.4）。現在は、データ管理タブの「③ Qdrant 登録」の
@@ -299,6 +299,7 @@ v1.0 では挙動を記録するだけでコードは変えなかった。**1・
 | 関数名 | 概要 |
 |-------|------|
 | `chunk_text_file(txt_path, output_dir, model)` | `.txt` をチャンク化し、チャンク CSV のパスを返す |
+| `require_anthropic_key(purpose)` | LLM を呼ぶ工程（チャンク化・Q/A 生成）の前に `ANTHROPIC_API_KEY` を確かめ、無ければ終了コード 1 |
 
 #### ユーティリティ
 
@@ -386,7 +387,7 @@ def main() -> None
 | 項目 | 内容 |
 |------|------|
 | **Input** | CLI 引数（§6.1）、環境変数 `GOOGLE_API_KEY` |
-| **Process** | 1. `argparse` で引数を解析（`--collection` は必須）<br>2. `--dataset` と `--input-file` がちょうど 1 つであることを確かめる（0 個・2 個ならエラー終了）<br>3. `GOOGLE_API_KEY` が無ければエラー終了<br>4. 入力の種類で Phase 1 を振り分け（§3.1）。`.txt` なら先に `chunk_text_file()` でチャンク CSV を作る。生成する場合は `QAPipeline(...).run(use_celery, celery_workers, concurrency, batch_chunks, analyze_coverage=True)` を呼び、`result["saved_files"]["qa_csv"]` を Q/A CSV とする<br>5. Q/A CSV が作られていなければエラー終了<br>6. `run_registration()` で Phase 2 を実行<br>7. 成功なら件数・Q/A CSV・UI 用 CSV のパスをログに出す。失敗ならエラーログを出して終了コード 1<br>8. 途中の例外は「致命的なエラー」としてトレースバックを出して終了コード 1 |
+| **Process** | 1. `argparse` で引数を解析（`--collection` は必須）<br>2. `--dataset` と `--input-file` がちょうど 1 つであることを確かめる（0 個・2 個ならエラー終了）<br>3. `GOOGLE_API_KEY` が無ければエラー終了（`--provider` に `gemini` 以外を渡すと手順 1 で argparse が終了コード 2）<br>4. 入力の種類で Phase 1 を振り分け（§3.1）。Q/A を生成する経路では生成（`.txt` はチャンク化）の前に `require_anthropic_key()` で `ANTHROPIC_API_KEY` を確かめ、無ければ終了コード 1。`.txt` なら先に `chunk_text_file()` でチャンク CSV を作る。生成する場合は `QAPipeline(...).run(use_celery, celery_workers, concurrency, batch_chunks, analyze_coverage=True)` を呼び、`result["saved_files"]["qa_csv"]` を Q/A CSV とする<br>5. Q/A CSV が作られていなければエラー終了<br>6. `run_registration()` で Phase 2 を実行<br>7. 成功なら件数・Q/A CSV・UI 用 CSV のパスをログに出す。失敗ならエラーログを出して終了コード 1<br>8. 途中の例外は「致命的なエラー」としてトレースバックを出して終了コード 1 |
 | **Output** | `None`。副作用として Q/A CSV / JSON・UI 用 CSV・Qdrant のポイントを作る。**終了コード**: 成功で `0`、入力・カラム・キー不備・Phase 1 の例外・**Phase 2（Qdrant 登録）の失敗で `1`** |
 
 **戻り値例**:
@@ -433,7 +434,7 @@ def run_registration(
 | `collection_name` | str | - | 登録先コレクション名。payload の `domain` にも入る |
 | `recreate` | bool | - | `True` ならコレクションを作り直す（既存ポイントは消える） |
 | `batch_size` | int | - | 1 回の Embedding・アップサートで扱う行数 |
-| `provider` | str | - | Embedding プロバイダ名。**受け取るだけで使われない**（§3.3 の 3） |
+| `provider` | str | - | Embedding プロバイダ名。**ログ表示にだけ使う**（Embedding は常に Gemini。CLI は `gemini` しか受け付けない・§3.3 の 3） |
 | `ui_output_dir` | str | `"qa_output"` | UI 用 CSV の出力先ディレクトリ |
 
 | 項目 | 内容 |
@@ -486,7 +487,7 @@ def chunk_text_file(txt_path: Path, output_dir: str, model: str) -> str
 | 項目 | 内容 |
 |------|------|
 | **Input** | `txt_path: Path`, `output_dir: str`, `model: str` |
-| **Process** | 1. `ANTHROPIC_API_KEY` が無ければエラーログを出して終了コード 1<br>2. 本文を読み、空白だけなら終了コード 1<br>3. `generate_output_filename()` で `<output_dir>/<入力名>_chunks.csv` を決める（ディレクトリは作る）<br>4. `run_chunking_sync(text, model, max_workers=8, block_size=1000, output_file, dataset_type=<入力名>, source_file=<ファイル名>)` でチャンク化し CSV を書く<br>5. チャンクが 0 件、または CSV ができていなければ終了コード 1 |
+| **Process** | 1. `require_anthropic_key(".txt のチャンク化")` — `ANTHROPIC_API_KEY` が無ければエラーログを出して終了コード 1<br>2. 本文を読み、空白だけなら終了コード 1<br>3. `generate_output_filename()` で `<output_dir>/<入力名>_chunks.csv` を決める（ディレクトリは作る）<br>4. `run_chunking_sync(text, model, max_workers=8, block_size=1000, output_file, dataset_type=<入力名>, source_file=<ファイル名>)` でチャンク化し CSV を書く<br>5. チャンクが 0 件、または CSV ができていなければ終了コード 1 |
 | **Output** | `str`: チャンク CSV のパス。チャンク化中の例外（連続失敗による `ChunkingAbortedError` など）はそのまま呼び出し側へ伝わり、`main()` が「致命的なエラー」として終了コード 1 にする |
 
 **戻り値例**:
@@ -503,6 +504,20 @@ csv_path = chunk_text_file(Path("data/document.txt"), output_dir="output_chunked
 print(csv_path)
 # output_chunked/document_chunks.csv
 ```
+
+#### `require_anthropic_key`
+
+**概要**: LLM を呼ぶ工程（`.txt` のチャンク化・Q/A 生成）の前に `ANTHROPIC_API_KEY` を確かめる。Q/A 済み CSV を登録するだけの経路では呼ばない（Embedding は Gemini なので要らない）。
+
+```python
+def require_anthropic_key(purpose: str) -> None
+```
+
+| 項目 | 内容 |
+|------|------|
+| **Input** | `purpose: str` — エラーログに出す用途（例 `"Q/A 生成"`、`".txt のチャンク化"`） |
+| **Process** | 環境変数 `ANTHROPIC_API_KEY` が空・未設定なら `ANTHROPIC_API_KEYが設定されていません（<purpose>に必要）` をログに出して `sys.exit(1)` |
+| **Output** | `None`（キーがあれば何もしない） |
 
 ### 5.5 ユーティリティ関数
 
@@ -563,7 +578,7 @@ print(normalize_source_filename("qa_pairs_livedoor.csv"))
 | Qdrant 登録 | `--collection` | —（**必須**） | 登録先コレクション名 |
 | | `--recreate` | off | コレクションを作り直す |
 | | `--batch-size` | `100` | Embedding・アップサートのバッチサイズ |
-| | `--provider` | `gemini` | Embedding プロバイダ。**効かない**（§3.3 の 3） |
+| | `--provider` | `gemini` | Embedding プロバイダ。**`gemini` のみ**（`choices`。他の値は終了コード 2・§3.3 の 3） |
 | 出力 | `--output` | `qa_output/pipeline` | Q/A CSV / JSON の出力先 |
 | | `--ui-output` | `qa_output` | UI 用 CSV の出力先 |
 
@@ -574,7 +589,7 @@ print(normalize_source_filename("qa_pairs_livedoor.csv"))
 | 変数 | 起動時の検査 | 用途 |
 |------|:-----------:|------|
 | `GOOGLE_API_KEY` | ✅（無ければ終了コード 1） | Embedding（Gemini `gemini-embedding-001`） |
-| `ANTHROPIC_API_KEY` | `.txt` 入力のときだけ ✅（チャンク化の前。無ければ終了コード 1） | チャンク化と Q/A 生成（`QAPipeline` → `SmartQAGenerator`）。Q/A 済み CSV を登録するだけなら不要 |
+| `ANTHROPIC_API_KEY` | Q/A を生成するときだけ ✅（`.txt`・チャンク済み CSV・`--dataset`。生成・チャンク化の前。無ければ終了コード 1） | チャンク化と Q/A 生成（`QAPipeline` → `SmartQAGenerator`）。Q/A 済み CSV を登録するだけなら不要 |
 
 ### 6.3 モジュール定数・副作用
 
@@ -590,11 +605,12 @@ print(normalize_source_filename("qa_pairs_livedoor.csv"))
 
 ## 7. エクスポート
 
-`__all__` の定義はありません。外部から使える要素は次の 4 つです（`__main__` 実行時は `main()` を呼ぶ）。
+`__all__` の定義はありません。外部から使える要素は次の 5 つです（`__main__` 実行時は `main()` を呼ぶ）。
 
 ```python
 main                        # CLI エントリーポイント
 chunk_text_file             # .txt のチャンク化
+require_anthropic_key       # LLM を呼ぶ工程の前の ANTHROPIC_API_KEY 確認
 run_registration            # Phase 2（Embedding → Qdrant 登録 → UI 用 CSV）
 normalize_source_filename   # 日時サフィックスの除去
 ```
@@ -602,6 +618,7 @@ normalize_source_filename   # 日時サフィックスの除去
 > 📌 本モジュールを直接 import しているコードはリポジトリ内に無い（2026-09-25 grep。参照はコメント・docstring のみ）。
 > テストは `backend/tests/test_make_qa_register_qdrant_exit_code.py`（2 件・登録の成否と終了コード）、
 > `backend/tests/test_make_qa_register_qdrant_txt_input.py`（3 件・`.txt` のチャンク化とその失敗系）、
+> `backend/tests/test_make_qa_register_qdrant_startup_checks.py`（4 件・`ANTHROPIC_API_KEY` の事前確認と `--provider` の拒否）、
 > `backend/tests/test_model_table_coverage.py`（CLI `--model` の既定値が単価・上限表に載っているか）がある。
 
 ---
@@ -613,6 +630,7 @@ normalize_source_filename   # 日時サフィックスの除去
 | 1.0 | 初版作成（2026-09-25）。`qa_qdrant/docs/README.md` の残タスク（本モジュールの IPO 文書が無い）を解消。実装を読み、ダミーキーで CLI を実行して、`.txt` 入力が必ず失敗すること・Qdrant 登録失敗でも終了コード 0 になることを確認し、`--provider` / `--text-column` が効かないことと合わせて §3.3 に記録した（コードは未変更） |
 | 1.1 | §3.3 の 2（Qdrant 登録が失敗しても終了コード 0）の修正に追随（2026-09-25）。`main()` は Phase 2 の失敗で `sys.exit(1)` するようになった。§5.2 の Output・§5.1.3 の注記・§7 のテストの記述を更新 |
 | 1.2 | §3.3 の 1（`.txt` 入力が必ず失敗する）の修正に追随（2026-09-25）。`.txt` は `chunk_text_file()` で先にチャンク化してから Q/A 生成するようになった。概要・責務表・構成図 3 枚・§3.1 の判定表と図・§3.2 の出力・§5.4（`chunk_text_file` の IPO を新設。旧 §5.4 は §5.5 へ）・§5.1.2 の使用例・§6 の CLI 引数／環境変数／定数・§7 を更新。あわせて §5.2 の Process 7 に残っていた「登録失敗時はエラーログだけ」（v1.1 の取り残し）を「終了コード 1」へ直した |
+| 1.3 | §3.3 の 3（`--provider` が効かない）と 5（`ANTHROPIC_API_KEY` を起動時に確かめない）の修正に追随（2026-09-25）。`--provider` は `choices=["gemini"]`、Q/A を生成する経路では新設の `require_anthropic_key()` が生成前に確かめる。概要の注記・§1.2・§3.3・§4.2・§5.2・§5.3 の `provider`・§5.4（`require_anthropic_key` の IPO を追加）・§6.1／§6.2・§7 を更新 |
 
 ---
 

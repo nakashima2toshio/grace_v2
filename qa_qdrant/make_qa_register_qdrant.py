@@ -73,6 +73,7 @@ Qdrant登録:
 --collection        Qdrantコレクション名（必須）
 --recreate          コレクションを再作成
 --batch-size        Embeddingバッチサイズ（デフォルト: 100）
+--provider          Embeddingプロバイダー（gemini のみ・デフォルト: gemini）
 
 Q/A生成:
 --model             LLMモデル（Anthropic Claude / デフォルト: claude-sonnet-5）
@@ -145,6 +146,18 @@ CHUNK_WORKERS = 8
 CHUNK_BLOCK_SIZE = 1000
 
 
+def require_anthropic_key(purpose: str) -> None:
+    """
+    LLM を呼ぶ工程（チャンク化・Q/A 生成）の前に ANTHROPIC_API_KEY を確かめる。
+
+    無ければ終了コード 1 で止める。Q/A 済み CSV を登録するだけの経路では呼ばない
+    （Embedding は Gemini なので ANTHROPIC_API_KEY は要らない）。
+    """
+    if not os.getenv("ANTHROPIC_API_KEY"):
+        logger.error(f"ANTHROPIC_API_KEYが設定されていません（{purpose}に必要）")
+        sys.exit(1)
+
+
 def chunk_text_file(txt_path: Path, output_dir: str, model: str) -> str:
     """
     テキストファイルをセマンティックチャンク化し、チャンク CSV のパスを返す。
@@ -156,9 +169,7 @@ def chunk_text_file(txt_path: Path, output_dir: str, model: str) -> str:
     ANTHROPIC_API_KEY が無い・本文が空・チャンク CSV ができなかった場合は終了コード 1 で止める。
     チャンク化中の例外（連続失敗による中断など）は呼び出し側（main）へそのまま伝わる。
     """
-    if not os.getenv("ANTHROPIC_API_KEY"):
-        logger.error("ANTHROPIC_API_KEYが設定されていません（.txt のチャンク化に必要）")
-        sys.exit(1)
+    require_anthropic_key(".txt のチャンク化")
 
     text = txt_path.read_text(encoding="utf-8")
     if not text.strip():
@@ -206,7 +217,8 @@ def run_registration(
         collection_name: Qdrantコレクション名
         recreate: コレクションを再作成するか
         batch_size: Embeddingバッチサイズ
-        provider: Embeddingプロバイダー
+        provider: Embeddingプロバイダー（ログ表示用。Embedding は常に Gemini。
+                  CLI の --provider は choices=["gemini"] で他の値を受け付けない）
         ui_output_dir: UI用正規化CSVの出力ディレクトリ（デフォルト: qa_output）
 
     Returns:
@@ -255,7 +267,7 @@ def run_registration(
     source_filename = os.path.basename(csv_path)
     normalized_filename = normalize_source_filename(source_filename)
 
-    logger.info(f"🚀 登録処理開始 (全 {len(df)} 件, バッチサイズ: {batch_size})")
+    logger.info(f"🚀 登録処理開始 (全 {len(df)} 件, バッチサイズ: {batch_size}, Embedding: {provider})")
 
     try:
         for i in range(0, len(df), batch_size):
@@ -453,7 +465,8 @@ def main():
         "--provider",
         type=str,
         default="gemini",
-        help="Embeddingプロバイダー（デフォルト: gemini）"
+        choices=["gemini"],
+        help="Embeddingプロバイダー（gemini のみ。Qdrant 登録は常に gemini-embedding-001 で行う）"
     )
 
     # ================================================================
@@ -593,6 +606,7 @@ def main():
                     actual_text_column = args.text_column if has_text_column else 'Combined_Text'
 
                     logger.info(f"📝 テキストカラム '{actual_text_column}' 検出 - Q/A生成を実行します")
+                    require_anthropic_key("Q/A 生成")
 
                     pipeline = QAPipeline(
                         input_file=args.input_file,
@@ -632,6 +646,7 @@ def main():
 
         # datasetが指定された場合
         else:
+            require_anthropic_key("Q/A 生成")
             pipeline = QAPipeline(
                 dataset_name=args.dataset,
                 model=args.model,

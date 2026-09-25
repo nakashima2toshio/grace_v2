@@ -1,6 +1,6 @@
 # docs 棚卸し（リポジトリ直下 `docs/`）
 
-**Version 1.5** | 最終更新: 2026-09-25
+**Version 1.6** | 最終更新: 2026-09-25
 
 リポジトリ直下 `docs/` の一覧と、**どのディレクトリに何を置くかの境界**をまとめる。
 各領域の棚卸しは [`backend/docs/README.md`](../backend/docs/README.md) /
@@ -114,7 +114,7 @@ CLAUDE.md §9.1 の表を、判断に使える形へ具体化したもの。
 
 | 文書 | 種別 | 内容 | 行数 | Ver |
 |---|:--:|---|---:|---|
-| `doc_modernization_todo.md` | C | ドキュメント最新化 TODO。**①〜⑧ は完了、§10 に未完 3 件が残る**（スクリーンショット 14 枚・`ReviewForm` / `ReviewPanel` のアクセシビリティ） | 486 | 2.3 |
+| `doc_modernization_todo.md` | C | ドキュメント最新化 TODO。**①〜⑧ は完了、§10 に未完 1 件が残る**（スクリーンショット 14 枚） | 487 | 2.4 |
 
 ### 3.4 資材ディレクトリ
 
@@ -204,7 +204,7 @@ EOF
 | # | タスク | 内容 | 状態 |
 |---|---|---|---|
 | 1 | スクリーンショット 14 枚 | `doc_modernization_todo.md` §10 の残タスク #1。`ANTHROPIC_API_KEY` ＋ Qdrant のある環境で撮影 | ⏳ 環境 |
-| 2 | `ReviewForm` / `ReviewPanel` のアクセシビリティ | 同 #5 / #6。`<label>` の欠落・`aria-live` / `role` の欠落 | ⏳ 実装変更 |
+| 2 | ~~`ReviewForm` / `ReviewPanel` のアクセシビリティ~~ | 同 #5 / #6。`<label>` の欠落・`aria-live` / `role` の欠落 | ✅ 2026-09-12 実装済み（索引への反映は 2026-09-25・v1.6） |
 | 3 | `pipelines.md` / `guardrails.md` の Version ヘッダー | この 2 件だけ `**Version X.X**` ヘッダーが無かった | ✅ 2026-09-24（v1.2） |
 | 4 | ~~`frontend/docs/` を React 仕様 v1.1 の共通骨格へ~~ | `a_react_page_md_format.md` v1.1 で概要に「各責務対応のモジュール」、`## 1.` に「1.1 システム全体での位置づけ（3 層）」が加わった。既存のコンポーネント文書（20 件）は未追随 | ✅ 2026-09-24（あわせて `backend/docs/` も基本フォーマット・横断文書フォーマットへ追随） |
 
@@ -214,6 +214,7 @@ EOF
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 1.6 | §6 残タスク 2（`ReviewForm` / `ReviewPanel` のアクセシビリティ）を完了へ訂正（2026-09-25）。2026-09-12 に実装済み（ラベル・`aria-live`・`role="alert"`）だったのに ⏳ のまま残っていた。§3.3 の `doc_modernization_todo.md` の行数・Ver も更新 |
 | 1.5 | 冒頭の「各領域の棚卸し」に `chunking/docs/README.md` / `qa_qdrant/docs/README.md` / `services/docs/README.md`（いずれも新設）を追加し、全 8 領域に索引がそろった（2026-09-25） |
 | 1.4 | 冒頭の「各領域の棚卸し」に `qa_generation/docs/README.md`（新設）を追加（2026-09-24） |
 | 1.3 | §6 残タスク 4（`frontend/docs/` の React 仕様 v1.1 追随）を完了（2026-09-24）。`backend/docs/` も `reference/` は基本フォーマット（IPO 冒頭の使用例）、それ以外は `a_cross_doc_md_format.md` v1.1 の種別 A / B / C へ追随させた |
