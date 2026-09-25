@@ -1,6 +1,6 @@
 # qa_generation/docs/ 棚卸し
 
-**Version 1.6** | 最終更新: 2026-09-25
+**Version 1.7** | 最終更新: 2026-09-25
 
 > 📎 **姉妹版**: [`docs/README.md`](../../docs/README.md)（直下・配置の境界） /
 > [`grace/docs/README.md`](../../grace/docs/README.md) /
@@ -63,7 +63,7 @@
 | [`evaluation.md`](evaluation.md) | `evaluation.py` — `analyze_coverage()` ほか | 316 | 820 | 1.1 | ★★☆ |
 | [`data_io.md`](data_io.md) | `data_io.py` — 入力 CSV の読み込みと結果 4 ファイルの保存 | 168 | 481 | 1.2 | ★★☆ |
 | [`models.md`](models.md) | `models.py` — Pydantic モデル 8 クラス（`QAPair` は直下 `models.py` から再エクスポート） | 156 | 401 | 1.3 | ★☆☆ |
-| [`__init__.md`](__init__.md) | `__init__.py` — 公開 API（再エクスポート 11 件） | 65 | 295 | 1.3 | ★☆☆ |
+| [`__init__.md`](__init__.md) | `__init__.py` — 公開 API（再エクスポート 11 件） | 65 | 301 | 1.4 | ★☆☆ |
 
 ---
 
@@ -146,6 +146,7 @@
 
 | Version | 日付 | 変更 |
 |---|---|---|
+| 1.7 | 2026-09-25 | §2 の `__init__.md` 行を更新（`qa_qdrant/__init__.py` の整理を §4 に記録） |
 | 1.6 | 2026-09-25 | `helper/helper_rag_qa.py` の旧 `QAPair` も削除し、`QAPair` の定義は直下 `models.py` の 1 つだけになった。§4 の 2・§6 の 3・§7 を更新 |
 | 1.5 | 2026-09-25 | 残タスク 3 の決着を「統合しない」から**「直下 `models.py` へ一本化」**へ変更（`qa_generation/models.py` の `QAPair` 別定義を削除）。§2・§4 の 2・§6 の 3・§7 を更新 |
 | 1.4 | 2026-09-25 | 残タスク 3・4 を完了し、**残タスク 0 件**。3 は「統合しない」で決着（docstring の相互参照＋`test_qa_pair_definitions.py` 4 件）、4 は死んだ `provider` 引数を受け側ごと削除。§4 の 2・3、§6、§7 を更新 |
