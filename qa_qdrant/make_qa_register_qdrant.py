@@ -612,7 +612,8 @@ def main():
                         input_file=args.input_file,
                         model=args.model,
                         output_dir=args.output,
-                        max_docs=args.max_docs
+                        max_docs=args.max_docs,
+                        text_column=actual_text_column,
                     )
 
                     result = pipeline.run(

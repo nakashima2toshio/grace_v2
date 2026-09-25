@@ -1,6 +1,6 @@
 # make_qa_register_qdrant.py - Q/A 生成 → Qdrant 登録 統合 CLI ドキュメント
 
-**Version 1.3** | 最終更新: 2026-09-25
+**Version 1.4** | 最終更新: 2026-09-25
 
 ---
 
@@ -33,8 +33,7 @@ Embedding と Qdrant 操作は `services/qdrant_service.py`（Gemini `gemini-emb
 > 📌 **データ管理タブ（Web）はこの CLI を呼ばない。** Q/A 生成は `services/data_pipeline_service.py::run_qa_generation_sync()`、
 > 登録は `qa_qdrant/register_to_qdrant.py` を通る。Phase 1 は同じ `QAPipeline` なので生成結果は変わらない。
 >
-> ⚠️ **実装と使い方の説明が食い違っている箇所がある**（`--text-column` が Q/A 生成に渡らない）。
-> [§3.3 既知の問題](#33-既知の問題2026-09-25-実測) を先に読むこと。
+> 📌 [§3.3 既知の問題](#33-既知の問題2026-09-25-実測) の 5 件は **2026-09-25 にすべて修正済み**（修正前の挙動の記録として残している）。
 
 ### 主な責務
 
@@ -204,7 +203,7 @@ style PHASE2 fill:#1a1a1a,stroke:#fff,color:#fff
 | 1 | `--dataset <名前>` | — | `QAPipeline(dataset_name=...)` で生成 | 生成した Q/A CSV |
 | 2 | `--input-file *.txt` | 拡張子 `.txt` | `chunk_text_file()` で `<--chunk-output>/<入力名>_chunks.csv` を作ってから `QAPipeline(input_file=<チャンク CSV>)` で生成。本文が空・`ANTHROPIC_API_KEY` が無ければ終了コード 1 | 生成した Q/A CSV |
 | 3 | `--input-file *.csv` | `question` 列と `answer` 列が両方ある | **生成しない**（Q/A 済みとみなす） | 入力 CSV そのもの |
-| 4 | `--input-file *.csv` | `--text-column`（既定 `text`）列、または `Combined_Text` 列がある | `QAPipeline(input_file=...)` で生成 | 生成した Q/A CSV |
+| 4 | `--input-file *.csv` | `--text-column`（既定 `text`）列、または `Combined_Text` 列がある | `QAPipeline(input_file=..., text_column=<判定に使った列>)` で生成（`--text-column` の列があればそれ、無ければ `Combined_Text`） | 生成した Q/A CSV |
 | 5 | `--input-file *.csv` | 上のどれにも当てはまらない | エラー（必要なカラムを表示）・終了コード 1 | — |
 | 6 | `--input-file` のその他の拡張子 | — | エラー（「未対応のファイル形式」）・終了コード 1 | — |
 
@@ -256,14 +255,14 @@ class START,DS,EXT,COLS,CHUNK,GEN,SKIP,FAIL,REG default
 ### 3.3 既知の問題（2026-09-25 実測）
 
 本書を書く際に実装を読み、ダミーの API キー（外部 API へは届かない）で CLI を実行して確かめたものです。
-v1.0 では挙動を記録するだけでコードは変えなかった。**1・2・3・5 は 2026-09-25 に修正済み**、4 は未修正。
+v1.0 では挙動を記録するだけでコードは変えなかった。**5 件とも 2026-09-25 に修正済み**。
 
 | # | 問題 | 実測・根拠 | 影響 |
 |---|------|-----------|------|
 | 1 | ~~**`.txt` 入力は必ず失敗する。**~~ ✅ **修正済み（2026-09-25）** | 修正前は `.txt` をそのまま `QAPipeline` へ渡し、`QAPipeline.load_data()` が `.csv` しか受け付けないため `ValueError: 未対応のファイル形式: .txt` → **終了コード 1** だった。現在は `chunk_text_file()` で先にチャンク化する（§3.1 の 2。`backend/tests/test_make_qa_register_qdrant_txt_input.py` で固定。修正前の実装で fail することを確認） | —（解消） |
 | 2 | ~~**Qdrant 登録が失敗しても終了コードは 0。**~~ ✅ **修正済み（2026-09-25）** | 修正前は `run_registration()` が `False` を返しても `main()` はエラーログを出すだけで、Q/A 列ありの CSV を Qdrant 未起動の環境で渡すと**終了コード 0** だった。現在は `sys.exit(1)` で止まる（`backend/tests/test_make_qa_register_qdrant_exit_code.py` で固定。修正前の実装で fail することを確認） | —（解消） |
 | 3 | ~~**`--provider` は効かない。**~~ ✅ **修正済み（2026-09-25）** | 修正前は `run_registration(provider=...)` が受け取るだけで使わず、`embed_texts_for_qdrant()` は常に Gemini で Embedding していた（`--provider openai` でも黙って Gemini・3072 次元）。Embedding は Gemini だけという方針（CLAUDE.md §3）に合わせ、`choices=["gemini"]` にして他の値は argparse が**終了コード 2** で拒否する。`provider` は登録開始ログに出すだけ（`backend/tests/test_make_qa_register_qdrant_startup_checks.py` で固定。修正前の実装で fail することを確認） | —（解消） |
-| 4 | **`--text-column` は Q/A 生成に渡らない。** `main()` は判定にだけ使い、`QAPipeline` は `text` → `Combined_Text` → `content` → `chunk_text` の順で**自分で**列を探す | 実装の読み取り（`actual_text_column` は計算されるが未使用） | 独自の列名を指定すると、判定は通っても生成で「テキストカラムが見つかりません」になるか、別の列が使われる |
+| 4 | ~~**`--text-column` は Q/A 生成に渡らない。**~~ ✅ **修正済み（2026-09-25）** | 修正前は `main()` が判定にだけ使い、`QAPipeline` は `text` → `Combined_Text` → `content` → `chunk_text` の順で**自分で**列を探していた（独自の列名だけの CSV は生成で ValueError、`text` もある CSV は指定を無視）。`QAPipeline` に `text_column` 引数を足し、判定に使った列を渡す。`QAPipeline` の既定 `None` は従来の自動検出なので、データ管理タブ・`make_qa.py` は変わらない（`backend/tests/test_qa_pipeline_text_column.py` で固定。修正前の実装で fail することを確認） | —（解消） |
 | 5 | ~~起動時に `ANTHROPIC_API_KEY` を確かめない。~~ ✅ **修正済み（2026-09-25）** | 修正前は `.txt` 入力のチャンク化の前だけ確かめ、チャンク済み CSV・`--dataset` からの Q/A 生成は LLM を最初に呼ぶまで失敗しなかった。現在は Q/A を生成する経路（§3.1 の 1・2・4）で `require_anthropic_key()` が生成の前に確かめ、無ければ**終了コード 1**。Q/A 済み CSV の登録（§3.1 の 3）では確かめない（`backend/tests/test_make_qa_register_qdrant_startup_checks.py` で固定。修正前の実装で fail することを確認） | —（解消） |
 
 > 📝 `normalize_source_filename()` の docstring は「UI（agent_rag.py）での参照を安定させるため」と書くが、
@@ -566,7 +565,7 @@ print(normalize_source_filename("qa_pairs_livedoor.csv"))
 |---------|------|-------|------|
 | 入力（どちらか 1 つ） | `--dataset` | — | 事前定義データセット名（`config.DATASET_CONFIGS` のキー） |
 | | `--input-file` | — | 入力ファイル（`.csv` / `.txt`。§3.1） |
-| CSV 処理 | `--text-column` | `text` | 本文列の判定に使う列名。**Q/A 生成には渡らない**（§3.3 の 4） |
+| CSV 処理 | `--text-column` | `text` | 本文列の列名。判定に使い、`QAPipeline(text_column=...)` へ渡す（この列が無く `Combined_Text` があればそちら・§3.3 の 4） |
 | チャンク化（`.txt` のみ） | `--chunk-output` | `output_chunked` | チャンク CSV の出力先 |
 | | `--chunk-model` | `claude-haiku-4-5` | チャンク化に使う LLM（チャンク化 CLI・データ管理タブの既定と同じ） |
 | Q/A 生成 | `--model` | `claude-sonnet-5` | `QAPipeline` に渡す LLM モデル（Anthropic Claude） |
@@ -619,6 +618,7 @@ normalize_source_filename   # 日時サフィックスの除去
 > テストは `backend/tests/test_make_qa_register_qdrant_exit_code.py`（2 件・登録の成否と終了コード）、
 > `backend/tests/test_make_qa_register_qdrant_txt_input.py`（3 件・`.txt` のチャンク化とその失敗系）、
 > `backend/tests/test_make_qa_register_qdrant_startup_checks.py`（4 件・`ANTHROPIC_API_KEY` の事前確認と `--provider` の拒否）、
+> `backend/tests/test_qa_pipeline_text_column.py`（6 件・`--text-column` が `QAPipeline` へ渡ること）、
 > `backend/tests/test_model_table_coverage.py`（CLI `--model` の既定値が単価・上限表に載っているか）がある。
 
 ---
@@ -631,6 +631,7 @@ normalize_source_filename   # 日時サフィックスの除去
 | 1.1 | §3.3 の 2（Qdrant 登録が失敗しても終了コード 0）の修正に追随（2026-09-25）。`main()` は Phase 2 の失敗で `sys.exit(1)` するようになった。§5.2 の Output・§5.1.3 の注記・§7 のテストの記述を更新 |
 | 1.2 | §3.3 の 1（`.txt` 入力が必ず失敗する）の修正に追随（2026-09-25）。`.txt` は `chunk_text_file()` で先にチャンク化してから Q/A 生成するようになった。概要・責務表・構成図 3 枚・§3.1 の判定表と図・§3.2 の出力・§5.4（`chunk_text_file` の IPO を新設。旧 §5.4 は §5.5 へ）・§5.1.2 の使用例・§6 の CLI 引数／環境変数／定数・§7 を更新。あわせて §5.2 の Process 7 に残っていた「登録失敗時はエラーログだけ」（v1.1 の取り残し）を「終了コード 1」へ直した |
 | 1.3 | §3.3 の 3（`--provider` が効かない）と 5（`ANTHROPIC_API_KEY` を起動時に確かめない）の修正に追随（2026-09-25）。`--provider` は `choices=["gemini"]`、Q/A を生成する経路では新設の `require_anthropic_key()` が生成前に確かめる。概要の注記・§1.2・§3.3・§4.2・§5.2・§5.3 の `provider`・§5.4（`require_anthropic_key` の IPO を追加）・§6.1／§6.2・§7 を更新 |
+| 1.4 | §3.3 の 4（`--text-column` が Q/A 生成に渡らない）の修正に追随（2026-09-25）。これで §3.3 の 5 件はすべて解消。概要の注記・§3.1 の 4・§3.3・§6.1・§7 を更新 |
 
 ---
 

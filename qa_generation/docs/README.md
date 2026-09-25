@@ -1,6 +1,6 @@
 # qa_generation/docs/ 棚卸し
 
-**Version 1.9** | 最終更新: 2026-09-25
+**Version 1.10** | 最終更新: 2026-09-25
 
 > 📎 **姉妹版**: [`docs/README.md`](../../docs/README.md)（直下・配置の境界） /
 > [`grace/docs/README.md`](../../grace/docs/README.md) /
@@ -60,7 +60,7 @@
 
 | 文書 | 対象実装 | 実装行数 | 文書行数 | Ver | 重要度 |
 |---|---|---:|---:|---|:--:|
-| [`pipeline.md`](pipeline.md) | `pipeline.py` — `QAPipeline`（Web / CLI 共通の実体） | 553 | 807 | 1.3 | ★★★ |
+| [`pipeline.md`](pipeline.md) | `pipeline.py` — `QAPipeline`（Web / CLI 共通の実体） | 565 | 811 | 1.4 | ★★★ |
 | [`smart_qa_generator.md`](smart_qa_generator.md) | `smart_qa_generator.py` — `SmartQAGenerator`（構造化出力 1 回） | 300 | 572 | 1.2 | ★★★ |
 | [`semantic.md`](semantic.md) | `semantic.py` — `SemanticCoverage`（Embedding によるカバレージ） | 542 | 778 | 1.1 | ★★☆ |
 | [`evaluation.md`](evaluation.md) | `evaluation.py` — `analyze_coverage()` ほか | 316 | 820 | 1.1 | ★★☆ |
@@ -130,12 +130,13 @@
 
 ## 7. テスト
 
-`qa_generation/` を直接対象にしたテストは **3 件**（2026-09-25、`backend/tests` を grep して確認）。
+`qa_generation/` を直接対象にしたテストは **4 件**（2026-09-25、`backend/tests` を grep して確認）。
 
 | テストファイル | 関わり方 |
 |---|---|
 | `backend/tests/test_qa_pair_definitions.py` | **6 件**。`qa_generation.QAPair` / `QAPairsList` が直下 `models.py` の正本そのものであること・`qa_generation/models.py` と `helper_rag_qa.py` に別定義を書き戻していないこと（§4 の 2）。`helper_rag_qa.py` は `spacy` 依存を避けて `ast` で読む |
 | `backend/tests/test_qa_generation_import_side_effects.py` | **3 件**。`import qa_generation.data_io` で Celery が載らないこと・Celery は必要時に読めること・`helper/` 配下に裸 import が無いこと（§4 の 1） |
+| `backend/tests/test_qa_pipeline_text_column.py` | **6 件**。`QAPipeline(text_column=...)` が指定列を優先すること・指定列が無ければ `ValueError`・未指定なら従来の自動検出順のままであることと、`make_qa_register_qdrant.py` の `--text-column` が `QAPipeline` へ渡ること |
 | `backend/tests/test_data_io_missing_text.py` | **3 件**。`load_uploaded_file()` が欠損セルを `"nan"` にしないこと（候補列・全列連結）と、数値など欠損でない値は従来どおり残ることを検証する（§4 の 5） |
 | `backend/tests/test_data_jobs.py` | データ管理タブの Q/A 生成ジョブを検証する。`run_qa_generation_sync` を**スタブへ差し替える**ので、`QAPipeline` 自体は実行されない |
 | `backend/tests/test_model_table_coverage.py` | 各所の既定モデル（`QAPipeline` / `SmartQAGenerator` の既定を含む）が `ModelConfig` の料金表・上限表に登録されていることを検査する。**既定値はテスト内の一覧に手で列挙したもの**で、`QAPipeline` のコードから読み取ってはいない |
@@ -149,6 +150,7 @@
 
 | Version | 日付 | 変更 |
 |---|---|---|
+| 1.10 | 2026-09-25 | `QAPipeline` に `text_column` 引数を追加したのに追随。§2 の `pipeline.md` 行（実装 565 行・文書 811 行・v1.4）と §7 のテスト一覧（`test_qa_pipeline_text_column.py`）を更新 |
 | 1.9 | 2026-09-25 | `chunking/docs/` / `qa_qdrant/docs/` / `services/docs/` に棚卸し索引を新設したのにあわせ、姉妹版リンクと冒頭の ①・③ からリンクを張った |
 | 1.8 | 2026-09-25 | `QAPairsList` も直下 `models.py` の定義（`QAPairsResponse` の別名）へ一本化。`qa_generation/models.py` と `helper/helper_rag_qa.py` の同名クラスを削除し、`test_qa_pair_definitions.py` に 2 件を追加（計 6 件）。§2 の行数・版を更新 |
 | 1.7 | 2026-09-25 | §2 の `__init__.md` 行を更新（`qa_qdrant/__init__.py` の整理を §4 に記録） |
