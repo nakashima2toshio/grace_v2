@@ -41,7 +41,7 @@
 | **GRACE-Support** | 問い合わせ → **回答** | `backend/app/core/support_agent.py::run_support_agent_core` | 「基本版」「GRACE-Support」タブ |
 | **GRACE-Review** | 文書 → **指摘** | `backend/app/core/review_agent.py::run_review_agent_core` | 「GRACE-Review」タブ |
 
-**Support だけ見て作業しない。** `backend/tests` の約 1/3（58 ファイル中 18 ファイル）が
+**Support だけ見て作業しない。** `backend/tests` の約 1/4（72 ファイル中 18 ファイル・2026-09-25 実測）が
 Review 系である。中核部品（`GroundednessVerifier` / `InterventionBridge` /
 `support_actions.py` の `ActionBackend`）は**両者で共用**しているので、
 Support のつもりで触った変更が Review を壊す。
