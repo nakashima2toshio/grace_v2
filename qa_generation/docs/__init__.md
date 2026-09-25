@@ -1,6 +1,6 @@
 # \_\_init\_\_.py - qa_generation パッケージ公開 API ドキュメント
 
-**Version 1.1** | 最終更新: 2026-09-24
+**Version 1.2** | 最終更新: 2026-09-25
 
 ---
 
@@ -217,7 +217,7 @@ Celery のログ（`✅ celery_tasks.pyのインポート成功` など）が出
 
 | # | シンボル | 由来モジュール | 種別 |
 |---:|---|---|---|
-| 1 | `QAPair` | `models` | Pydantic モデル |
+| 1 | `QAPair` | `models`（実体は直下 `models.py`。`qa_generation.models` が import して再エクスポート） | Pydantic モデル |
 | 2 | `QAPairsList` | `models` | Pydantic モデル |
 | 3 | `ChainOfThoughtAnalysis` | `models` | Pydantic モデル |
 | 4 | `ChainOfThoughtQAPair` | `models` | Pydantic モデル |
@@ -267,7 +267,7 @@ from qa_generation.evaluation import analyze_coverage
 | 1 | **`__init__.py` が公開 API を決めている。** 中身を空にすると `from qa_generation import QAPipeline` が壊れる |
 | 2 | ~~import 副作用で Celery が読み込まれる~~ → **解消済み**（2026-09-24・§3）。`pipeline.py` へモジュールレベルの `celery_tasks` import を戻さないこと。`helper/` 配下に裸 import（`from helper_xxx import`）を書かないこと |
 | 3 | **`evaluation` / `data_io` は再エクスポートされない。** docstring の 6 モジュールと `__all__` の 4 モジュールを混同しない |
-| 4 | **`QAPair` は直下の `models.py` にも別定義がある。** `from qa_generation import QAPair` と `from models import QAPair` は別クラス（[`models.md`](./models.md)） |
+| 4 | **`QAPair` は直下 `models.py` の定義そのもの**（2026-09-25 に一本化）。`from qa_generation import QAPair` と `from models import QAPair` は同じクラスで、難易度は `difficulty_level`。`helper/helper_rag_qa.py` にだけ旧定義（別物）が残る（[`models.md`](./models.md) §3） |
 | 5 | **循環 import には今のところなっていない。** サブモジュール側は `qa_generation.xxx` をフルパスで import しており、`from . import` を使っていない |
 
 ---
@@ -291,3 +291,4 @@ from qa_generation.evaluation import analyze_coverage
 |---|---|---|
 | 1.0 | 2026-09-24 | 初版作成。再エクスポート 11 件を実装（65 行）から起こし、**import 副作用を実測**（`data_io` の依存だけ 1,616 → パッケージ経由 1,733・+117 モジュール、Celery 一式が載る）して記録した。対処案（遅延 import）と、対処時に露見しうる `helper_rag_qa.py` の import 順序依存、`qa_qdrant/__init__.py`（236 行の陳腐化コピー）との違いを整理した。索引 `qa_generation/docs/README.md` §6 の残タスク 1（文書欠落）に対応。再エクスポート専用で IPO 対象を持たないため、一覧表・IPO 詳細の代わりに「エクスポート」「使用例」章を置いた |
 | 1.1 | 2026-09-24 | **import 副作用を解消**。`pipeline.py` の `celery_tasks` import を `_generate_with_celery()` 内の遅延 import へ移し、`import qa_generation.data_io` のモジュール数を 1,733 → **1,623** に（Celery は載らない）。あわせて `celery_tasks` の `sys.path` 挿入に依存していた `helper/` 配下の裸 import 4 モジュールを是正（§3.2）。回帰テスト 3 件を追加。§1.2・§2 の図・§6.3・§7・§8 を更新 |
+| 1.2 | 2026-09-25 | `QAPair` を直下 `models.py` の定義へ一本化したのに追随し、§5 のエクスポート表と §7 の注意点 4 を更新 |
