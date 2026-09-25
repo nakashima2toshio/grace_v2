@@ -1,6 +1,6 @@
 # make_qa_register_qdrant.py - Q/A 生成 → Qdrant 登録 統合 CLI ガイド
 
-**Version 1.3** | 最終更新: 2026-09-25
+**Version 1.4** | 最終更新: 2026-09-25
 
 ---
 
@@ -38,7 +38,7 @@
 - 生成方式は SmartQAGenerator のみ（従来方式は削除済み）。現行の引数は `python qa_qdrant/make_qa_register_qdrant.py --help` を正とする
 - 本文の引数一覧にある `--model` の既定「Gemini モデル `gemini-2.0-flash`」は当時の値。**現在の既定は Anthropic Claude の `claude-sonnet-5`**（`make_qa_register_qdrant.py` の `--model`）
 - 本書は IPO 形式ではない。本モジュールの仕様（IPO）は [`make_qa_register_qdrant_ipo.md`](make_qa_register_qdrant_ipo.md)（2026-09-25 新設）
-- ⚠️ 本文の「テキストファイル（.txt）からのチャンク作成」は**現在は動かない**（`.txt` を渡すと必ず失敗する）。先に `python -m chunking.csv_text_to_chunks_text_csv` でチャンク化すること（IPO 文書 §3.3）
+- 本文の「テキストファイル（.txt）からのチャンク作成」は、2026-09-25 まで**動いていなかった**（`.txt` を渡すと必ず失敗した）。現在は修正済みで、`.txt` を渡すと先に `<--chunk-output>/<入力名>_chunks.csv`（既定 `output_chunked/`）を作ってから Q/A 生成する（IPO 文書 §3.1・§3.3）
 
 ### 対象モジュール
 
@@ -939,6 +939,7 @@ python -m chunking.csv_to_chunks_text_para_modified \
 
 | バージョン | 変更内容 |
 |---|---|
+| 1.4 | 概要の「結論」の `.txt` 入力の注記を「修正済み」へ更新（2026-09-25） |
 | 1.3 | 概要の「結論」に IPO 文書 `make_qa_register_qdrant_ipo.md` へのリンクと、`.txt` 入力が現在は動かない旨を追記（2026-09-25） |
 | 1.2 | 概要の「結論」に、本文の `--model` 既定（`gemini-2.0-flash`）が当時の値で、現在は `claude-sonnet-5` である旨を追記。本文は当時の記録として変えていない（2026-09-25） |
 | 1.1 | `a_cross_doc_md_format.md` の種別 B の骨格へ揃えた（2026-09-24）。H1＋Version ヘッダー、番号なしの「概要」（状態・結論・対象モジュール）、目次の作り直し（装飾絵文字付き見出しのアンカー切れを解消）、本文 H2 の番号付けを行った。本文は当時の記録として変えていない。「バージョン履歴」章はツール自体の版（1.0.0〜1.2.0）なので本文に残した |

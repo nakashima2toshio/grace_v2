@@ -22,6 +22,7 @@ from config import ModelConfig
 DEFAULT_MODELS = {
     # backend/app/core/data_jobs.py::ChunkingParams.model
     # chunking/csv_text_to_chunks_text_csv.py::chunks_all_async / CLI --model
+    # qa_qdrant/make_qa_register_qdrant.py::CHUNK_DEFAULT_MODEL（.txt 入力の --chunk-model）
     # frontend/src/components/DataJobPanel.tsx の useState 初期値
     "claude-haiku-4-5": "チャンキングの既定",
     # backend/app/core/data_jobs.py::QaGenerationParams.model
