@@ -1,6 +1,6 @@
 # qa_qdrant/docs/ 棚卸し
 
-**Version 1.1** | 最終更新: 2026-09-25
+**Version 1.2** | 最終更新: 2026-09-25
 
 > 📎 **姉妹版**: [`docs/README.md`](../../docs/README.md)（直下・配置の境界） /
 > [`chunking/docs/README.md`](../../chunking/docs/README.md) /
@@ -42,7 +42,7 @@
 |---|---|
 | **環境を作る**（MeCab / Docker / Celery / API キー） | [`01_install.md`](01_install.md) — **唯一の入口** |
 | **Celery 並列を動かす** | [`celery_quick_start.md`](celery_quick_start.md) |
-| **生成 → 登録を 1 本で回す** | [`make_qa_register_qdrant.md`](make_qa_register_qdrant.md) |
+| **生成 → 登録を 1 本で回す** | [`make_qa_register_qdrant.md`](make_qa_register_qdrant.md)（手順）/ [`make_qa_register_qdrant_ipo.md`](make_qa_register_qdrant_ipo.md)（仕様・既知の問題） |
 | **既存 CSV を登録するだけ** | [`register_to_qdrant.md`](register_to_qdrant.md) |
 | **コレクションを消す** | [`qdrant_delete_collection.md`](qdrant_delete_collection.md) |
 | **システム全体の設計を知る** | [`qa_qdrant_architecture.md`](qa_qdrant_architecture.md) |
@@ -62,7 +62,7 @@
 |---|---|---:|---|:--:|
 | [`01_install.md`](01_install.md) | 環境構築。MeCab・Docker（Qdrant / Redis）・Celery・API キー。**運用の唯一の入口** | 859 | 2.3 | ★★★ |
 | [`celery_quick_start.md`](celery_quick_start.md) | Celery ワーカーの起動手順（`-A celery_config`。キュー名に `qa_generation` は無い・CLAUDE.md §9.4） | 523 | 2.3 | ★★☆ |
-| [`make_qa_register_qdrant.md`](make_qa_register_qdrant.md) | `make_qa_register_qdrant.py`（Q/A 生成 → Qdrant 登録の統合 CLI）の使い方。**IPO ではない**。冒頭で「一部古い（2025-01 の改修時の記述を含む）」と明示している | 943 | 1.2 | ★★★ |
+| [`make_qa_register_qdrant.md`](make_qa_register_qdrant.md) | `make_qa_register_qdrant.py`（Q/A 生成 → Qdrant 登録の統合 CLI）の使い方。**IPO ではない**。冒頭で「一部古い（2025-01 の改修時の記述を含む）」と明示している | 945 | 1.3 | ★★★ |
 
 ### 2.2 IPO（モジュール仕様）
 
@@ -73,6 +73,7 @@
 | [`register_to_qdrant.md`](register_to_qdrant.md) | `register_to_qdrant.py` — 既存 CSV → Qdrant | 587 | 586 | 2.1 | ★★★ |
 | [`make_qa.md`](make_qa.md) | `make_qa.py` — Q/A 生成のみの CLI | 265 | 448 | 3.3 | ★★☆ |
 | [`qdrant_delete_collection.md`](qdrant_delete_collection.md) | **`qdrant_delete_collection.py`（リポジトリ直下）** — コレクション削除 CLI | 73 | 304 | 1.1 | ★★☆ |
+| [`make_qa_register_qdrant_ipo.md`](make_qa_register_qdrant_ipo.md) | `make_qa_register_qdrant.py` — Q/A 生成 → Qdrant 登録の統合 CLI。**既知の問題 5 件（§3.3）を先に読むこと** | 609 | 591 | 1.0 | ★★★ |
 | [`make_qa_qapipeline.md`](make_qa_qapipeline.md) | `QAPipeline` ＋ `SmartQAGenerator` の連携（**実体は `qa_generation/`**） | — | 936 | 1.2 | ★★☆ |
 
 > ⚠️ **`qdrant_delete_collection.md` の対象はこのパッケージの外にある**（リポジトリ直下の
@@ -113,7 +114,7 @@
 
 | 実装 | 行数 | 文書 | 備考 |
 |---|---:|---|---|
-| `make_qa_register_qdrant.py` | 609 | ⚠️ `make_qa_register_qdrant.md`（**手順書のみ・IPO 無し**） | §6 残タスク 3 |
+| `make_qa_register_qdrant.py` | 609 | ✅ `make_qa_register_qdrant_ipo.md`（IPO）＋ `make_qa_register_qdrant.md`（手順書） | 同名の手順書が先にあったため IPO は `_ipo` 付きの名前 |
 | `register_to_qdrant.py` | 587 | ✅ `register_to_qdrant.md` | データ管理タブの Qdrant 登録ジョブも使う |
 | `make_qa.py` | 265 | ✅ `make_qa.md` |  |
 | `__init__.py` | 26 | — | **docstring のみ**（§4）。処理を書かないこと |
@@ -163,7 +164,8 @@
 |---|---|:--:|
 | 1 | ~~現在の既定モデルを旧既定 `claude-sonnet-4-6` と書いている（`make_qa.md` 3・`qa_qdrant_architecture.md` 4・`01_install.md` 3 箇所）~~ | ✅ **完了**（2026-09-25）。実装どおり `claude-sonnet-5` へ是正（make_qa v3.3 / architecture v3.2 / 01_install v2.3） |
 | 2 | ~~`make_qa_register_qdrant.md` の `--model` 既定（`gemini-2.0-flash`）と `qa_qdrant_architecture.md` の環境変数例~~ | ✅ **完了**（2026-09-25）。前者は種別 B なので本文は残し、概要で現在の既定 `claude-sonnet-5` を明示（v1.2）。後者は §9 を実装が読む環境変数（`ANTHROPIC_API_KEY` 必須・`REDIS_URL`）へ書き直した |
-| 3 | `make_qa_register_qdrant.py` の IPO 文書が無い。`make_qa_register_qdrant.md` は 2025-01 時点の使い方ガイドで、`*_modified.py` など現存しないファイルにも触れている | 中 |
+| 3 | ~~`make_qa_register_qdrant.py` の IPO 文書が無い~~ | ✅ **完了**（2026-09-25）。[`make_qa_register_qdrant_ipo.md`](make_qa_register_qdrant_ipo.md) を新設 |
+| 4 | `make_qa_register_qdrant.py` の既知の問題（IPO 文書 §3.3・2026-09-25 実測）。① `.txt` 入力は必ず失敗する（`QAPipeline` が `.csv` しか受け付けない）② Qdrant 登録が失敗しても終了コード 0 ③ `--provider` が効かない ④ `--text-column` が Q/A 生成に渡らない ⑤ 起動時に `ANTHROPIC_API_KEY` を確かめない。**コードの修正は未着手** | 中 |
 
 > 📌 **誤りではないもの（直さない）**:
 > - `register_to_qdrant.md` の `openai` / `OPENAI_API_KEY` — `register_to_qdrant.py` の `--provider` が
@@ -197,5 +199,6 @@ uv run --no-sync pytest backend/tests/test_qa_qdrant_package_init.py -q
 
 | Version | 日付 | 変更 |
 |---|---|---|
+| 1.2 | 2026-09-25 | 残タスク 3 を完了（`make_qa_register_qdrant_ipo.md` を新設し §1・§2.2・§3 に追加）。仕様書の作成時に実測した既知の問題 5 件を残タスク 4 として記録 |
 | 1.1 | 2026-09-25 | 残タスク 1・2（既定モデルの記述・環境変数例）を完了し、§2 の行数・Ver を更新 |
 | 1.0 | 2026-09-25 | 新規作成。`qa_qdrant/docs/` には棚卸し索引が無かった（姉妹リポジトリ `grace_v2_local` にはある）。本リポジトリの実ファイルから 12 文書を形式別（手順書 / IPO / 設計・比較）に整理し、実装カバレッジ・`__init__.py` の整理の経緯・テスト件数（実測）を記載。既定モデルの表記と実装値を突き合わせ、残タスク 3 件を記録した |
