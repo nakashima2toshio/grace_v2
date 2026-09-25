@@ -64,6 +64,11 @@ python qa_qdrant/make_qa_register_qdrant.py \
 --text-column       テキストカラム名（デフォルト: text）
                     ※ チャンキングは専用ツール chunking/csv_text_to_chunks_text_csv.py に一本化
 
+チャンク化（--input-file が .txt の場合）:
+--chunk-output      チャンクCSVの出力ディレクトリ（デフォルト: output_chunked）
+--chunk-model       チャンク化に使うLLMモデル（デフォルト: claude-haiku-4-5）
+                    ※ .txt は先にチャンク化 CLI と同じ処理で <入力名>_chunks.csv を作ってから Q/A 生成する
+
 Qdrant登録:
 --collection        Qdrantコレクション名（必須）
 --recreate          コレクションを再作成
@@ -131,6 +136,58 @@ def normalize_source_filename(filename: str) -> str:
     """
     normalized = re.sub(r'_\d{8}_\d{6}', '', filename)
     return normalized
+
+
+# .txt 入力のチャンク化の既定値（チャンク化 CLI・データ管理タブの ChunkingParams と同じ）
+CHUNK_DEFAULT_MODEL = "claude-haiku-4-5"
+CHUNK_DEFAULT_OUTPUT_DIR = "output_chunked"
+CHUNK_WORKERS = 8
+CHUNK_BLOCK_SIZE = 1000
+
+
+def chunk_text_file(txt_path: Path, output_dir: str, model: str) -> str:
+    """
+    テキストファイルをセマンティックチャンク化し、チャンク CSV のパスを返す。
+
+    QAPipeline はチャンク済み CSV しか受け付けないため、.txt 入力はここで先にチャンク化する。
+    チャンク化 CLI（chunking/csv_text_to_chunks_text_csv.py）・データ管理タブと同じ
+    run_chunking_sync() を使い、出力は <output_dir>/<入力名>_chunks.csv（同名があれば上書き）。
+
+    ANTHROPIC_API_KEY が無い・本文が空・チャンク CSV ができなかった場合は終了コード 1 で止める。
+    チャンク化中の例外（連続失敗による中断など）は呼び出し側（main）へそのまま伝わる。
+    """
+    if not os.getenv("ANTHROPIC_API_KEY"):
+        logger.error("ANTHROPIC_API_KEYが設定されていません（.txt のチャンク化に必要）")
+        sys.exit(1)
+
+    text = txt_path.read_text(encoding="utf-8")
+    if not text.strip():
+        logger.error(f"入力テキストが空です: {txt_path}")
+        sys.exit(1)
+
+    # 遅延 import: チャンク化は .txt 入力のときしか使わない
+    from chunking.csv_text_to_chunks_text_csv import generate_output_filename
+    from services.data_pipeline_service import run_chunking_sync
+
+    output_file = generate_output_filename(str(txt_path), output_dir, txt_path.stem)
+    logger.info(f"✂️ チャンク化: {txt_path} → {output_file}（model={model}）")
+
+    chunks = run_chunking_sync(
+        text,
+        model=model,
+        max_workers=CHUNK_WORKERS,
+        block_size=CHUNK_BLOCK_SIZE,
+        output_file=output_file,
+        dataset_type=txt_path.stem,
+        source_file=txt_path.name,
+    )
+
+    if not chunks or not os.path.exists(output_file):
+        logger.error(f"チャンク CSV が作成されませんでした: {output_file}")
+        sys.exit(1)
+
+    logger.info(f"✅ チャンク作成完了: {len(chunks)} チャンク")
+    return output_file
 
 
 def run_registration(
@@ -314,6 +371,23 @@ def main():
         help="テキストカラム名（デフォルト: text）"
     )
     # ================================================================
+    # チャンク化パラメータ（--input-file が .txt の場合）
+    # ================================================================
+    group_chunk = parser.add_argument_group("Chunking Options (for --input-file .txt)")
+    group_chunk.add_argument(
+        "--chunk-output",
+        type=str,
+        default=CHUNK_DEFAULT_OUTPUT_DIR,
+        help=f"チャンクCSVの出力ディレクトリ（デフォルト: {CHUNK_DEFAULT_OUTPUT_DIR}）。<入力名>_chunks.csv を書く"
+    )
+    group_chunk.add_argument(
+        "--chunk-model",
+        type=str,
+        default=CHUNK_DEFAULT_MODEL,
+        help=f"チャンク化に使うLLMモデル（デフォルト: {CHUNK_DEFAULT_MODEL}）"
+    )
+
+    # ================================================================
     # QA生成パラメータ
     # ================================================================
     group_gen = parser.add_argument_group("QA Generation Options")
@@ -460,11 +534,18 @@ def main():
 
             # ファイル種別判定
             if file_path.suffix == '.txt':
-                # テキストファイル → 常にチャンク作成 + Q/A生成
+                # テキストファイル → チャンク作成 + Q/A生成
+                # QAPipeline はチャンク済み CSV しか受け付けないため、先にチャンク化 CLI・
+                # データ管理タブと同じ run_chunking_sync() で <入力名>_chunks.csv を作る。
                 logger.info("📝 テキストファイル検出 - チャンク作成 + Q/A生成を実行します")
+                chunk_csv = chunk_text_file(
+                    file_path,
+                    output_dir=args.chunk_output,
+                    model=args.chunk_model,
+                )
 
                 pipeline = QAPipeline(
-                    input_file=args.input_file,
+                    input_file=chunk_csv,
                     model=args.model,
                     output_dir=args.output,
                     max_docs=args.max_docs
