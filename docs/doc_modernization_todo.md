@@ -1,6 +1,6 @@
 # ドキュメント最新化・不具合除去 TODO（`./run_dev.sh` テスト前の地ならし）
 
-**Version 2.3** | 作成日: 2026-09-12 | 最終更新: 2026-09-24 | 対象コミット: `d832a54`（master）
+**Version 2.4** | 作成日: 2026-09-12 | 最終更新: 2026-09-25 | 対象コミット: `d832a54`（master）
 
 ---
 
@@ -449,8 +449,8 @@ Q/A 生成は CLAUDE.md §3 で **Anthropic 必須**の用途。T6-2 と同じ�
 | 2 | `streamlit` 依存の削除 | ✅ **完了**（§10.1） |
 | 3 | `services/dataset_service.py` / `file_service.py` | ✅ **完了**（§10.1） |
 | 4 | `chunking/docs/check_async.md` | ✅ **完了**（§10.1） |
-| 5 | `ReviewForm` のアクセシビリティ（タイトル・textarea に `<label>` が無い／文字数超過が `aria-live` で伝わらない） | ⏳ 実装変更 |
-| 6 | `ReviewPanel` の打ち切り警告 `.warn-banner` に `role` が無い | ⏳ 実装変更 |
+| 5 | ~~`ReviewForm` のアクセシビリティ（タイトル・textarea に `<label>` が無い／文字数超過が `aria-live` で伝わらない）~~ | ✅ **完了**（2026-09-12 実装・`ReviewForm.md` v1.1。`.sr-only` ラベル 2 つ・`aria-invalid` ＋ `aria-describedby`・`aria-live="polite"` のライブ領域。本表への反映が 2026-09-25 まで漏れていた） |
+| 6 | ~~`ReviewPanel` の打ち切り警告 `.warn-banner` に `role` が無い~~ | ✅ **完了**（2026-09-12 実装・`ReviewPanel.md` v1.1。`role="alert"`。同上） |
 
 ### 10.1 死にコード・不要依存の削除（2026-09-12・ユーザー承認のうえ実施）
 
@@ -478,6 +478,7 @@ Q/A 生成は CLAUDE.md §3 で **Anthropic 必須**の用途。T6-2 と同じ�
 
 | Version | 内容 |
 |---|---|
+| 2.4 | 残タスク #5 / #6（`ReviewForm` / `ReviewPanel` のアクセシビリティ）を完了へ（2026-09-25）。実装は 2026-09-12 に済んでいた（`frontend/docs/ReviewForm.md` / `ReviewPanel.md` v1.1）のに本表だけ ⏳ のまま残っていた。現行コードでラベル・ライブ領域・`role="alert"` を確認して訂正 |
 | 2.3 | `a_cross_doc_md_format.md`（種別 C）に準拠（2026-09-24）。H2 が 12 個あるため目次を追加し、引用内の H1（`> #`）を太字へ改めて H1 を 1 つにした |
 | 2.2 | §2 の「`streamlit` が依存に残る」を「§10.1 で削除済み」へ是正し、`qa_qdrant/docs/01_install.md` の「整理は残タスク」という注記も削除済みの記述へ直した（v2.1 で削除したのに、依存が残っている前提の文が 2 箇所に残っていた）（2026-09-20） |
 | 2.1 | **死にコードと不要依存を削除**（2026-09-12・ユーザー承認）。`dataset_service.py` / `file_service.py` / `check_async.md` と `streamlit` / `altair` / `pydeck` 依存。合計 2,779 行＋依存 3 件。§10.1 に確認手順を記録 |
