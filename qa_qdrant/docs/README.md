@@ -1,6 +1,6 @@
 # qa_qdrant/docs/ 棚卸し
 
-**Version 1.5** | 最終更新: 2026-09-25
+**Version 1.6** | 最終更新: 2026-09-25
 
 > 📎 **姉妹版**: [`docs/README.md`](../../docs/README.md)（直下・配置の境界） /
 > [`chunking/docs/README.md`](../../chunking/docs/README.md) /
@@ -73,7 +73,7 @@
 | [`register_to_qdrant.md`](register_to_qdrant.md) | `register_to_qdrant.py` — 既存 CSV → Qdrant | 587 | 586 | 2.1 | ★★★ |
 | [`make_qa.md`](make_qa.md) | `make_qa.py` — Q/A 生成のみの CLI | 265 | 448 | 3.3 | ★★☆ |
 | [`qdrant_delete_collection.md`](qdrant_delete_collection.md) | **`qdrant_delete_collection.py`（リポジトリ直下）** — コレクション削除 CLI | 73 | 304 | 1.1 | ★★☆ |
-| [`make_qa_register_qdrant_ipo.md`](make_qa_register_qdrant_ipo.md) | `make_qa_register_qdrant.py` — Q/A 生成 → Qdrant 登録の統合 CLI。**既知の問題（§3.3）を先に読むこと** | 707 | 692 | 1.3 | ★★★ |
+| [`make_qa_register_qdrant_ipo.md`](make_qa_register_qdrant_ipo.md) | `make_qa_register_qdrant.py` — Q/A 生成 → Qdrant 登録の統合 CLI。§3.3 の既知の問題 5 件は修正済み | 708 | 693 | 1.4 | ★★★ |
 | [`make_qa_qapipeline.md`](make_qa_qapipeline.md) | `QAPipeline` ＋ `SmartQAGenerator` の連携（**実体は `qa_generation/`**） | — | 936 | 1.2 | ★★☆ |
 
 > ⚠️ **`qdrant_delete_collection.md` の対象はこのパッケージの外にある**（リポジトリ直下の
@@ -114,7 +114,7 @@
 
 | 実装 | 行数 | 文書 | 備考 |
 |---|---:|---|---|
-| `make_qa_register_qdrant.py` | 707 | ✅ `make_qa_register_qdrant_ipo.md`（IPO）＋ `make_qa_register_qdrant.md`（手順書） | 同名の手順書が先にあったため IPO は `_ipo` 付きの名前 |
+| `make_qa_register_qdrant.py` | 708 | ✅ `make_qa_register_qdrant_ipo.md`（IPO）＋ `make_qa_register_qdrant.md`（手順書） | 同名の手順書が先にあったため IPO は `_ipo` 付きの名前 |
 | `register_to_qdrant.py` | 587 | ✅ `register_to_qdrant.md` | データ管理タブの Qdrant 登録ジョブも使う |
 | `make_qa.py` | 265 | ✅ `make_qa.md` |  |
 | `__init__.py` | 26 | — | **docstring のみ**（§4）。処理を書かないこと |
@@ -165,7 +165,7 @@
 | 1 | ~~現在の既定モデルを旧既定 `claude-sonnet-4-6` と書いている（`make_qa.md` 3・`qa_qdrant_architecture.md` 4・`01_install.md` 3 箇所）~~ | ✅ **完了**（2026-09-25）。実装どおり `claude-sonnet-5` へ是正（make_qa v3.3 / architecture v3.2 / 01_install v2.3） |
 | 2 | ~~`make_qa_register_qdrant.md` の `--model` 既定（`gemini-2.0-flash`）と `qa_qdrant_architecture.md` の環境変数例~~ | ✅ **完了**（2026-09-25）。前者は種別 B なので本文は残し、概要で現在の既定 `claude-sonnet-5` を明示（v1.2）。後者は §9 を実装が読む環境変数（`ANTHROPIC_API_KEY` 必須・`REDIS_URL`）へ書き直した |
 | 3 | ~~`make_qa_register_qdrant.py` の IPO 文書が無い~~ | ✅ **完了**（2026-09-25）。[`make_qa_register_qdrant_ipo.md`](make_qa_register_qdrant_ipo.md) を新設 |
-| 4 | `make_qa_register_qdrant.py` の既知の問題（IPO 文書 §3.3・2026-09-25 実測）。~~① `.txt` 入力は必ず失敗する~~（✅ 2026-09-25 修正・先にチャンク化する）~~② Qdrant 登録が失敗しても終了コード 0~~（✅ 2026-09-25 修正） ~~③ `--provider` が効かない~~（✅ 2026-09-25 修正・`gemini` 以外は終了コード 2）④ `--text-column` が Q/A 生成に渡らない ~~⑤ 起動時に `ANTHROPIC_API_KEY` を確かめない~~（✅ 2026-09-25 修正・Q/A 生成の前に確かめる）。**④だけ未着手** | 中 |
+| 4 | `make_qa_register_qdrant.py` の既知の問題（IPO 文書 §3.3・2026-09-25 実測）。~~① `.txt` 入力は必ず失敗する~~（✅ 2026-09-25 修正・先にチャンク化する）~~② Qdrant 登録が失敗しても終了コード 0~~（✅ 2026-09-25 修正） ~~③ `--provider` が効かない~~（✅ 2026-09-25 修正・`gemini` 以外は終了コード 2）~~④ `--text-column` が Q/A 生成に渡らない~~（✅ 2026-09-25 修正・`QAPipeline(text_column=...)` へ渡す）~~⑤ 起動時に `ANTHROPIC_API_KEY` を確かめない~~（✅ 2026-09-25 修正・Q/A 生成の前に確かめる）。**5 件とも完了** | ✅ |
 
 > 📌 **誤りではないもの（直さない）**:
 > - `register_to_qdrant.md` の `openai` / `OPENAI_API_KEY` — `register_to_qdrant.py` の `--provider` が
@@ -184,6 +184,7 @@
 | `backend/tests/test_qa_qdrant_package_init.py` | 2 | `__init__.py` が docstring だけであること・import 副作用が無いこと（§4） |
 | `backend/tests/test_make_qa_register_qdrant_txt_input.py` | 3 | `make_qa_register_qdrant.py` の `.txt` 入力（先にチャンク化してから Q/A 生成へ渡すこと・空の本文／`ANTHROPIC_API_KEY` 無しで終了コード 1） |
 | `backend/tests/test_make_qa_register_qdrant_startup_checks.py` | 4 | `make_qa_register_qdrant.py` の起動時チェック（Q/A 生成の前に `ANTHROPIC_API_KEY` が無ければ終了コード 1・Q/A 済み CSV の登録では不要・`--provider` の `gemini` 以外は終了コード 2） |
+| `backend/tests/test_qa_pipeline_text_column.py` | 6 | `--text-column` が `QAPipeline(text_column=...)` へ渡ること（CLI 3 件）と、`QAPipeline` 側の指定列の優先・欠落時の ValueError・未指定時の自動検出（3 件） |
 | `backend/tests/test_make_qa_register_qdrant_exit_code.py` | 2 | `make_qa_register_qdrant.py` の `main()` が、Qdrant 登録の失敗で終了コード 1・成功で正常終了すること |
 | `backend/tests/test_data_jobs.py` | 43 | データ管理タブのジョブ全体。うち Qdrant 登録ジョブの runner（`register_to_qdrant` を呼ぶ）を含む（**間接**） |
 | `backend/tests/test_model_table_coverage.py` | 5 | CLI `--model` 既定が単価・上限表に載っていること（**間接**） |
@@ -193,7 +194,7 @@ uv run --no-sync pytest backend/tests/test_qa_qdrant_package_init.py -q
 ```
 
 > ⚠️ **テストは薄い。** `register_to_qdrant.py`（587 行）・`make_qa.py`（265 行）・
-> `make_qa_register_qdrant.py`（707 行）は終了コード・`.txt` 入力・起動時チェックの 9 件だけで、Q/A 生成・登録の中身を**直接**検証するテストは無い。
+> `make_qa_register_qdrant.py`（708 行）は終了コード・`.txt` 入力・起動時チェック・`--text-column` の受け渡しの 12 件だけで、Q/A 生成・登録の中身を**直接**検証するテストは無い。
 > 実 Qdrant・実 LLM を要する処理が多いためだが、カバレッジの空白として認識しておくこと。
 
 ---
@@ -202,6 +203,7 @@ uv run --no-sync pytest backend/tests/test_qa_qdrant_package_init.py -q
 
 | Version | 日付 | 変更 |
 |---|---|---|
+| 1.6 | 2026-09-25 | 残タスク 4 の④（`--text-column` が Q/A 生成に渡らない）を修正し、残タスク 4 を完了。§2・§3 の行数・Ver と §7 に `test_qa_pipeline_text_column.py` を追加 |
 | 1.5 | 2026-09-25 | 残タスク 4 の③（`--provider` が効かない）と⑤（`ANTHROPIC_API_KEY` を起動時に確かめない）を修正したのに追随。§2・§3 の行数・Ver と §7 に `test_make_qa_register_qdrant_startup_checks.py` を追加 |
 | 1.4 | 2026-09-25 | 残タスク 4 の①（`.txt` 入力が必ず失敗する）を修正したのに追随。§2・§3 の行数・Ver（§3 の実装行数は v1.3 で 609 のまま取り残していた）と §7 に `test_make_qa_register_qdrant_txt_input.py` を追加 |
 | 1.3 | 2026-09-25 | 残タスク 4 の②（登録失敗でも終了コード 0）を修正したのに追随。§2.2・§7 に `test_make_qa_register_qdrant_exit_code.py` を追加 |
