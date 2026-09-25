@@ -1,6 +1,6 @@
 # qa_generation/docs/ 棚卸し
 
-**Version 1.7** | 最終更新: 2026-09-25
+**Version 1.8** | 最終更新: 2026-09-25
 
 > 📎 **姉妹版**: [`docs/README.md`](../../docs/README.md)（直下・配置の境界） /
 > [`grace/docs/README.md`](../../grace/docs/README.md) /
@@ -62,8 +62,8 @@
 | [`semantic.md`](semantic.md) | `semantic.py` — `SemanticCoverage`（Embedding によるカバレージ） | 542 | 778 | 1.1 | ★★☆ |
 | [`evaluation.md`](evaluation.md) | `evaluation.py` — `analyze_coverage()` ほか | 316 | 820 | 1.1 | ★★☆ |
 | [`data_io.md`](data_io.md) | `data_io.py` — 入力 CSV の読み込みと結果 4 ファイルの保存 | 168 | 481 | 1.2 | ★★☆ |
-| [`models.md`](models.md) | `models.py` — Pydantic モデル 8 クラス（`QAPair` は直下 `models.py` から再エクスポート） | 156 | 401 | 1.3 | ★☆☆ |
-| [`__init__.md`](__init__.md) | `__init__.py` — 公開 API（再エクスポート 11 件） | 65 | 301 | 1.4 | ★☆☆ |
+| [`models.md`](models.md) | `models.py` — Pydantic モデル 8 クラス（`QAPair` / `QAPairsList` は直下 `models.py` から再エクスポート） | 149 | 422 | 1.4 | ★☆☆ |
+| [`__init__.md`](__init__.md) | `__init__.py` — 公開 API（再エクスポート 11 件） | 65 | 302 | 1.5 | ★☆☆ |
 
 ---
 
@@ -131,7 +131,7 @@
 
 | テストファイル | 関わり方 |
 |---|---|
-| `backend/tests/test_qa_pair_definitions.py` | **4 件**。`qa_generation.QAPair` が直下 `models.py` の正本そのものであること・`qa_generation/models.py` と `helper_rag_qa.py` に別定義を書き戻していないこと（§4 の 2）。`helper_rag_qa.py` は `spacy` 依存を避けて `ast` で読む |
+| `backend/tests/test_qa_pair_definitions.py` | **6 件**。`qa_generation.QAPair` / `QAPairsList` が直下 `models.py` の正本そのものであること・`qa_generation/models.py` と `helper_rag_qa.py` に別定義を書き戻していないこと（§4 の 2）。`helper_rag_qa.py` は `spacy` 依存を避けて `ast` で読む |
 | `backend/tests/test_qa_generation_import_side_effects.py` | **3 件**。`import qa_generation.data_io` で Celery が載らないこと・Celery は必要時に読めること・`helper/` 配下に裸 import が無いこと（§4 の 1） |
 | `backend/tests/test_data_io_missing_text.py` | **3 件**。`load_uploaded_file()` が欠損セルを `"nan"` にしないこと（候補列・全列連結）と、数値など欠損でない値は従来どおり残ることを検証する（§4 の 5） |
 | `backend/tests/test_data_jobs.py` | データ管理タブの Q/A 生成ジョブを検証する。`run_qa_generation_sync` を**スタブへ差し替える**ので、`QAPipeline` 自体は実行されない |
@@ -146,6 +146,7 @@
 
 | Version | 日付 | 変更 |
 |---|---|---|
+| 1.8 | 2026-09-25 | `QAPairsList` も直下 `models.py` の定義（`QAPairsResponse` の別名）へ一本化。`qa_generation/models.py` と `helper/helper_rag_qa.py` の同名クラスを削除し、`test_qa_pair_definitions.py` に 2 件を追加（計 6 件）。§2 の行数・版を更新 |
 | 1.7 | 2026-09-25 | §2 の `__init__.md` 行を更新（`qa_qdrant/__init__.py` の整理を §4 に記録） |
 | 1.6 | 2026-09-25 | `helper/helper_rag_qa.py` の旧 `QAPair` も削除し、`QAPair` の定義は直下 `models.py` の 1 つだけになった。§4 の 2・§6 の 3・§7 を更新 |
 | 1.5 | 2026-09-25 | 残タスク 3 の決着を「統合しない」から**「直下 `models.py` へ一本化」**へ変更（`qa_generation/models.py` の `QAPair` 別定義を削除）。§2・§4 の 2・§6 の 3・§7 を更新 |

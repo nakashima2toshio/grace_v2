@@ -1,6 +1,6 @@
 # \_\_init\_\_.py - qa_generation パッケージ公開 API ドキュメント
 
-**Version 1.4** | 最終更新: 2026-09-25
+**Version 1.5** | 最終更新: 2026-09-25
 
 ---
 
@@ -223,7 +223,7 @@ Celery のログ（`✅ celery_tasks.pyのインポート成功` など）が出
 | # | シンボル | 由来モジュール | 種別 |
 |---:|---|---|---|
 | 1 | `QAPair` | `models`（実体は直下 `models.py`。`qa_generation.models` が import して再エクスポート） | Pydantic モデル |
-| 2 | `QAPairsList` | `models` | Pydantic モデル |
+| 2 | `QAPairsList` | `models`（実体は直下 `models.py` の `QAPairsResponse`。`qa_generation.models` が import して再エクスポート） | Pydantic モデル |
 | 3 | `ChainOfThoughtAnalysis` | `models` | Pydantic モデル |
 | 4 | `ChainOfThoughtQAPair` | `models` | Pydantic モデル |
 | 5 | `ChainOfThoughtResponse` | `models` | Pydantic モデル |
@@ -299,3 +299,4 @@ from qa_generation.evaluation import analyze_coverage
 | 1.2 | 2026-09-25 | `QAPair` を直下 `models.py` の定義へ一本化したのに追随し、§5 のエクスポート表と §7 の注意点 4 を更新 |
 | 1.3 | 2026-09-25 | §7 の注意点 4 を更新（`helper/helper_rag_qa.py` の旧 `QAPair` も削除し、定義が 1 つになった） |
 | 1.4 | 2026-09-25 | §4 を更新。`qa_qdrant/__init__.py`（`make_qa.py` の古い写し 236 行）を docstring のみに置き換えたのに追随（`import qa_qdrant` は 1,406 → 35 モジュール。回帰テスト 2 件） |
+| 1.5 | 2026-09-25 | §5 のエクスポート表を更新（`QAPairsList` も直下 `models.py` の定義へ一本化） |
