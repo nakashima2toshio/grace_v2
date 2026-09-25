@@ -275,6 +275,11 @@ cd frontend && npm run lint && npm test && npm run build   # frontend
   **参照ゼロ**（リポジトリ全体 grep 済み）。クラス docstring に「後方互換」と明記されている。
   §3 の「Gemini 系 LLM 既定は負債」に**該当しない**（死んでいるので実害が無い）。
   毎回調べ直さないよう、ここに結論を残す。
+- 直下 `config.yml` の `gemini:` セクション（LLM 既定 `gemini-2.5-flash`・`available_models`・`thinking`）と
+  `provider:` セクション（`default_llm: "gemini"`）— **読み手ゼロ**（2026-09-25 grep 実測）。`config.yml` を読むのは
+  `services/config_service.py` だけで、コードが引くキーは `models.default` / `agent.*` / `cache.*` / `api.*` のみ
+  （`model_pricing:` / `samples:` / `audio:` も同様に未参照）。上と同じ理由で**触らなくてよい**。
+  経路 5（`models.default`）だけは読まれるので §3.1 の検査対象。
 
 ---
 
@@ -531,15 +536,18 @@ def func(callback: Optional[Callable] = None): ...
 
 ### 8.2 出力ファイル命名（チャンク分割）
 ```bash
-# ✅ デフォルト: 固定ファイル名（後続バッチとの連携のため）
+# ✅ 出力は常に固定ファイル名（後続バッチとの連携のため）
 cc_news_1per.csv  →  output_chunked/cc_news_1per_chunks.csv
+                     output_chunked/cc_news_1per_chunks_simple.csv   # Text 列のみの簡易版
 
-# タイムスタンプが必要な場合は --timestamp オプションで明示指定
 python -m chunking.csv_text_to_chunks_text_csv \
   --input-file OUTPUT/cc_news_1per.csv \
-  --output output_chunked \
-  --timestamp   # ← これがある場合のみ日時サフィックスを付与
+  --output output_chunked
 ```
+
+> ⚠️ **`--timestamp` オプションは存在しない**（2026-09-25 に CLI の引数定義と git 履歴で確認。
+> 以前ここに「付けると日時サフィックスが付く」と書かれていたが、実装されたことは一度も無い）。
+> 同じ入力で再実行すると**上書き**される。残したいときは `--output` で出力先を分ける。
 
 ---
 
