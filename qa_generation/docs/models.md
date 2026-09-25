@@ -1,6 +1,6 @@
 # models.py - Q/A データモデル ドキュメント
 
-**Version 1.0** | 最終更新: 2026-09-24
+**Version 1.1** | 最終更新: 2026-09-25
 
 ---
 
@@ -62,6 +62,7 @@
 flowchart TB
     subgraph CALLER["呼び出し側"]
         INIT["qa_generation/__init__.py（再エクスポート）"]
+        TEST["backend/tests（定義差分の固定）"]
     end
     subgraph TARGET["models.py"]
         M["Pydantic モデル 8 クラス"]
@@ -70,10 +71,11 @@ flowchart TB
         PYD["pydantic.BaseModel"]
     end
     INIT --> M
+    TEST --> M
     M -->|"継承"| PYD
 classDef default fill:#000,stroke:#fff,color:#fff
 classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
-class INIT,M,PYD default
+class INIT,TEST,M,PYD default
 style CALLER fill:#1a1a1a,stroke:#fff,color:#fff
 style TARGET fill:#1a1a1a,stroke:#fff,color:#fff
 style EXTERNAL fill:#1a1a1a,stroke:#fff,color:#fff
@@ -142,14 +144,15 @@ style Cfg fill:#1a1a1a,stroke:#fff,color:#fff
 > 📌 本モジュールに**本番の利用者はいない**（`qa_generation/__init__.py` 経由の再エクスポートのみ）。
 > `services/qa_service.py` が使うのは直下の `models.py` である。
 >
-> ⚠️ **扱いはまだ決まっていない**（[`README.md`](README.md) §6 の残タスク 3）。
+> 📌 **統合はしない**（2026-09-25 決定。姉妹リポジトリ `grace_v2_local` と同じ判断）。
 > 本モジュールのクラスは `qa_generation.__all__` に載っている公開 API なので、削除も直下 `models.py` への
 > 寄せ替えも**破壊的変更**になる。フィールドが違うため単純な別名にもできない
 > （`difficulty_level` ⇔ `difficulty` + `source_span`）。
->
-> 姉妹リポジトリ `grace_v2_local` は「統合しない」と決め、3 箇所の docstring に相互参照の警告を入れ、
-> 差分をテスト（`backend/tests/qa_generation/test_qa_pair_definitions.py`）で固定している。
-> **本リポジトリには警告もテストもまだ無い**ので、片側だけフィールドが変わっても気づけない。
+> 代わりに、3 箇所すべての docstring へ相互参照の警告を入れ、差分を
+> `backend/tests/test_qa_pair_definitions.py`（4 件）で固定した。
+> **片側のフィールドだけが変わるとテストが落ちる**ので、気づかないままの乖離を防げる。
+> `helper/helper_rag_qa.py` は `spacy` を import するため CI では import できず、
+> 旧定義だけは `ast` でソースを読んで確かめている。
 
 ---
 
@@ -157,14 +160,14 @@ style Cfg fill:#1a1a1a,stroke:#fff,color:#fff
 
 | クラス | 基底 | 行 | 必須フィールド |
 |---|---|---:|---|
-| `QAPair` | `BaseModel` | 27 | `question` / `answer` |
-| `QAPairsList` | `BaseModel` | 36 | なし（既定は空リスト） |
-| `ChainOfThoughtAnalysis` | `BaseModel` | 45 | なし |
-| `ChainOfThoughtQAPair` | `BaseModel` | 52 | `question` / `answer` |
-| `ChainOfThoughtResponse` | `BaseModel` | 60 | なし |
-| `EnhancedQAPair` | `BaseModel` | 70 | `question` / `answer` |
-| `EnhancedQAPairsList` | `BaseModel` | 76 | なし |
-| `QAGenerationConsiderations` | `BaseModel` | 85 | なし（4 辞書すべて既定値あり） |
+| `QAPair` | `BaseModel` | 38 | `question` / `answer` |
+| `QAPairsList` | `BaseModel` | 47 | なし（既定は空リスト） |
+| `ChainOfThoughtAnalysis` | `BaseModel` | 56 | なし |
+| `ChainOfThoughtQAPair` | `BaseModel` | 63 | `question` / `answer` |
+| `ChainOfThoughtResponse` | `BaseModel` | 71 | なし |
+| `EnhancedQAPair` | `BaseModel` | 81 | `question` / `answer` |
+| `EnhancedQAPairsList` | `BaseModel` | 87 | なし |
+| `QAGenerationConsiderations` | `BaseModel` | 96 | なし（4 辞書すべて既定値あり） |
 
 ---
 
@@ -366,3 +369,4 @@ __all__ = [
 | Version | 日付 | 内容 |
 |---|---|---|
 | 1.0 | 2026-09-24 | 初版作成。実装（155 行・8 クラス）を読み起こしてフィールドと既定値を記述。あわせて**同名 `QAPair` が 3 箇所にある**こと、本モジュールの本番利用者が `qa_generation/__init__.py` 以外に無いことを grep で実測して明記した。索引 `qa_generation/docs/README.md` §6 の残タスク 1（文書欠落）に対応。章構成は基本フォーマット `a_class_method_md_format.md` に従う |
+| 1.1 | 2026-09-25 | 3 重定義の扱いを**「統合しない」で決着**（`grace_v2_local` と同じ判断）。3 箇所の docstring に相互参照の警告を入れ、差分を固定する `test_qa_pair_definitions.py`（4 件）を追加したのに追随し、§3 と §1 の構成図、§4 の行番号（docstring 追加で +11 行）を更新 |

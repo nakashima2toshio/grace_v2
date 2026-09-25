@@ -1,6 +1,6 @@
 # qa_generation/docs/ 棚卸し
 
-**Version 1.3** | 最終更新: 2026-09-24
+**Version 1.4** | 最終更新: 2026-09-25
 
 > 📎 **姉妹版**: [`docs/README.md`](../../docs/README.md)（直下・配置の境界） /
 > [`grace/docs/README.md`](../../grace/docs/README.md) /
@@ -57,12 +57,12 @@
 
 | 文書 | 対象実装 | 実装行数 | 文書行数 | Ver | 重要度 |
 |---|---|---:|---:|---|:--:|
-| [`pipeline.md`](pipeline.md) | `pipeline.py` — `QAPipeline`（Web / CLI 共通の実体） | 555 | 807 | 1.3 | ★★★ |
+| [`pipeline.md`](pipeline.md) | `pipeline.py` — `QAPipeline`（Web / CLI 共通の実体） | 553 | 807 | 1.3 | ★★★ |
 | [`smart_qa_generator.md`](smart_qa_generator.md) | `smart_qa_generator.py` — `SmartQAGenerator`（構造化出力 1 回） | 300 | 572 | 1.2 | ★★★ |
 | [`semantic.md`](semantic.md) | `semantic.py` — `SemanticCoverage`（Embedding によるカバレージ） | 542 | 778 | 1.1 | ★★☆ |
 | [`evaluation.md`](evaluation.md) | `evaluation.py` — `analyze_coverage()` ほか | 316 | 820 | 1.1 | ★★☆ |
 | [`data_io.md`](data_io.md) | `data_io.py` — 入力 CSV の読み込みと結果 4 ファイルの保存 | 168 | 481 | 1.2 | ★★☆ |
-| [`models.md`](models.md) | `models.py` — Pydantic モデル 8 クラス | 155 | 368 | 1.0 | ★☆☆ |
+| [`models.md`](models.md) | `models.py` — Pydantic モデル 8 クラス | 166 | 372 | 1.1 | ★☆☆ |
 | [`__init__.md`](__init__.md) | `__init__.py` — 公開 API（再エクスポート 11 件） | 65 | 293 | 1.1 | ★☆☆ |
 
 ---
@@ -87,14 +87,14 @@
 | # | 内容 | 根拠（実測） | 扱い |
 |---|---|---|---|
 | 1 | ~~`import qa_generation` が Celery を連れてくる~~ | `pipeline.py` がモジュール先頭で `from celery_tasks import …` していたため、`qa_generation` 配下のどのモジュールを import しても `celery_tasks` と `celery` 一式が読み込まれ、**+117 モジュール**になっていた（詳細は [`__init__.md`](__init__.md) §3） | ✅ 修正済み（2026-09-24・残タスク 2） |
-| 2 | **`QAPair` が 3 箇所に別定義で存在する** | 直下 `models.py`／`qa_generation/models.py`／`helper/helper_rag_qa.py`。`qa_generation/models.py` の `QAPair` は `__init__.py` の再エクスポート以外に import 元が無い（grep 実測） | 残タスク 3 |
-| 3 | **死んだ引数 `provider="anthropic"`** | `QAPipeline._generate_with_celery()` が `submit_unified_qa_generation(..., provider="anthropic")` と渡すが、受け側（`celery_tasks.py`）は「互換性のために残すが使用しない」。プロバイダはワーカー側の `SmartQAGenerator` が解決する | 残タスク 4 |
+| 2 | ~~`QAPair` が 3 箇所に別定義で存在する~~ | 直下 `models.py`／`qa_generation/models.py`／`helper/helper_rag_qa.py`。`qa_generation/models.py` の `QAPair` は `__init__.py` の再エクスポート以外に import 元が無い（grep 実測） | ✅ 決着（2026-09-25・残タスク 3）。**統合しない**。docstring の相互参照＋差分テストで固定 |
+| 3 | ~~死んだ引数 `provider="anthropic"`~~ | `QAPipeline._generate_with_celery()` が `submit_unified_qa_generation(..., provider="anthropic")` と渡すが、受け側（`celery_tasks.py`）は「互換性のために残すが使用しない」。プロバイダはワーカー側の `SmartQAGenerator` が解決する | ✅ 削除済み（2026-09-25・残タスク 4） |
 | 4 | ~~`smart_qa_generator.md` の既定モデルが旧既定のまま~~ | 使用例・IPO・設定表の 3 箇所が旧既定だった。実装（`SmartQAGenerator.__init__`）は現行既定 | ✅ 本書作成時に是正（`smart_qa_generator.md` v1.2） |
 | 5 | ~~`load_uploaded_file()` で、テキスト候補列の空セルが文字列 `"nan"` として残る~~ | `clean_text(str(x))` と先に `str()` をかけるため、`NaN` が `clean_text()` の欠損判定に届かない。空白行の除外もすり抜け、`"nan"` から Q/A が生成されうる。実測: `text` 列に空セル → `['hello', 'nan', 'world']`（[`data_io.md`](data_io.md) §8 の 7） | ✅ 修正済み（2026-09-24・残タスク 5） |
 
 > 姉妹リポジトリ `grace_v2_local` では 1・3 を 2026-09-21 に解消済み（1 は `celery_tasks` の
 > import を `_generate_with_celery()` 内へ移す遅延 import、3 は受け側の引数ごと削除）。
-> 本リポジトリでも 1 を 2026-09-24 に同じ方法で解消した。
+> 本リポジトリでも 1 を 2026-09-24、2・3 を 2026-09-25 に同じ方法・同じ判断で解消した。
 > 2 は「統合しない」と決着し、差分をテストで固定している。移植するなら `diff -u` で差分だけを取ること。
 
 ---
@@ -119,18 +119,19 @@
 |---|---|:--:|
 | 1 | ~~`data_io.md` / `models.md` / `__init__.md` を作成する（§3）~~ | ✅ **完了**（2026-09-24） |
 | 2 | ~~`pipeline.py` の `celery_tasks` import を `_generate_with_celery()` 内へ移し、import 副作用を無くす（§4 の 1）~~ | ✅ **完了**（2026-09-24）。`import qa_generation.data_io` は 1,733 → 1,623 モジュール。`celery_tasks` の `sys.path` 挿入に頼っていた `helper/` 配下の裸 import 4 モジュールも同時に是正。回帰は `test_qa_generation_import_side_effects.py`（3 件・修正前は 3 件とも fail） |
-| 3 | `QAPair` の 3 重定義の扱いを決める（§4 の 2）。公開 API なので削除・寄せ替えは破壊的変更になる | 低 |
-| 4 | 死んだ `provider` 引数を、呼び出し元と受け側の両方から外す（§4 の 3） | 低 |
+| 3 | ~~`QAPair` の 3 重定義の扱いを決める（§4 の 2）~~ | ✅ **決着**（2026-09-25）。**統合しない**（公開 API なので削除・寄せ替えは破壊的変更、フィールドが違うので別名にもできない）。3 箇所の docstring に相互参照の警告を入れ、差分を `test_qa_pair_definitions.py`（4 件）で固定した |
+| 4 | ~~死んだ `provider` 引数を、呼び出し元と受け側の両方から外す（§4 の 3）~~ | ✅ **完了**（2026-09-25）。呼び出し元が `QAPipeline._generate_with_celery` の 1 箇所だけだったので、受け側（`celery_tasks.submit_unified_qa_generation`）の引数ごと削除した。**残タスク 0 件** |
 | 5 | ~~`load_uploaded_file()` の `"nan"` 混入を直す（§4 の 5）~~ | ✅ **完了**（2026-09-24）。欠損判定ヘルパー `_is_missing()` を足し、候補列と全列連結の両方で欠損を空文字／除外として扱う。回帰は `test_data_io_missing_text.py`（3 件・修正前は 2 件 fail） |
 
 ---
 
 ## 7. テスト
 
-`qa_generation/` を直接対象にしたテストは **2 件**（2026-09-24、`backend/tests` を grep して確認）。
+`qa_generation/` を直接対象にしたテストは **3 件**（2026-09-25、`backend/tests` を grep して確認）。
 
 | テストファイル | 関わり方 |
 |---|---|
+| `backend/tests/test_qa_pair_definitions.py` | **4 件**。同名 `QAPair` 3 定義の差分を固定する（§4 の 2）。`helper_rag_qa.py` の旧定義は `spacy` 依存を避けて `ast` で読む |
 | `backend/tests/test_qa_generation_import_side_effects.py` | **3 件**。`import qa_generation.data_io` で Celery が載らないこと・Celery は必要時に読めること・`helper/` 配下に裸 import が無いこと（§4 の 1） |
 | `backend/tests/test_data_io_missing_text.py` | **3 件**。`load_uploaded_file()` が欠損セルを `"nan"` にしないこと（候補列・全列連結）と、数値など欠損でない値は従来どおり残ることを検証する（§4 の 5） |
 | `backend/tests/test_data_jobs.py` | データ管理タブの Q/A 生成ジョブを検証する。`run_qa_generation_sync` を**スタブへ差し替える**ので、`QAPipeline` 自体は実行されない |
@@ -145,6 +146,7 @@
 
 | Version | 日付 | 変更 |
 |---|---|---|
+| 1.4 | 2026-09-25 | 残タスク 3・4 を完了し、**残タスク 0 件**。3 は「統合しない」で決着（docstring の相互参照＋`test_qa_pair_definitions.py` 4 件）、4 は死んだ `provider` 引数を受け側ごと削除。§4 の 2・3、§6、§7 を更新 |
 | 1.3 | 2026-09-24 | 残タスク 2 を完了（`qa_generation` の import で Celery が読み込まれる副作用を、`pipeline.py` の遅延 import 化で解消）。§4 の 1、§6、§7 のテスト一覧を更新 |
 | 1.2 | 2026-09-24 | 残タスク 5 を完了（`load_uploaded_file()` の `"nan"` 混入を修正）。§2 の `data_io` 行（実装 168 行・文書 v1.1）、§3 の「両リポジトリで同一」の注記、§7 のテスト一覧を更新 |
 | 1.1 | 2026-09-24 | 残タスク 1 を完了（`data_io.md` / `models.md` / `__init__.md` を新規作成し、実装 7 件との 1:1 対応が揃った）。§4 の 1 のモジュール数を「+1,505」（`import qa_generation` の総数）から Celery 由来の差分「+117」へ訂正。文書化の過程で見つけた `load_uploaded_file()` の `"nan"` 混入を §4 の 5・残タスク 5 に登録 |

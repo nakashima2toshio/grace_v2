@@ -1,6 +1,6 @@
 # Celery + スマート生成 クイックスタートガイド
 
-**Version 2.2** | 最終更新: 2026-09-24
+**Version 2.3** | 最終更新: 2026-09-25
 
 ---
 
@@ -220,18 +220,22 @@ chunk = {
 
 config = {'type': 'test', 'qa_per_chunk': 3}
 
-# タスク投入（スマート生成）
+# タスク投入（ワーカー側で SmartQAGenerator が Q/A 数を決めて生成する）
 tasks = submit_unified_qa_generation(
     chunks=[chunk],
     config=config,
-    model="gemini-2.0-flash",
-    use_smart_generation=True
+    model="claude-sonnet-5",
 )
 
 # 結果収集
 qa_pairs = collect_results(tasks, timeout=60)
 print(f"生成されたQ/A数: {len(qa_pairs)}")
 ```
+
+> ⚠️ 旧版はここで `use_smart_generation=True` と `model="gemini-2.0-flash"` を渡していたが、
+> `submit_unified_qa_generation()` の引数は `chunks` / `config` / `model` の 3 つだけで、
+> `use_smart_generation` を渡すと `TypeError` になる（スマート生成は常に有効）。
+> モデルも本リポジトリの LLM 既定（Anthropic）へ直した（2026-09-25）。
 
 ---
 
@@ -514,5 +518,6 @@ python -c "from celery_tasks import purge_queue; purge_queue()"
 
 | バージョン | 変更内容 |
 |---|---|
+| 2.3 | テスト2（手動テスト）の `submit_unified_qa_generation()` 呼び出し例を実装に合わせた（存在しない `use_smart_generation` 引数を外し、モデルを Gemini から Anthropic の既定へ）（2026-09-25） |
 | 2.2 | `a_cross_doc_md_format.md` の種別 B の骨格へ揃えた（2026-09-24）。H1＋Version ヘッダー、番号なしの「概要」（状態・結論・対象モジュール）、目次の作り直し（装飾絵文字付き見出しのアンカー切れを解消）、本文 H2 の番号付けを行った。本文は当時の記録として変えていない |
 | 2.1 | 本文記載の版（改修日 2025-01-20）。本リポジトリへの取り込みは 2026-09-05 |
