@@ -1,6 +1,6 @@
 # \_\_init\_\_.py - qa_generation パッケージ公開 API ドキュメント
 
-**Version 1.3** | 最終更新: 2026-09-25
+**Version 1.4** | 最終更新: 2026-09-25
 
 ---
 
@@ -200,14 +200,19 @@ Celery のログ（`✅ celery_tasks.pyのインポート成功` など）が出
 
 ## 4. `qa_qdrant/__init__.py` との違い
 
-姉妹パッケージ `qa_qdrant` の `__init__.py` も似た問題を抱えるが、中身の性質が違うので同じ扱いにはできない。
+姉妹パッケージ `qa_qdrant` の `__init__.py` も似た問題を抱えていた。中身の性質が違うので、**対処も違う**。
 
 | 観点 | `qa_qdrant/__init__.py` | `qa_generation/__init__.py`（本モジュール） |
 |---|---|---|
-| 中身 | `make_qa.py` の**陳腐化したコピー 236 行**（`main()` まで含む。`make_qa.py` は 265 行） | 再エクスポート 65 行 |
-| 公開 API | **誰も使っていない**（`from qa_qdrant import` の参照ゼロ・2026-09-24 grep） | `__all__` に 11 件。パッケージの公開 API そのもの |
+| 以前の中身 | `make_qa.py` の**陳腐化したコピー 236 行**（`main()` まで含む。`make_qa.py` は 265 行） | 再エクスポート 65 行 |
+| 公開 API | **誰も使っていなかった**（`from qa_qdrant import` の参照ゼロ・2026-09-24 grep） | `__all__` に 11 件。パッケージの公開 API そのもの |
 | いつ実行されるか | `from qa_qdrant.register_to_qdrant import ...`（データ管理タブの ③ Qdrant 登録）のたびに | `qa_generation` 配下の import のたびに |
-| 取りうる対処 | docstring のみに置き換えられる（`grace_v2_local` は 2026-09-21 に実施）。**本リポジトリでは未対応** | **空にはできない**（消すと公開 API が消える）。§3.1 の遅延 import で副作用だけを消した |
+| 対処 | **docstring のみに置き換えた**（2026-09-25。`grace_v2_local` は 2026-09-21 に実施）。`import qa_qdrant` だけで 1,406 → **35** モジュール、`config` / `qa_generation` は載らない | **空にはできない**（消すと公開 API が消える）。§3.1 の遅延 import で副作用だけを消した |
+
+回帰は `backend/tests/test_qa_qdrant_package_init.py`（2 件）で固定した。`__init__.py` の本体が docstring だけであること
+（`ast` で静的検査）と、`import qa_qdrant` で `qa_generation` / `config` が読み込まれないことを確かめる。
+修正前のコードに当てて 2 件とも fail することを確認済み。`sys.path` へのプロジェクトルート挿入は
+`qa_qdrant` の各モジュールが自前で行っているので、`__init__.py` から消しても CLI（スクリプト実行・`python -m` とも）は動く。
 
 ---
 
@@ -293,3 +298,4 @@ from qa_generation.evaluation import analyze_coverage
 | 1.1 | 2026-09-24 | **import 副作用を解消**。`pipeline.py` の `celery_tasks` import を `_generate_with_celery()` 内の遅延 import へ移し、`import qa_generation.data_io` のモジュール数を 1,733 → **1,623** に（Celery は載らない）。あわせて `celery_tasks` の `sys.path` 挿入に依存していた `helper/` 配下の裸 import 4 モジュールを是正（§3.2）。回帰テスト 3 件を追加。§1.2・§2 の図・§6.3・§7・§8 を更新 |
 | 1.2 | 2026-09-25 | `QAPair` を直下 `models.py` の定義へ一本化したのに追随し、§5 のエクスポート表と §7 の注意点 4 を更新 |
 | 1.3 | 2026-09-25 | §7 の注意点 4 を更新（`helper/helper_rag_qa.py` の旧 `QAPair` も削除し、定義が 1 つになった） |
+| 1.4 | 2026-09-25 | §4 を更新。`qa_qdrant/__init__.py`（`make_qa.py` の古い写し 236 行）を docstring のみに置き換えたのに追随（`import qa_qdrant` は 1,406 → 35 モジュール。回帰テスト 2 件） |
