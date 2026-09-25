@@ -1,6 +1,6 @@
 # インストール・環境構築ガイド（Q/A 生成・Qdrant 登録まわり）
 
-**Version 2.2** | 最終更新: 2026-09-24
+**Version 2.3** | 最終更新: 2026-09-25
 
 ---
 
@@ -77,7 +77,7 @@
 graph TD
     User((ユーザー<br>ブラウザ)) -->|http://localhost:5173| React[React UI<br>Vite + React 18<br>Port: 5173]
     React -->|/api/*| API[FastAPI<br>backend/app/main.py<br>Port: 8000]
-    API -->|Q&A生成・回答生成| Anthropic(Anthropic API<br>claude-sonnet-4-6)
+    API -->|Q&A生成・回答生成| Anthropic(Anthropic API<br>claude-sonnet-5)
     API -->|Embedding| Gemini(Gemini API<br>gemini-embedding-001)
     API -->|ベクトル検索・登録| Qdrant[(Qdrant<br>Port: 6333<br>Docker)]
     API -.->|タスク登録| Redis[(Redis<br>Port: 6379<br>Docker)]
@@ -123,7 +123,7 @@ cd frontend && npm install
 
 | パッケージ | 用途 |
 |---|---|
-| `anthropic` | **Q/A 生成・回答生成の LLM**（`claude-sonnet-4-6`） |
+| `anthropic` | **Q/A 生成・回答生成の LLM**（`claude-sonnet-5`） |
 | `google-genai` | **Embedding 専用**（`gemini-embedding-001`・3072 次元） |
 | `qdrant-client` | Qdrant クライアント |
 | `celery` / `redis` / `kombu` | Q/A 生成の並列処理 |
@@ -187,7 +187,7 @@ touch .env
 
 | 用途 | 変数 | 既定モデル | 取得先 |
 |---|---|---|---|
-| **LLM 全般**（Q/A 生成・回答生成・根拠検証 等） | `ANTHROPIC_API_KEY` | `claude-sonnet-4-6`（軽量 `claude-haiku-4-5-20251001`） | Anthropic Console |
+| **LLM 全般**（Q/A 生成・回答生成・根拠検証 等） | `ANTHROPIC_API_KEY` | `claude-sonnet-5`（軽量 `claude-haiku-4-5-20251001`） | Anthropic Console |
 | **Embedding のみ**（検索） | `GOOGLE_API_KEY` | `gemini-embedding-001`（3072 次元） | Google AI Studio |
 
 ```bash
@@ -851,6 +851,7 @@ grace_v2/
 
 | バージョン | 変更内容 |
 |---|---|
+| 2.3 | 現在の既定モデルの記述（構成図・依存表・API キー表の 3 箇所）を旧既定 `claude-sonnet-4-6` → `claude-sonnet-5` へ是正（2026-09-25） |
 | 2.2 | `a_cross_doc_md_format.md` の種別 B の骨格へ揃えた（2026-09-24）。番号なしの「概要」（状態・結論・対象モジュール）を追加し、履歴表を「バージョン｜変更内容」形式へ揃えて末尾の「変更履歴」とした。本文の章番号は変えていない |
 | 2.1 | §2.3 の注記を是正。`streamlit` / `altair` / `pydeck` は**2026-09-12 に依存から削除済み**なのに、「依存に残っている・整理は残タスク」と書いたままだった（版の食い違いの記述も含め、削除前の状態を指していた）（2026-09-20） |
 | 2.0 | **全面改訂。** v1 は Streamlit 版（`streamlit run agent_rag.py --server.port=8500`）の手順だったが、`agent_rag.py` は存在せず Streamlit も使っていない。現行の React（:5173）+ FastAPI（:8000）へ差し替え、必須 API キーを `GEMINI_API_KEY` 単独から **`ANTHROPIC_API_KEY`（LLM）＋ `GOOGLE_API_KEY`（Embedding）** の 2 本立てへ是正。依存管理も venv/pip から **uv** へ。汎用セットアップは `backend/docs/install_and_setup.md` へ委譲し、本書は Q/A 生成・Qdrant 登録固有の準備（MeCab / Docker / Celery）に絞った（2026-09-12） |

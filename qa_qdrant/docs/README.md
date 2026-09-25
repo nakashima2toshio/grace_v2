@@ -1,6 +1,6 @@
 # qa_qdrant/docs/ 棚卸し
 
-**Version 1.0** | 最終更新: 2026-09-25
+**Version 1.1** | 最終更新: 2026-09-25
 
 > 📎 **姉妹版**: [`docs/README.md`](../../docs/README.md)（直下・配置の境界） /
 > [`chunking/docs/README.md`](../../chunking/docs/README.md) /
@@ -60,9 +60,9 @@
 
 | 文書 | 内容 | 行数 | Ver | 重要度 |
 |---|---|---:|---|:--:|
-| [`01_install.md`](01_install.md) | 環境構築。MeCab・Docker（Qdrant / Redis）・Celery・API キー。**運用の唯一の入口** | 858 | 2.2 | ★★★ |
+| [`01_install.md`](01_install.md) | 環境構築。MeCab・Docker（Qdrant / Redis）・Celery・API キー。**運用の唯一の入口** | 859 | 2.3 | ★★★ |
 | [`celery_quick_start.md`](celery_quick_start.md) | Celery ワーカーの起動手順（`-A celery_config`。キュー名に `qa_generation` は無い・CLAUDE.md §9.4） | 523 | 2.3 | ★★☆ |
-| [`make_qa_register_qdrant.md`](make_qa_register_qdrant.md) | `make_qa_register_qdrant.py`（Q/A 生成 → Qdrant 登録の統合 CLI）の使い方。**IPO ではない**。冒頭で「一部古い（2025-01 の改修時の記述を含む）」と明示している | 941 | 1.1 | ★★★ |
+| [`make_qa_register_qdrant.md`](make_qa_register_qdrant.md) | `make_qa_register_qdrant.py`（Q/A 生成 → Qdrant 登録の統合 CLI）の使い方。**IPO ではない**。冒頭で「一部古い（2025-01 の改修時の記述を含む）」と明示している | 943 | 1.2 | ★★★ |
 
 ### 2.2 IPO（モジュール仕様）
 
@@ -71,7 +71,7 @@
 | 文書 | 対象実装 | 実装行数 | 文書行数 | Ver | 重要度 |
 |---|---|---:|---:|---|:--:|
 | [`register_to_qdrant.md`](register_to_qdrant.md) | `register_to_qdrant.py` — 既存 CSV → Qdrant | 587 | 586 | 2.1 | ★★★ |
-| [`make_qa.md`](make_qa.md) | `make_qa.py` — Q/A 生成のみの CLI | 265 | 447 | 3.2 | ★★☆ |
+| [`make_qa.md`](make_qa.md) | `make_qa.py` — Q/A 生成のみの CLI | 265 | 448 | 3.3 | ★★☆ |
 | [`qdrant_delete_collection.md`](qdrant_delete_collection.md) | **`qdrant_delete_collection.py`（リポジトリ直下）** — コレクション削除 CLI | 73 | 304 | 1.1 | ★★☆ |
 | [`make_qa_qapipeline.md`](make_qa_qapipeline.md) | `QAPipeline` ＋ `SmartQAGenerator` の連携（**実体は `qa_generation/`**） | — | 936 | 1.2 | ★★☆ |
 
@@ -90,7 +90,7 @@
 
 | 文書 | 内容 | 行数 | Ver | 重要度 |
 |---|---|---:|---|:--:|
-| [`qa_qdrant_architecture.md`](qa_qdrant_architecture.md) | Q/A 生成 & Qdrant 登録システムの設計書（v3.0） | 794 | 3.1 | ★★☆ |
+| [`qa_qdrant_architecture.md`](qa_qdrant_architecture.md) | Q/A 生成 & Qdrant 登録システムの設計書（v3.0） | 797 | 3.2 | ★★☆ |
 | [`asyncio_vs_celery.md`](asyncio_vs_celery.md) | 並列方式の比較分析（なぜ Celery か） | 693 | 1.1 | ★☆☆ |
 | [`generation_vs_SmartGeneration.md`](generation_vs_SmartGeneration.md) | Q/A 生成方式の比較（なぜ SmartGeneration 一本化か） | 691 | 1.1 | ★☆☆ |
 | [`smart_generation_upgrade.md`](smart_generation_upgrade.md) | スマート生成デフォルト化の改修サマリー | 503 | 1.1 | ★☆☆ |
@@ -161,8 +161,8 @@
 
 | # | 内容 | 優先 |
 |---|---|:--:|
-| 1 | 現在の既定モデルを旧既定 `claude-sonnet-4-6` と書いている。実装（`make_qa.py` / `make_qa_register_qdrant.py` の `--model` 既定）は `claude-sonnet-5`。該当: `make_qa.md`（3 箇所）・`qa_qdrant_architecture.md`（4 箇所）・`01_install.md`（Mermaid ノード・依存表・API キー表の 3 箇所） | 中 |
-| 2 | `make_qa_register_qdrant.md` の CLI 引数一覧が `--model` の既定を「Gemini モデル `gemini-2.0-flash`」と書いている（実装は `claude-sonnet-5`）。`qa_qdrant_architecture.md` の環境変数例にも LLM 用途ではない `OPENAI_API_KEY` が残る | 中 |
+| 1 | ~~現在の既定モデルを旧既定 `claude-sonnet-4-6` と書いている（`make_qa.md` 3・`qa_qdrant_architecture.md` 4・`01_install.md` 3 箇所）~~ | ✅ **完了**（2026-09-25）。実装どおり `claude-sonnet-5` へ是正（make_qa v3.3 / architecture v3.2 / 01_install v2.3） |
+| 2 | ~~`make_qa_register_qdrant.md` の `--model` 既定（`gemini-2.0-flash`）と `qa_qdrant_architecture.md` の環境変数例~~ | ✅ **完了**（2026-09-25）。前者は種別 B なので本文は残し、概要で現在の既定 `claude-sonnet-5` を明示（v1.2）。後者は §9 を実装が読む環境変数（`ANTHROPIC_API_KEY` 必須・`REDIS_URL`）へ書き直した |
 | 3 | `make_qa_register_qdrant.py` の IPO 文書が無い。`make_qa_register_qdrant.md` は 2025-01 時点の使い方ガイドで、`*_modified.py` など現存しないファイルにも触れている | 中 |
 
 > 📌 **誤りではないもの（直さない）**:
@@ -197,4 +197,5 @@ uv run --no-sync pytest backend/tests/test_qa_qdrant_package_init.py -q
 
 | Version | 日付 | 変更 |
 |---|---|---|
+| 1.1 | 2026-09-25 | 残タスク 1・2（既定モデルの記述・環境変数例）を完了し、§2 の行数・Ver を更新 |
 | 1.0 | 2026-09-25 | 新規作成。`qa_qdrant/docs/` には棚卸し索引が無かった（姉妹リポジトリ `grace_v2_local` にはある）。本リポジトリの実ファイルから 12 文書を形式別（手順書 / IPO / 設計・比較）に整理し、実装カバレッジ・`__init__.py` の整理の経緯・テスト件数（実測）を記載。既定モデルの表記と実装値を突き合わせ、残タスク 3 件を記録した |
