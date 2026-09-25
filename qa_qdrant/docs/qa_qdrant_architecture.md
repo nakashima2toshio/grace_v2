@@ -1,6 +1,6 @@
 # Q/A生成 & Qdrant登録システム 完全設計書（v3.0）
 
-**Version 3.1** | 最終更新: 2026-09-24
+**Version 3.2** | 最終更新: 2026-09-25
 
 ---
 
@@ -266,7 +266,7 @@ class QAPipeline:
     def __init__(self,
                  dataset_name: str = None,
                  input_file: str = None,      # チャンク済みCSV
-                 model: str = "claude-sonnet-4-6",
+                 model: str = "claude-sonnet-5",
                  output_dir: str = "qa_output/pipeline",
                  max_docs: int = None):
         """
@@ -329,7 +329,7 @@ def _load_chunks_from_csv(self, csv_path: str) -> List[Dict]:
 class SmartQAGenerator:
     """コンテンツを考慮したインテリジェントQ/A生成（v2.5）"""
 
-    def __init__(self, model: str = "claude-sonnet-4-6", api_key: str = None):
+    def __init__(self, model: str = "claude-sonnet-5", api_key: str = None):
         """
         初期化
 
@@ -503,7 +503,7 @@ python qa_qdrant/make_qa.py [OPTIONS]
 --input-file PATH        # チャンク済みCSVファイルパス
 
 # === 共通パラメータ ===
---model NAME             # LLMモデル (default: claude-sonnet-4-6 / Anthropic Claude)
+--model NAME             # LLMモデル (default: claude-sonnet-5 / Anthropic Claude)
 --output DIR             # 出力ディレクトリ (default: qa_output/pipeline)
 --max-docs N             # 処理する最大チャンク数
 
@@ -544,7 +544,7 @@ python qa_qdrant/make_qa_register_qdrant.py [OPTIONS]
 --block-size N           # 結合する行数 (default: 400)
 
 # === Q/A生成オプション ===
---model NAME             # LLMモデル (default: claude-sonnet-4-6 / Anthropic Claude)
+--model NAME             # LLMモデル (default: claude-sonnet-5 / Anthropic Claude)
 --use-smart-generation   # スマート生成有効 (default: True)
 --no-smart-generation    # 従来方式
 --batch-chunks N         # バッチあたりのチャンク数 (default: 3)
@@ -737,19 +737,21 @@ chunking/
 
 ```bash
 # 必須
-GOOGLE_API_KEY=your_gemini_api_key
+ANTHROPIC_API_KEY=your_anthropic_api_key   # LLM（Q/A 生成）
+GOOGLE_API_KEY=your_gemini_api_key         # Embedding（gemini-embedding-001）
 
-# オプション（OpenAI使用時）
-OPENAI_API_KEY=your_openai_api_key
+# オプション（既定のままでよい）
+LLM_PROVIDER=anthropic       # helper/helper_llm.py の既定
+EMBEDDING_PROVIDER=gemini    # helper/helper_embedding.py の既定
 
-# オプション（設定変更）
-EMBEDDING_PROVIDER=gemini  # or openai
-LLM_PROVIDER=gemini        # or openai
-
-# Celery（並列処理時）
-CELERY_BROKER_URL=redis://localhost:6379/0
-CELERY_RESULT_BACKEND=redis://localhost:6379/0
+# Celery（並列処理時）。celery_config.py が broker / backend の両方に使う
+REDIS_URL=redis://localhost:6379/0
 ```
+
+> ⚠️ **2026-09-25 に実装と突き合わせて書き直した。** 以前の版は `LLM_PROVIDER=gemini` を例示し、
+> 必須の `ANTHROPIC_API_KEY` が無く、どこからも読まれない `CELERY_BROKER_URL` / `CELERY_RESULT_BACKEND`
+> を載せていた（`celery_config.py` が読むのは `REDIS_URL`）。`OPENAI_API_KEY` は
+> `register_to_qdrant.py --provider openai`（Embedding を OpenAI にする場合）でだけ要る。
 
 ---
 
@@ -789,6 +791,7 @@ CELERY_RESULT_BACKEND=redis://localhost:6379/0
 
 | バージョン | 変更内容 |
 |---|---|
+| 3.2 | `QAPipeline` / `SmartQAGenerator` のシグネチャと CLI 引数の既定モデル（4 箇所）を実装（`qa_generation/pipeline.py` / `smart_qa_generator.py` / `make_qa*.py`）に合わせて `claude-sonnet-5` へ是正。§9 の環境変数を実装が読むものへ書き直した（2026-09-25） |
 | 3.1 | `a_cross_doc_md_format.md` の種別 A の骨格へ揃えた（2026-09-24）。番号なしの「概要」に主な責務・各責務対応のモジュール（1:1）・3 層のアーキテクチャ構成図（Mermaid）とデータフローを追加し、本文 §1 の図の「Legacy 生成」が削除済みである旨を注記した。冒頭の「更新履歴」を末尾の「変更履歴」へ統合した。本文の章番号は変えていない |
 | 3.0 | pipeline.py v3.0対応、チャンク処理の外部化、make_qa.py引数整理（2025-01-28） |
 | 2.x | 初版作成（2025-01-26） |
