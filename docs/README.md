@@ -1,12 +1,15 @@
 # docs 棚卸し（リポジトリ直下 `docs/`）
 
-**Version 1.4** | 最終更新: 2026-09-24
+**Version 1.5** | 最終更新: 2026-09-25
 
 リポジトリ直下 `docs/` の一覧と、**どのディレクトリに何を置くかの境界**をまとめる。
 各領域の棚卸しは [`backend/docs/README.md`](../backend/docs/README.md) /
 [`grace/docs/README.md`](../grace/docs/README.md) /
 [`frontend/docs/README.md`](../frontend/docs/README.md) /
-[`qa_generation/docs/README.md`](../qa_generation/docs/README.md) にある。
+[`qa_generation/docs/README.md`](../qa_generation/docs/README.md) /
+[`chunking/docs/README.md`](../chunking/docs/README.md) /
+[`qa_qdrant/docs/README.md`](../qa_qdrant/docs/README.md) /
+[`services/docs/README.md`](../services/docs/README.md) にある（直下の本書を含め全 8 領域）。
 
 > ⚠️ **本リポジトリは Anthropic 版。** LLM は `claude-sonnet-5`（軽量 `claude-haiku-4-5-20251001`）で
 > `ANTHROPIC_API_KEY` が必須、Embedding のみ Gemini `gemini-embedding-001`（3072 次元・`GOOGLE_API_KEY`）。
@@ -211,6 +214,7 @@ EOF
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 1.5 | 冒頭の「各領域の棚卸し」に `chunking/docs/README.md` / `qa_qdrant/docs/README.md` / `services/docs/README.md`（いずれも新設）を追加し、全 8 領域に索引がそろった（2026-09-25） |
 | 1.4 | 冒頭の「各領域の棚卸し」に `qa_generation/docs/README.md`（新設）を追加（2026-09-24） |
 | 1.3 | §6 残タスク 4（`frontend/docs/` の React 仕様 v1.1 追随）を完了（2026-09-24）。`backend/docs/` も `reference/` は基本フォーマット（IPO 冒頭の使用例）、それ以外は `a_cross_doc_md_format.md` v1.1 の種別 A / B / C へ追随させた |
 | 1.2 | **`a_cross_doc_md_format.md`（横断文書フォーマット）を新設し、直下 `docs/` を準拠させた**（2026-09-24）。§2.2 に種別 A〜E と仕様の対応を追加し、§3 の各表に「種別」列を足して行数・Ver を実測へ更新。種別 A の 5 文書へ概要（主な責務／各責務対応のモジュール／3 層のアーキテクチャ構成図）を追加（本文の章番号は不変）、`pipelines.md` / `guardrails.md` の Version ヘッダーを追加（§6 残タスク 3 を完了）。本書のヘッダーが 1.0 のまま変更履歴だけ 1.1 に進んでいた不一致も解消した。§6 に残タスク 4（`frontend/docs/` の React 仕様 v1.1 追随）を追加 |
