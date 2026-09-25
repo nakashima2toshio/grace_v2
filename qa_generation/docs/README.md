@@ -1,16 +1,19 @@
 # qa_generation/docs/ 棚卸し
 
-**Version 1.8** | 最終更新: 2026-09-25
+**Version 1.9** | 最終更新: 2026-09-25
 
 > 📎 **姉妹版**: [`docs/README.md`](../../docs/README.md)（直下・配置の境界） /
 > [`grace/docs/README.md`](../../grace/docs/README.md) /
-> [`backend/docs/README.md`](../../backend/docs/README.md)
+> [`backend/docs/README.md`](../../backend/docs/README.md) /
+> [`chunking/docs/README.md`](../../chunking/docs/README.md) /
+> [`qa_qdrant/docs/README.md`](../../qa_qdrant/docs/README.md) /
+> [`services/docs/README.md`](../../services/docs/README.md)
 
 `qa_generation/docs/` 配下のドキュメントを一覧化する。**目的から入口を引ける**ようにするのが狙い。
 新しく文書を書く／直す前に、まずここを見る。
 
 > 📌 **データ準備 3 工程のうち ② にあたるパッケージ。**
-> ① チャンク化は `chunking/`、③ Qdrant 登録は `qa_qdrant/`。
+> ① チャンク化は [`chunking/`](../../chunking/docs/README.md)、③ Qdrant 登録は [`qa_qdrant/`](../../qa_qdrant/docs/README.md)。
 > 運用手順の入口は [`README_DATA.md`](../../README_DATA.md)。
 
 > ⚠️ **本リポジトリは Anthropic 版。** LLM は `claude-sonnet-5`（`create_llm_client("anthropic")`）、
@@ -146,6 +149,7 @@
 
 | Version | 日付 | 変更 |
 |---|---|---|
+| 1.9 | 2026-09-25 | `chunking/docs/` / `qa_qdrant/docs/` / `services/docs/` に棚卸し索引を新設したのにあわせ、姉妹版リンクと冒頭の ①・③ からリンクを張った |
 | 1.8 | 2026-09-25 | `QAPairsList` も直下 `models.py` の定義（`QAPairsResponse` の別名）へ一本化。`qa_generation/models.py` と `helper/helper_rag_qa.py` の同名クラスを削除し、`test_qa_pair_definitions.py` に 2 件を追加（計 6 件）。§2 の行数・版を更新 |
 | 1.7 | 2026-09-25 | §2 の `__init__.md` 行を更新（`qa_qdrant/__init__.py` の整理を §4 に記録） |
 | 1.6 | 2026-09-25 | `helper/helper_rag_qa.py` の旧 `QAPair` も削除し、`QAPair` の定義は直下 `models.py` の 1 つだけになった。§4 の 2・§6 の 3・§7 を更新 |
