@@ -597,6 +597,8 @@ def main():
             logger.info("=" * 60)
         else:
             logger.error("\n❌ Qdrant登録フェーズで失敗しました。")
+            # 呼び出し側（シェル・ジョブ管理）が失敗を検知できるよう、終了コード 1 で止める
+            sys.exit(1)
 
     except Exception as e:
         logger.error(f"致命的なエラー: {e}")

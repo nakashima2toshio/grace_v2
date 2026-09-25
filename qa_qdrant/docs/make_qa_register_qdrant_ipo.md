@@ -1,6 +1,6 @@
 # make_qa_register_qdrant.py - Q/A 生成 → Qdrant 登録 統合 CLI ドキュメント
 
-**Version 1.0** | 最終更新: 2026-09-25
+**Version 1.1** | 最終更新: 2026-09-25
 
 ---
 
@@ -33,7 +33,7 @@ Embedding と Qdrant 操作は `services/qdrant_service.py`（Gemini `gemini-emb
 > 📌 **データ管理タブ（Web）はこの CLI を呼ばない。** Q/A 生成は `services/data_pipeline_service.py::run_qa_generation_sync()`、
 > 登録は `qa_qdrant/register_to_qdrant.py` を通る。Phase 1 は同じ `QAPipeline` なので生成結果は変わらない。
 >
-> ⚠️ **実装と使い方の説明が食い違っている箇所がある**（`.txt` 入力が必ず失敗する・登録失敗でも終了コード 0 など）。
+> ⚠️ **実装と使い方の説明が食い違っている箇所がある**（`.txt` 入力が必ず失敗する・`--provider` が効かないなど）。
 > [§3.3 既知の問題](#33-既知の問題2026-09-25-実測) を先に読むこと。
 
 ### 主な責務
@@ -237,12 +237,12 @@ class START,DS,EXT,COLS,GEN,SKIP,FAIL,REG default
 ### 3.3 既知の問題（2026-09-25 実測）
 
 本書を書く際に実装を読み、ダミーの API キー（外部 API へは届かない）で CLI を実行して確かめたものです。
-**本書では挙動を記録するだけで、コードは変えていない。**
+v1.0 では挙動を記録するだけでコードは変えなかった。**2 は 2026-09-25 に修正済み**、ほかは未修正。
 
 | # | 問題 | 実測・根拠 | 影響 |
 |---|------|-----------|------|
 | 1 | **`.txt` 入力は必ず失敗する。** docstring とオプション説明は「テキストファイルから（チャンク作成 + Q/A 生成 + 登録）」と書くが、`QAPipeline.load_data()` は `.csv` しか受け付けない | `--input-file doc.txt` で `ValueError: 未対応のファイル形式: .txt …先に csv_text_to_chunks_text_csv.py でチャンク化してください` → 「致命的なエラー」で**終了コード 1** | `.txt` の分岐（§3.1 の 2）は到達しても使えない |
-| 2 | **Qdrant 登録が失敗しても終了コードは 0。** `run_registration()` が `False` を返すと `main()` はエラーログを出すだけで `sys.exit(1)` しない | Q/A 列ありの CSV を Qdrant 未起動の環境で渡すと `Qdrant接続エラー` → `❌ Qdrant登録フェーズで失敗しました。` のあと**終了コード 0** | シェルスクリプトやジョブ管理から失敗を検知できない |
+| 2 | ~~**Qdrant 登録が失敗しても終了コードは 0。**~~ ✅ **修正済み（2026-09-25）** | 修正前は `run_registration()` が `False` を返しても `main()` はエラーログを出すだけで、Q/A 列ありの CSV を Qdrant 未起動の環境で渡すと**終了コード 0** だった。現在は `sys.exit(1)` で止まる（`backend/tests/test_make_qa_register_qdrant_exit_code.py` で固定。修正前の実装で fail することを確認） | —（解消） |
 | 3 | **`--provider` は効かない。** `run_registration(provider=...)` は受け取るだけで使わず、`embed_texts_for_qdrant()` は常に Gemini で Embedding する | 実装の読み取り（`provider` の参照 0 箇所） | 別プロバイダを指定しても Gemini のまま（コレクションも 3072 次元） |
 | 4 | **`--text-column` は Q/A 生成に渡らない。** `main()` は判定にだけ使い、`QAPipeline` は `text` → `Combined_Text` → `content` → `chunk_text` の順で**自分で**列を探す | 実装の読み取り（`actual_text_column` は計算されるが未使用） | 独自の列名を指定すると、判定は通っても生成で「テキストカラムが見つかりません」になるか、別の列が使われる |
 | 5 | 起動時に確かめる API キーは `GOOGLE_API_KEY`（Embedding 用）だけ。Q/A 生成に要る `ANTHROPIC_API_KEY` は起動時には確かめない | 実装の読み取り | キーが無いと Phase 1 の LLM 呼び出しで初めて失敗する（Q/A 済み CSV を登録するだけなら不要） |
@@ -336,8 +336,7 @@ python qa_qdrant/make_qa_register_qdrant.py \
 # ✅ Q/Aカラムが存在します - Q/A生成をスキップして登録へ
 ```
 
-> ⚠️ 登録だけなら `qa_qdrant/register_to_qdrant.py`（[`register_to_qdrant.md`](register_to_qdrant.md)）が本来の口。
-> こちらは失敗時の終了コードも正しく返る（本 CLI は §3.3 の 2 のとおり 0 を返す）。
+> 📌 登録だけなら `qa_qdrant/register_to_qdrant.py`（[`register_to_qdrant.md`](register_to_qdrant.md)）が本来の口。
 
 ### 5.2 エントリーポイント
 
@@ -357,7 +356,7 @@ def main() -> None
 |------|------|
 | **Input** | CLI 引数（§6.1）、環境変数 `GOOGLE_API_KEY` |
 | **Process** | 1. `argparse` で引数を解析（`--collection` は必須）<br>2. `--dataset` と `--input-file` がちょうど 1 つであることを確かめる（0 個・2 個ならエラー終了）<br>3. `GOOGLE_API_KEY` が無ければエラー終了<br>4. 入力の種類で Phase 1 を振り分け（§3.1）。生成する場合は `QAPipeline(...).run(use_celery, celery_workers, concurrency, batch_chunks, analyze_coverage=True)` を呼び、`result["saved_files"]["qa_csv"]` を Q/A CSV とする<br>5. Q/A CSV が作られていなければエラー終了<br>6. `run_registration()` で Phase 2 を実行<br>7. 成功なら件数・Q/A CSV・UI 用 CSV のパスをログに出す。失敗ならエラーログだけを出す<br>8. 途中の例外は「致命的なエラー」としてトレースバックを出して終了コード 1 |
-| **Output** | `None`。副作用として Q/A CSV / JSON・UI 用 CSV・Qdrant のポイントを作る。**終了コード**: 入力・カラム・キー不備と Phase 1 の例外で `1`、**Phase 2 の失敗は `0`**（§3.3 の 2） |
+| **Output** | `None`。副作用として Q/A CSV / JSON・UI 用 CSV・Qdrant のポイントを作る。**終了コード**: 成功で `0`、入力・カラム・キー不備・Phase 1 の例外・**Phase 2（Qdrant 登録）の失敗で `1`** |
 
 **戻り値例**:
 ```python
@@ -528,8 +527,8 @@ normalize_source_filename   # 日時サフィックスの除去
 ```
 
 > 📌 本モジュールを直接 import しているコードはリポジトリ内に無い（2026-09-25 grep。参照はコメント・docstring のみ）。
-> 単体テストも無い。`backend/tests/test_model_table_coverage.py` が CLI `--model` の既定値を単価・上限表に
-> 載っているかだけを検査している。
+> テストは `backend/tests/test_make_qa_register_qdrant_exit_code.py`（2 件・登録の成否と終了コード）と、
+> `backend/tests/test_model_table_coverage.py`（CLI `--model` の既定値が単価・上限表に載っているか）がある。
 
 ---
 
@@ -538,6 +537,7 @@ normalize_source_filename   # 日時サフィックスの除去
 | バージョン | 変更内容 |
 |-----------|---------|
 | 1.0 | 初版作成（2026-09-25）。`qa_qdrant/docs/README.md` の残タスク（本モジュールの IPO 文書が無い）を解消。実装を読み、ダミーキーで CLI を実行して、`.txt` 入力が必ず失敗すること・Qdrant 登録失敗でも終了コード 0 になることを確認し、`--provider` / `--text-column` が効かないことと合わせて §3.3 に記録した（コードは未変更） |
+| 1.1 | §3.3 の 2（Qdrant 登録が失敗しても終了コード 0）の修正に追随（2026-09-25）。`main()` は Phase 2 の失敗で `sys.exit(1)` するようになった。§5.2 の Output・§5.1.3 の注記・§7 のテストの記述を更新 |
 
 ---
 
