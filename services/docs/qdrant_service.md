@@ -1,6 +1,6 @@
 # qdrant_service.py - Qdrant操作サービス ドキュメント
 
-**Version 2.2** | 最終更新: 2026-09-24
+**Version 2.3** | 最終更新: 2026-09-26
 
 ---
 
@@ -22,7 +22,7 @@
 
 `qdrant_service.py`は、Qdrantベクトルデータベースとの通信・操作を一元管理するサービスモジュールです。RAG（Retrieval-Augmented Generation）システムにおけるベクトル検索の基盤を提供します。接続ヘルスチェック、データ取得、コレクション管理（CRUD）、Embedding生成・登録、検索クエリのベクトル化、複数コレクション統合までを担います。
 
-Embeddingには Gemini `gemini-embedding-001`（3072次元、鍵 `GOOGLE_API_KEY`）をデフォルトで使用し、コレクションのベクトル次元数に応じて OpenAI 系（`text-embedding-3-small`／1536次元）へ自動フォールバックします。ハイブリッド検索向けに Sparse Vector（fastembed SPLADE、`qdrant_client_wrapper` 側で生成）を保持する Named Vectors 構造（`default` / `text-sparse`）にも対応します。本モジュールでは LLM（生成系）は原則使用しません。
+Embeddingには Gemini `gemini-embedding-2`（3072次元、鍵 `GOOGLE_API_KEY`）をデフォルトで使用し、コレクションのベクトル次元数に応じて OpenAI 系（`text-embedding-3-small`／1536次元）へ自動フォールバックします。ハイブリッド検索向けに Sparse Vector（fastembed SPLADE、`qdrant_client_wrapper` 側で生成）を保持する Named Vectors 構造（`default` / `text-sparse`）にも対応します。本モジュールでは LLM（生成系）は原則使用しません。
 
 ### 主な責務
 
@@ -101,7 +101,7 @@ flowchart TB
 
     subgraph EXTERNAL["外部サービス層"]
         QDRANT["Qdrant Server :6333"]
-        GEMINI["Gemini Embedding gemini-embedding-001"]
+        GEMINI["Gemini Embedding gemini-embedding-2"]
         WRAPPER["qdrant_client_wrapper (SPLADE/ID)"]
     end
 
@@ -745,21 +745,24 @@ def get_collection_embedding_params(
 | 次元数 | 推定モデル | プロバイダー |
 |--------|-----------|-------------|
 | 1536 | text-embedding-3-small | OpenAI |
-| 3072 | gemini-embedding-001 | Gemini |
-| 768 | gemini-embedding-001 | Gemini |
+| 3072 | `ModelConfig.EMBEDDING_MODEL`（= gemini-embedding-2） | Gemini |
+| 768 | `ModelConfig.EMBEDDING_MODEL`（= gemini-embedding-2） | Gemini |
 | その他(>0) | unknown-embedding-model | 不明 |
-| デフォルト/例外 | gemini-embedding-001 (3072) | Gemini |
+| デフォルト/例外 | `ModelConfig.EMBEDDING_MODEL` / `EMBEDDING_DIMS`（3072） | Gemini |
+
+> ⚠️ **次元からは登録時のモデルを判別できない。** 3072 次元なら `gemini-embedding-001` で登録した
+> 旧コレクションでも現在の既定（`gemini-embedding-2`）を返す。旧コレクションは再登録が必要。
 
 **戻り値例**:
 ```python
-{"model": "gemini-embedding-001", "dims": 3072}
+{"model": "gemini-embedding-2", "dims": 3072}
 ```
 
 ```python
 # 使用例
 params = get_collection_embedding_params(client, "wikipedia_ja")
 print(f"モデル: {params['model']}, 次元数: {params['dims']}")
-# モデル: gemini-embedding-001, 次元数: 3072
+# モデル: gemini-embedding-2, 次元数: 3072
 ```
 
 ---
@@ -986,7 +989,7 @@ print(f"テキスト数: {len(texts)}")
 ```python
 def embed_texts_for_qdrant(
     texts: List[str],
-    model: str = "gemini-embedding-001",
+    model: str = ModelConfig.EMBEDDING_MODEL,
     batch_size: int = 100
 ) -> List[List[float]]
 ```
@@ -994,12 +997,12 @@ def embed_texts_for_qdrant(
 | パラメータ | 型 | デフォルト | 説明 |
 |------------|------|-----------|------|
 | `texts` | List[str] | - | テキストのリスト |
-| `model` | str | "gemini-embedding-001" | 使用するEmbeddingモデル |
+| `model` | str | `ModelConfig.EMBEDDING_MODEL`（= "gemini-embedding-2"） | 使用するEmbeddingモデル |
 | `batch_size` | int | 100 | バッチサイズ |
 
 | 項目 | 内容 |
 |------|------|
-| **Input** | `texts: List[str]`, `model: str = "gemini-embedding-001"`, `batch_size: int = 100` |
+| **Input** | `texts: List[str]`, `model: str = ModelConfig.EMBEDDING_MODEL`, `batch_size: int = 100` |
 | **Process** | 1. Geminiクライアント生成・次元数(3072)取得<br>2. 空文字・空白を除外しインデックス記録<br>3. 有効テキストをバッチEmbedding<br>4. 空文字位置にゼロベクトルを挿入し再配置 |
 | **Output** | `List[List[float]]`: 3072次元ベクトルのリスト（入力件数と同数） |
 
@@ -1218,7 +1221,7 @@ pid = stable_point_id(_content_point_key(row, "wikipedia", "wikipedia.csv", 0))
 ```python
 def embed_query_for_search(
     query: str,
-    model: str = "gemini-embedding-001",
+    model: str = ModelConfig.EMBEDDING_MODEL,
     dims: Optional[int] = None
 ) -> List[float]
 ```
@@ -1226,12 +1229,12 @@ def embed_query_for_search(
 | パラメータ | 型 | デフォルト | 説明 |
 |------------|------|-----------|------|
 | `query` | str | - | 検索クエリ文字列 |
-| `model` | str | "gemini-embedding-001" | Embeddingモデル名 |
+| `model` | str | `ModelConfig.EMBEDDING_MODEL`（= "gemini-embedding-2"） | Embeddingモデル名 |
 | `dims` | Optional[int] | None | 次元数（プロバイダー判定に優先使用） |
 
 | 項目 | 内容 |
 |------|------|
-| **Input** | `query: str`, `model: str = "gemini-embedding-001"`, `dims: Optional[int] = None` |
+| **Input** | `query: str`, `model: str = ModelConfig.EMBEDDING_MODEL`, `dims: Optional[int] = None` |
 | **Process** | 1. dims/model からプロバイダー判定<br>2. `create_embedding_client(provider, dims)` で生成<br>3. Geminiは `task_type="retrieval_query"` を指定<br>4. `embed_text()` でベクトル生成 |
 | **Output** | `List[float]`: クエリベクトル |
 
@@ -1428,7 +1431,7 @@ QDRANT_CONFIG = {
 
 | 項目 | 値 | 説明 |
 |------|----|------|
-| デフォルトEmbedding | `gemini-embedding-001`（3072次元） | 登録・検索の既定モデル（鍵 `GOOGLE_API_KEY`） |
+| デフォルトEmbedding | `gemini-embedding-2`（3072次元） | 登録・検索の既定モデル（鍵 `GOOGLE_API_KEY`） |
 | 距離関数 | `COSINE` | コレクション作成時のDense Vector距離 |
 | Sparse Vector名 | `text-sparse` | Hybrid Search用（SPLADE、`on_disk=False`） |
 | Dense Vector名（Hybrid時） | `default` | Named Vectors構成のDense側 |
@@ -1492,6 +1495,7 @@ batched
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 2.3 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所）。`get_collection_embedding_params` の次元→モデル対応、`embed_texts_for_qdrant` / `embed_query_for_search` の既定引数（`ModelConfig.EMBEDDING_MODEL`）を実装に合わせ、次元から登録時のモデルを判別できない注意を追記 |
 | 2.2 | 使用例を IPO 詳細の冒頭（`### 4.1 使用例`）へ移し、末尾の「## 6. 使用例」章を削除（基本フォーマット `a_class_method_md_format.md` v1.6〜 §6.1 に準拠。2026-09-24）。IPO の小節を 4.2 以降へ繰り下げ、後続の章番号を 1 つ繰り上げた。文書内の `§4.x` 参照も追随。あわせて主な責務に「Sparse Vector と決定的ポイント ID の生成」を追加し、各責務対応のモジュール（7 行）と 1:1 にした |
 | 2.1 | **Streamlit 残骸の除去。** Mermaid のクライアント層ノードを `React UI「データ管理」タブ` へ是正（2026-09-12） |
 | 1.0 | 初版作成 |

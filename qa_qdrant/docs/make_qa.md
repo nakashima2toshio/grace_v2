@@ -1,6 +1,6 @@
 # make_qa.py - Q/Aペア生成 CLIエントリーポイント ドキュメント
 
-**Version 3.3** | 最終更新: 2026-09-25
+**Version 3.4** | 最終更新: 2026-09-26
 
 ---
 
@@ -60,7 +60,7 @@
 | 役割 | プロバイダー / モデル |
 |------|----------------------|
 | LLM（Q/A生成・Agent応答） | Anthropic Claude（`claude-sonnet-5`） — APIキー `ANTHROPIC_API_KEY` |
-| Embedding（Qdrant登録・検索） | Gemini `gemini-embedding-001`（3072次元）— APIキー `GOOGLE_API_KEY` |
+| Embedding（Qdrant登録・検索） | Gemini `gemini-embedding-2`（3072次元）— APIキー `GOOGLE_API_KEY` |
 | 本モジュールで使う `--model` 既定値 | **`claude-sonnet-5`**（`make_qa.py:108` の実装値。`QAPipeline` 経由の LLM 呼び出しに渡される） |
 
 ---
@@ -405,6 +405,7 @@ if __name__ == "__main__":
 | 3.1 | 2026-06-17 | `--use-smart-generation` / `--no-smart-generation` の廃止を反映（実装と整合）。Q/A生成は `SmartQAGenerator` 一本化を明記。技術スタック表記（Anthropic Claude + Gemini Embedding）を追加。本モジュールは Q/A生成のみで Qdrant 登録は別モジュールである旨を明記。Mermaid 図を黒背景・白文字スタイルに刷新 |
 | 3.2 | 2026-09-24 | 使用例を IPO 詳細の冒頭（`### 4.1 使用例`）へ移し、末尾の「## 6. 使用例」章を削除（基本フォーマット `a_class_method_md_format.md` v1.6〜 §6.1 に準拠。2026-09-24）。IPO の小節を 4.2 以降へ繰り下げ、後続の章番号を 1 つ繰り上げた。文書内の `§4.x` 参照も追随 |
 | 3.3 | 2026-09-25 | `--model` 既定値の記述（3 箇所）を実装（`make_qa.py:108`）に合わせて旧既定 `claude-sonnet-4-6` → `claude-sonnet-5` へ是正 |
+| 3.4 | 2026-09-26 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
 
 ---
 

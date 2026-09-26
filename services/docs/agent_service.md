@@ -1,6 +1,6 @@
 # agent_service.py - ReAct + Reflection エージェント（Anthropic Tool Use ネイティブ）ドキュメント
 
-**Version 2.3** | 最終更新: 2026-09-24
+**Version 2.4** | 最終更新: 2026-09-26
 
 ---
 
@@ -22,7 +22,7 @@
 
 `agent_service.py` は、Anthropic Messages API の **ネイティブ Tool Use**（`generate_with_tools()` / `stop_reason == "tool_use"`）を用いた **ReAct エージェント**（`ReActAgent`）を提供するモジュールです。ユーザーの質問に対し「Thought（思考）→ Action（ツール実行）→ Observation（観察）」のサイクルを回して RAG 検索ツールを呼び出し、回答案を作成したのち **Reflection（自己評価・推敲）** フェーズで最終回答に仕上げます。進捗はジェネレータでイベントとして逐次 `yield` され、**呼び出し元がそれを配信**します。実際の呼び出し元は `grace/executor.py`（ReAct 実行経路）と `grace/step_trace/benchmark.py`（A/B 計測）の 2 つで、Web からは FastAPI（`/api/support/stream/{job_id}`）が SSE として React UI（`frontend/`）へ中継します。
 
-> 📝 **注意（Anthropic ネイティブ）**: 本モジュールの LLM は **Anthropic Claude**（既定 `claude-sonnet-5`、`create_llm_client("anthropic")` 経由）です。Embedding（検索）は **Gemini**（`gemini-embedding-001`）を維持します。会話履歴は Anthropic のステートレス設計に合わせ `self._messages`（dict のリスト）で自前管理し、`execute_turn()` の先頭でリセットします。GRACE 本体（Plan→Execute 型）の現行実装は `grace/executor.py` 側にあり、本 ReAct は `run_legacy_agent` ステップから内部呼び出しされることもあります。
+> 📝 **注意（Anthropic ネイティブ）**: 本モジュールの LLM は **Anthropic Claude**（既定 `claude-sonnet-5`、`create_llm_client("anthropic")` 経由）です。Embedding（検索）は **Gemini**（`gemini-embedding-2`）を維持します。会話履歴は Anthropic のステートレス設計に合わせ `self._messages`（dict のリスト）で自前管理し、`execute_turn()` の先頭でリセットします。GRACE 本体（Plan→Execute 型）の現行実装は `grace/executor.py` 側にあり、本 ReAct は `run_legacy_agent` ステップから内部呼び出しされることもあります。
 
 ### 主な責務
 
@@ -163,7 +163,7 @@ style FUNC fill:#1a1a1a,stroke:#fff,color:#fff
 | `anthropic` | 最新 | Anthropic Messages API（`helper/helper_llm.py` の `AnthropicClient` 経由で Tool Use を利用） |
 | `qdrant-client` | 1.x | コレクション一覧取得（`QdrantClient`） |
 
-> Embedding（検索）側は Gemini（`gemini-embedding-001`）を維持しますが、それは `agent_tools` / `helper_embedding` 側の責務であり、本モジュールは LLM 生成のみを担当します。
+> Embedding（検索）側は Gemini（`gemini-embedding-2`）を維持しますが、それは `agent_tools` / `helper_embedding` 側の責務であり、本モジュールは LLM 生成のみを担当します。
 
 ### 2.3 内部依存モジュール
 
@@ -565,6 +565,7 @@ REFLECTION_INSTRUCTION
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 2.4 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
 | 2.3 | 直下 `config.yml` の `models.default` を `claude-sonnet-4-6` → `claude-sonnet-5` へ是正したのに追随（2026-09-24）。「現状は旧モデル」という注記を外し、戻り値例のモデル名も更新 |
 | 2.2 | 使用例を IPO 詳細の冒頭（`### 4.1 使用例`）へ移し、末尾の「## 6. 使用例」章を削除（基本フォーマット `a_class_method_md_format.md` v1.6〜 §6.1 に準拠。2026-09-24）。IPO の小節を 4.2 以降へ繰り下げ、後続の章番号を 1 つ繰り上げた。文書内の `§4.x` 参照も追随。あわせて既定モデルの記述を実装に合わせた（コード側の既定は `claude-sonnet-5`。`config.yml` の `models.default` が優先され、現状はそちらが `claude-sonnet-4-6` である旨を明記） |
 | 2.1 | **Streamlit 残骸の除去。** Streamlit UI（`ui/pages/agent_chat_page.py`）を呼び出し元としていたが、**実際の呼び出し元は `grace/executor.py` と `grace/step_trace/benchmark.py`**（Web からは FastAPI → SSE → React UI）。§6.2 の例も SSE 中継の形へ差し替えた（2026-09-12） |

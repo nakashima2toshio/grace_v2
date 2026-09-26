@@ -1,6 +1,6 @@
 # Q/A生成 & Qdrant登録システム 完全設計書（v3.0）
 
-**Version 3.2** | 最終更新: 2026-09-25
+**Version 3.3** | 最終更新: 2026-09-26
 
 ---
 
@@ -59,7 +59,7 @@ flowchart TB
     end
     subgraph EXTERNAL["外部"]
         LLM["Anthropic Claude"]
-        EMB["Gemini Embedding（gemini-embedding-001）"]
+        EMB["Gemini Embedding（gemini-embedding-2）"]
         QD["Qdrant"]
         RD["Redis ＋ Celery ワーカー"]
     end
@@ -738,7 +738,7 @@ chunking/
 ```bash
 # 必須
 ANTHROPIC_API_KEY=your_anthropic_api_key   # LLM（Q/A 生成）
-GOOGLE_API_KEY=your_gemini_api_key         # Embedding（gemini-embedding-001）
+GOOGLE_API_KEY=your_gemini_api_key         # Embedding（gemini-embedding-2）
 
 # オプション（既定のままでよい）
 LLM_PROVIDER=anthropic       # helper/helper_llm.py の既定
@@ -766,7 +766,7 @@ REDIS_URL=redis://localhost:6379/0
 ### 10.2 Embedding（Gemini API）
 
 - **google.genai** パッケージ使用（新API）
-- 埋め込み: `gemini-embedding-001` 3072 次元（**Embedding のみ Gemini**。LLM は Anthropic）
+- 埋め込み: `gemini-embedding-2` 3072 次元（**Embedding のみ Gemini**。LLM は Anthropic）
 - フォールバック: google.generativeai（旧API）
 
 ### 10.3 並列処理
@@ -791,6 +791,7 @@ REDIS_URL=redis://localhost:6379/0
 
 | バージョン | 変更内容 |
 |---|---|
+| 3.3 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
 | 3.2 | `QAPipeline` / `SmartQAGenerator` のシグネチャと CLI 引数の既定モデル（4 箇所）を実装（`qa_generation/pipeline.py` / `smart_qa_generator.py` / `make_qa*.py`）に合わせて `claude-sonnet-5` へ是正。§9 の環境変数を実装が読むものへ書き直した（2026-09-25） |
 | 3.1 | `a_cross_doc_md_format.md` の種別 A の骨格へ揃えた（2026-09-24）。番号なしの「概要」に主な責務・各責務対応のモジュール（1:1）・3 層のアーキテクチャ構成図（Mermaid）とデータフローを追加し、本文 §1 の図の「Legacy 生成」が削除済みである旨を注記した。冒頭の「更新履歴」を末尾の「変更履歴」へ統合した。本文の章番号は変えていない |
 | 3.0 | pipeline.py v3.0対応、チャンク処理の外部化、make_qa.py引数整理（2025-01-28） |

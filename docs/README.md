@@ -1,6 +1,6 @@
 # docs 棚卸し（リポジトリ直下 `docs/`）
 
-**Version 1.6** | 最終更新: 2026-09-25
+**Version 1.7** | 最終更新: 2026-09-26
 
 リポジトリ直下 `docs/` の一覧と、**どのディレクトリに何を置くかの境界**をまとめる。
 各領域の棚卸しは [`backend/docs/README.md`](../backend/docs/README.md) /
@@ -12,7 +12,7 @@
 [`services/docs/README.md`](../services/docs/README.md) にある（直下の本書を含め全 8 領域）。
 
 > ⚠️ **本リポジトリは Anthropic 版。** LLM は `claude-sonnet-5`（軽量 `claude-haiku-4-5-20251001`）で
-> `ANTHROPIC_API_KEY` が必須、Embedding のみ Gemini `gemini-embedding-001`（3072 次元・`GOOGLE_API_KEY`）。
+> `ANTHROPIC_API_KEY` が必須、Embedding のみ Gemini `gemini-embedding-2`（3072 次元・`GOOGLE_API_KEY`）。
 > 姉妹リポジトリ `grace_v2_local` は Ollama 版で**表記が逆**（CLAUDE.md §3・§5）。
 
 ---
@@ -93,15 +93,16 @@ CLAUDE.md §9.1 の表を、判断に使える形へ具体化したもの。
 ## 3. 文書一覧
 
 > 行数・Ver は 2026-09-24 の実測値（`wc -l` と各文書の Version ヘッダー）。
+> 2026-09-26 に Embedding（`gemini-embedding-2`）の記述を是正した文書の行は、同日に再実測した。
 
 ### 3.1 横断文書（2 つ以上の領域にまたがる）
 
 | 文書 | 種別 | 内容 | またがる領域 | 行数 | Ver |
 |---|:--:|---|---|---:|---|
-| `pipelines.md` | A | **3 モード対照のハブ**（基本版 / Support / Review）。ステップ対照表・実行順・基本版との差・ガードレール有効表 | backend + frontend | 246 | 1.1 |
+| `pipelines.md` | A | **3 モード対照のハブ**（基本版 / Support / Review）。ステップ対照表・実行順・基本版との差・ガードレール有効表 | backend + frontend | 247 | 1.2 |
 | `guardrails.md` | A | ガードレール GA〜G9 の機構 → 実装 → **失敗時の既定** | backend + grace + ルート | 378 | 1.0 |
-| `reasoning_flow.md` | A | 生成の 2 ステップ（Support の `reasoning` / Review の `detect`） | grace + backend | 387 | 2.1 |
-| `performance_levers.md` | A | 回答品質・レイテンシ・コストを決めている箇所と未実装レバー | 全域 | 564 | 2.1 |
+| `reasoning_flow.md` | A | 生成の 2 ステップ（Support の `reasoning` / Review の `detect`） | grace + backend | 388 | 2.2 |
+| `performance_levers.md` | A | 回答品質・レイテンシ・コストを決めている箇所と未実装レバー | 全域 | 565 | 2.2 |
 | `agent_layers.md` | A | **一般エージェント用語 → 実装の対応表**（L0〜L4）。実装を読む前の見取り図 | 全域 | 415 | 1.1 |
 
 ### 3.2 モジュール IPO（トップレベル `.py`）
@@ -214,6 +215,7 @@ EOF
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 1.7 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所）。あわせて同じ改訂の `performance_levers.md` v2.2 / `reasoning_flow.md` v2.2 / `pipelines.md` v1.2 の行数・Ver を再実測 |
 | 1.6 | §6 残タスク 2（`ReviewForm` / `ReviewPanel` のアクセシビリティ）を完了へ訂正（2026-09-25）。2026-09-12 に実装済み（ラベル・`aria-live`・`role="alert"`）だったのに ⏳ のまま残っていた。§3.3 の `doc_modernization_todo.md` の行数・Ver も更新 |
 | 1.5 | 冒頭の「各領域の棚卸し」に `chunking/docs/README.md` / `qa_qdrant/docs/README.md` / `services/docs/README.md`（いずれも新設）を追加し、全 8 領域に索引がそろった（2026-09-25） |
 | 1.4 | 冒頭の「各領域の棚卸し」に `qa_generation/docs/README.md`（新設）を追加（2026-09-24） |

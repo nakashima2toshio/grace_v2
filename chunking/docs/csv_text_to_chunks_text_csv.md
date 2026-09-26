@@ -1,6 +1,6 @@
 # csv_text_to_chunks_text_csv.py - LLMベースセマンティックチャンキング（統一版） ドキュメント
 
-**Version 1.6** | 最終更新: 2026-09-24
+**Version 1.7** | 最終更新: 2026-09-26
 
 ---
 
@@ -47,7 +47,7 @@
 | 機能 | 説明 |
 |------|------|
 | `MAX_CHUNK_TOKENS` | 最終チャンクの最大トークン数（512、cl100k_base 換算） |
-| `EMBEDDING_INPUT_TOKEN_LIMIT` | Embedding（gemini-embedding-001）入力上限（2048） |
+| `EMBEDDING_INPUT_TOKEN_LIMIT` | Embedding の入力上限（`ModelConfig.EMBEDDING_MAX_INPUT_TOKENS` = 8192。gemini-embedding-2） |
 | `_count_tokens()` | tiktoken／文字数フォールバックでトークン数を概算 |
 | `_normalize_whitespace()` | 改行・タブ・連続空白を半角スペース 1 つに正規化 |
 | `_preprocess_text()` | 入力テキストを句読点で分割（Step1 前処理） |
@@ -131,7 +131,7 @@ style EXTERNAL fill:#1a1a1a,stroke:#fff,color:#fff
 flowchart TB
     subgraph CONST["定数・補助"]
         MAXT["MAX_CHUNK_TOKENS=512"]
-        EMBT["EMBEDDING_INPUT_TOKEN_LIMIT=2048"]
+        EMBT["EMBEDDING_INPUT_TOKEN_LIMIT=8192"]
         TOK["_count_tokens"]
         NORM["_normalize_whitespace"]
         PRE["_preprocess_text"]
@@ -511,7 +511,7 @@ pieces = _split_oversized_text(long_text, max_tokens=512)
 
 #### `_enforce_max_chunk_tokens`
 
-**概要**: 全チャンクに最大トークン数を強制する。Step3 の結合時上限ではカバーされない Step2 単一出力やフォールバック保全分にも上限を掛け、Embedding（gemini-embedding-001, 上限 2048）の無言切り捨てを防ぐ。
+**概要**: 全チャンクに最大トークン数を強制する。Step3 の結合時上限ではカバーされない Step2 単一出力やフォールバック保全分にも上限を掛け、Embedding（gemini-embedding-2, 上限 8192 = `ModelConfig.EMBEDDING_MAX_INPUT_TOKENS`）の無言切り捨てを防ぐ。
 
 ```python
 def _enforce_max_chunk_tokens(chunks: List[str], max_tokens: int) -> List[str]
@@ -963,7 +963,7 @@ uv run python -m chunking.csv_text_to_chunks_text_csv \
 | 定数名 | 値 | 説明 |
 |-------|----|------|
 | `MAX_CHUNK_TOKENS` | `512` | 最終チャンクの最大トークン数（cl100k_base 換算）。`_enforce_max_chunk_tokens()` の上限として使用。Embedding 入力上限 2048 トークンを必ず下回るよう設定 |
-| `EMBEDDING_INPUT_TOKEN_LIMIT` | `2048` | Embedding モデル `gemini-embedding-001` の入力上限。超過時の警告メッセージ参照値 |
+| `EMBEDDING_INPUT_TOKEN_LIMIT` | `ModelConfig.EMBEDDING_MAX_INPUT_TOKENS`（= `8192`） | Embedding モデル（`gemini-embedding-2`）の入力上限。定義は `config.py`。超過時の警告メッセージ参照値 |
 | `_TOKENIZER` | `None` → `tiktoken.Encoding` | tiktoken インスタンスの遅延キャッシュ |
 | `_TOKENIZER_FAILED` | `False` → `True` | tiktoken 初期化失敗フラグ。文字数フォールバック動作 |
 
@@ -1025,6 +1025,7 @@ from chunking.csv_text_to_chunks_text_csv import (
 | 1.4 | ドキュメント全体のフォーマット改訂 |
 | 1.5 | 2026-06-17 — 最大トークン上限強制（`_enforce_max_chunk_tokens`, `MAX_CHUNK_TOKENS=512`, `EMBEDDING_INPUT_TOKEN_LIMIT=2048`）の追記、Mermaid 図を黒背景・白文字仕様に更新、CLI を `python -m chunking.csv_text_to_chunks_text_csv` 形式に統一 |
 | 1.6 | 使用例を IPO 詳細の冒頭（`### 4.1 使用例`）へ移し、末尾の「## 6. 使用例」章を削除（基本フォーマット `a_class_method_md_format.md` v1.6〜 §6.1 に準拠。2026-09-24）。IPO の小節を 4.2 以降へ繰り下げ、後続の章番号を 1 つ繰り上げた。文書内の `§4.x` 参照も追随 |
+| 1.7 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所）。`EMBEDDING_INPUT_TOKEN_LIMIT` は `ModelConfig.EMBEDDING_MAX_INPUT_TOKENS`（2048 → 8192）を参照する形になったので定数表・構成図・概要を更新 |
 
 ---
 

@@ -1,6 +1,6 @@
 # confidence.py × calibration.py - 信頼度測定と較正 ドキュメント
 
-**Version 1.2** | 最終更新: 2026-09-24
+**Version 1.3** | 最終更新: 2026-09-26
 
 `grace/` のコアである信頼度測定を、`confidence.py`（多軸の信頼度算出・根拠妥当性検証）と
 `calibration.py`（温度スケーリングによる事後較正）の 2 モジュールにまたがって整理した資料。
@@ -9,7 +9,7 @@
 `grace/docs/calibration.md`）に委ね、本書はアーキテクチャ＋データフロー＋要点に徹する。
 
 技術スタック: LLM = Anthropic Claude（既定 `claude-sonnet-5`／評価は軽量
-`claude-haiku-4-5-20251001`）、Embedding = Gemini（`gemini-embedding-001`）。
+`claude-haiku-4-5-20251001`）、Embedding = Gemini（`gemini-embedding-2`）。
 
 ---
 
@@ -272,7 +272,7 @@ T=1 は恒等。
 | `calibration_path` | `config/calibration.json` | 較正パラメータ保存先 |
 
 モデル: `config.llm.model`（既定 `claude-sonnet-5`）／評価は `config.llm.light_model`
-（`claude-haiku-4-5-20251001`）／`config.embedding.model`（`gemini-embedding-001`）。
+（`claude-haiku-4-5-20251001`）／`config.embedding.model`（`gemini-embedding-2`）。
 
 ---
 
@@ -364,3 +364,4 @@ calib.save("config/calibration.json")   # 実行時に executor が load して�
 | 1.0 | 初版作成（confidence.py × calibration.py の処理順・処理内容を横断的にまとめたサマリ） |
 | 1.1 | grace_v2 実コードに突き合わせて検証（ブレンド重み 0.6/0.25/0.15・補助 0.2・矛盾時 min(・,0.3)・しきい値 0.9/0.7/0.4 が実装と一致することを確認）。関連ドキュメント参照パスを `grace/doc/` → `grace/docs/` に訂正 |
 | 1.2 | `a_cross_doc_md_format.md` v1.2（種別 A）に準拠（2026-09-24）。概要にアーキテクチャ構成図（§1 へのリンクとデータフロー）を追加。現在の既定モデルの記載 `claude-sonnet-4-6` を実装（`grace/config.py` の `LLMConfig.model` = `claude-sonnet-5`）に合わせて是正した（CLAUDE.md §9.3。旧既定は履歴の記述にだけ残す） |
+| 1.3 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |

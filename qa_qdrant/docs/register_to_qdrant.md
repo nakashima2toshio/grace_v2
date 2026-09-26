@@ -1,6 +1,6 @@
 # register_to_qdrant.py - 既存Q/A CSV → Qdrant 登録 CLIツール ドキュメント
 
-**Version 2.1** | 最終更新: 2026-09-24
+**Version 2.2** | 最終更新: 2026-09-26
 
 ---
 
@@ -28,7 +28,7 @@
 
 - 入力 CSV の読み込みとベクトル化対象テキストカラムの自動検出
 - 重複テキストの除去（Embedding コスト削減・件数突合ズレ防止）
-- Gemini Embedding (`gemini-embedding-001`, 3072次元) によるテキストのベクトル化（先読みパイプライン）
+- Gemini Embedding (`gemini-embedding-2`, 3072次元) によるテキストのベクトル化（先読みパイプライン）
 - Qdrant コレクションの新規作成・再作成・追記の制御
 - ファイル名正規化（日時サフィックス除去）と UI 用 CSV の自動生成
 - 登録後の件数突合検証
@@ -411,7 +411,7 @@ def register_to_qdrant(
 | `source` | 正規化されたファイル名 |
 | `domain` | `--domain` 指定値、未指定時はコレクション名 |
 | `embedding_provider` | `"gemini"` または `"openai"` |
-| `embedding_model` | `gemini-embedding-001` または `text-embedding-3-small` |
+| `embedding_model` | `ModelConfig.EMBEDDING_MODEL`（現在 `gemini-embedding-2`）または `text-embedding-3-small` |
 | (その他) | `build_points_for_qdrant()` が CSV カラムから付与 |
 
 ```python
@@ -489,7 +489,7 @@ logging.basicConfig(
 
 | `provider` | モデル名 | 次元数 | 必須環境変数 |
 |-----------|---------|--------|--------------|
-| `gemini`（既定） | `gemini-embedding-001` | 3072 | `GOOGLE_API_KEY` |
+| `gemini`（既定） | `gemini-embedding-2` | 3072 | `GOOGLE_API_KEY` |
 | `openai` | `text-embedding-3-small` | 1536 | `OPENAI_API_KEY` |
 
 ### 5.3 並列パイプライン定数
@@ -522,6 +522,7 @@ main
 | 1.0 | 2025-01-29 | 初版作成（`register_csv_to_qdrant.py` と `register_qdrant.py` を統合） |
 | 2.0 | 2026-06-17 | 実装に合わせて全面改訂。`embed_workers`（並列 Embedding 先読みパイプライン）、重複テキスト除去、登録後件数突合検証、`--embed-workers` CLI 引数を追記。フォーマット仕様 v1.5 準拠（黒背景 Mermaid・必須セクション順）に再構成。 |
 | 2.1 | 2026-09-24 | 使用例を IPO 詳細の冒頭（`### 4.1 使用例`）へ移し、末尾の「## 6. 使用例」章を削除（基本フォーマット `a_class_method_md_format.md` v1.6〜 §6.1 に準拠。2026-09-24）。IPO の小節を 4.2 以降へ繰り下げ、後続の章番号を 1 つ繰り上げた。文書内の `§4.x` 参照も追随 |
+| 2.2 | 2026-09-26 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所）。payload の `embedding_model` は `ModelConfig.EMBEDDING_MODEL` を書き込む |
 
 ---
 

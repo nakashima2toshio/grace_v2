@@ -1,6 +1,6 @@
 # benchmark.py - GRACE ベンチマーク計測 ドキュメント
 
-**Version 2.1** | 最終更新: 2026-09-19
+**Version 2.2** | 最終更新: 2026-09-26
 
 > ## ⚠️ 本書の前提（2026-09-04 訂正）
 >
@@ -773,7 +773,7 @@ sessions = runner.run_query_set(fast=True)          # 代表5クエリ × 1回
 > **前提条件**
 > - Qdrant 起動済み（`localhost:6333`）／対象コレクション（`cc_news_2per_anthropic`）が embedding 済み
 > - **`ANTHROPIC_API_KEY`**: LLM（Plan / Execute / Confidence / Replan / ReAct）に必須
-> - **`GOOGLE_API_KEY`**: 既定の Embedding は Gemini（`gemini-embedding-001` / 3072次元）のため、
+> - **`GOOGLE_API_KEY`**: 既定の Embedding は Gemini（`gemini-embedding-2` / 3072次元）のため、
 >   RAG 検索のクエリ埋め込みに必要（`grace/config.py` の `EmbeddingConfig` 参照）
 
 ### 6.1 基本的なワークフロー
@@ -830,6 +830,7 @@ __all__ = [
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 2.2 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
 | 2.1 | **実行不能だった相対 import を修正**（2026-09-19）。`from .config` / `.executor` / `.planner` は `grace.step_trace.*` を指しており、`BenchmarkRunner()` の生成時点で `ModuleNotFoundError` になっていた（4 箇所を `..` へ是正）。呼び出し元が 1 つも無いため、誰にも気づかれていなかった。修正後に `BenchmarkRunner()` が生成できること・`select_queries(fast=True)` が代表 5 クエリ（Q01/Q03/Q10/Q11/Q13）を返すことを実測で確認 |
 | 2.0 | 実装との突き合わせによる訂正。(1) **モジュールの所在**を `grace/benchmark.py` から実際の `grace/step_trace/benchmark.py` へ是正（責務表・Mermaid のサブグラフ名を含む）。(2) **CLI `run_benchmark.py` / `run_benchmark.sh` はリポジトリに存在しない**（git 全履歴 0 件・モジュールに `__main__` ブロックも無い）ため、§6.0 を「Python から `BenchmarkRunner` を呼ぶ」実行方法へ全面差し替えし、冒頭の再現方法と実行結果サンプルの見出しも同様に修正。(3) 公開シンボル 26 件のうち文書が触れていないのは `BENCHMARK_LOG_DIR` と `BenchmarkLogger._ensure_csv_headers` の 2 件のみであることを AST で確認（記述内容自体は現行実装と一致） |
 | 1.5 | 冒頭に「ベンチマーク実行の様子（FAST モード / 5クエリ）」セクションを追加。実行ログの表示行（`🔍 Searching` / `[WEB SEARCH IPO]` / `[BENCHMARK]`）を時系列タイムラインとして抜粋し、ケース別解説（A〜E）・読み取り（しきい値介入・経路出し分け・強制リプラン・route_correct 独立採点）を記述。生ログ全文は `temp.txt` に保存。目次を更新 |

@@ -1,6 +1,6 @@
 # qa_qdrant/docs/ 棚卸し
 
-**Version 1.8** | 最終更新: 2026-09-26
+**Version 1.9** | 最終更新: 2026-09-26
 
 > 📎 **姉妹版**: [`docs/README.md`](../../docs/README.md)（直下・配置の境界） /
 > [`chunking/docs/README.md`](../../chunking/docs/README.md) /
@@ -18,7 +18,7 @@
 > 運用手順の入口は [`README_DATA.md`](../../README_DATA.md)。
 
 > ⚠️ **本リポジトリは Anthropic 版。** Q/A 生成の LLM は Anthropic Claude（`--model` 既定 `claude-sonnet-5`）、
-> Embedding は Gemini `gemini-embedding-001`（3072 次元）。
+> Embedding は Gemini `gemini-embedding-2`（3072 次元）。
 > 姉妹リポジトリ `grace_v2_local` は Ollama 版で、同名の文書でも**プロバイダ表記は逆**である。
 
 ---
@@ -53,6 +53,7 @@
 ## 2. 一覧
 
 > 行数・Ver は **2026-09-25 の実測値**（`wc -l` と各文書の Version ヘッダー）。
+> 2026-09-26 に Embedding（`gemini-embedding-2`）の記述を是正した文書の行は、同日に再実測した。
 
 ### 2.1 手順書
 
@@ -60,7 +61,7 @@
 
 | 文書 | 内容 | 行数 | Ver | 重要度 |
 |---|---|---:|---|:--:|
-| [`01_install.md`](01_install.md) | 環境構築。MeCab・Docker（Qdrant / Redis）・Celery・API キー。**運用の唯一の入口** | 859 | 2.3 | ★★★ |
+| [`01_install.md`](01_install.md) | 環境構築。MeCab・Docker（Qdrant / Redis）・Celery・API キー。**運用の唯一の入口** | 860 | 2.4 | ★★★ |
 | [`celery_quick_start.md`](celery_quick_start.md) | Celery ワーカーの起動手順（`-A celery_config`。キュー名に `qa_generation` は無い・CLAUDE.md §9.4） | 523 | 2.3 | ★★☆ |
 | [`make_qa_register_qdrant.md`](make_qa_register_qdrant.md) | `make_qa_register_qdrant.py`（Q/A 生成 → Qdrant 登録の統合 CLI）の使い方。**IPO ではない**。冒頭で「一部古い（2025-01 の改修時の記述を含む）」と明示している | 948 | 1.6 | ★★★ |
 
@@ -70,11 +71,11 @@
 
 | 文書 | 対象実装 | 実装行数 | 文書行数 | Ver | 重要度 |
 |---|---|---:|---:|---|:--:|
-| [`register_to_qdrant.md`](register_to_qdrant.md) | `register_to_qdrant.py` — 既存 CSV → Qdrant | 587 | 586 | 2.1 | ★★★ |
-| [`make_qa.md`](make_qa.md) | `make_qa.py` — Q/A 生成のみの CLI | 265 | 448 | 3.3 | ★★☆ |
+| [`register_to_qdrant.md`](register_to_qdrant.md) | `register_to_qdrant.py` — 既存 CSV → Qdrant | 588 | 587 | 2.2 | ★★★ |
+| [`make_qa.md`](make_qa.md) | `make_qa.py` — Q/A 生成のみの CLI | 265 | 449 | 3.4 | ★★☆ |
 | [`qdrant_delete_collection.md`](qdrant_delete_collection.md) | **`qdrant_delete_collection.py`（リポジトリ直下）** — コレクション削除 CLI | 73 | 304 | 1.1 | ★★☆ |
-| [`make_qa_register_qdrant_ipo.md`](make_qa_register_qdrant_ipo.md) | `make_qa_register_qdrant.py` — Q/A 生成 → Qdrant 登録の統合 CLI。§3.3 の既知の問題 5 件は修正済み | 708 | 699 | 1.5 | ★★★ |
-| [`make_qa_qapipeline.md`](make_qa_qapipeline.md) | `QAPipeline` ＋ `SmartQAGenerator` の連携（**実体は `qa_generation/`**） | — | 936 | 1.2 | ★★☆ |
+| [`make_qa_register_qdrant_ipo.md`](make_qa_register_qdrant_ipo.md) | `make_qa_register_qdrant.py` — Q/A 生成 → Qdrant 登録の統合 CLI。§3.3 の既知の問題 5 件は修正済み | 708 | 700 | 1.6 | ★★★ |
+| [`make_qa_qapipeline.md`](make_qa_qapipeline.md) | `QAPipeline` ＋ `SmartQAGenerator` の連携（**実体は `qa_generation/`**） | — | 937 | 1.3 | ★★☆ |
 
 > ⚠️ **`qdrant_delete_collection.md` の対象はこのパッケージの外にある**（リポジトリ直下の
 > `qdrant_delete_collection.py`）。関連が深いためここに置いているが、探すときは注意。
@@ -91,7 +92,7 @@
 
 | 文書 | 内容 | 行数 | Ver | 重要度 |
 |---|---|---:|---|:--:|
-| [`qa_qdrant_architecture.md`](qa_qdrant_architecture.md) | Q/A 生成 & Qdrant 登録システムの設計書（v3.0） | 797 | 3.2 | ★★☆ |
+| [`qa_qdrant_architecture.md`](qa_qdrant_architecture.md) | Q/A 生成 & Qdrant 登録システムの設計書（v3.0） | 798 | 3.3 | ★★☆ |
 | [`asyncio_vs_celery.md`](asyncio_vs_celery.md) | 並列方式の比較分析（なぜ Celery か） | 693 | 1.1 | ★☆☆ |
 | [`generation_vs_SmartGeneration.md`](generation_vs_SmartGeneration.md) | Q/A 生成方式の比較（なぜ SmartGeneration 一本化か） | 691 | 1.1 | ★☆☆ |
 | [`smart_generation_upgrade.md`](smart_generation_upgrade.md) | スマート生成デフォルト化の改修サマリー | 503 | 1.1 | ★☆☆ |
@@ -203,6 +204,7 @@ uv run --no-sync pytest backend/tests/test_qa_qdrant_package_init.py -q
 
 | Version | 日付 | 変更 |
 |---|---|---|
+| 1.9 | 2026-09-26 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所）。あわせて同じ改訂の 6 文書の行数・Ver と、PR #216 で変わった `register_to_qdrant.py` の実装行数（588）を再実測 |
 | 1.8 | 2026-09-26 | `make_qa_register_qdrant_ipo.md` v1.5（`--dataset` の種別が `unknown` になる問題の是正）に追随して §2.2 の行数・Ver を更新 |
 | 1.7 | 2026-09-26 | `make_qa_register_qdrant.md` v1.6（§7 の `--model` 既定を `claude-sonnet-5` へ是正）に追随。§2 の行数・Ver と残タスク 2 の注記を更新 |
 | 1.6 | 2026-09-25 | 残タスク 4 の④（`--text-column` が Q/A 生成に渡らない）を修正し、残タスク 4 を完了。§2・§3 の行数・Ver と §7 に `test_qa_pipeline_text_column.py` を追加 |

@@ -1,6 +1,6 @@
 # GRACE-Support 処理フローと設計 ドキュメント
 
-**Version 3.1** | 最終更新: 2026-09-24
+**Version 3.2** | 最終更新: 2026-09-26
 
 > **本書の位置づけ**: GRACE-Support（問い合わせ → 回答）の**処理フロー（HOW）と
 > 設計判断（WHY）を 1 本にまとめた正本**。v3.0 で `support_spec.md` を統合した。
@@ -248,7 +248,7 @@ style BRIDGE fill:#1a1a1a,stroke:#fff,color:#fff
 | `grace`（リポジトリ内） | - | planner / executor + tools / GroundednessVerifier / SourceAgreementCalculator / InterventionHandler |
 | `support_actions`（リポジトリ内） | - | ActionBackend（dry-run / webhook / pseudo）・IdentityVerifier |
 | Anthropic Claude API | `claude-sonnet-5`（既定）/ `claude-haiku-4-5-20251001`（軽量判定） | Plan / reasoning / 検証・分類・判定 |
-| Gemini Embedding API | `gemini-embedding-001`（3072次元） | RAG 検索の埋め込み |
+| Gemini Embedding API | `gemini-embedding-2`（3072次元） | RAG 検索の埋め込み |
 | Qdrant | - | 内部ナレッジのベクトル検索（コレクション `*_anthropic`） |
 
 ### 2.3 内部依存モジュール
@@ -1693,6 +1693,7 @@ InterventionBridge
 
 | Version | 変更内容 |
 |---|---|
+| 3.2 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
 | 3.1 | 目次のリンク切れを解消（2026-09-24）。§4 は見出しの丸数字（⑥）を含むアンカーへ、付録 A・B は見出しの改名（旧 CLI 仕様・1 リクエスト実行トレース）に追随 |
 | 3.0 | **`support_spec.md`（929 行・v1.2）を統合し、処理フローと設計判断を 1 本にした**（2026-09-16）。回答ポリシー / HITL ポリシー / データ契約 / アクション実行の設計 / 設計レベルのシーケンスを **§5 設計判断**へ、0-(A) 複数質問を **§6**へ、基本版タブを **§7**へ、KPI と残タスクを **§9**へ、実装ロードマップを **§12**へ移した。業界特化（旧 `support_spec.md` §6）は [`verticals_and_rulesets.md` §1](./verticals_and_rulesets.md) へ分離。旧 §3.2「関数一覧（カテゴリ別）」は `reference/core_*.md` と 3 重管理だったため**削除してリンクに置換**した |
 | 2.0 | **`backend_flow.md` → `support_flow.md` へ改称し、3 文書を統合**（2026-09-15）。① `confidence_flow_grace_vs_backend.md`（239 行・v1.1）を **§3.3**（信頼度フローの比較・現 §3.2）へ ② `agent_support_example.md` §8（CLI 仕様）を**付録A**へ ③ `agent_support_example_flow.md`（455 行・v1.2）を**付録B**へ。あわせて**ステップ番号を `CLAUDE.md` §1 の体系（`0-(A)` `0-(B)` `①`〜`⑥` `④'`）へ統一**し、旧 `(0)`〜`(8)` との対応表を §4 冒頭に残した。**旧版に記載が無かった `0-(A)` `analyze` を §4.0 として新規追加** |
