@@ -1,6 +1,6 @@
 # GRACE アプリ（`./run_dev.sh`）- 画面・操作・プログラム対応 ドキュメント
 
-**Version 3.5** | 最終更新: 2026-09-26
+**Version 3.6** | 最終更新: 2026-09-26
 
 ![B-01 起動直後（基本版）](docs/images/b-01-basic-initial.png)
 
@@ -185,7 +185,7 @@ Support の `VerticalProfile` と Review の `RuleSet` は、**9 フィールド
 | 例文チップ | ワンクリックで入力欄に例を流し込む（Support 4 種・Review 2 種） |
 | 業界プロファイル選択 | Support: `gov` / `saas` / `ec`（`/api/verticals` から取得） |
 | ルールセット選択 | Review: `ec_ad`（`/api/rulesets` から取得） |
-| dry-run トグル | 既定 ON。アクションを実行せずログのみ |
+| dry-run トグル | 既定 OFF。ON でアクションを実行せずログのみ |
 | ステップトレース | SSE で逐次更新。ステップごとにログを折りたたみ表示 |
 | HITL CONFIRM | 承認するまでアクションは実行されない |
 | 原文ハイライト連動 | Review: 原文の色付き箇所 ⇄ 指摘カードを相互ジャンプ |
@@ -659,14 +659,14 @@ const TABS: Array<{ id: Tab; label: string; description: string }> = [
 
 #### 入力内容はタブを離れても保持される
 
-アンマウントすると `useState` はすべて初期値へ戻る。**外した dry-run が勝手に ON へ
-復帰する**のは実行結果を変えてしまうため、入力内容だけを
+アンマウントすると `useState` はすべて初期値へ戻る。**切り替えた dry-run が勝手に既定へ
+戻る**のは実行結果を変えてしまうため、入力内容だけを
 `state/formMemory.ts`（モジュールスコープのストア）へ退避し、再マウント時に復元する。
 
 | 論点 | 決定 |
 |---|---|
 | 何を覚えるか | `QueryForm` の 8 項目 / `ReviewForm` の 6 項目（チェック・入力テキスト・選択） |
-| 記憶のキー | **基本版と Support で分ける**。片方で外した dry-run がもう片方へ漏れない |
+| 記憶のキー | **基本版と Support で分ける**。片方で切り替えた dry-run がもう片方へ漏れない |
 | 復元のタイミング | `useState` の遅延初期化で**マウント時 1 回だけ** |
 | 寿命 | **ページ再読み込みで消える**（`sessionStorage` にはしない） |
 
@@ -730,7 +730,7 @@ const TABS: Array<{ id: Tab; label: string; description: string }> = [
 | 業界プロファイル **※Support のみ** | `select` | `（なし）` | `/api/verticals` の一覧。`require_identity` なら「・本人確認必須」を併記 |
 | Web フォールバック | `checkbox` | **ON** | オフで内部 RAG のみ（`--no-web` 相当） |
 | アクション実行 | `checkbox` | **ON** | オフで判定のみ（`--no-action` 相当） |
-| dry-run | `checkbox` | **ON** | アクションを実行せずログのみ |
+| dry-run | `checkbox` | **OFF** | ON でアクションを実行せずログのみ（既定は `formMemory.ts::DEFAULT_QUERY_FORM`） |
 | 詳細ログ | `checkbox` | ON  | `-v` 相当 |
 | 本人確認の識別子 | `fieldset` `order_id` / `email` | 空 | `--identity` 相当。**常時表示**だが、本人確認が起動しない設定では disabled（下記） |
 | 例文チップ | `button.example-chip` | — | 基本版 2 件 / Support 4 件 |
@@ -1356,7 +1356,8 @@ docker-compose -f docker-compose/docker-compose.yml up -d
    - B-01 との差分（プロファイル セレクタが増える・例文チップが 4 つになる）
 7. 例文チップ **`ec: 返品したい`** を押す（入力欄とプロファイルが同時に埋まる）→ 📷 **[S-02]**
    - `ec` を選ぶと**識別子欄が有効化**される → 📷 **[S-06a]**（無効）/ **[S-06b]**（有効）
-8. `dry-run` が **ON** であることを確認（既定 ON）
+8. `dry-run` を **ON** にする（既定は OFF）
+   - OFF のままだと本人確認が顧客台帳（`SUPPORT_IDENTITY_FILE`）との照合になり、未設定なら常に未確認で ⑥ の CONFIRM が出ない（§4.2.2）
 9. **「送信」** を押す
 10. ステップトレースが上から順に進む（`業界プロファイル適用` → `① Plan` → …）→ 📷 **[S-03]**
     - 基本版と違い `業界プロファイル適用` が **finished** になり、検索スコープ・しきい値が出る
@@ -1574,6 +1575,7 @@ from backend.app.core.jobs import job_manager, JobParams
 | 3.3 | **フォーマット仕様の共通骨格に合わせた**（2026-09-24）。1 行目のタイトルが `##`（H2）になっていたのを H1 へ直し、目次の前に `##` 見出しで置かれていたスローガンを引用行へ改めた（見出し階層から外す）。目次に「grace_v2 で実装した機構」を追加 |
 | 3.4 | **画面ショット `D-05`〜`D-08` を撮影して掲載**（2026-09-26）。Qdrant を起動し、`qa_output/ec_ad_rules.csv` をアプリの「③ Qdrant 登録」から実際に登録（23 件・3072 次元）した状態で撮った。D-05 / D-08 の CONFIRM は「拒否」で閉じたのでデータは消していない。撮影済み 17 → 21 枚、未撮影 14 → 10 枚（残りはすべて `ANTHROPIC_API_KEY` が要る画面） |
 | 3.5 | **残りの画面ショット 10 枚（`S-03`〜`S-05` / `R-03`〜`R-06` / `C-01` / `D-03` / `T-01`）を撮影して掲載**（2026-09-26）。アプリ用の API キーをバックエンドにだけ渡して LLM を実行し、架空の EC ストア規程をデータ管理タブでチャンク化 → Q/A 生成 → `ec_policy_anthropic` へ登録した状態で Support を、`ec_ad_rules_anthropic` を登録した状態で Review を撮った。`C-01` は「拒否」で閉じ、Support / Review とも dry-run ON で実行した。撮影済み 21 → 31 枚（全スロット完了）。あわせて §4.3.1 の Review フォームの既定値を実装（`formMemory.ts::DEFAULT_REVIEW_FORM`）に合わせて訂正した — Web 裏取りは **既定 ON**、dry-run は **既定 OFF**（従来は逆に書かれていた） |
+| 3.6 | **基本版 / GRACE-Support の dry-run の既定値を実装に合わせて訂正した**（2026-09-26）。概要の主要機能一覧・§4.2.1 の UI 要素表・§6.2 の手順 8 が「既定 ON」のままだったが、実装（`formMemory.ts::DEFAULT_QUERY_FORM` の `dryRun: false`、フォームのラベル「既定 OFF」）は **OFF**。とくに手順 8 はそのまま進めると本人確認が通らず CONFIRM が出ないため、「ON にする」手順へ改め理由を添えた。§4.1 の formMemory の説明（「外した dry-run が ON へ復帰する」）も既定値に依存しない言い方へ直した（Review 側は v3.5 で訂正済み） |
 
 ---
 
