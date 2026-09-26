@@ -25,6 +25,11 @@ from qdrant_client import QdrantClient
 from qdrant_client.http import models
 from qdrant_client.http.exceptions import UnexpectedResponse
 
+# 共通モジュール
+# （以前は ImportError 時のフォールバック定義を持っていたが、Embedding モデル名の
+#   二重定義になるため削除した。config.py はリポジトリ直下に常に存在する）
+from config import QdrantConfig
+
 # Gemini 3 Migration: Embedding抽象化レイヤー
 from helper.helper_embedding import (
     DEFAULT_GEMINI_EMBEDDING_DIMS,
@@ -34,21 +39,6 @@ from helper.helper_embedding import (
     get_embedding_dimensions,
 )
 from helper.helper_embedding_sparse import get_sparse_embedding_client
-
-# 共通モジュール
-try:
-    from config import QdrantConfig
-except ImportError:
-    # フォールバック設定
-    class QdrantConfig:
-        HOST = "localhost"
-        PORT = 6333
-        URL = "http://localhost:6333"
-        DOCKER_IMAGE = "qdrant/qdrant"
-        HEALTH_CHECK_ENDPOINT = "/collections"
-        DEFAULT_TIMEOUT = 30
-        DEFAULT_VECTOR_SIZE = 3072
-        DEFAULT_EMBEDDING_MODEL = "gemini-embedding-001"
 
 # ログ設定
 logger = logging.getLogger(__name__)
@@ -80,7 +70,7 @@ DEFAULT_EMBEDDING_PROVIDER = os.getenv("EMBEDDING_PROVIDER", "gemini")  # "gemin
 # プロバイダー別のデフォルト設定
 PROVIDER_DEFAULTS = {
     "gemini"   : {
-        "model": "gemini-embedding-001",
+        "model": DEFAULT_EMBEDDING_MODEL,
         "dims" : DEFAULT_GEMINI_EMBEDDING_DIMS,  # 3072
     },
     "openai"   : {
@@ -110,9 +100,9 @@ COLLECTION_EMBEDDINGS = {
 
 # Gemini 3対応コレクション設定（3072次元）
 COLLECTION_EMBEDDINGS_GEMINI = {
-    "qa_corpus_gemini"  : {"provider": "gemini", "model": "gemini-embedding-001", "dims": 3072},
-    "qa_cc_news_gemini" : {"provider": "gemini", "model": "gemini-embedding-001", "dims": 3072},
-    "qa_livedoor_gemini": {"provider": "gemini", "model": "gemini-embedding-001", "dims": 3072},
+    "qa_corpus_gemini"  : {"provider": "gemini", "model": DEFAULT_EMBEDDING_MODEL, "dims": DEFAULT_VECTOR_SIZE},
+    "qa_cc_news_gemini" : {"provider": "gemini", "model": DEFAULT_EMBEDDING_MODEL, "dims": DEFAULT_VECTOR_SIZE},
+    "qa_livedoor_gemini": {"provider": "gemini", "model": DEFAULT_EMBEDDING_MODEL, "dims": DEFAULT_VECTOR_SIZE},
 }
 
 # コレクション名とCSVファイルのマッピング

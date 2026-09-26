@@ -1,6 +1,6 @@
 # confidence.py - 信頼度計算システム ドキュメント
 
-**Version 2.5** | 最終更新: 2026-09-24
+**Version 2.6** | 最終更新: 2026-09-26
 
 ---
 
@@ -22,7 +22,7 @@
 
 `confidence.py` は、GRACE（Guided Reasoning with Adaptive Confidence Execution）における信頼度計算システムを実装するモジュールです。ハイブリッド方式（重み付き平均 + LLM 自己評価 + 根拠妥当性検証）による多軸の信頼度算出と、その結果に基づく介入レベル（自動進行〜ユーザー入力要求）の判定を担います。
 
-LLM 呼び出しは `llm_compat.create_chat_client()` が返す genai 互換クライアント経由で行われ、本プロジェクトでは Anthropic Claude（既定 `claude-sonnet-5`）が実体となります。一方、ソース一致度計算の Embedding は Gemini（`gemini-embedding-001`、3072次元）を継続利用します。
+LLM 呼び出しは `llm_compat.create_chat_client()` が返す genai 互換クライアント経由で行われ、本プロジェクトでは Anthropic Claude（既定 `claude-sonnet-5`）が実体となります。一方、ソース一致度計算の Embedding は Gemini（`gemini-embedding-2`、3072次元。定義は `config.py::ModelConfig.EMBEDDING_MODEL`）を利用します。
 
 ### 主な責務
 
@@ -102,7 +102,7 @@ flowchart TB
 
     subgraph EXTERNAL["外部サービス層"]
         LLM["Anthropic Claude (llm_compat 経由)"]
-        EMB["Gemini Embedding gemini-embedding-001"]
+        EMB["Gemini Embedding gemini-embedding-2"]
         CONFIG["GraceConfig (config.py)"]
     end
 
@@ -946,7 +946,7 @@ def __init__(self, config: Optional[GraceConfig] = None)
 | 項目 | 内容 |
 |------|------|
 | **Input** | `config: Optional[GraceConfig] = None` |
-| **Process** | 1. config 解決<br>2. `genai.Client()` を生成<br>3. `config.embedding.model`（`gemini-embedding-001`）を保持 |
+| **Process** | 1. config 解決<br>2. `genai.Client()` を生成<br>3. `config.embedding.model`（既定 `ModelConfig.EMBEDDING_MODEL` = `gemini-embedding-2`）を保持 |
 | **Output** | `SourceAgreementCalculator` インスタンス |
 
 **戻り値例**:
@@ -1158,7 +1158,7 @@ def _embed_all(self, answers: List[str]) -> List[List[float]]
 | 項目 | 内容 |
 |------|------|
 | **Input** | `answers`: ソース本文のリスト |
-| **Process** | `BATCH_SIZE` ごとに区切り、`client.models.embed_content(contents=chunk)` を 1 回呼ぶ。返却件数が入力件数と食い違ったら警告を出して**1 件ずつ取得し直す** |
+| **Process** | `BATCH_SIZE` ごとに区切り、`client.models.embed_content(contents=separate_contents(chunk))` を 1 回呼ぶ。返却件数が入力件数と食い違ったら警告を出して**1 件ずつ取得し直す** |
 | **Output** | `List[List[float]]`: 入力と同順の埋め込み |
 
 > ⚠️ **1 件ずつ呼んでいた頃のコスト（実測 2026-08-17）。**
@@ -1166,6 +1166,11 @@ def _embed_all(self, answers: List[str]) -> List[List[float]]
 > 出典が 9 件あると **1 質問あたり 9 リクエスト**（約 4 秒）。Embedding は外部 API（Gemini）
 > なので待ち時間だけでなく**課金にも効く**。`contents` はリストを受けられるので、
 > 内容も件数も変えずに 1 往復へ畳める。
+
+> ⚠️ **文字列のリストをそのまま `contents=` に渡さない（2026-09-26 実測）。**
+> `gemini-embedding-2` は文字列リストを 1 入力として扱い、N 件送っても 1 本しか返さない。
+> そのままだと毎回下の「1 件ずつ取得し直す」経路に落ち、まとめた意味が無くなる。
+> `helper.helper_embedding.separate_contents()` で 1 件 = 1 Content に包んで渡す。
 
 > ⚠️ **件数が食い違ったら黙って続けない。** 順番が入力と対応している前提で cosine 類似度を
 > 取るため、ズレたまま計算すると「**別のソース同士を比較した一致度**」という
@@ -1634,7 +1639,7 @@ class ConfidenceThresholds(BaseModel):
 |-----|-------|------|
 | `LLMConfig.provider` | `"anthropic"` | LLM プロバイダー |
 | `LLMConfig.model` | `"claude-sonnet-5"` | 既定 LLM モデル |
-| `EmbeddingConfig.model` | `"gemini-embedding-001"` | Embedding モデル（3072次元） |
+| `EmbeddingConfig.model` | `ModelConfig.EMBEDDING_MODEL`（= `"gemini-embedding-2"`） | Embedding モデル（3072次元） |
 
 > 📝 **注意**: LLM 用 API キーは `ANTHROPIC_API_KEY`、設定クラスは `ModelConfig`/`LLMConfig` 系で管理されます。LLM 呼び出しは `llm_compat.create_chat_client()` の genai 互換アダプター経由で Anthropic を呼び出します。Embedding のみ Gemini を継続利用します。
 
@@ -1687,6 +1692,7 @@ __all__ = [
 | 2.1 | 実ソースに整合（2026-06-16）。LLM 呼び出しを `llm_compat`（Anthropic 互換）経由として明記、Embedding を Gemini に統一、全 Mermaid 図を黒背景・白文字スタイルに更新、IPO 詳細・設定値・`__all__` を最新化 |
 | 2.3 | 2026-09-04: **未記載シンボル 6 件を追加**（AST 照合）。`GroundednessVerifier` の 4 メソッド（`_embed_all` / `_remember` / `_abbreviate` / `_log_claims`）と、方針文除外の `POLICY_CLAIM_MARKERS` / `is_unsupportable_policy_claim` を §4.9・§4.10 として記述。§4.10 だった `ConfidenceAggregator` は §4.11、ファクトリ関数は §4.12 へ繰り下げ。いずれも「なぜそうなっているか」を実コードのコメントから起こした — `_embed_all` は 1 件ずつ呼ぶと出典 9 件で 9 リクエスト（約 4 秒・課金）になること、件数がズレたら別ソース同士を比較する誤りになること／`_remember` が失敗をキャッシュしないのは 1 回の瞬断で後続が「検証不能」に固定されるため／`_log_claims` が contradicted を本文つきで出すのは、1 件あると呼び出し側が `answer_conf` を 0.30 に cap するため／方針文除外は「正しく断るほど信頼度が下がる」（実測 0.99 → 0.91）を防ぐため |
 | 2.2 | 実装（07-27）へ追随（2026-08-01）。`GroundednessVerifier.__init__` のモデル解決を **`resolve_heavy_model(config)`**（M-1 論理層）へ更新し、`heavy_thinking_budget(config)` を `thinking_budget_tokens` として渡すこと、**`heavy_model` 未設定なら拡張思考は無効（0）**であることを明記。内部依存に `grace.config` の新関数 2 つを追記 |
+| 2.6 | Embedding を `gemini-embedding-2` へ変更し、モデル名の定義を `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所へ集約（2026-09-26）。`_embed_all` が `separate_contents()` で 1 件 = 1 Content に包んで渡すようにした（`gemini-embedding-2` は文字列リストに 1 本しか返さないため） |
 
 ---
 

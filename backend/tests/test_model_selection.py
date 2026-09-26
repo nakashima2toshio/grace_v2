@@ -11,8 +11,8 @@
 
 ## ⚠️ Embedding は対象外
 
-Embedding は Gemini（`gemini-embedding-001` 3072 次元）固定。モデルを変えると
-既存 Qdrant コレクションと次元が合わず全件再登録になるため、**選択肢にも
+Embedding は Gemini（`config.py::ModelConfig.EMBEDDING_MODEL`）固定。モデルを変えると
+既存 Qdrant コレクションが使えず全件再登録になるため、**選択肢にも
 上書き経路にも出てこない**こと自体をテストで固定する。
 """
 from __future__ import annotations
@@ -194,6 +194,9 @@ def test_get_model_returns_resolved_defaults():
     assert body["model"] == ModelConfig.DEFAULT_MODEL
     assert body["light_model"] == INTENT_MODEL
     assert body["heavy_model"] == ""
+    # Embedding は選択肢ではないが、画面の注記に実名を出すために返す（定義は ModelConfig）
+    assert body["embedding_model"] == ModelConfig.EMBEDDING_MODEL
+    assert body["embedding_dims"] == ModelConfig.EMBEDDING_DIMS
 
 
 def test_query_endpoint_rejects_unknown_model_with_422():

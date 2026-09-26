@@ -23,9 +23,12 @@ from typing import List, Optional
 
 from dotenv import load_dotenv
 from google import genai
+from google.genai import types
 
 # SDK imports (モジュールレベルでインポート - モック対象)
 from openai import OpenAI
+
+from config import ModelConfig
 
 load_dotenv()
 
@@ -33,15 +36,23 @@ logger = logging.getLogger(__name__)
 
 
 # Gemini 3 アドバンテージ: 3072次元
-DEFAULT_GEMINI_EMBEDDING_DIMS = 3072
+DEFAULT_GEMINI_EMBEDDING_DIMS = ModelConfig.EMBEDDING_DIMS
 DEFAULT_OPENAI_EMBEDDING_DIMS = 1536
 
-# Embeddingモデルの価格表（1Kトークンあたりのドル単価）
-EMBEDDING_PRICING = {
-    "gemini-embedding-001"  : 0.0001,
-    "text-embedding-3-small": 0.00002,
-    "text-embedding-3-large": 0.00013,
-}
+# Embeddingモデルの価格表（1Kトークンあたりのドル単価）。定義は config.py::ModelConfig
+EMBEDDING_PRICING = ModelConfig.EMBEDDING_PRICING
+
+
+def separate_contents(texts: List[str]) -> List[types.Content]:
+    """テキストを **1 件 = 1 Content** に包む（`embed_content` にまとめて渡す用）。
+
+    ⚠️ 文字列のリストをそのまま `contents=` に渡してはいけない。
+    `gemini-embedding-2`（マルチモーダル対応）は、文字列のリストを
+    **1 つの Content の複数パート**として扱い、N 件送っても**ベクトルを 1 本しか返さない**
+    （2026-09-26 に google-genai 2.25.0 で実測: 3 件 → 001 は 3 本、2 は 1 本）。
+    Content に包めば、001 / 2 のどちらでも 1 件ずつ返る（同日実測: 3 件 → 3 本）。
+    """
+    return [types.Content(parts=[types.Part(text=t)]) for t in texts]
 
 
 class EmbeddingClient(ABC):
@@ -158,7 +169,7 @@ class GeminiEmbedding(EmbeddingClient):
     def __init__(
         self,
         api_key: Optional[str] = None,
-        model: str = "gemini-embedding-001",
+        model: str = ModelConfig.EMBEDDING_MODEL,
         dims: int = DEFAULT_GEMINI_EMBEDDING_DIMS
     ):
         """
@@ -225,7 +236,7 @@ class GeminiEmbedding(EmbeddingClient):
             try:
                 response = self.client.models.embed_content(
                     model=self.model,
-                    contents=batch_texts,
+                    contents=separate_contents(batch_texts),
                     config={
                         "output_dimensionality": self._dims,
                         "task_type": "retrieval_document"
@@ -236,6 +247,13 @@ class GeminiEmbedding(EmbeddingClient):
                 # response.embeddings は ContentEmbedding オブジェクトのリスト
                 if hasattr(response, "embeddings") and response.embeddings:
                     batch_embeddings = [e.values for e in response.embeddings]
+                    # 件数が合わないまま足すと、以降のテキストとベクトルの対応が
+                    # 全部ずれる（登録は成功したように見えて検索が壊れる）
+                    if len(batch_embeddings) != len(batch_texts):
+                        raise ValueError(
+                            f"Embedding の件数が入力と一致しません"
+                            f"（{len(batch_texts)} 件送って {len(batch_embeddings)} 件）"
+                        )
                     all_embeddings.extend(batch_embeddings)
                 else:
                     raise ValueError("No embeddings returned in response")

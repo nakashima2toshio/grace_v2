@@ -16,6 +16,8 @@ from typing import Dict
 
 import tiktoken
 
+from config import ModelConfig
+
 logger = logging.getLogger(__name__)
 
 # ===================================================================
@@ -77,12 +79,8 @@ LLM_PRICING = {
     "gpt-4o": {"input": 0.005, "output": 0.015},
 }
 
-# Embeddingモデル価格 ($/1000トークン)
-EMBEDDING_PRICING = {
-    "gemini-embedding-001": 0.0001,
-    "text-embedding-3-small": 0.00002,
-    "text-embedding-3-large": 0.00013,
-}
+# Embeddingモデル価格 ($/1000トークン)。定義は config.py::ModelConfig
+EMBEDDING_PRICING = ModelConfig.EMBEDDING_PRICING
 
 # モデル制限
 MODEL_LIMITS = {

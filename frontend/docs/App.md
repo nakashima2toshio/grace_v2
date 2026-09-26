@@ -1,6 +1,6 @@
 # App.tsx - 4 タブのルートコンテナ ドキュメント
 
-**Version 1.6** | 最終更新: 2026-09-24
+**Version 1.7** | 最終更新: 2026-09-26
 
 ---
 
@@ -217,16 +217,29 @@ SSE 購読とジョブ系 API は引き続き各パネルの責務である。`A
 > `DataPanel` → `DataJobPanel` へ prop で渡り、送信時に使われる。
 > データ管理タブは工程ごとに既定モデルが違う（チャンキングは軽量モデル）ため、
 > **セレクタを 2 つ並べる**。1 つにまとめると既定値の表示が実際に走るモデルと食い違う。
+>
+> 📝 **Embedding は選択肢ではない**が、`GET /api/model` の `embedding_model` /
+> `embedding_dims` を `state/modelLabel.ts::embeddingLabel()` で表示文字列にして
+> `DataPanel` → `DataJobPanel` へ渡し、③ Qdrant 登録の注記に実名を出す（2026-09-26〜）。
 
 ### 4.2 アンマウントによる SSE 解放
 
 ```tsx
 {tab === 'data' ? (
-  <DataPanel />
+  <DataPanel
+    chunkingModel={headerModels.chunking}
+    qaModel={headerModels.qa}
+    embeddingLabel={embeddingLabel(modelInfo)}
+  />
 ) : tab === 'review' ? (
-  <ReviewPanel />
+  <ReviewPanel model={headerModels.review} />
 ) : (
-  <SupportPanel key={tab} variant={tab === 'basic' ? 'basic' : 'vertical'} />
+  // 基本版と Support は同一パイプライン。variant で業界特化の有無だけを切り替える。
+  <SupportPanel
+    key={tab}
+    variant={tab === 'basic' ? 'basic' : 'vertical'}
+    model={headerModels[tab === 'basic' ? 'basic' : 'support']}
+  />
 )}
 ```
 
@@ -367,3 +380,4 @@ JSX のレンダリングテストは持たない。ガードは以下 2 つ。
 | 1.4 | 2026-09-23 | **モデルの選択をヘッダーへ移した**（基本版 / Support / Review）。「利用モデル名：」の表示をセレクタに置き換え、選択をタブごとに `headerModels` で持って `SupportPanel` / `ReviewPanel` へ `model` prop で渡す。判断は `state/headerModel.ts`（純関数・vitest 13 件）。データ管理タブは従来どおり既定値の表示のみ |
 | 1.5 | 2026-09-23 | **データ管理タブもヘッダーでモデルを選ぶ**ようにした。工程ごとに「① チャンキング」「② Q/A 作成」の 2 つを並べ（既定は `chunking_model` / `qa_model`）、`DataPanel` へ `chunkingModel` / `qaModel` prop で渡す。並べる内容は `headerSlots()` が決める（vitest 16 件） |
 | 1.6 | 2026-09-24 | `a_react_page_md_format.md` v1.1 に追随（2026-09-24）。概要に「各責務対応のモジュール」（主な責務と 1:1）を追加し、`## 1.` を「アーキテクチャ構成図」として **1.1 システム全体での位置づけ（3 層）** と 1.2 コンポーネントツリー図の 2 枚構成にした。Mermaid の `classDef subgraphStyle` の欠落を補った |
+| 1.7 | 2026-09-26 | Embedding を `gemini-embedding-2` へ変更し、モデル名の定義を `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所へ集約（2026-09-26）。`DataPanel` に `embeddingLabel` を渡すようにした。§4.2 のコード例が実装（モデル prop 追加後）より古かったので実装に合わせた |

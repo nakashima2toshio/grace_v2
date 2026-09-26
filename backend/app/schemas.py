@@ -25,8 +25,8 @@ def _validate_model_choice(v: Optional[str]) -> Optional[str]:
 
     空文字・None は「サーバーの既定値を使う」の意味なので None へ正規化する。
 
-    ⚠️ Embedding はここに関係しない。Embedding は Gemini（`gemini-embedding-001`
-    3072 次元）固定で、選択の対象外（CLAUDE.md §3 プロバイダ方針）。
+    ⚠️ Embedding はここに関係しない。Embedding は Gemini
+    （`config.py::ModelConfig.EMBEDDING_MODEL`）固定で、選択の対象外（CLAUDE.md §3 プロバイダ方針）。
     """
     if v is None or v == "":
         return None
@@ -369,6 +369,10 @@ class ModelInfo(BaseModel):
     # `model` を出すと、実際に走るモデルと違う名前を表示してしまう。
     chunking_model: str = ""
     qa_model: str = ""
+    # 検索・Qdrant 登録に使う Embedding（`config.py::ModelConfig`）。選択の対象外で、
+    # データ管理タブの「③ Qdrant 登録」の注記に実名を出すためだけに返す。
+    embedding_model: str = ""
+    embedding_dims: int = 0
 
 
 # =============================================================================

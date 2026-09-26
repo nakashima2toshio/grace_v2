@@ -1,6 +1,6 @@
 # DataJobPanel.tsx - チャンキング / Qdrant 登録の実行パネル ドキュメント
 
-**Version 1.6** | 最終更新: 2026-09-24
+**Version 1.7** | 最終更新: 2026-09-26
 
 ---
 
@@ -162,6 +162,7 @@ export function DataJobPanel({
   variant,
   chunkingModel = '',
   qaModel = '',
+  embeddingLabel = '',
 }: {
   variant: DataJobVariant;
   /**
@@ -174,6 +175,11 @@ export function DataJobPanel({
    * 空文字 = 未選択 =「サーバーの既定値を使う」（`QaGenerationRequest.model` の既定）。
    */
   qaModel?: string;
+  /**
+   * ③ Qdrant 登録の注記に出す Embedding の表示（`state/modelLabel.ts::embeddingLabel`）。
+   * 空文字 = 未取得 = モデル名なしで注記する。
+   */
+  embeddingLabel?: string;
 })
 ```
 
@@ -182,6 +188,7 @@ export function DataJobPanel({
 | `variant` | `DataJobVariant` | ✅ | — | フォームの中身と呼ぶ API を決める |
 | `chunkingModel` | `string` | | `''` | ヘッダーの「① チャンキング」で選んだモデル。`ChunkingFormState.model` に入る |
 | `qaModel` | `string` | | `''` | ヘッダーの「② Q/A 作成」で選んだモデル。`QaFormState.model` に入る |
+| `embeddingLabel` | `string` | | `''` | ③ Qdrant 登録の注記に出す Embedding の表示（例: `gemini-embedding-2・3072 次元`）。値は `GET /api/model` の `embedding_model` / `embedding_dims` から `App` が組み立てる。空なら注記はモデル名なし |
 
 ### コールバックの契約
 
@@ -507,7 +514,10 @@ provider: 'gemini',   // buildRegisterParams 内でハードコード
 ```
 
 CLAUDE.md のプロバイダ方針により、**Embedding は Gemini**
-（`gemini-embedding-001`・3072 次元・`GOOGLE_API_KEY`）で固定。
+（`GOOGLE_API_KEY`）で固定。モデル名は画面に持たず、サーバーの
+`config.py::ModelConfig.EMBEDDING_MODEL`（`GET /api/model` の `embedding_model`）を
+`embeddingLabel` prop で受け取って注記に出す。以前は `gemini-embedding-001` を直書きしていたため、
+サーバー側を変えると表示だけが古いまま残る状態だった。
 LLM 用途（Anthropic Claude）とは別系統なので、画面から切り替えさせない。
 
 ---
@@ -581,3 +591,4 @@ LLM 用途（Anthropic Claude）とは別系統なので、画面から切り替
 | 1.2 | 2026-09-12 | **`variant='qa'`（Q/A 生成）を追加**。`useState` は 17 → 23（旧版の「× 13」は実装より古かった）、呼ぶ API は 2 → 3。出力先を入れ子にしない理由とモデル既定が違う理由を §7 に追記。テスト件数を実測値へ更新 |
 | 1.5 | 2026-09-23 | **詳細ログの既定を ON へ変更**（基本版 / GRACE-Support / GRACE-Review は `DEFAULT_QUERY_FORM` / `DEFAULT_REVIEW_FORM` の `verbose`、データ管理は `DataJobPanel` の `useState`） |
 | 1.6 | 2026-09-24 | `a_react_page_md_format.md` v1.1 に追随（2026-09-24）。概要に「各責務対応のモジュール」（主な責務と 1:1）を追加し、`## 1.` を「アーキテクチャ構成図」として **1.1 システム全体での位置づけ（3 層）** と 1.2 コンポーネントツリー図の 2 枚構成にした。Mermaid の `classDef subgraphStyle` の欠落を補った |
+| 1.7 | 2026-09-26 | Embedding を `gemini-embedding-2` へ変更し、モデル名の定義を `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所へ集約（2026-09-26）。`embeddingLabel` prop を追加し、③ Qdrant 登録の注記のモデル名を API 由来にした（直書きをやめた） |

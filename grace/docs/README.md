@@ -1,6 +1,6 @@
 # grace/docs 棚卸し
 
-**Version 1.8** | 最終更新: 2026-09-26
+**Version 1.9** | 最終更新: 2026-09-26
 
 `grace/` パッケージのドキュメント一覧と、実装への追随状況・残タスク・検証手順をまとめる。
 新しく文書を書く／直す前に、まずここを見る。
@@ -71,7 +71,7 @@ A と B の線引きは思いつきではなく、**実測した依存の向き*
 | 計画 | `planner.md` | `grace/planner.py` | 1184 | 3.8 | ★★★ |
 | 実行 | `executor.md` | `grace/executor.py` | 2182 | 4.6 | ★★★ |
 | 実行 | `tools.md` | `grace/tools.py`（`WebSearchTool` を含む全ツール） | 1679 | 3.3 | ★★★ |
-| 評価 | `confidence.md` | `grace/confidence.py` | 1734 | 2.5 | ★★★ |
+| 評価 | `confidence.md` | `grace/confidence.py` | 1740 | 2.6 | ★★★ |
 | 評価 | `calibration.md` | `grace/calibration.py` | 763 | 1.1 | ★★ |
 | 制御 | `intervention.md` | `grace/intervention.py` | 1612 | 1.6 | ★★ |
 | 制御 | `replan.md` | `grace/replan.py` | 1132 | 2.3 | ★★ |
@@ -85,7 +85,7 @@ A と B の線引きは思いつきではなく、**実測した依存の向き*
 
 | 文書 | 対象 | 行数 | Ver | 重要度 |
 |---|---|---:|---|---|
-| `config.md` | `grace/config.py` | 971 | 1.4 | ★★★ |
+| `config.md` | `grace/config.py` | 976 | 1.5 | ★★★ |
 | `schemas.md` | `grace/schemas.py` | 1326 | 2.2 | ★★★ |
 | `llm_compat.md` | `grace/llm_compat.py` | 807 | 1.4 | ★★★ |
 
@@ -399,6 +399,7 @@ PY
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 1.9 | Embedding を `gemini-embedding-2` へ変えたのに追随して `config.md` v1.5 / `confidence.md` v2.6 の行数・Ver を更新（2026-09-26） |
 | 1.8 | `llm_compat.md` v1.4（`create_chat_client()` が未知の `config.llm.provider` を `ValueError` にする）に追随して §2 の行数・Ver を更新（2026-09-26）。表は v1.2 のまま取り残されていた |
 | 1.7 | `grace/docs/` を基本フォーマット・横断文書フォーマットへ追随させた（2026-09-24）。IPO 文書は使用例を IPO 詳細の冒頭へ移し（`config` / `llm_compat` / `schemas` / `tools`）、各責務対応のモジュールを主な責務と 1:1 に揃えた（`confidence` / `memory` / `tools` / `schemas`）。横断文書（`grace` / `grace_runtime` / `confidence_calibration`）の概要へ共通骨格を追加。現在の既定モデルの記載 `claude-sonnet-4-6` を `claude-sonnet-5` へ是正。§2 の各節へ種別を明記し、行数・Ver を実測へ更新 |
 | 1.6 | **見出しアンカーの解決確認を §4.5 として追加し、壊れていた 9 件を是正**（2026-09-14・問題 #15）。`executor.md` 6 件（v4.4 で `4.1 使用例` を挿入し `### 4.N` を繰り下げた際、目次だけ旧番号のまま残った。あわせて移動前の「## 6. 使用例」配下に取り残されていた使用例 3 件を §4.1 の下へ移した）、`backend/docs/README.md` 1 件・`backend/docs/support_spec.md` 1 件（見出しを言い換えたが目次は旧題のまま）、`docs/support_spec.md` 1 件。**この種の腐りは §4.3 のリンク存在チェックでは捕まらない**（ファイルは実在し、壊れているのは `#` 以降だけ）ため、検証手順を 4 つから 5 つへ増やした |

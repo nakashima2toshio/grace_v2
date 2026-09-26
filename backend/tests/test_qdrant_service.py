@@ -4,6 +4,7 @@ import pandas as pd
 import pytest
 from qdrant_client.http import models
 
+from config import ModelConfig
 from services.qdrant_service import (
     QdrantDataFetcher,
     QdrantHealthChecker,
@@ -61,7 +62,7 @@ class TestQdrantService:
         
         params = get_collection_embedding_params(mock_qdrant_client, "c")
         assert params["dims"] == 3072
-        assert params["model"] == "gemini-embedding-001"
+        assert params["model"] == ModelConfig.EMBEDDING_MODEL
 
     def test_health_checker(self):
         checker = QdrantHealthChecker()

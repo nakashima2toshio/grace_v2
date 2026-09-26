@@ -55,9 +55,10 @@ class TestTokenService:
         assert cost == pytest.approx(pricing["input"] + pricing["output"])
 
         # Embedding
-        cost_emb = TokenManager.estimate_cost(1000, 0, "gemini-embedding-001", is_embedding=True)
-        # 1k * 0.0001 = 0.0001
-        assert cost_emb == pytest.approx(0.0001)
+        # 既定の Embedding は単価表に載っていること（未登録だと既定単価へ黙って落ちる）
+        emb = ModelConfig.EMBEDDING_MODEL
+        cost_emb = TokenManager.estimate_cost(1000, 0, emb, is_embedding=True)
+        assert cost_emb == pytest.approx(ModelConfig.EMBEDDING_PRICING[emb])
 
     def test_get_model_limits(self):
         limits = TokenManager.get_model_limits(ModelConfig.DEFAULT_MODEL)

@@ -27,6 +27,7 @@ from qdrant_client import QdrantClient
 from qdrant_client.http import models
 from qdrant_client.http.exceptions import UnexpectedResponse
 
+from config import ModelConfig
 from helper.helper_embedding import create_embedding_client, get_embedding_dimensions
 from qdrant_client_wrapper import (
     stable_point_id,
@@ -186,7 +187,7 @@ def get_collection_embedding_params(
         {"model": str, "dims": int}
     """
     # デフォルト設定（Gemini）
-    default_params = {"model": "gemini-embedding-001", "dims": 3072}
+    default_params = {"model": ModelConfig.EMBEDDING_MODEL, "dims": ModelConfig.EMBEDDING_DIMS}
 
     try:
         info = client.get_collection(collection_name)
@@ -205,9 +206,9 @@ def get_collection_embedding_params(
         if size == 1536:
             return {"model": "text-embedding-3-small", "dims": 1536}
         elif size == 3072:
-            return {"model": "gemini-embedding-001", "dims": 3072}
+            return {"model": ModelConfig.EMBEDDING_MODEL, "dims": 3072}
         elif size == 768:
-            return {"model": "gemini-embedding-001", "dims": 768}
+            return {"model": ModelConfig.EMBEDDING_MODEL, "dims": 768}
         elif size > 0:
             # 未知の次元数の場合はサイズだけ更新してモデルはデフォルト（または汎用）
             return {"model": "unknown-embedding-model", "dims": size}
@@ -626,7 +627,7 @@ def build_inputs_for_embedding(df: pd.DataFrame, include_answer: bool) -> List[s
 
 
 def embed_texts_for_qdrant(
-        texts: List[str], model: str = "gemini-embedding-001", batch_size: int = 100
+        texts: List[str], model: str = ModelConfig.EMBEDDING_MODEL, batch_size: int = 100
 ) -> List[List[float]]:
     """テキストをバッチ処理でEmbeddingに変換（Gemini API使用）"""
     # Gemini Embeddingクライアントを使用
@@ -850,7 +851,7 @@ def upsert_points_to_qdrant(
 # ===================================================================
 
 def embed_query_for_search(
-        query: str, model: str = "gemini-embedding-001", dims: Optional[int] = None
+        query: str, model: str = ModelConfig.EMBEDDING_MODEL, dims: Optional[int] = None
 ) -> List[float]:
     """
     検索クエリをベクトル化

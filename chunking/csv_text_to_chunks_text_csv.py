@@ -78,18 +78,19 @@ from chunking.prompts import (
 )
 from chunking.regex_string import chunk_text
 from chunking.utils import format_size, setup_logging
+from config import ModelConfig
 
 logger = logging.getLogger(__name__)
 
 
 # チャンクの最大トークン数（tiktoken cl100k_base 換算）。
-# 最終チャンク全件に強制分割の上限として使う。Embedding
-# （gemini-embedding-001）の入力上限 2048 トークンを超えると超過分が
-# 無言で切り捨てられるため、上限は必ずそれ未満にすること。
+# 最終チャンク全件に強制分割の上限として使う。Embedding の入力上限
+# （EMBEDDING_INPUT_TOKEN_LIMIT）を超えると超過分が無言で切り捨てられるため、
+# 上限は必ずそれ未満にすること。
 MAX_CHUNK_TOKENS = 512
 
-# Embedding モデル（gemini-embedding-001）の入力トークン上限。
-EMBEDDING_INPUT_TOKEN_LIMIT = 2048
+# Embedding モデルの入力トークン上限（定義は config.py::ModelConfig）。
+EMBEDDING_INPUT_TOKEN_LIMIT = ModelConfig.EMBEDDING_MAX_INPUT_TOKENS
 
 _TOKENIZER = None
 _TOKENIZER_FAILED = False
@@ -521,7 +522,7 @@ def _enforce_max_chunk_tokens(chunks: List[str], max_tokens: int) -> List[str]:
 
     Step3 は「結合時」のみ上限を見ており、Step2 が出力する単一チャンクや
     フォールバックで保全されたブロックには上限がなかった。Embedding
-    （gemini-embedding-001, 入力上限 2048 トークン）の無言切り捨てを防ぐため、
+    （入力上限 EMBEDDING_INPUT_TOKEN_LIMIT トークン）の無言切り捨てを防ぐため、
     最終チャンク全件に対して上限を強制する。
     """
     enforced: List[str] = []

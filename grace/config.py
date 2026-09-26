@@ -12,6 +12,8 @@ from typing import Any, Dict, Optional
 import yaml
 from pydantic import BaseModel, Field
 
+from config import ModelConfig
+
 # =============================================================================
 # Logging Configuration
 # =============================================================================
@@ -95,10 +97,14 @@ class LLMConfig(BaseModel):
 
 
 class EmbeddingConfig(BaseModel):
-    """Embedding設定"""
+    """Embedding設定。
+
+    既定のモデル名・次元は `config.py::ModelConfig`（Embedding の唯一の定義）から取る。
+    `config/grace_config.yml` には書かない（書くとこの既定を素通りして二重定義になる）。
+    """
     provider: str = "gemini"
-    model: str = "gemini-embedding-001"
-    dimensions: int = 3072
+    model: str = ModelConfig.EMBEDDING_MODEL
+    dimensions: int = ModelConfig.EMBEDDING_DIMS
 
 
 class ConfidenceWeights(BaseModel):
@@ -341,12 +347,14 @@ class ExecutorConfig(BaseModel):
     #    出典としてだけ表示される」状態が再発する。
     #
     # 0.64 は grace_v2_local での実測値（同一 Qdrant・同一 Embedding
-    # gemini-embedding-001 3072 次元を共有している）:
+    # gemini-embedding-001 3072 次元を共有していた当時）:
     #   in_scope  n=12  最小 0.6650（TP フロア）
     #   out_scope n= 5  最大 0.6190（FP シーリング）
     #   → 中間の 0.64
     #
     # ⚠️ マージンは 0.046。サンプルが少なく暫定値。運用の質問ログで測り直すこと。
+    # ⚠️ 2026-09-26 に Embedding を gemini-embedding-2 へ変えた。スコア分布は
+    #    モデルで変わるので、この値は**未較正**。再登録後に測り直すこと。
     reasoning_min_rag_score: float = 0.64
 
 

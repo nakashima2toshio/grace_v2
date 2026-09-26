@@ -58,6 +58,7 @@ export function DataJobPanel({
   variant,
   chunkingModel = '',
   qaModel = '',
+  embeddingLabel = '',
 }: {
   variant: DataJobVariant;
   /**
@@ -70,6 +71,11 @@ export function DataJobPanel({
    * 空文字 = 未選択 =「サーバーの既定値を使う」（`QaGenerationRequest.model` の既定）。
    */
   qaModel?: string;
+  /**
+   * ③ Qdrant 登録の注記に出す Embedding の表示（`state/modelLabel.ts::embeddingLabel`）。
+   * 空文字 = 未取得 = モデル名なしで注記する。
+   */
+  embeddingLabel?: string;
 }) {
   const kind: DataJobKind = variant;
 
@@ -106,7 +112,7 @@ export function DataJobPanel({
   // 詳細ログの既定は ON（3 工程で共用）
   const [verbose, setVerbose] = useState(true);
 
-  // ⚠️ ③ Qdrant 登録の埋め込みは Gemini（gemini-embedding-001 3072 次元）固定で、
+  // ⚠️ ③ Qdrant 登録の埋め込みは Gemini 固定（モデル名はサーバーの config.py::ModelConfig）で、
   //    モデル選択の対象外（ヘッダーのセレクタにも出ない）。
 
   const [state, dispatch] = useReducer(dataReducer, kind, initialDataState);
@@ -560,7 +566,13 @@ export function DataJobPanel({
               </p>
             )}
             <p className="notice">
-              Embedding は Gemini（<code>gemini-embedding-001</code>・3072 次元）を使います。
+              Embedding は Gemini
+              {embeddingLabel !== '' && (
+                <>
+                  （<code>{embeddingLabel}</code>）
+                </>
+              )}
+              を使います。
               <code>GOOGLE_API_KEY</code> が必要です。
             </p>
           </>
