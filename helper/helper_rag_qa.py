@@ -51,6 +51,7 @@ import tiktoken
 from dotenv import load_dotenv
 from pydantic import BaseModel
 
+from config import ModelConfig
 from helper.helper_embedding import create_embedding_client, get_embedding_dimensions
 from helper.helper_llm import create_llm_client
 
@@ -2367,11 +2368,11 @@ class OptimizedHybridQAGenerator:
     ルールベース抽出 + LLM品質向上 + 埋め込みベースカバレージ計算
     """
 
-    def __init__(self, model: str = "claude-sonnet-5", embedding_model: str = "gemini-embedding-001"):
+    def __init__(self, model: str = "claude-sonnet-5", embedding_model: str = ModelConfig.EMBEDDING_MODEL):
         """
         Args:
             model: 使用するLLMモデル（デフォルト: claude-sonnet-5）
-            embedding_model: 埋め込みモデル（デフォルト: gemini-embedding-001）
+            embedding_model: 埋め込みモデル（デフォルト: config.py::ModelConfig.EMBEDDING_MODEL）
         """
         self.client = create_llm_client(provider="anthropic")
         self.embedding_client = create_embedding_client(provider="gemini")
@@ -2748,7 +2749,7 @@ class BatchHybridQAGenerator(OptimizedHybridQAGenerator):
 
     def __init__(self,
                  model: str = "claude-sonnet-5",
-                 embedding_model: str = "gemini-embedding-001",
+                 embedding_model: str = ModelConfig.EMBEDDING_MODEL,
                  batch_size: int = 10,
                  embedding_batch_size: int = 100,
                  quality_mode: bool = False,
@@ -2756,7 +2757,7 @@ class BatchHybridQAGenerator(OptimizedHybridQAGenerator):
         """
         Args:
             model: 使用するLLMモデル（デフォルト: claude-sonnet-5）
-            embedding_model: 埋め込みモデル（デフォルト: gemini-embedding-001）
+            embedding_model: 埋め込みモデル（デフォルト: config.py::ModelConfig.EMBEDDING_MODEL）
             batch_size: LLM処理のバッチサイズ
             embedding_batch_size: 埋め込み処理のバッチサイズ
             quality_mode: 品質重視モード（True: カバレージ優先、False: 効率優先）

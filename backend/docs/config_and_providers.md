@@ -1,6 +1,6 @@
 # 設定・モデル・プロバイダの解決経路 ドキュメント
 
-**Version 1.3** | 最終更新: 2026-09-24
+**Version 1.4** | 最終更新: 2026-09-26
 
 ---
 
@@ -94,7 +94,7 @@ style EXTERNAL fill:#1a1a1a,stroke:#fff,color:#fff
 
 | 用途 | プロバイダ | 既定 | API キー |
 |---|---|---|---|
-| **Embedding（検索）のみ** | **Gemini** | `gemini-embedding-001`（3072 次元） | `GOOGLE_API_KEY` |
+| **Embedding（検索）のみ** | **Gemini** | `gemini-embedding-2`（3072 次元。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） | `GOOGLE_API_KEY` |
 | **それ以外の全 LLM 用途** | **Anthropic** | `claude-sonnet-5`（軽量 `claude-haiku-4-5-20251001`） | `ANTHROPIC_API_KEY` |
 
 - **LLM 用途**: Plan / Execute / Reasoning / Confidence / Replan / ReAct、意図分類・
@@ -252,8 +252,10 @@ if model:
 ### Embedding は対象外
 
 セレクタにも上書き経路にも Embedding は出てこない。Gemini
-`gemini-embedding-001`（3072 次元）固定で、変えると既存 Qdrant コレクションと
-次元が合わず全件再登録になる。`backend/tests/test_model_selection.py` が
+`gemini-embedding-2`（3072 次元）固定で、変えると既存 Qdrant コレクションが
+使えず全件再登録になる（次元が同じでもモデルが違えばベクトルの意味が合わず、エラーに
+ならずに検索結果が壊れる）。モデル名の定義は `config.py::ModelConfig.EMBEDDING_MODEL` の
+1 箇所で、他のファイルに書かないことを `backend/tests/test_embedding_model_single_source.py` が検査する。`backend/tests/test_model_selection.py` が
 「選択肢に embedding を含むモデル名が無い」ことを固定している。
 
 ---
@@ -325,6 +327,7 @@ class Yml,Env,Loader,Validated,Users,Dotenv,Runtime default
 
 | Version | 日付 | 変更内容 |
 |---|---|---|
+| 1.4 | 2026-09-26 | Embedding を `gemini-embedding-2` へ変更し、モデル名の定義を `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所へ集約（2026-09-26）。§3 の表と「Embedding は対象外」を追随 |
 | 1.3 | 2026-09-24 | `a_cross_doc_md_format.md` v1.1（種別 A）に準拠（2026-09-24）。概要（主な責務／各責務対応のモジュール／3 層のアーキテクチャ構成図）を追加し、冒頭の説明文を概要へ移した。本文の章番号は変えていない。ヘッダーの Version と変更履歴の最新版の食い違いも解消した |
 | 1.2 | 2026-09-23 | 選択肢を 4 件へ変更（`claude-fable-5-1` / `claude-opus-5-5` を追加、`claude-opus-5` を外した）。「モデル世代で API への送り方が違う」を追加 |
 | 1.1 | 2026-09-16 | 既定を `claude-sonnet-5` へ変更。§3.1（UI からのモデル選択・上書き範囲・Embedding が対象外である理由）を追加 |

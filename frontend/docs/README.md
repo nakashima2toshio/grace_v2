@@ -1,6 +1,6 @@
 # frontend — 責務・構成・モジュール構造
 
-**Version 2.4** | 最終更新: 2026-09-26
+**Version 2.5** | 最終更新: 2026-09-26
 
 `frontend/`（Vite + React 18 + TypeScript）の**入口文書**である。
 前半（§1〜§7）で frontend の責務・構成・モジュール構造・データの流れを説明し、
@@ -57,7 +57,7 @@ GRACE のローカル開発用 Web UI。**唯一のエージェント実行入�
 | LLM（Anthropic Claude）呼び出し・RAG 検索・根拠検証（groundedness）・ゲート判定 | `backend/app/core/support_agent.py` / `review_agent.py`、`grace/` |
 | アクションの実行・安全側への倒し方（承認タイムアウト時は実行しない） | `support_actions.py`（`ActionBackend`）・`InterventionBridge` |
 | 業界プロファイル / ルールセットの定義 | `backend/app/core/verticals.py` / `rulesets.py`（frontend は `GET` で取得して選ばせるだけ） |
-| モデル名・単価・選択肢の決定 | `config.py::ModelConfig`（`SELECTABLE_MODELS` / `MODEL_PRICING`）。frontend は `GET /api/model` / `GET /api/models` が返した値をそのまま出す。**既定モデル名を frontend に書かない・モデル名を変換しない**（`state/modelLabel.ts` 冒頭・CLAUDE.md R1） |
+| モデル名・単価・選択肢の決定 | `config.py::ModelConfig`（`SELECTABLE_MODELS` / `MODEL_PRICING` / Embedding は `EMBEDDING_MODEL`）。frontend は `GET /api/model` / `GET /api/models` が返した値をそのまま出す。**既定モデル名を frontend に書かない・モデル名を変換しない**（`state/modelLabel.ts` 冒頭・CLAUDE.md R1） |
 | 永続化 | 無し。frontend はブラウザストレージも使わない（§7.4） |
 
 > frontend は **「決める」のではなく「見せて、選ばせて、返す」** 層である。
@@ -424,11 +424,11 @@ result の型が違うため**無理にジェネリック化しない**方針で
 
 | 文書 | 対象 | 実装行数 | 版 | 重要度 |
 |---|---|---:|---|:--:|
-| `App.md` | `App.tsx` — タブ切替・パネルの振り分け・ヘッダーのモデル選択 | 169 | 1.6 | ★★ |
+| `App.md` | `App.tsx` — タブ切替・パネルの振り分け・ヘッダーのモデル選択 | 174 | 1.7 | ★★ |
 | `SupportPanel.md` | `components/SupportPanel.tsx` — 基本版 / GRACE-Support 共用 | 192 | 1.7 | ★★★ |
 | `ReviewPanel.md` | `components/ReviewPanel.tsx` — GRACE-Review 本体 | 208 | 1.5 | ★★★ |
-| `DataPanel.md` | `components/DataPanel.tsx` — データ管理タブの枠（サブタブ） | 107 | 1.4 | ★★ |
-| `DataJobPanel.md` | `components/DataJobPanel.tsx` — チャンキング / Q/A 作成 / 登録ジョブ | 739 | 1.6 | ★★★ |
+| `DataPanel.md` | `components/DataPanel.tsx` — データ管理タブの枠（サブタブ） | 111 | 1.5 | ★★ |
+| `DataJobPanel.md` | `components/DataJobPanel.tsx` — チャンキング / Q/A 作成 / 登録ジョブ | 751 | 1.7 | ★★★ |
 | `CollectionPanel.md` | `components/CollectionPanel.tsx` — コレクション管理 | 413 | 1.4 | ★★ |
 
 ### 8.2 入力・モーダル
@@ -494,7 +494,7 @@ result の型が違うため**無理にジェネリック化しない**方針で
 | **送信ペイロード** | `queryParams.ts` | 128 | 送信ペイロードの組み立て・基本版の vertical 固定・モデル未選択の null 化 |
 | | `dataParams.ts` | 201 | データ準備フォーム → API パラメータ（空欄・トリム・null 化・未選択モデルのキー省略） |
 | **モデル選択** | `headerModel.ts` | 126 | ヘッダーのモデルセレクタ（タブごとのスロット・`chunking_model` / `qa_model` を既定に使う・論理層の注記） |
-| | `modelLabel.ts` | 29 | 見出し文字列・**単価つき**選択肢のラベル |
+| | `modelLabel.ts` | 42 | 見出し文字列・**単価つき**選択肢のラベル・Embedding の表示（`embeddingLabel`） |
 | **ストア** | `formMemory.ts` | 120 | タブ切替時の入力退避と復元（モデルは含まない） |
 | | `activeJobs.ts` | 45 | 実行中データジョブの `job_id` 保持（再マウント時の再購読） |
 | **表示用の派生値** | `citations.ts` | 76 | 出典文字列（`[社内]` / `[Web]`）の解析 |
@@ -520,11 +520,11 @@ result の型が違うため**無理にジェネリック化しない**方針で
 
 ## 11. テスト件数（実測）
 
-**2026-09-24 に `cd frontend && npx vitest run` を実行した実測値。記憶で書かないこと。**
+**2026-09-26 に `cd frontend && npx vitest run` を実行した実測値。記憶で書かないこと。**
 
 ```
 Test Files  23 passed (23)
-     Tests  318 passed (318)
+     Tests  321 passed (321)
 ```
 
 | テストファイル | 件数 |
@@ -551,7 +551,7 @@ Test Files  23 passed (23)
 | `state/activeJobs.test.ts` | 8 |
 | `state/jobReducer.test.ts` | 7 |
 | `state/interventionKind.test.ts` | 4 |
-| `state/modelLabel.test.ts` | 2 |
+| `state/modelLabel.test.ts` | 5 |
 
 > ⚠️ `serverTiming.test.ts` が検証するのは `elapsed.ts`（`state/serverTiming.ts` は**存在しない**）。
 > ファイル名から実装を推測しないこと。
@@ -612,6 +612,7 @@ npm run build    # 本番ビルド
 
 | 版 | 日付 | 変更内容 |
 |---|---|---|
+| 2.5 | 2026-09-26 | Embedding のモデル名を画面に直書きするのをやめ、`GET /api/model` の `embedding_model` / `embedding_dims` から出すようにしたのに追随。§8 の版・実装行数（`App` 1.7 / 174・`DataPanel` 1.5 / 111・`DataJobPanel` 1.7 / 751・`modelLabel.ts` 42）、§11 のテスト件数を **23 ファイル / 321 件**（実測）へ更新 |
 | 2.4 | 2026-09-26 | §13 残タスク 1（スクリーンショット残り 14 枚）を完了へ。PR #210（D-05〜D-08）と PR #211（残り 10 枚）で全 31 枚を撮影・掲載したのに、本表だけ未完のまま残っていた |
 | 2.3 | 2026-09-24 | `AnswerCard.md` の Props を実装に追随させたのにあわせ §8 の版を更新（1.4）。§8 の本書自身の版（2.1 のままだった）も更新。§11 のテスト件数は `npx vitest run` で再実測し、記載どおり（23 ファイル / 318 件）であることを確認 |
 | 2.2 | 2026-09-24 | コンポーネント文書 20 件を `a_react_page_md_format.md` v1.1 へ追随させた（2026-09-24）。§8 の版列を実測へ更新し、§13 の完了済みに追記 |

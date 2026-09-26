@@ -1,6 +1,6 @@
 # schemas.py - API スキーマ（Pydantic）ドキュメント
 
-**Version 1.8** | 最終更新: 2026-09-24
+**Version 1.9** | 最終更新: 2026-09-26
 
 > **本書の位置づけ**: `backend/app/schemas.py`（API のリクエスト / レスポンス / イベントの Pydantic スキーマ）の **IPO リファレンス**。
 > 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。
@@ -848,6 +848,8 @@ class ModelInfo(BaseModel):
     heavy_model: str = ""   # 論理層。""＝model と同じ
     chunking_model: str = ""  # データ準備の既定（ChunkingRequest.model）
     qa_model: str = ""        # 同上（QaGenerationRequest.model）
+    embedding_model: str = "" # ModelConfig.EMBEDDING_MODEL（選択肢ではない。注記の表示用）
+    embedding_dims: int = 0   # ModelConfig.EMBEDDING_DIMS
 ```
 
 | 項目 | 内容 |
@@ -860,7 +862,8 @@ class ModelInfo(BaseModel):
 > モデルが既定なので、データ管理タブの「（既定値: …）」に `model` を出すと
 > 実際に走るモデルと違う名前を表示してしまう。
 >
-> ⚠️ **Embedding はここに出ない。** Gemini `gemini-embedding-001`（3072 次元）固定
+> ⚠️ **Embedding は選択肢（`ModelChoice`）に出ない。** Gemini `gemini-embedding-2`（3072 次元）固定。
+> `ModelInfo.embedding_model` / `embedding_dims` は画面の注記に実名を出すためだけに返す
 > （[`config_and_providers.md` §3.1](../config_and_providers.md)）。
 
 ---
@@ -933,7 +936,7 @@ class RegisterRequest(BaseModel):
 
 > ⚠️ **`recreate=True` のときだけ HITL CONFIRM が入る。** 既存コレクションが失われるため。
 
-> 📝 **`provider="gemini"` は正しい。** Embedding は Gemini（`gemini-embedding-001`・3072 次元）で、
+> 📝 **`provider="gemini"` は正しい。** Embedding は Gemini（`gemini-embedding-2`・3072 次元。定義は `config.py::ModelConfig`）で、
 > LLM 用途（Anthropic）とは別系統（CLAUDE.md §3）。
 
 > 📝 **入力は「既に作られた Q/A CSV」。** Q/A 生成そのものは UI に無く CLI のみ。
@@ -1086,6 +1089,7 @@ ReviewResultModel, ReviewJobStatusResponse, RuleSetInfo
 | 1.6 | 2026-09-16 | 3 階建て再編（`reference/` へ移設）に伴い、冒頭へ**位置づけと上位文書への導線**を追加した |
 | 1.5 | 2026-09-12 | 3 つの状態レスポンス（`JobStatusResponse` / `ReviewJobStatusResponse` / `DataJobStatusResponse`）に `created_at` / `finished_at`（サーバ時計・エポック秒）を追加。SSE を購読していない経路でも所要時間を出せるようにするもの |
 | 1.8 | 2026-09-24 | 使用例を IPO 詳細の冒頭（`### 4.1 使用例`）へ移し、末尾の「## 5. 使用例」章を削除（基本フォーマット `a_class_method_md_format.md` v1.6〜 §6.1 に準拠。2026-09-24）。IPO の小節を 4.2 以降へ繰り下げ、後続の章番号を 1 つ繰り上げた。文書内の `§4.x` 参照も追随 |
+| 1.9 | 2026-09-26 | Embedding を `gemini-embedding-2` へ変更し、モデル名の定義を `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所へ集約（2026-09-26）。`ModelInfo` に `embedding_model` / `embedding_dims` を追加 |
 
 ---
 

@@ -30,8 +30,8 @@ def list_models() -> List[ModelChoice]:
     `config.py::get_selectable_models()` で絞り込み済み（旧既定・日付指定
     エイリアスは含まない）。単価と上限も添えて、選択の判断材料にする。
 
-    ⚠️ Embedding はここに出ない。Embedding は Gemini（`gemini-embedding-001`
-    3072 次元）固定で、変更すると既存 Qdrant コレクションと次元が合わない。
+    ⚠️ Embedding はここに出ない。Embedding は Gemini（`ModelConfig.EMBEDDING_MODEL`）
+    固定で、変更すると既存 Qdrant コレクションが使えなくなる（全件再登録）。
     """
     return [
         ModelChoice(
@@ -62,6 +62,8 @@ def current_model() -> ModelInfo:
         # （フロントにも yml にも二重で持たせない）。
         chunking_model=ChunkingRequest.model_fields["model"].default,
         qa_model=QaGenerationRequest.model_fields["model"].default,
+        embedding_model=ModelConfig.EMBEDDING_MODEL,
+        embedding_dims=ModelConfig.EMBEDDING_DIMS,
     )
 
 

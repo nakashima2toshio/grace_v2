@@ -99,20 +99,17 @@ LLM_LIMITS = {
 }
 
 # --- Embedding モデル設定 --- #
+# モデル名・単価の定義は config.py::ModelConfig（Embedding の唯一の定義）
 EMBEDDING_MODELS = [
-    "gemini-embedding-001",
+    ModelConfig.EMBEDDING_MODEL,
     "text-embedding-3-small",
     "text-embedding-3-large",
 ]
 
-EMBEDDING_PRICING = {
-    "gemini-embedding-001"  : 0.0001,
-    "text-embedding-3-small": 0.00002,
-    "text-embedding-3-large": 0.00013,
-}
+EMBEDDING_PRICING = ModelConfig.EMBEDDING_PRICING
 
 EMBEDDING_DIMS = {
-    "gemini-embedding-001"  : 3072,
+    ModelConfig.EMBEDDING_MODEL: ModelConfig.EMBEDDING_DIMS,
     "text-embedding-3-small": 1536,
     "text-embedding-3-large": 3072,
 }

@@ -106,6 +106,12 @@ export interface ModelInfo {
    */
   chunking_model: string;
   qa_model: string;
+  /**
+   * 検索・Qdrant 登録に使う Embedding（サーバーの `config.py::ModelConfig`）。
+   * 選択の対象外。データ管理タブ「③ Qdrant 登録」の注記に実名を出すためだけに使う。
+   */
+  embedding_model: string;
+  embedding_dims: number;
 }
 
 export interface VerticalInfo {

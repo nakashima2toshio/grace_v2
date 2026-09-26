@@ -45,11 +45,14 @@ const SUB_TABS: Array<{ id: SubTab; label: string; description: string }> = [
 export function DataPanel({
   chunkingModel = '',
   qaModel = '',
+  embeddingLabel = '',
 }: {
   /** ヘッダー（App）の「① チャンキング」で選んだモデル。空文字 = サーバーの既定値。 */
   chunkingModel?: string;
   /** ヘッダー（App）の「② Q/A 作成」で選んだモデル。空文字 = サーバーの既定値。 */
   qaModel?: string;
+  /** ③ Qdrant 登録の注記に出す Embedding の表示。空文字 = 未取得。 */
+  embeddingLabel?: string;
 } = {}) {
   const [sub, setSub] = useState<SubTab>('chunking');
   const active = SUB_TABS.find((t) => t.id === sub) ?? SUB_TABS[0];
@@ -99,6 +102,7 @@ export function DataPanel({
             variant={sub}
             chunkingModel={chunkingModel}
             qaModel={qaModel}
+            embeddingLabel={embeddingLabel}
           />
         )}
       </div>

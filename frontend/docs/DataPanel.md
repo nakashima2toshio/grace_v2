@@ -1,6 +1,6 @@
 # DataPanel.tsx - データ管理タブのルート ドキュメント
 
-**Version 1.4** | 最終更新: 2026-09-24
+**Version 1.5** | 最終更新: 2026-09-26
 
 ---
 
@@ -149,11 +149,14 @@ style Panels fill:#1a1a1a,stroke:#fff,color:#fff
 export function DataPanel({
   chunkingModel = '',
   qaModel = '',
+  embeddingLabel = '',
 }: {
   /** ヘッダー（App）の「① チャンキング」で選んだモデル。空文字 = サーバーの既定値。 */
   chunkingModel?: string;
   /** ヘッダー（App）の「② Q/A 作成」で選んだモデル。空文字 = サーバーの既定値。 */
   qaModel?: string;
+  /** ③ Qdrant 登録の注記に出す Embedding の表示。空文字 = 未取得。 */
+  embeddingLabel?: string;
 } = {})
 ```
 
@@ -161,6 +164,7 @@ export function DataPanel({
 |---|---|:---:|---|---|
 | `chunkingModel` | `string` | | `''` | ヘッダーで選んだチャンキングのモデル。`DataJobPanel` へ素通し |
 | `qaModel` | `string` | | `''` | ヘッダーで選んだ Q/A 作成のモデル。`DataJobPanel` へ素通し |
+| `embeddingLabel` | `string` | | `''` | Embedding の表示（`GET /api/model` 由来）。`DataJobPanel` へ素通し |
 
 タブの選択状態は自分の `useState` が持ち、親（`App.tsx`）へは通知しない。
 モデルは**ヘッダー（`App`）で選ぶ**ので、ここでは受け取った値を渡すだけである。
@@ -187,6 +191,7 @@ export function DataPanel({
 | props | 出所 | 使い方 |
 |---|---|---|
 | `chunkingModel` / `qaModel` | `App.tsx` の `headerModels.chunking` / `.qa` | 読み取りのみ。`DataJobPanel` へ渡す |
+| `embeddingLabel` | `App.tsx` の `embeddingLabel(modelInfo)` | 読み取りのみ。`DataJobPanel` へ渡す |
 
 ---
 
@@ -207,6 +212,7 @@ export function DataPanel({
     variant={sub}
     chunkingModel={chunkingModel}
     qaModel={qaModel}
+    embeddingLabel={embeddingLabel}
   />
 )}
 ```
@@ -340,3 +346,4 @@ JSX のレンダリングテストが書けず、`tsc --noEmit` でガードし�
 | 1.2 | 2026-09-12 | **サブタブ「② Q/A 作成」を追加**（3 → 4 枚）。既存の 2 枚は ③ ④ へ繰り下げ。テスト件数を実測値へ更新 |
 | 1.3 | 2026-09-23 | **モデルの選択をヘッダーへ移した変更に追随。** `chunkingModel` / `qaModel` prop を受け取り `DataJobPanel` へ渡すようにした（Props なし → 2 つ） |
 | 1.4 | 2026-09-24 | `a_react_page_md_format.md` v1.1 に追随（2026-09-24）。概要に「各責務対応のモジュール」（主な責務と 1:1）を追加し、`## 1.` を「アーキテクチャ構成図」として **1.1 システム全体での位置づけ（3 層）** と 1.2 コンポーネントツリー図の 2 枚構成にした。Mermaid の `classDef subgraphStyle` の欠落を補った |
+| 1.5 | 2026-09-26 | Embedding を `gemini-embedding-2` へ変更し、モデル名の定義を `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所へ集約（2026-09-26）。`embeddingLabel` prop を受け取り `DataJobPanel` へ渡すようにした（Props 2 → 3） |

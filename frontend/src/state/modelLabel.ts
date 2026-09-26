@@ -27,3 +27,16 @@ export function modelOptionLabel(model: {
 }): string {
   return `${model.id}（入力 $${model.input_price}／出力 $${model.output_price} per 1K）`;
 }
+
+/**
+ * Embedding の表示ラベル（データ管理タブ「③ Qdrant 登録」の注記）。
+ *
+ * モデル名は API（GET /api/model → `config.py::ModelConfig.EMBEDDING_MODEL`）から来る。
+ * 以前は画面にモデル名を直書きしていたため、サーバー側を変えると表示だけ古いまま残った。
+ * まだ取得できていない（または取得に失敗した）ときは空文字を返し、注記はモデル名なしで出す。
+ */
+export function embeddingLabel(info: { embedding_model: string; embedding_dims: number } | null): string {
+  if (info === null || info.embedding_model === '') return '';
+  if (info.embedding_dims > 0) return `${info.embedding_model}・${info.embedding_dims} 次元`;
+  return info.embedding_model;
+}

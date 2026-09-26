@@ -22,7 +22,7 @@ GRACE-Support・GRACE-Review と**同じジョブ基盤**（`core/jobs.py`）に
 
 - **チャンク化・Q/A 生成の LLM**: Anthropic Claude（CLAUDE.md §3 のプロバイダ方針）。
   `ANTHROPIC_API_KEY` が必要
-- **登録時の Embedding**: Gemini（`gemini-embedding-001` / 3072次元）。`GOOGLE_API_KEY` が必要
+- **登録時の Embedding**: Gemini（`config.py::ModelConfig.EMBEDDING_MODEL`）。`GOOGLE_API_KEY` が必要
 
 ⚠️ LLM 用途と Embedding 用途は別系統である。`RegisterParams.provider` を
 `"anthropic"` にしてはいけない（既存 Qdrant コレクションの次元が変わる）。

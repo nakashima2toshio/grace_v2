@@ -49,6 +49,7 @@ from typing import List, Optional
 
 import pandas as pd
 
+from config import ModelConfig
 from qdrant_client_wrapper import create_qdrant_client
 
 # プロジェクト内モジュール
@@ -331,7 +332,7 @@ def register_to_qdrant(
                 # Embeddingメタデータ
                 point.payload["embedding_provider"] = provider
                 if provider == "gemini":
-                    point.payload["embedding_model"] = "gemini-embedding-001"
+                    point.payload["embedding_model"] = ModelConfig.EMBEDDING_MODEL
                 elif provider == "openai":
                     point.payload["embedding_model"] = "text-embedding-3-small"
 

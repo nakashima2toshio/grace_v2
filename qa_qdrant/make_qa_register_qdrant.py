@@ -466,7 +466,7 @@ def main():
         type=str,
         default="gemini",
         choices=["gemini"],
-        help="Embeddingプロバイダー（gemini のみ。Qdrant 登録は常に gemini-embedding-001 で行う）"
+        help="Embeddingプロバイダー（gemini のみ。Qdrant 登録は常に config.py::ModelConfig.EMBEDDING_MODEL で行う）"
     )
 
     # ================================================================

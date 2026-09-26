@@ -11,6 +11,7 @@ from typing import Any, Dict, List
 import numpy as np
 import tiktoken
 
+from config import ModelConfig
 from helper.helper_embedding import create_embedding_client, get_embedding_dimensions
 from helper.helper_llm import create_llm_client
 
@@ -19,11 +20,11 @@ logger = logging.getLogger(__name__)
 class SemanticCoverage:
     """意味的な網羅性を測定するクラス
 
-    Embedding は Gemini（gemini-embedding-001 / 3072次元）を使用し、
+    Embedding は Gemini（config.py::ModelConfig.EMBEDDING_MODEL）を使用し、
     トークンカウント等の LLM 文脈は Anthropic Claude（統一クライアント）を使用する。
     """
 
-    def __init__(self, embedding_model="gemini-embedding-001"):
+    def __init__(self, embedding_model=ModelConfig.EMBEDDING_MODEL):
         self.embedding_model = embedding_model
         # Gemini埋め込みクライアントを使用
         self.embedding_client = create_embedding_client(provider="gemini")

@@ -16,7 +16,7 @@ models:
     thinking: ["claude-sonnet-5"]                # 高度推論
     fast: ["claude-haiku-4-5-20251001"]          # 高速処理
     standard: ["claude-sonnet-5"]                # 標準処理
-    embeddings: ["gemini-embedding-001"]         # Embedding（Gemini 継続）
+    # embeddings: 定義は config.py::ModelConfig.EMBEDDING_MODEL（ここには書かない）
 
 samples:
   images:
@@ -81,8 +81,7 @@ gemini:
 
   # Embedding設定（Gemini 3アドバンテージ: 3072次元）
   embedding:
-    model: "gemini-embedding-001"
-    dimensions: 3072               # Gemini 3最大精度（OpenAI: 1536）
+    # model / dimensions: 定義は config.py::ModelConfig.EMBEDDING_MODEL / EMBEDDING_DIMS
     task_types:
       - "RETRIEVAL_DOCUMENT"       # ドキュメントインデックス用
       - "RETRIEVAL_QUERY"          # クエリ用
@@ -120,9 +119,7 @@ gemini:
     gemini-1.5-flash:
       input: 0.075
       output: 0.30
-    gemini-embedding-001:
-      input: 0.00         # 無料
-      output: 0.00
+    # Embedding の単価: 定義は config.py::ModelConfig.EMBEDDING_PRICING
 
   # レート制限
   rate_limits:

@@ -29,6 +29,7 @@ import {
   heavyModelNote,
   type HeaderModels,
 } from './state/headerModel';
+import { embeddingLabel } from './state/modelLabel';
 import { handleTabKeyDown } from './state/tabKeys';
 import { DataPanel } from './components/DataPanel';
 import { ReviewPanel } from './components/ReviewPanel';
@@ -152,7 +153,11 @@ export default function App() {
 
       <div role="tabpanel" id={`tabpanel-${tab}`} aria-labelledby={`tab-${tab}`}>
         {tab === 'data' ? (
-          <DataPanel chunkingModel={headerModels.chunking} qaModel={headerModels.qa} />
+          <DataPanel
+            chunkingModel={headerModels.chunking}
+            qaModel={headerModels.qa}
+            embeddingLabel={embeddingLabel(modelInfo)}
+          />
         ) : tab === 'review' ? (
           <ReviewPanel model={headerModels.review} />
         ) : (

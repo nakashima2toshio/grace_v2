@@ -51,6 +51,38 @@ class ModelConfig:
     # デフォルトモデル
     DEFAULT_MODEL: str = "claude-sonnet-5"
 
+    # -----------------------------------------------------------------
+    # Embedding（検索用途のみ Gemini）— Embedding モデル名の**唯一の定義**
+    # -----------------------------------------------------------------
+    # LLM（上の Anthropic モデル）と同じクラスに置き、モデル名を 1 ファイルで
+    # 見渡せるようにしている。Embedding のモデル名・次元・入力上限・単価は
+    # **ここだけ**に書き、他のモジュールはこの値を参照する
+    # （`GeminiConfig` / `QdrantConfig` / `helper/helper_embedding.py` /
+    #  `grace/config.py::EmbeddingConfig` など）。
+    # `backend/tests/test_embedding_model_single_source.py` が、コード中に
+    # モデル名のリテラルが増えていないことを検査する。
+    #
+    # ⚠️ **変更すると既存 Qdrant コレクションは使えない。** 次元が同じでも
+    #    モデルが違えばベクトルの意味が合わず、検索結果が壊れる（エラーにはならない）。
+    #    変更したら全コレクションを再登録すること。RAG スコアのしきい値
+    #    （`grace/config.py::reasoning_min_rag_score` 等）も測り直しが必要。
+    #
+    # 値は 2026-09-26 に Gemini API（models.get / embedContent）で実測:
+    #   gemini-embedding-2: inputTokenLimit 8192、既定出力 3072 次元
+    EMBEDDING_MODEL: str = "gemini-embedding-2"
+    EMBEDDING_DIMS: int = 3072
+    EMBEDDING_MAX_INPUT_TOKENS: int = 8192
+
+    # Embedding 単価（$/1K tokens）。キーはモデル名。
+    # gemini-embedding-2 は $0.20 / 1M tokens（テキスト入力・2026-09 時点の公開価格）。
+    # gemini-embedding-001 は旧既定（既存コレクションの読み込み・コスト集計の後方互換）。
+    EMBEDDING_PRICING: Dict[str, float] = {
+        EMBEDDING_MODEL: 0.0002,
+        "gemini-embedding-001": 0.0001,
+        "text-embedding-3-small": 0.00002,
+        "text-embedding-3-large": 0.00013,
+    }
+
     # temperature / top_p / top_k を受け付けないモデル（既定値以外を送ると 400）。
     # 軽量モデルと旧既定（このリストに無いもの）は受け付ける。
     NO_TEMPERATURE_MODELS: List[str] = [
@@ -159,8 +191,8 @@ def get_selectable_models() -> List[str]:
     （`backend/app/schemas.py` のバリデータ / `GET /api/models` / エージェント
     コアの上書き）が**同じ 1 箇所**を見ることを保証するために置いている。
 
-    ⚠️ Embedding はここに含めない。Embedding は Gemini（`gemini-embedding-001`
-    3072 次元）固定で、モデルを変えると既存 Qdrant コレクションと次元が合わず
+    ⚠️ Embedding はここに含めない。Embedding は Gemini（`ModelConfig.EMBEDDING_MODEL`）
+    固定で、モデルを変えると既存 Qdrant コレクションが使えなくなり
     全件再登録になる（CLAUDE.md §3 プロバイダ方針）。
     """
     return list(ModelConfig.SELECTABLE_MODELS)
@@ -431,8 +463,8 @@ class QdrantConfig:
     DOCKER_IMAGE: str = "qdrant/qdrant"
     HEALTH_CHECK_ENDPOINT: str = "/collections"
     DEFAULT_TIMEOUT: int = 30
-    DEFAULT_VECTOR_SIZE: int = 3072  # gemini-embedding-001 (MRL: 768/1536/3072)
-    DEFAULT_EMBEDDING_MODEL: str = "gemini-embedding-001"
+    DEFAULT_VECTOR_SIZE: int = ModelConfig.EMBEDDING_DIMS
+    DEFAULT_EMBEDDING_MODEL: str = ModelConfig.EMBEDDING_MODEL
 
 
 # ===================================================================
@@ -494,7 +526,7 @@ class CohereConfig:
 # ===================================================================
 
 class GeminiConfig:
-    """Gemini API設定（既定 Embedding = gemini-embedding-001 用。LLM の既定は Anthropic Claude=ModelConfig。下記 LLM モデルは後方互換）"""
+    """Gemini API設定（Embedding 用。モデル名の定義は ModelConfig.EMBEDDING_MODEL。LLM の既定は Anthropic Claude=ModelConfig。下記 LLM モデルは後方互換）"""
 
     # 利用可能なモデル一覧
     AVAILABLE_MODELS: List[str] = [
@@ -507,11 +539,9 @@ class GeminiConfig:
     # デフォルトモデル
     DEFAULT_MODEL: str = "gemini-2.5-flash"
 
-    # Embeddingモデル
-    EMBEDDING_MODEL: str = "gemini-embedding-001"
-
-    # Embedding次元数（3072: Gemini 3最大精度）
-    EMBEDDING_DIMS: int = 3072
+    # Embedding モデル・次元数（定義は ModelConfig。ここは参照のみ）
+    EMBEDDING_MODEL: str = ModelConfig.EMBEDDING_MODEL
+    EMBEDDING_DIMS: int = ModelConfig.EMBEDDING_DIMS
 
     # 思考レベル
     DEFAULT_THINKING_LEVEL: str = "low"  # "low" or "high"
@@ -525,7 +555,6 @@ class GeminiConfig:
         "gemini-2.5-flash-preview": {"input": 0.00015, "output": 0.0006},
         "gemini-2.5-pro-preview": {"input": 0.00125, "output": 0.005},
         "gemini-2.0-flash": {"input": 0.0001, "output": 0.0004},
-        "gemini-embedding-001": {"input": 0.0, "output": 0.0},  # 無料枠あり
     }
 
     # モデル制限
@@ -597,7 +626,7 @@ class LLMProviderConfig:
     # デフォルトプロバイダー
     # [MIGRATION gemini→anthropic] LLM は Anthropic、Embedding は Gemini 維持
     DEFAULT_LLM_PROVIDER: str = "anthropic"  # "anthropic" / "openai" / "gemini"
-    DEFAULT_EMBEDDING_PROVIDER: str = "gemini"  # Embedding は Gemini（gemini-embedding-001）
+    DEFAULT_EMBEDDING_PROVIDER: str = "gemini"  # Embedding は Gemini（ModelConfig.EMBEDDING_MODEL）
 
     @classmethod
     def get_embedding_dims(cls, provider: Optional[str] = None) -> int:
