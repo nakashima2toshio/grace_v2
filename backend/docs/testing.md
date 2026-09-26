@@ -1,6 +1,6 @@
 # backend テストの地図 ドキュメント
 
-**Version 1.1** | 最終更新: 2026-09-24
+**Version 1.2** | 最終更新: 2026-09-26
 
 ---
 
@@ -46,6 +46,16 @@
 ## 1. 実行方法
 
 **実 API キー・実 Qdrant は不要**（外部依存は `conftest.py` がスタブへ差し替える）。
+
+> ⚠️ **キーが「無くてよい」だけでなく、「あっても結果が変わらない」ことを保つ。**
+> `RAGSearchTool.execute` は候補コレクションが 2 つ以上あると `_embed_query_once` で
+> クエリを実 Embedding API（Gemini）に 1 回だけ埋め込み、検索関数へ `precomputed_*` を渡す。
+> キーが無い環境（CI）では埋め込みが失敗して `None` になるため表に出ないが、
+> `GOOGLE_API_KEY` がある環境では**単体テストから実 API を呼び**、`lambda _q, col: ...` の
+> ような 2 引数スタブが例外になって 0 件になる（2026-09-26 に 8 件の失敗として実測）。
+> **`execute` を回すテストは `_embed_query_once` を `(None, None)` に差し替える**
+> （`test_rag_adoption.py` / `test_memory_exclusion.py` / `test_collection_selection.py` の補助関数）。
+> 埋め込みの再利用そのものは `test_query_vector_reuse.py` が `embed_query` を差し替えて検証している。
 
 ```bash
 # 初回のみ: テスト用の依存（CI と共有する唯一の正本）
@@ -179,3 +189,4 @@ uv run --no-sync pytest backend/tests -q -rs
 |---|---|---|
 | 1.0 | 2026-09-16 | 新規作成。`review_spec.md` §9（テスト方針）を取り込み、`backend/tests` の実測（58 ファイル / 867 関数 / 978 passed・1 skipped）から地図を書き起こした |
 | 1.1 | 2026-09-24 | `a_cross_doc_md_format.md` v1.1（種別 B）に準拠（2026-09-24）。概要（結論・対象モジュール）を追加し、冒頭の説明文を概要へ移した。本文の章番号は変えていない |
+| 1.2 | 2026-09-26 | §1 に「`GOOGLE_API_KEY` があっても結果が変わらないこと」の注意を追記。`RAGSearchTool.execute` を回す 3 ファイルがキーのある環境で実 Embedding API を呼び、8 件落ちていたのを是正したのに合わせた |

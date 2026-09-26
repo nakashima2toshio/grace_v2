@@ -193,6 +193,11 @@ class TestAllowedCollectionsAreProtected:
         monkeypatch.setattr(
             RAGSearchTool, "_get_all_collections_dynamic", lambda _s: list(self.ALL),
         )
+        # ⚠️ クエリの事前埋め込みを止める。止めないと GOOGLE_API_KEY がある環境では
+        #    実 Embedding API を呼び、下のスタブへ precomputed_* が渡って例外になる。
+        monkeypatch.setattr(
+            RAGSearchTool, "_embed_query_once", lambda _s, _q, _n: (None, None),
+        )
         monkeypatch.setattr(
             "agent_tools.search_rag_knowledge_base_structured",
             lambda _q, col: called.append(col) or [],
