@@ -1,6 +1,6 @@
 # frontend — 責務・構成・モジュール構造
 
-**Version 2.6** | 最終更新: 2026-09-26
+**Version 2.7** | 最終更新: 2026-09-26
 
 `frontend/`（Vite + React 18 + TypeScript）の**入口文書**である。
 前半（§1〜§7）で frontend の責務・構成・モジュール構造・データの流れを説明し、
@@ -435,7 +435,7 @@ result の型が違うため**無理にジェネリック化しない**方針で
 
 | 文書 | 対象 | 実装行数 | 版 | 重要度 |
 |---|---|---:|---|:--:|
-| `QueryForm.md` | `components/QueryForm.tsx` | 272 | 1.7 | ★★★ |
+| `QueryForm.md` | `components/QueryForm.tsx` | 272 | 1.8 | ★★★ |
 | `ReviewForm.md` | `components/ReviewForm.tsx` | 254 | 1.7 | ★★ |
 | `ConfirmModal.md` | `components/ConfirmModal.tsx` — HITL アクション承認 | 142 | 1.3 | ★★ |
 | `QuestionSelectModal.md` | `components/QuestionSelectModal.tsx` — 0-(A) 主質問の選択 | 76 | 1.1 | ★★ |
@@ -612,6 +612,7 @@ npm run build    # 本番ビルド
 
 | 版 | 日付 | 変更内容 |
 |---|---|---|
+| 2.7 | 2026-09-26 | §8.2 の `QueryForm.md` の版を 1.8 へ更新（dry-run の既定が OFF になった現状に合わせて、formMemory の説明の言い回しを直した） |
 | 2.6 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随して `DataJobPanel.md` の Ver を 1.8 へ更新（実装行数は変化なし）。テスト件数 321 件は変化なし |
 | 2.5 | 2026-09-26 | Embedding のモデル名を画面に直書きするのをやめ、`GET /api/model` の `embedding_model` / `embedding_dims` から出すようにしたのに追随。§8 の版・実装行数（`App` 1.7 / 174・`DataPanel` 1.5 / 111・`DataJobPanel` 1.7 / 751・`modelLabel.ts` 42）、§11 のテスト件数を **23 ファイル / 321 件**（実測）へ更新 |
 | 2.4 | 2026-09-26 | §13 残タスク 1（スクリーンショット残り 14 枚）を完了へ。PR #210（D-05〜D-08）と PR #211（残り 10 枚）で全 31 枚を撮影・掲載したのに、本表だけ未完のまま残っていた |

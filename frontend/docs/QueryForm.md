@@ -1,6 +1,6 @@
 # QueryForm.tsx - 問い合わせ入力フォーム ドキュメント
 
-**Version 1.7** | 最終更新: 2026-09-24
+**Version 1.8** | 最終更新: 2026-09-26
 
 ---
 
@@ -228,7 +228,7 @@ interface Props {
 `App.tsx` はタブを**条件レンダリングで切り替える**＝離れたタブはアンマウントされる。
 これは `EventSource` を `useEffect` のクリーンアップで確実に閉じるための意図的な設計だが、
 そのままだと `useState` が 8 個すべて初期値へ戻る。
-**チェックを外した dry-run が勝手に ON へ復帰する**のは実行結果を変えてしまうため、
+**切り替えた dry-run が勝手に既定値へ戻る**のは実行結果を変えてしまうため、
 入力内容だけを `state/formMemory.ts`（モジュールスコープのストア）へ退避する。
 
 ```tsx
@@ -244,7 +244,7 @@ useEffect(() => {                                                 // 変更の�
 
 | 論点 | 決定 |
 |---|---|
-| 記憶のキー | `'basic'` / `'vertical'` に**分ける**。基本版で外した dry-run が GRACE-Support へ漏れない |
+| 記憶のキー | `'basic'` / `'vertical'` に**分ける**。基本版で切り替えた dry-run が GRACE-Support へ漏れない |
 | 復元のタイミング | `useState` の遅延初期化で**マウント時 1 回だけ**。毎レンダーで読むと入力中に上書きされる |
 | 保存のタイミング | `useEffect` で毎回。アンマウント時のクリーンアップに寄せると古い値を書きやすい |
 | 寿命 | ページ再読み込みで消える（`sessionStorage` にはしない。起動直後は既定値から始まるほうが分かりやすい） |
@@ -525,3 +525,4 @@ class S,Opt,Push,V,R,Build,Vert,Null,Sel,Act,Id,Send1,Send2 default
 | 1.5 | 2026-09-23 | **モデルセレクタをヘッダー（`App`）へ移した。** フォーム内の `ModelSelect` と `model` state を削除し、`models` / `defaultModel` prop を `model` prop（ヘッダーで選んだ値）へ置き換えた。`formMemory` からも `model` を外した（`App` はアンマウントされないので退避が要らない） |
 | 1.6 | 2026-09-23 | **詳細ログの既定を ON へ変更**（基本版 / GRACE-Support / GRACE-Review は `DEFAULT_QUERY_FORM` / `DEFAULT_REVIEW_FORM` の `verbose`、データ管理は `DataJobPanel` の `useState`） |
 | 1.7 | 2026-09-24 | `a_react_page_md_format.md` v1.1 に追随（2026-09-24）。概要に「各責務対応のモジュール」（主な責務と 1:1）を追加し、`## 1.` を「アーキテクチャ構成図」として **1.1 システム全体での位置づけ（3 層）** と 1.2 コンポーネントツリー図の 2 枚構成にした。Mermaid の `classDef subgraphStyle` の欠落を補った |
+| 1.8 | 2026-09-26 | 「タブを切り替えても入力が消えない仕組み」の説明を、`dryRun` の既定が `false` になった現状に合わせた。「チェックを外した dry-run が勝手に ON へ復帰する」「基本版で外した dry-run」を、既定値に依存しない「切り替えた dry-run が勝手に既定値へ戻る」「基本版で切り替えた dry-run」へ改めた（1.1 の変更履歴は当時の記述として残す） |
