@@ -34,13 +34,15 @@ llm:
   # M-1: 論理層（計画生成・推論・根拠検証・ReAct）に使う上位モデル。
   # ""（空）= model と同じ ＝ 現行挙動。上位へ寄せるときだけ設定する。
   #
-  #   heavy_model: "claude-opus-5"
+  #   heavy_model: "claude-opus-5-5"
   #
   # ⚠️ 切り替え前に確認すること:
-  #   1. 単価が上がる（sonnet の 2.5 倍）。下の cost.* も見直す
-  #   2. claude-opus-5 は拡張思考が既定 ON で、max_tokens が「思考+本文」の
-  #      合計上限になる。llm_compat が既定で thinking を明示 disabled に
-  #      しているためそのままでも動く。思考を使うなら下の budget を設定する
+  #   1. 単価が上がる（sonnet の 2 倍。config.py::ModelConfig.MODEL_PRICING）。
+  #      下の cost.* も見直す
+  #   2. claude-opus-5-5 は思考を無効化できない（ALWAYS_THINKING_MODELS）。
+  #      max_tokens が「思考+本文」の合計上限になるが、llm_compat が thinking を
+  #      省略して effort=low で走らせ、max_tokens も 4096 以上へ引き上げるため
+  #      そのままでも動く。思考を深くしたいなら下の budget を設定する
   #   3. 判定系（複雑度推定・意図分類・情報なし判定・RAG適合性）は light_model
   #      側であり、ここでは切り替わらない
   heavy_model: ""
