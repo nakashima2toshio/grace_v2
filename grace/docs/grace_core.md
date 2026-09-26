@@ -1,6 +1,6 @@
 # grace_core.md - GRACE コアモジュール群（Planner 系）アーキテクチャ ドキュメント
 
-**Version 3.1** | 最終更新: 2026-09-24
+**Version 3.2** | 最終更新: 2026-09-26
 
 > **参考ドキュメント**
 > - [`grace/docs/grace.md`](./grace.md) — 設計思想（**なぜ**この形か。ReAct → Reflection → GRACE 5 段階の経緯）
@@ -56,7 +56,7 @@
 
 各モジュールの IPO 詳細（シグネチャ・戻り値例・使用例）は個別ドキュメントに委ね、本書は **全体アーキテクチャ・データフロー・モジュール間連携・リンク集**に徹する。
 
-> 📝 **技術スタック**: LLM 用途はすべて **Anthropic Claude**（既定 `claude-sonnet-5`、軽量 `claude-haiku-4-5-20251001`、鍵 `ANTHROPIC_API_KEY`）。検索の Embedding のみ **Gemini** `gemini-embedding-001`（3072 次元、鍵 `GOOGLE_API_KEY`）を継続利用。LLM クライアントは `grace.llm_compat.create_chat_client()` を経由する。
+> 📝 **技術スタック**: LLM 用途はすべて **Anthropic Claude**（既定 `claude-sonnet-5`、軽量 `claude-haiku-4-5-20251001`、鍵 `ANTHROPIC_API_KEY`）。検索の Embedding のみ **Gemini** `gemini-embedding-2`（3072 次元、鍵 `GOOGLE_API_KEY`）を継続利用。LLM クライアントは `grace.llm_compat.create_chat_client()` を経由する。
 
 ### 主な責務
 
@@ -174,7 +174,7 @@ flowchart TB
 
     subgraph EXTERNAL["外部サービス層"]
         ANTHROPIC["Anthropic Claude<br>(claude-sonnet-5)"]
-        GEMINI["Gemini Embedding<br>(gemini-embedding-001)"]
+        GEMINI["Gemini Embedding<br>(gemini-embedding-2)"]
         QDRANT["Qdrant Vector DB"]
         WEB["Web Search<br>(SerpAPI/DDG/CSE)"]
     end
@@ -494,7 +494,7 @@ GRACE エージェントの統一ツールシステム。RAG 検索（Gemini Emb
 | `ToolResult` | 成功・出力・信頼度・エラー・実行時間の統一結果 | — |
 | `create_tool_registry(config)` | `ToolRegistry` ファクトリ |  — |
 
-**主な定数**: 推論 LLM `claude-sonnet-5`、Embedding `gemini-embedding-001`（3072 次元）、Qdrant `http://localhost:6333`、有効ツール `["rag_search","web_search","reasoning","ask_user"]`。
+**主な定数**: 推論 LLM `claude-sonnet-5`、Embedding `gemini-embedding-2`（3072 次元）、Qdrant `http://localhost:6333`、有効ツール `["rag_search","web_search","reasoning","ask_user"]`。
 
 ---
 
@@ -838,7 +838,7 @@ sequenceDiagram
 | `replan.max_replans` | `3` | executor / replan | 最大リプラン回数 |
 | `replan.confidence_threshold` | `0.4` | replan | 低信頼度トリガー閾値 |
 | `memory.path` | `logs/grace_memory.jsonl` | memory | 実行メモリの保存先 |
-| Embedding | `gemini-embedding-001`（3072 次元） | tools / confidence | 検索用 Embedding（Gemini を継続利用） |
+| Embedding | `gemini-embedding-2`（3072 次元） | tools / confidence | 検索用 Embedding（Gemini を継続利用） |
 
 ---
 
@@ -1038,6 +1038,7 @@ __all__ = [
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 3.2 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
 | 3.1 | 現在の既定モデルの記載 `claude-sonnet-4-6` を実装（`grace/config.py` の `LLMConfig.model` = `claude-sonnet-5`）に合わせて是正した（CLAUDE.md §9.3。旧既定は履歴の記述にだけ残す）（2026-09-24） |
 | 3.0 | **`grace_core_flow.md` の統合先となり、図表の正本になった**（2026-09-14）。(1) **§3.0 モジュール役割サマリー**を新設——11 モジュールの 1 行サマリ表（旧 `grace_core_flow.md` §C・旧 `grace.md` 第2部）と 5 段階×担当モジュール表（旧 `grace.md` 第3部）をここへ集約し、3 本に散っていた同じ表を 1 箇所にした。(2) **§7 使用例を最小実行サンプルへ差し替え**（旧 `grace_core_flow.md` §D.1/§D.2/§D.4）。旧 §D.3 の行番号による逐行解説は、リポジトリに存在しないコード片への行番号だったため引き継いでいない。(3) §3.5 memory.py の「個別ドキュメント: （新規・本書で初出）」を `memory.md` へのリンクへ是正。(4) 冒頭に `grace.md`（WHY）/ `grace_runtime.md`（HOW）への参照を置き、本書が WHAT を受け持つことを明示 |
 | 2.1 | **Streamlit 残骸の除去。** Mermaid の UI ノードを `React UI ← FastAPI ← SSE` へ是正。`agent_rag.py` は存在しない（2026-09-12） |

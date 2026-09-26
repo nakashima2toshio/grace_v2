@@ -1,6 +1,6 @@
 # chunking/docs/ 棚卸し
 
-**Version 1.1** | 最終更新: 2026-09-25
+**Version 1.2** | 最終更新: 2026-09-26
 
 > 📎 **姉妹版**: [`docs/README.md`](../../docs/README.md)（直下・配置の境界） /
 > [`qa_generation/docs/README.md`](../../qa_generation/docs/README.md) /
@@ -48,13 +48,14 @@
 ## 2. 一覧
 
 > 行数・Ver は **2026-09-25 の実測値**（`wc -l` と各文書の Version ヘッダー）。
+> 2026-09-26 に Embedding（`gemini-embedding-2`）の記述を是正した文書の行は、同日に再実測した。
 
 > 形式の「IPO」は**種別 E**（`a_class_method_md_format.md`。使用例は IPO 詳細の冒頭 `### 4.1`）、
 > 「資材」は**種別 D**（`a_cross_doc_md_format.md` §7.2・書式自由）。本索引は種別 C。
 
 | ファイル | 形式 | 内容 | 行数 | Ver | 重要度 |
 |---|---|---|---:|---|:--:|
-| [`csv_text_to_chunks_text_csv.md`](csv_text_to_chunks_text_csv.md) | IPO | 主モジュールのクラス・関数仕様。アーキテクチャ図・モジュール構成図・3 段階パイプライン・CLI 関数を含む | 1076 | 1.6 | ★★★ |
+| [`csv_text_to_chunks_text_csv.md`](csv_text_to_chunks_text_csv.md) | IPO | 主モジュールのクラス・関数仕様。アーキテクチャ図・モジュール構成図・3 段階パイプライン・CLI 関数を含む | 1077 | 1.7 | ★★★ |
 | [`async_api_client.md`](async_api_client.md) | IPO | `AsyncAPIClient` の仕様。並列制御（Semaphore）・リトライ・連続失敗での中断 | 476 | 2.2 | ★★☆ |
 | [`memo.txt`](memo.txt) | 資材 | CLI の早見表（2026-09-24 に現行 CLI へ書き直し済み）。オプション・既定値は 2026-09-25 に実装と突き合わせて一致を確認 | 37 | — | ★☆☆ |
 
@@ -129,5 +130,6 @@ uv run --no-sync pytest backend/tests/test_chunking_abort.py -q
 
 | Version | 日付 | 変更 |
 |---|---|---|
+| 1.2 | 2026-09-26 | `csv_text_to_chunks_text_csv.md` v1.7（Embedding の入力上限 2048 → 8192 = `ModelConfig.EMBEDDING_MAX_INPUT_TOKENS`、モデル名 `gemini-embedding-2`）に追随して行数・Ver を再実測 |
 | 1.1 | 2026-09-25 | 残タスク 1（`async_api_client.md` の既定モデル）を完了し、§2 の行数・Ver を更新 |
 | 1.0 | 2026-09-25 | 新規作成。`chunking/docs/` には棚卸し索引が無かった（姉妹リポジトリ `grace_v2_local` にはある）。本リポジトリの実ファイルから、文書一覧・実装カバレッジ・テスト件数（実測）・残タスクを記載。`memo.txt` のオプション・既定値を実装と突き合わせて一致を確認し、`async_api_client.md` の既定モデルが旧既定のままであることを残タスク 1 に記録した |

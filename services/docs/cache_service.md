@@ -1,6 +1,6 @@
 # cache_service.py - TTLベースメモリキャッシュサービス ドキュメント
 
-**Version 1.1** | 最終更新: 2026-09-24
+**Version 1.2** | 最終更新: 2026-09-26
 
 ---
 
@@ -20,7 +20,7 @@
 
 ## 概要
 
-`cache_service.py`は、TTL（Time To Live）ベースのインメモリキャッシュを提供するサービスモジュールです。`helper_api.py::MemoryCache` から統合され、LLM（Anthropic Claude）応答や Embedding（Gemini `gemini-embedding-001`、3072次元）の計算結果など、コストの高い処理結果を一時保存して再利用するために使用されます。有効期限付きの値保存・取得、最大サイズ制限による自動退避、関数結果キャッシュ用デコレータ、グローバル共有インスタンスを備えます。
+`cache_service.py`は、TTL（Time To Live）ベースのインメモリキャッシュを提供するサービスモジュールです。`helper_api.py::MemoryCache` から統合され、LLM（Anthropic Claude）応答や Embedding（Gemini `gemini-embedding-2`、3072次元）の計算結果など、コストの高い処理結果を一時保存して再利用するために使用されます。有効期限付きの値保存・取得、最大サイズ制限による自動退避、関数結果キャッシュ用デコレータ、グローバル共有インスタンスを備えます。
 
 ### 主な責務
 
@@ -258,7 +258,7 @@ init_cache_from_config(config_manager)
 # コストの高い処理（例: Gemini Embedding 計算）をキャッシュ
 @cache_result()
 def embed_text(text: str):
-    return call_gemini_embedding(text)  # gemini-embedding-001 (3072次元)
+    return call_gemini_embedding(text)  # gemini-embedding-2 (3072次元)
 
 vec1 = embed_text("こんにちは")  # 実行
 vec2 = embed_text("こんにちは")  # キャッシュヒット
@@ -850,6 +850,7 @@ __all__ = [
 |-----------|---------|
 | 1.0 | 初版作成（2026-06-17） |
 | 1.1 | 使用例を IPO 詳細の冒頭（`### 4.1 使用例`）へ移し、末尾の「## 6. 使用例」章を削除（基本フォーマット `a_class_method_md_format.md` v1.6〜 §6.1 に準拠。2026-09-24）。IPO の小節を 4.2 以降へ繰り下げ、後続の章番号を 1 つ繰り上げた。文書内の `§4.x` 参照も追随 |
+| 1.2 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
 
 ---
 

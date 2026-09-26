@@ -1,6 +1,6 @@
 # planner.py - GRACE 計画生成エージェント ドキュメント
 
-**Version 3.8** | 最終更新: 2026-09-24
+**Version 3.9** | 最終更新: 2026-09-26
 
 ---
 
@@ -24,7 +24,7 @@
 
 加えて、計画生成の入口で**曖昧クエリ**（「あの件について教えて」のように指示語のみで対象が特定できない質問）を検知し、検索を行わずユーザーに明確化を求める `ask_user` 計画へ振り分けます。さらに **P4 実行メモリ層**（`grace/memory.py`）と連携し、過去の実行実績から「この質問で当たりやすいコレクション」を学習している場合は、`rag_search` の対象コレクションをその最良コレクションに固定します（十分な実績が無ければ全コレクション検索）。
 
-LLM 呼び出しは `grace/llm_compat.py` の `create_chat_client()` で生成したクライアント経由で行います。このクライアントは google-genai 互換の `client.models.generate_content(...)` インターフェースを保ったまま、内部では Anthropic Claude（既定 `claude-sonnet-5`、軽量用途 `claude-haiku-4-5-20251001`）を呼び出すアダプターです。Embedding（検索）は別途 Gemini `gemini-embedding-001`（3072次元）を使用します。
+LLM 呼び出しは `grace/llm_compat.py` の `create_chat_client()` で生成したクライアント経由で行います。このクライアントは google-genai 互換の `client.models.generate_content(...)` インターフェースを保ったまま、内部では Anthropic Claude（既定 `claude-sonnet-5`、軽量用途 `claude-haiku-4-5-20251001`）を呼び出すアダプターです。Embedding（検索）は別途 Gemini `gemini-embedding-2`（3072次元）を使用します。
 
 ### 主な責務
 
@@ -1124,6 +1124,7 @@ __all__ = [
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 3.9 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
 | 3.8 | 現在の既定モデルの記載 `claude-sonnet-4-6` を実装（`grace/config.py` の `LLMConfig.model` = `claude-sonnet-5`）に合わせて是正した（CLAUDE.md §9.3。旧既定は履歴の記述にだけ残す）（2026-09-24） |
 | 3.7 | 使用例を「## 6. 使用例」から IPO 詳細セクション冒頭の `4.1 使用例` へ移動（フォーマット仕様 v1.6 §6.1）。これに伴い既存の `### 4.N` を 1 つずつ繰り下げ、章番号を エクスポート → `## 6.` / 変更履歴 → `## 7.` へ繰り上げ（2026-09-14） |
 | 3.6 | **Streamlit 残骸の除去。** Mermaid の呼び出し元ノードを `support_agent.py` へ是正。`agent_rag.py` は存在しない（2026-09-12） |

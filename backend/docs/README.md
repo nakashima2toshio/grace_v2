@@ -1,6 +1,6 @@
 # backend/docs — 文書の地図
 
-**Version 2.3** | 最終更新: 2026-09-24
+**Version 2.4** | 最終更新: 2026-09-26
 
 ---
 
@@ -9,7 +9,7 @@
 
 > ⚠️ **本リポジトリは Anthropic 版。** LLM は `claude-sonnet-5`（軽量
 > `claude-haiku-4-5-20251001`）で `ANTHROPIC_API_KEY` が必須、Embedding のみ
-> Gemini `gemini-embedding-001`（3072 次元・`GOOGLE_API_KEY`）。姉妹リポジトリ
+> Gemini `gemini-embedding-2`（3072 次元・`GOOGLE_API_KEY`）。姉妹リポジトリ
 > `grace_v2_local` は Ollama 版で**表記が逆**なので、あちらの文書を持ち込まない。
 
 > **関連**: `grace/` 側は [`grace/docs/README.md`](../../grace/docs/README.md)、
@@ -132,6 +132,7 @@ reference/*.md             引く（通読しない）
 
 | Version | 日付 | 変更内容 |
 |---|---|---|
+| 2.4 | 2026-09-26 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
 | 2.3 | 2026-09-24 | `a_cross_doc_md_format.md` v1.1（種別 C）に準拠（2026-09-24）。目次を追加し、§2 の各表へ「種別」列（A / B / C、`reference/` は E）を足し、§4 の規約表に横断文書フォーマットを追加した |
 | 2.2 | 2026-09-16 | **Phase 3 を反映**。`reference/` の 17 文書に位置づけヘッダーが付いたことを §2.3 に明記した（圧縮は実測の結果不要と判断。[`migration_plan.md` §4](./migration_plan.md)） |
 | 2.1 | 2026-09-16 | **Phase 2 を反映**。`support_spec.md` / `review_spec.md` を各 `*_flow.md` へ統合し、`verticals_and_rulesets.md` と `testing.md` を新設した（[`migration_plan.md` §3](./migration_plan.md)） |

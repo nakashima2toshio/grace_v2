@@ -1,6 +1,6 @@
 # backend/docs 棚卸し・監査記録 ドキュメント
 
-**Version 1.15** | 最終更新: 2026-09-24
+**Version 1.16** | 最終更新: 2026-09-26
 
 > ⚠️ **本書は「監査記録」であって入口ではない。** 文書の地図と読む順路は
 > [`README.md`](./README.md) にある。ここには実装追随の照合結果・過去に見つかった
@@ -23,8 +23,8 @@
 `backend/`（FastAPI + パイプライン中核）のドキュメント一覧と、実装への追随状況・
 欠落・残タスク・検証手順をまとめる。
 
-> ⚠️ **本リポジトリは Anthropic 版。** LLM は `claude-sonnet-4-6`（軽量 `claude-haiku-4-5-20251001`）で
-> `ANTHROPIC_API_KEY` が**必須**、Embedding のみ Gemini `gemini-embedding-001`（3072 次元・`GOOGLE_API_KEY`）。
+> ⚠️ **本リポジトリは Anthropic 版。** LLM は `claude-sonnet-5`（軽量 `claude-haiku-4-5-20251001`）で
+> `ANTHROPIC_API_KEY` が**必須**、Embedding のみ Gemini `gemini-embedding-2`（3072 次元・`GOOGLE_API_KEY`）。
 > 姉妹リポジトリ `grace_v2_local` は Ollama 版で LLM 用の API キーが不要。**表記が逆**なので、
 > あちらの文書をそのまま持ち込まない（CLAUDE.md §3・§5）。
 
@@ -322,6 +322,7 @@ grep -A 12 'STEP_IDS = (' backend/app/core/support_agent.py \
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 1.16 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所）。同じ注記の LLM 既定が `claude-sonnet-4-6`（旧既定）のままだったので `claude-sonnet-5` へ是正 |
 | 1.15 | `a_cross_doc_md_format.md` v1.1（種別 C）に準拠（2026-09-24）。ヘッダーの版に対して変更履歴の行が欠けていたため、欠けた版の行を補った |
 | 1.14 | reference に上位文書への導線を追加（Phase 3・圧縮は実測により見送り）（本表に記録が無かったため、ヘッダーの版を上げたコミット `3b28ccd` の件名から補った） |
 | 1.13 | spec と flow の 2 本立てを解消し系統ごとに 1 本へ統合（Phase 2）（本表に記録が無かったため、ヘッダーの版を上げたコミット `51ec2f6` の件名から補った） |

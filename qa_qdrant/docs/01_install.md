@@ -1,6 +1,6 @@
 # インストール・環境構築ガイド（Q/A 生成・Qdrant 登録まわり）
 
-**Version 2.3** | 最終更新: 2026-09-25
+**Version 2.4** | 最終更新: 2026-09-26
 
 ---
 
@@ -44,7 +44,7 @@
 
 - Q/A 生成 → Qdrant 登録を動かす環境構築の**唯一の入口**である
 - Python 仮想環境 → 環境変数（`.env`）→ Docker（Qdrant / Redis）→ Celery ワーカー → アプリ起動の順に進める（§2〜§6）
-- LLM は Anthropic Claude、Embedding は Gemini（`gemini-embedding-001`）。`ANTHROPIC_API_KEY` と `GOOGLE_API_KEY` が必要
+- LLM は Anthropic Claude、Embedding は Gemini（`gemini-embedding-2`）。`ANTHROPIC_API_KEY` と `GOOGLE_API_KEY` が必要
 - 起動確認は §7 のチェックリスト、失敗時は §8 のトラブルシューティングを見る
 
 ### 対象モジュール
@@ -78,7 +78,7 @@ graph TD
     User((ユーザー<br>ブラウザ)) -->|http://localhost:5173| React[React UI<br>Vite + React 18<br>Port: 5173]
     React -->|/api/*| API[FastAPI<br>backend/app/main.py<br>Port: 8000]
     API -->|Q&A生成・回答生成| Anthropic(Anthropic API<br>claude-sonnet-5)
-    API -->|Embedding| Gemini(Gemini API<br>gemini-embedding-001)
+    API -->|Embedding| Gemini(Gemini API<br>gemini-embedding-2)
     API -->|ベクトル検索・登録| Qdrant[(Qdrant<br>Port: 6333<br>Docker)]
     API -.->|タスク登録| Redis[(Redis<br>Port: 6379<br>Docker)]
     Celery[[Celery Workers<br>Q/A 生成の並列処理]]
@@ -124,7 +124,7 @@ cd frontend && npm install
 | パッケージ | 用途 |
 |---|---|
 | `anthropic` | **Q/A 生成・回答生成の LLM**（`claude-sonnet-5`） |
-| `google-genai` | **Embedding 専用**（`gemini-embedding-001`・3072 次元） |
+| `google-genai` | **Embedding 専用**（`gemini-embedding-2`・3072 次元） |
 | `qdrant-client` | Qdrant クライアント |
 | `celery` / `redis` / `kombu` | Q/A 生成の並列処理 |
 | `flower` | Celery 監視 UI（オプション） |
@@ -188,7 +188,7 @@ touch .env
 | 用途 | 変数 | 既定モデル | 取得先 |
 |---|---|---|---|
 | **LLM 全般**（Q/A 生成・回答生成・根拠検証 等） | `ANTHROPIC_API_KEY` | `claude-sonnet-5`（軽量 `claude-haiku-4-5-20251001`） | Anthropic Console |
-| **Embedding のみ**（検索） | `GOOGLE_API_KEY` | `gemini-embedding-001`（3072 次元） | Google AI Studio |
+| **Embedding のみ**（検索） | `GOOGLE_API_KEY` | `gemini-embedding-2`（3072 次元） | Google AI Studio |
 
 ```bash
 # .env
@@ -201,7 +201,7 @@ GOOGLE_API_KEY=AIzaxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```bash
 # === 必須 ===
 ANTHROPIC_API_KEY=sk-ant-...     # LLM（Q/A 生成ほか全用途）
-GOOGLE_API_KEY=AIza...           # Embedding（gemini-embedding-001）
+GOOGLE_API_KEY=AIza...           # Embedding（gemini-embedding-2）
 
 # === オプション ===
 QDRANT_URL=http://localhost:6333   # 既定値と同じなら省略可
@@ -817,7 +817,7 @@ uv run python qa_qdrant/make_qa_register_qdrant.py --use-celery
 | 変数名         | 必須 | デフォルト                                     | 説明            |
 | -------------- | ---- | ---------------------------------------------- | --------------- |
 | ANTHROPIC_API_KEY | **Yes** | -                                        | **LLM 全般**（Q/A 生成・回答生成ほか） |
-| GOOGLE_API_KEY | **Yes** | -                                           | **Embedding 専用**（`gemini-embedding-001`） |
+| GOOGLE_API_KEY | **Yes** | -                                           | **Embedding 専用**（`gemini-embedding-2`） |
 | QDRANT_URL     | No   | [http://localhost:6333](http://localhost:6333) | Qdrant URL      |
 | REDIS_URL      | No   | redis://localhost:6379/0                       | Redis URL       |
 | LOG_LEVEL      | No   | INFO                                           | ログレベル      |
@@ -851,6 +851,7 @@ grace_v2/
 
 | バージョン | 変更内容 |
 |---|---|
+| 2.4 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
 | 2.3 | 現在の既定モデルの記述（構成図・依存表・API キー表の 3 箇所）を旧既定 `claude-sonnet-4-6` → `claude-sonnet-5` へ是正（2026-09-25） |
 | 2.2 | `a_cross_doc_md_format.md` の種別 B の骨格へ揃えた（2026-09-24）。番号なしの「概要」（状態・結論・対象モジュール）を追加し、履歴表を「バージョン｜変更内容」形式へ揃えて末尾の「変更履歴」とした。本文の章番号は変えていない |
 | 2.1 | §2.3 の注記を是正。`streamlit` / `altair` / `pydeck` は**2026-09-12 に依存から削除済み**なのに、「依存に残っている・整理は残タスク」と書いたままだった（版の食い違いの記述も含め、削除前の状態を指していた）（2026-09-20） |

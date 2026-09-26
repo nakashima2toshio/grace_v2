@@ -1,6 +1,6 @@
 # パイプライン 3 モード対照（基本版 / GRACE-Support / GRACE-Review）
 
-**Version 1.1** | 最終更新: 2026-09-24
+**Version 1.2** | 最終更新: 2026-09-26
 
 ---
 
@@ -22,7 +22,7 @@
 判定の詳細は `docs/guardrails.md`、回答生成の詳細は `docs/reasoning_flow.md` を参照。
 
 技術スタック: LLM = Anthropic Claude（既定 `claude-sonnet-5`）／
-Embedding = Gemini（`gemini-embedding-001`・3072次元）。
+Embedding = Gemini（`gemini-embedding-2`・3072次元）。
 
 > ⚠️ **行番号は書かない。** 実装への参照はすべて「ファイル名 + シンボル名」で示す。
 > 行番号はコミットのたびに嘘になる（2026-08-31 の監査で、旧ドキュメントの行番号参照が
@@ -244,3 +244,4 @@ style REV fill:#1a1a1a,stroke:#fff,color:#fff
 |---|---|
 | 1.0 | 初版。3 モードの対照表・実行順・基本版と Support の差・ガードレールの有効表を新設（それまで「基本版」がどの文書にも記載されていなかった） |
 | 1.1 | `a_cross_doc_md_format.md`（横断文書・種別 A）に準拠（2026-09-24）。Version ヘッダー・目次・概要（主な責務／各責務対応のモジュール／3 層のアーキテクチャ構成図）を追加。本文の章番号は変えていない |
+| 1.2 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
