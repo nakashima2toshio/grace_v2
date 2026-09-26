@@ -1,6 +1,6 @@
 # main.py - GRACE-Support Web API 起動モジュール ドキュメント
 
-**Version 1.6** | 最終更新: 2026-09-26
+**Version 1.7** | 最終更新: 2026-09-26
 
 > **本書の位置づけ**: `backend/app/main.py`（FastAPI アプリの組み立て（CORS・ルータ結線））の **IPO リファレンス**。
 > 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。
@@ -37,7 +37,7 @@
 
 本モジュール自体にクラス・関数は定義されておらず、**モジュールレベルで ASGI アプリ
 （`app`）を生成し、CORS ミドルウェアと 2 つの API ルーター（`support` / `meta`）を
-結線する**構成である。LLM は Anthropic Claude、Embedding は Gemini（`gemini-embedding-2`）を
+結線する**構成である。LLM は Anthropic Claude、Embedding は Gemini（`gemini-embedding-001`）を
 用いる（鍵は `.env` の `ANTHROPIC_API_KEY` / `GOOGLE_API_KEY`）。ローカル開発専用で
 認証は持たず、CORS は Vite dev サーバ（`http://localhost:5173`）のみ許可する。
 
@@ -490,6 +490,7 @@ app  # FastAPI インスタンス（uvicorn backend.app.main:app で参照）
 | 1.1 | 実コードとの再突合による改善: 誤字修正（Gemili→Gemini）、アーキテクチャ構成図にコア層（core.jobs / core.support_agent / core.verticals）を追加、外部依存バージョンを pyproject.toml に整合（fastapi >=0.116.0 / python-dotenv ==1.1.1 / uvicorn ==0.34.0）、起動ワークフローに `./run_dev.sh`（1 コマンド起動）を追記、`/api/verticals` の戻り値例を実 PROFILES（gov / saas / ec）に修正 |
 | 1.5 | 使用例を IPO 詳細の冒頭（`### 4.1 使用例`）へ移し、末尾の「## 6. 使用例」章を削除（基本フォーマット `a_class_method_md_format.md` v1.6〜 §6.1 に準拠。2026-09-24）。IPO の小節を 4.2 以降へ繰り下げ、後続の章番号を 1 つ繰り上げた。文書内の `§4.x` 参照も追随 |
 | 1.6 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
+| 1.7 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
 
 ---
 

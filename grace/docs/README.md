@@ -1,12 +1,12 @@
 # grace/docs 棚卸し
 
-**Version 1.10** | 最終更新: 2026-09-26
+**Version 1.11** | 最終更新: 2026-09-26
 
 `grace/` パッケージのドキュメント一覧と、実装への追随状況・残タスク・検証手順をまとめる。
 新しく文書を書く／直す前に、まずここを見る。
 
 > ⚠️ **本リポジトリは Anthropic 版。** LLM は `claude-sonnet-5`（軽量 `claude-haiku-4-5-20251001`）、
-> Embedding のみ Gemini `gemini-embedding-2`（3072 次元）。
+> Embedding のみ Gemini `gemini-embedding-001`（3072 次元）。
 > 姉妹リポジトリ `grace_v2_local` は Ollama 版で、**プロバイダ表記はあちらと逆**である。
 > 「Anthropic と書いてあるから誤記」ではない。CLAUDE.md §3 を参照。
 
@@ -68,17 +68,17 @@ A と B の線引きは思いつきではなく、**実測した依存の向き*
 
 | 役割 | 文書 | 対象 | 行数 | Ver | 重要度 |
 |---|---|---|---:|---|---|
-| 計画 | `planner.md` | `grace/planner.py` | 1185 | 3.9 | ★★★ |
-| 実行 | `executor.md` | `grace/executor.py` | 2183 | 4.7 | ★★★ |
-| 実行 | `tools.md` | `grace/tools.py`（`WebSearchTool` を含む全ツール） | 1684 | 3.4 | ★★★ |
-| 評価 | `confidence.md` | `grace/confidence.py` | 1740 | 2.6 | ★★★ |
+| 計画 | `planner.md` | `grace/planner.py` | 1186 | 3.10 | ★★★ |
+| 実行 | `executor.md` | `grace/executor.py` | 2184 | 4.8 | ★★★ |
+| 実行 | `tools.md` | `grace/tools.py`（`WebSearchTool` を含む全ツール） | 1685 | 3.5 | ★★★ |
+| 評価 | `confidence.md` | `grace/confidence.py` | 1741 | 2.7 | ★★★ |
 | 評価 | `calibration.md` | `grace/calibration.py` | 763 | 1.1 | ★★ |
-| 制御 | `intervention.md` | `grace/intervention.py` | 1613 | 1.7 | ★★ |
+| 制御 | `intervention.md` | `grace/intervention.py` | 1614 | 1.8 | ★★ |
 | 制御 | `replan.md` | `grace/replan.py` | 1132 | 2.3 | ★★ |
 | 学習 | `memory.md` | `grace/memory.py` | 544 | 1.2 | ★★ |
 
 > 行数・Ver は `wc -l` と各文書の Version ヘッダーの実測値（2026-09-24）。
-> 2026-09-26 に Embedding（`gemini-embedding-2`）の記述を是正した文書の行は、同日に再実測した。
+> 2026-09-26 に Embedding の記述を改訂した文書（`gemini-embedding-2` への変更と、同日の `gemini-embedding-001` への戻し）の行は、同日に再実測した。
 
 ### 2.2 B. 基盤層（3）— A が共通に依存する土台
 
@@ -86,9 +86,9 @@ A と B の線引きは思いつきではなく、**実測した依存の向き*
 
 | 文書 | 対象 | 行数 | Ver | 重要度 |
 |---|---|---:|---|---|
-| `config.md` | `grace/config.py` | 976 | 1.5 | ★★★ |
+| `config.md` | `grace/config.py` | 977 | 1.6 | ★★★ |
 | `schemas.md` | `grace/schemas.py` | 1326 | 2.2 | ★★★ |
-| `llm_compat.md` | `grace/llm_compat.py` | 808 | 1.5 | ★★★ |
+| `llm_compat.md` | `grace/llm_compat.py` | 809 | 1.6 | ★★★ |
 
 ### 2.3 C. 横断・アーキテクチャ文書（4）
 
@@ -98,9 +98,9 @@ A と B の線引きは思いつきではなく、**実測した依存の向き*
 | 文書 | 問い | 内容 | 行数 | Ver | 重要度 |
 |---|---|---|---:|---|---|
 | `grace.md` | **WHY** | 設計思想。ReAct → Reflection → GRACE の経緯と **5 段階設計の定義（正本）** | 373 | 2.1 | ★★★ |
-| `grace_core.md` | **WHAT** | 実装アーキテクチャ。**構成図・依存関係・モジュール役割サマリー（§3.0）の正本**。§4 に実行メモリの実例、§7 に最小実行サンプル | 1111 | 3.2 | ★★★ |
-| `grace_runtime.md` | **HOW** | 実行時に発行される API とプロンプト全文（**正本**）。旧 `grace_core_flow.md` | 481 | 3.3 | ★★★ |
-| `confidence_calibration.md` | — | `confidence.py` × `calibration.py` の処理順 | 367 | 1.3 | ★★ |
+| `grace_core.md` | **WHAT** | 実装アーキテクチャ。**構成図・依存関係・モジュール役割サマリー（§3.0）の正本**。§4 に実行メモリの実例、§7 に最小実行サンプル | 1112 | 3.3 | ★★★ |
+| `grace_runtime.md` | **HOW** | 実行時に発行される API とプロンプト全文（**正本**）。旧 `grace_core_flow.md` | 482 | 3.4 | ★★★ |
+| `confidence_calibration.md` | — | `confidence.py` × `calibration.py` の処理順 | 368 | 1.4 | ★★ |
 
 **どこに何を書くか**（迷ったらこの表を見る）:
 
@@ -400,6 +400,7 @@ PY
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 1.11 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`）。同じ改訂の 10 文書の行数・Ver を再実測 |
 | 1.10 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所）。あわせて同じ改訂の 8 文書の行数・Ver を再実測（`grace_runtime.md` は改訂前から v3.1 のまま取り残されていた → v3.3） |
 | 1.9 | Embedding を `gemini-embedding-2` へ変えたのに追随して `config.md` v1.5 / `confidence.md` v2.6 の行数・Ver を更新（2026-09-26） |
 | 1.8 | `llm_compat.md` v1.4（`create_chat_client()` が未知の `config.llm.provider` を `ValueError` にする）に追随して §2 の行数・Ver を更新（2026-09-26）。表は v1.2 のまま取り残されていた |

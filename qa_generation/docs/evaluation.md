@@ -1,6 +1,6 @@
 # evaluation.py - カバレッジ分析 ドキュメント
 
-**Version 1.2** | 最終更新: 2026-09-26
+**Version 1.3** | 最終更新: 2026-09-26
 
 ---
 
@@ -69,7 +69,7 @@ flowchart TB
     end
     subgraph EXTERNAL["外部（LLM・Embedding・ファイル・基盤）"]
         SC["SemanticCoverage（semantic.py）"]
-        EMB["Gemini Embedding API（gemini-embedding-2）"]
+        EMB["Gemini Embedding API（gemini-embedding-001）"]
         TIK["tiktoken（cl100k_base）"]
     end
     PIPE -->|"チャンク・Q/A"| AC
@@ -819,3 +819,4 @@ from qa_generation.config import DATASET_CONFIGS
 | 1.0 | 2026-06-21 | 初版（v3.0 実装に対応。2026-09-05 に `qa_generation/docs/` へ移設） |
 | 1.1 | 2026-09-24 | 基本フォーマット `a_class_method_md_format.md` の章構成へ組み替え。概要に「主な責務」と「各責務対応のモジュール」（1:1）を置き、`## 1. アーキテクチャ構成図`（3 層＋データフロー）を新設。既存の構成図は `## 2. モジュール構成図` へ、使用方法は IPO 詳細の冒頭（`### 5.1 使用例`）へ移した。固有の解説章（「カバレッジ分析の仕組み」）は §1.3 に従い一覧表の前に置き、章・小節に番号を振った。本文の内容は変えていない |
 | 1.2 | 2026-09-26 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
+| 1.3 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |

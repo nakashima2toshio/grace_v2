@@ -1,6 +1,6 @@
 # executor.py - GRACE計画実行エージェント ドキュメント
 
-**Version 4.7** | 最終更新: 2026-09-26
+**Version 4.8** | 最終更新: 2026-09-26
 
 ---
 
@@ -41,7 +41,7 @@
 
 ## 概要
 
-`executor.py`は、GRACE（Guided Reasoning with Adaptive Confidence Execution）エージェントの計画実行コンポーネントです。Plannerが生成した`ExecutionPlan`を受け取り、各ステップを順次実行して結果を管理します。LLM呼び出しは`grace/llm_compat.py`の互換クライアント（`create_chat_client`）経由で Anthropic Claude（デフォルト `claude-sonnet-5`）に委譲され、Embedding は Gemini（`gemini-embedding-2`、3072次元）を継続利用します。
+`executor.py`は、GRACE（Guided Reasoning with Adaptive Confidence Execution）エージェントの計画実行コンポーネントです。Plannerが生成した`ExecutionPlan`を受け取り、各ステップを順次実行して結果を管理します。LLM呼び出しは`grace/llm_compat.py`の互換クライアント（`create_chat_client`）経由で Anthropic Claude（デフォルト `claude-sonnet-5`）に委譲され、Embedding は Gemini（`gemini-embedding-001`、3072次元）を継続利用します。
 
 ### 主な責務
 
@@ -2055,6 +2055,7 @@ __all__ = [
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 4.8 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
 | 4.7 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
 | 4.6 | 現在の既定モデルの記載 `claude-sonnet-4-6` を実装（`grace/config.py` の `LLMConfig.model` = `claude-sonnet-5`）に合わせて是正した（CLAUDE.md §9.3。旧既定は履歴の記述にだけ残す）（2026-09-24） |
 | 4.5 | **目次のアンカー 6 件を実際の節番号へ是正**（2026-09-14）。v4.4 で `4.1 使用例` を挿入し `### 4.N` を 1 つずつ繰り下げた際、**目次だけが旧番号のまま取り残されていた**（`#41-executionstate-データクラス` → 実際は `4.2`、`#42-executor-クラス` → `4.3`、`#43-ファクトリ関数` → `4.4`）。あわせて、移動前の「## 6. 使用例」配下に置かれたままだった 使用例 3 件（`#61` / `#62` / `#63`）を **IPO 詳細（§4.1）の下へ移し、`#411` / `#412` / `#413` へ**是正し、欠けていた `4.1 使用例` 自体の項目を追加した |

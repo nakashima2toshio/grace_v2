@@ -1,6 +1,6 @@
 # config.py - GRACE 設定管理 ドキュメント
 
-**Version 1.5** | 最終更新: 2026-09-26
+**Version 1.6** | 最終更新: 2026-09-26
 
 > 📌 **`config.GeminiConfig` の LLM モデル一覧は後方互換である。**
 > `config.py:411` のコメントにあるとおり、`GeminiConfig` は
@@ -264,7 +264,7 @@ config = get_config()
 
 # 2. LLM/Embedding 設定の参照
 print(config.llm.model)          # claude-sonnet-5
-print(config.embedding.model)    # gemini-embedding-2（config.py::ModelConfig.EMBEDDING_MODEL）
+print(config.embedding.model)    # gemini-embedding-001（config.py::ModelConfig.EMBEDDING_MODEL）
 
 # 3. Qdrant設定の参照
 print(config.qdrant.url)         # http://localhost:6333
@@ -327,7 +327,7 @@ GRACE Agent の全設定を統合するトップレベルの Pydantic モデル�
 {
     "version": "1.0",
     "llm": {"provider": "anthropic", "model": "claude-sonnet-5", "temperature": 0.7, "max_tokens": 4096, "timeout": 30},
-    "embedding": {"provider": "gemini", "model": "gemini-embedding-2", "dimensions": 3072},
+    "embedding": {"provider": "gemini", "model": "gemini-embedding-001", "dimensions": 3072},
     "qdrant": {"url": "http://localhost:6333", "collection_name": "customer_support_faq"}
 }
 ```
@@ -718,7 +718,7 @@ Embedding（Gemini）の設定。
 | キー | 型 | デフォルト値 | 説明 |
 |-----|------|-------------|------|
 | `provider` | str | `"gemini"` | Embeddingプロバイダー |
-| `model` | str | `ModelConfig.EMBEDDING_MODEL`（= `"gemini-embedding-2"`） | Embeddingモデル |
+| `model` | str | `ModelConfig.EMBEDDING_MODEL`（= `"gemini-embedding-001"`） | Embeddingモデル |
 | `dimensions` | int | `ModelConfig.EMBEDDING_DIMS`（= `3072`） | 埋め込み次元数 |
 
 > ⚠️ **既定値は `config.py::ModelConfig`（Embedding の唯一の定義）から取る。**
@@ -935,6 +935,7 @@ __all__ = [
 | 1.1 | 2026-08-01 | 実装（07-26〜27）へ追随。`LLMConfig` に `heavy_model` / `heavy_thinking_budget_tokens`（M-1 論理層）、`ConfidenceConfig` に `groundedness_coverage_strength` / `groundedness_coverage_target`（支持率の網羅度減衰）、`WebSearchConfig` に `preferred_domains` / `preferred_domain_boost`（W-1・**加点であって絞り込みではない**）、`ExecutorConfig` に `relevance_check_model`（M-3 軽量モデル）を追加。§3.2 と §4.5 に `resolve_heavy_model` / `heavy_thinking_budget` を追記し、`heavy_model` 未設定時に思考予算が 0 になる意図的な仕様を明記 |
 | 1.4 | 2026-09-24 | 使用例を IPO 詳細の冒頭（`### 4.1 使用例`）へ移し、末尾の「## 6. 使用例」章を削除（基本フォーマット `a_class_method_md_format.md` v1.6〜 §6.1 に準拠。2026-09-24）。IPO の小節を 4.2 以降へ繰り下げ、後続の章番号を 1 つ繰り上げた。文書内の `§4.x` 参照も追随。現在の既定モデルの記載 `claude-sonnet-4-6` を実装（`grace/config.py` の `LLMConfig.model` = `claude-sonnet-5`）に合わせて是正した（CLAUDE.md §9.3。旧既定は履歴の記述にだけ残す） |
 | 1.5 | 2026-09-26 | Embedding を `gemini-embedding-2` へ変更し、モデル名の定義を `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所へ集約（2026-09-26）。`EmbeddingConfig` の既定値を `ModelConfig` 参照にし、`grace_config.yml` から `model` / `dimensions` を外した |
+| 1.6 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
 
 ---
 

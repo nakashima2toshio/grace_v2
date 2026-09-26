@@ -1,6 +1,6 @@
 # データ準備パイプライン（チャンキング / Q/A 生成 / 登録 / 削除） ドキュメント
 
-**Version 1.5** | 最終更新: 2026-09-26
+**Version 1.6** | 最終更新: 2026-09-26
 
 ---
 
@@ -520,6 +520,7 @@ CHUNKING_STEP_LABELS, QA_STEP_LABELS, REGISTER_STEP_LABELS, DELETE_STEP_LABELS
 | 1.3 | 2026-09-15 | **`review_rules_collection.md`（255 行・v1.0）を付録A として統合**。内容が「CSV → Qdrant コレクションを作る手順」であり本書のパイプラインそのものだったため、Review 文書ではなくデータ準備文書へ移した。依存関係図は付録B へ繰り下げ |
 | 1.4 | 2026-09-24 | 概要の「各責務対応のモジュール」を主な責務と 1:1（7 行）に揃えた（8 行で、1 つの責務が複数行に割れていた。基本フォーマット §2.4。2026-09-24） |
 | 1.5 | 2026-09-26 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
+| 1.6 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
 
 ---
 
@@ -700,7 +701,7 @@ python qa_qdrant/register_to_qdrant.py \
 | オプション | 意味 |
 |---|---|
 | `--recreate` | 既存の同名コレクションを削除して作り直す（初回・入れ替え時） |
-| `--provider gemini` | 既定。`gemini-embedding-2`（3072 次元。定義は `config.py::ModelConfig.EMBEDDING_MODEL`）で他コレクションと揃う |
+| `--provider gemini` | 既定。`gemini-embedding-001`（3072 次元。定義は `config.py::ModelConfig.EMBEDDING_MODEL`）で他コレクションと揃う |
 | `--domain` | payload の `domain`（既定はコレクション名） |
 | `--batch-size` | 既定 100。22 行なら指定不要 |
 

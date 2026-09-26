@@ -267,8 +267,8 @@ executor:
   #    不変条件: 推論に使えない文書は、出典としても採用しない。
   #
   # 0.64 は grace_v2_local での実測値（同一 Qdrant・同一 Embedding
-  # gemini-embedding-001 3072 次元を共有していた当時。2026-09-26 に
-  # gemini-embedding-2 へ変更したため未較正。再登録後に測り直すこと）:
+  # gemini-embedding-001 3072 次元を共有している。Embedding モデルを変えたら
+  # 測り直すこと）:
   #   in_scope  n=12  最小 0.6650（TP フロア）
   #   out_scope n= 5  最大 0.6190（FP シーリング）
   #   → 中間の 0.64

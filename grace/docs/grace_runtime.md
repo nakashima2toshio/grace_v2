@@ -1,6 +1,6 @@
 # grace_runtime.md - GRACE 実行時に発行される API とプロンプト
 
-**Version 3.3** | 最終更新: 2026-09-26
+**Version 3.4** | 最終更新: 2026-09-26
 
 > **参考ドキュメント**
 > - [`grace/docs/grace.md`](./grace.md) — 設計思想（**なぜ**この形か。ReAct → Reflection → GRACE 5 段階の経緯）
@@ -30,7 +30,7 @@
 
 GRACE 本体は google-genai 形式の `client.models.generate_content(...)` のまま書かれており、`grace/llm_compat.py` がそれを Anthropic の `messages.create(...)` に変換している点が要となる。
 
-> 📝 **技術スタック**: LLM 用途はすべて **Anthropic Claude**（既定 `claude-sonnet-5`、軽量 `claude-haiku-4-5-20251001`、鍵 `ANTHROPIC_API_KEY`）。検索の Embedding のみ **Gemini** `gemini-embedding-2`（3072 次元、鍵 `GOOGLE_API_KEY`）を継続利用する。
+> 📝 **技術スタック**: LLM 用途はすべて **Anthropic Claude**（既定 `claude-sonnet-5`、軽量 `claude-haiku-4-5-20251001`、鍵 `ANTHROPIC_API_KEY`）。検索の Embedding のみ **Gemini** `gemini-embedding-001`（3072 次元、鍵 `GOOGLE_API_KEY`）を継続利用する。
 
 実行の入口は Web API（`uvicorn backend.app.main:app` → `run_support_agent_core`）。CLI（`agent_support_example.py`）と S0〜S9 のステップ別トレース（`grace/step_trace/s*.py`）は 2026-09-19 に削除した。最小実行サンプルとその解説は [`grace_core.md` §7](./grace_core.md#7-使用例最小実行サンプル) にある。
 
@@ -167,7 +167,7 @@ RAG 検索（`rag_search`）でクエリをベクトル化する際に Gemini Em
 # helper/helper_embedding.py（embed_text）
 def embed_text(self, text, task_type=None):
     config = {"output_dimensionality": self._dims}        # 3072 次元
-    kwargs = {"model": self.model,                         # gemini-embedding-2
+    kwargs = {"model": self.model,                         # gemini-embedding-001
               "contents": text,
               "config": config}
     response = self.client.models.embed_content(**kwargs)  # ★ここが実際の Gemini API 発行
@@ -472,6 +472,7 @@ class Q,PLAN,EMB,QD,REA,CONF,OUT default
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 3.4 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
 | 3.3 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
 | 3.2 | 目次の §4.1 / §4.3 / §4.4 へのリンクが見出しのアンカー（①〜③ を含む）と一致せず切れていたのを修正（2026-09-24） |
 | 3.1 | `a_cross_doc_md_format.md` v1.2（種別 A）に準拠（2026-09-24）。概要に主な責務・各責務対応のモジュール・アーキテクチャ構成図を追加。本文の章番号は変えていない。現在の既定モデルの記載 `claude-sonnet-4-6` を実装（`grace/config.py` の `LLMConfig.model` = `claude-sonnet-5`）に合わせて是正した（CLAUDE.md §9.3。旧既定は履歴の記述にだけ残す）。Mermaid の `classDef subgraphStyle` の欠落を補った |

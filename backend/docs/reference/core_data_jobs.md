@@ -1,6 +1,6 @@
 # core/data_jobs.py - データ準備ジョブ runner ドキュメント
 
-**Version 1.5** | 最終更新: 2026-09-26
+**Version 1.6** | 最終更新: 2026-09-26
 
 > **本書の位置づけ**: `backend/app/core/data_jobs.py`（データ準備 4 ジョブの runner）の **IPO リファレンス**。
 > 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。
@@ -339,7 +339,7 @@ class RegisterParams:
 
 > ⚠️ **`recreate=True` は既存コレクションを削除して作り直す ＝ 破壊的。** CONFIRM を通す。
 
-> 📝 **`provider="gemini"` は正しい。** Embedding は Gemini（`gemini-embedding-2`・3072 次元）で、
+> 📝 **`provider="gemini"` は正しい。** Embedding は Gemini（`gemini-embedding-001`・3072 次元）で、
 > LLM 用途（Anthropic）とは別系統（CLAUDE.md §3 のプロバイダ方針）。
 
 ### 4.5 `DeleteParams`
@@ -496,6 +496,7 @@ register_runner(DeleteParams,   _delete_runner,   "delete")
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 1.6 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
 | 1.5 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
 | 1.4 | 2026-09-16 | 3 階建て再編（`reference/` へ移設）に伴い、冒頭へ**位置づけと上位文書への導線**を追加した |
 | 1.3 | **§4.1「使用例」を新設**（2026-09-15）。ドキュメント規約 `a_class_method_md_format.md` §6.1 が IPO 詳細セクションの冒頭に必須としている代表ワークフローが欠落していた。パラメータとステップ定義（confirm ステップの有無が破壊性を表す）、ジョブとしての起動の 2 本を追加し、**実行して出力を確認した**（外部依存が要る例はその旨を明記）。旧 §4.1〜§4.4 は §4.2〜§4.5 へ繰り下げ |

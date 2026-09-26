@@ -1,6 +1,6 @@
 # llm_compat.py - GRACE LLM 互換クライアント ドキュメント
 
-**Version 1.5** | 最終更新: 2026-09-26
+**Version 1.6** | 最終更新: 2026-09-26
 
 ---
 
@@ -33,7 +33,7 @@ response = client.models.generate_content(
 text = response.text
 ```
 
-Embedding（`client.models.embed_content`）は Gemini（`gemini-embedding-2`・3072次元）を継続利用するため、本アダプターは LLM テキスト生成（generate_content）のみを対象とします。
+Embedding（`client.models.embed_content`）は Gemini（`gemini-embedding-001`・3072次元）を継続利用するため、本アダプターは LLM テキスト生成（generate_content）のみを対象とします。
 
 ### 主な責務
 
@@ -759,6 +759,7 @@ from .llm_compat import create_chat_client
 | 1.3 | `extract_json_block` の IPO 表で、表セル内で閉じていなかったバッククォート 3 連をインラインコード表記へ修正（2026-09-24） |
 | 1.4 | `create_chat_client()` が未知の `config.llm.provider` を `ValueError` にするようになったのに追随（2026-09-26）。IPO の Process を更新（`backend/tests/test_llm_provider_validation.py`） |
 | 1.5 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
+| 1.6 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
 
 ---
 

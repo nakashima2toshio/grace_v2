@@ -197,7 +197,7 @@ cd frontend && npm run lint && npm test && npm run build   # frontend
 
 | 用途 | プロバイダ | 既定 | APIキー |
 |---|---|---|---|
-| **Embedding（検索）のみ** | **Gemini** | `gemini-embedding-2`（3072次元） | `GOOGLE_API_KEY` |
+| **Embedding（検索）のみ** | **Gemini** | `gemini-embedding-001`（3072次元） | `GOOGLE_API_KEY` |
 | **それ以外の全 LLM 用途**（Q&A生成・Plan/Execute/Reasoning/Confidence/Replan/ReAct 等） | **Anthropic** | `claude-sonnet-5`（軽量 `claude-haiku-4-5-20251001`） | `ANTHROPIC_API_KEY` |
 
 - LLM クライアントは `helper.helper_llm.create_llm_client("anthropic")` /
@@ -210,10 +210,12 @@ cd frontend && npm run lint && npm test && npm run build   # frontend
   モデル名を書かない**（`backend/tests/test_embedding_model_single_source.py` が検査する）。
 - ⚠️ **Embedding モデルを変えると既存 Qdrant コレクションは使えない。** 次元が同じでもベクトルの
   意味が合わず、**エラーにならずに検索結果だけが壊れる**。全コレクションを再登録し、RAG スコアの
-  しきい値（`reasoning_min_rag_score` 等）も測り直すこと。2026-09-26 に `gemini-embedding-001` から
-  `gemini-embedding-2` へ変えた（しきい値は未較正）。
+  しきい値（`reasoning_min_rag_score` 等）も測り直すこと。2026-09-26 に一度 `gemini-embedding-2` へ
+  変えたが、同日 `gemini-embedding-001` に戻した（既存コレクションと、同じ Qdrant を共用する
+  grace_v2_local をそのまま使うため。しきい値 0.64 は 001 での実測値なので有効）。
 - ⚠️ **`embed_content` に文字列のリストをそのまま渡さない。** `gemini-embedding-2` は
-  リストを 1 入力として扱い、N 件送っても 1 本しか返さない。`helper_embedding.separate_contents()` で
+  リストを 1 入力として扱い、N 件送っても 1 本しか返さない（001 は件数どおり返すが、
+  モデルを切り替えても壊れないよう常にこうする）。`helper_embedding.separate_contents()` で
   1 件 = 1 Content に包む。
 - **Embedding 文脈の `provider="gemini"` / `GOOGLE_API_KEY` は正しい**ので変更しない。
 - 本リポジトリは Gemini 由来コードから Anthropic へ移植した経緯があり、コードに残る
@@ -604,7 +606,7 @@ python -m chunking.csv_text_to_chunks_text_csv \
 |---|---|---|
 | LLM全般 | `Anthropic Claude` | `OpenAI GPT`, `Gemini`（LLM 用途） |
 | デフォルトモデル | `claude-sonnet-5`（最上位 `claude-fable-5-1` / 上位 `claude-opus-5-5` / 軽量 `claude-haiku-4-5`・日付指定 `claude-haiku-4-5-20251001`） | `gpt-4o-mini`, `gemini-2.5-flash` |
-| Embedding | `Gemini` `gemini-embedding-2`（3072次元。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） | `text-embedding-3-*`（本番 Embedding 用途）、`gemini-3.1-flash-lite` 等の生成モデル（`embedContent` 非対応） |
+| Embedding | `Gemini` `gemini-embedding-001`（3072次元。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） | `text-embedding-3-*`（本番 Embedding 用途）、`gemini-3.1-flash-lite` 等の生成モデル（`embedContent` 非対応） |
 | LLMクライアント | `create_llm_client("anthropic")` | `"openai"` / `"gemini"`（LLM 用途） |
 | LLM用APIキー | `ANTHROPIC_API_KEY` | `OPENAI_API_KEY` |
 | エージェント名 | `GRACE-Support` / `GRACE-Review` | `GRACE` 単独で Support だけを指すこと |

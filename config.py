@@ -68,17 +68,21 @@ class ModelConfig:
     #    （`grace/config.py::reasoning_min_rag_score` 等）も測り直しが必要。
     #
     # 値は 2026-09-26 に Gemini API（models.get / embedContent）で実測:
-    #   gemini-embedding-2: inputTokenLimit 8192、既定出力 3072 次元
-    EMBEDDING_MODEL: str = "gemini-embedding-2"
+    #   gemini-embedding-001: inputTokenLimit 2048、既定出力 3072 次元
+    #   gemini-embedding-2  : inputTokenLimit 8192、既定出力 3072 次元
+    # 2026-09-26 に一度 gemini-embedding-2 へ変えたが、同日 001 に戻した。
+    # 既存コレクション（001 で登録）と grace_v2_local（同じ Qdrant を共用・001）を
+    # そのまま使い続けるため。2 へ変えるなら上の ⚠️ のとおり全件再登録が要る。
+    EMBEDDING_MODEL: str = "gemini-embedding-001"
     EMBEDDING_DIMS: int = 3072
-    EMBEDDING_MAX_INPUT_TOKENS: int = 8192
+    EMBEDDING_MAX_INPUT_TOKENS: int = 2048
 
     # Embedding 単価（$/1K tokens）。キーはモデル名。
     # gemini-embedding-2 は $0.20 / 1M tokens（テキスト入力・2026-09 時点の公開価格）。
-    # gemini-embedding-001 は旧既定（既存コレクションの読み込み・コスト集計の後方互換）。
+    # 切り替えたときにコスト集計が既定単価へ黙って落ちないよう、候補も載せておく。
     EMBEDDING_PRICING: Dict[str, float] = {
-        EMBEDDING_MODEL: 0.0002,
-        "gemini-embedding-001": 0.0001,
+        EMBEDDING_MODEL: 0.0001,
+        "gemini-embedding-2": 0.0002,
         "text-embedding-3-small": 0.00002,
         "text-embedding-3-large": 0.00013,
     }

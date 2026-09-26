@@ -22,7 +22,7 @@ const info: ModelInfo = {
   heavy_model: '',
   chunking_model: 'claude-haiku-4-5',
   qa_model: 'claude-sonnet-5',
-  embedding_model: 'gemini-embedding-2',
+  embedding_model: 'gemini-embedding-001',
   embedding_dims: 3072,
 };
 

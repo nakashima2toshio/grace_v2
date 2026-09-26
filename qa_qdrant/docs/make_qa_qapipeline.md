@@ -1,6 +1,6 @@
 # QAPipeline & SmartQAGenerator - Q/Aペア生成システム ドキュメント
 
-**Version 1.3** | 最終更新: 2026-09-26
+**Version 1.4** | 最終更新: 2026-09-26
 
 ---
 
@@ -238,7 +238,7 @@ style COMBINED fill:#1a1a1a,stroke:#fff,color:#fff
 | ライブラリ | バージョン | 用途 |
 |-----------|-----------|------|
 | `anthropic` | 最新 | **Q/A 生成の LLM**（`claude-sonnet-5`・鍵 `ANTHROPIC_API_KEY`） |
-| `google-genai` | 最新 | **Embedding 専用**（`gemini-embedding-2`・3072 次元・鍵 `GOOGLE_API_KEY`） |
+| `google-genai` | 最新 | **Embedding 専用**（`gemini-embedding-001`・3072 次元・鍵 `GOOGLE_API_KEY`） |
 | `pandas` | - | DataFrame処理 |
 | `pathlib` | 標準 | パス操作 |
 
@@ -797,6 +797,7 @@ def analyze_qa_statistics(results: List[Dict]) -> Dict
 | 1.1 | 使用例を IPO 詳細の冒頭（`### 4.1 使用例`）へ移し、末尾の「## 6. 使用例」章を削除（基本フォーマット `a_class_method_md_format.md` v1.6〜 §6.1 に準拠。2026-09-24）。IPO の小節を 4.2 以降へ繰り下げ、後続の章番号を 1 つ繰り上げた。文書内の `§4.x` 参照も追随。あわせて **SmartQAGenerator の記述を現行実装（v3.0・構造化出力 1 回方式）へ是正**した: 廃止済みの `analyze_chunk()` / `generate_qa_pairs()` / `_generate_content()` を `analyze_and_generate()` に置き換え（§4.3 全面改稿・§1.2/§1.3/§2.2/§3.2/付録 A.2・B.2）、既定モデルを `claude-sonnet-4-6` → `claude-sonnet-5`、前提条件の API キー記述（`GOOGLE_API_KEY` のみ）を是正。概要に「各責務対応のモジュール」（1:1）を追加 |
 | 1.2 | `QAPipeline` の引数の記述を実装に合わせた（2026-09-24）。削除済みの `use_smart_generation` を `generate_qa()` / `run()` / `_generate_sync()` のシグネチャ・引数表・使用例から外した |
 | 1.3 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
+| 1.4 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
 
 ---
 
