@@ -347,14 +347,14 @@ class ExecutorConfig(BaseModel):
     #    出典としてだけ表示される」状態が再発する。
     #
     # 0.64 は grace_v2_local での実測値（同一 Qdrant・同一 Embedding
-    # gemini-embedding-001 3072 次元を共有していた当時）:
+    # gemini-embedding-001 3072 次元を共有している）:
     #   in_scope  n=12  最小 0.6650（TP フロア）
     #   out_scope n= 5  最大 0.6190（FP シーリング）
     #   → 中間の 0.64
     #
     # ⚠️ マージンは 0.046。サンプルが少なく暫定値。運用の質問ログで測り直すこと。
-    # ⚠️ 2026-09-26 に Embedding を gemini-embedding-2 へ変えた。スコア分布は
-    #    モデルで変わるので、この値は**未較正**。再登録後に測り直すこと。
+    # ⚠️ スコア分布は Embedding モデルで変わる。`config.py::ModelConfig.EMBEDDING_MODEL`
+    #    を変えたら、この値も測り直すこと（0.64 は gemini-embedding-001 での実測）。
     reasoning_min_rag_score: float = 0.64
 
 

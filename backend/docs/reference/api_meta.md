@@ -1,6 +1,6 @@
 # api/meta.py - メタ情報 API ドキュメント
 
-**Version 1.6** | 最終更新: 2026-09-26
+**Version 1.7** | 最終更新: 2026-09-26
 
 > **本書の位置づけ**: `backend/app/api/meta.py`（モデル一覧 / 業界プロファイル / ルールセット一覧・ヘルスチェック）の **IPO リファレンス**。
 > 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。
@@ -303,7 +303,7 @@ def list_models() -> List[ModelChoice]
 > モデル名で `AVAILABLE_MODELS` には残っている（`CLAUDE.md` R1）。同じモデルが
 > 2 行並ぶのを避けるため、**選択肢からだけ外している**。
 >
-> ⚠️ **Embedding も出てこない。** Gemini `gemini-embedding-2`（3072 次元）固定（定義は `config.py::ModelConfig.EMBEDDING_MODEL`）。
+> ⚠️ **Embedding も出てこない。** Gemini `gemini-embedding-001`（3072 次元）固定（定義は `config.py::ModelConfig.EMBEDDING_MODEL`）。
 
 #### `current_model`
 
@@ -329,7 +329,7 @@ def current_model() -> ModelInfo
 ```python
 {"model": "claude-sonnet-5", "light_model": "claude-haiku-4-5-20251001",
  "heavy_model": "", "chunking_model": "claude-haiku-4-5", "qa_model": "claude-sonnet-5",
- "embedding_model": "gemini-embedding-2", "embedding_dims": 3072}
+ "embedding_model": "gemini-embedding-001", "embedding_dims": 3072}
 ```
 
 > ⚠️ **`chunking_model` / `qa_model` は `model` と別物。** チャンク化は軽量モデルを
@@ -494,6 +494,7 @@ router  # APIRouter(prefix="/api", tags=["meta"])
 
 | バージョン | 日付 | 変更内容 |
 |-----------|------|---------|
+| 1.7 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
 | 1.6 | 2026-09-26 | Embedding を `gemini-embedding-2` へ変更し、モデル名の定義を `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所へ集約（2026-09-26）。`GET /api/model` の戻り値に `embedding_model` / `embedding_dims` を追加（データ管理タブ「③ Qdrant 登録」の注記に実名を出すため。選択肢ではない） |
 | 1.5 | 2026-09-23 | `GET /api/models` の戻り値例を 4 件へ更新（`claude-fable-5-1` / `claude-opus-5-5` を追加、`claude-opus-5` を外した） |
 | 1.4 | 2026-09-16 | `GET /api/models` / `GET /api/model` を追加（モデルセレクタ）。構成図・一覧表・IPO 詳細・使用例を追随させた |

@@ -1,6 +1,6 @@
 # 生成（reasoning / detect）フロー ドキュメント
 
-**Version 2.2** | 最終更新: 2026-09-26
+**Version 2.3** | 最終更新: 2026-09-26
 
 ---
 
@@ -31,7 +31,7 @@
 判定（ゲート）側は `docs/guardrails.md`、モードの全体像は `docs/pipelines.md` を参照。
 
 技術スタック: LLM = Anthropic Claude（既定 `claude-sonnet-5`）／
-Embedding = Gemini（`gemini-embedding-2`）。
+Embedding = Gemini（`gemini-embedding-001`）。
 
 > 📌 **`backend/app/core/` に reasoning の実装は無い。** `support_agent.py` は
 > `executor.execute(plan)` の 1 行で `grace/` へ丸ごと委譲しており、backend が担うのは
@@ -382,6 +382,7 @@ print(result.confidence_factors)   # {'has_sources': True, 'source_count': 1, ..
 
 | バージョン | 変更内容 |
 |---|---|
+| 2.3 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
 | 2.2 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
 | 2.1 | `a_cross_doc_md_format.md`（横断文書・種別 A）に準拠（2026-09-24）。概要（主な責務／各責務対応のモジュール／3 層のアーキテクチャ構成図）を追加し、冒頭の説明文を概要へ移した。本文の章番号は変えていない |
 | 2.0 | 対象を「Support の reasoning」から「**生成ステップ全般**」へ拡張し、Review の `detect` を並置。プロンプトを 7 ブロック／7 ルールへ更新（【現在日時】【この回答で必ず守ること】＝`prompt_closing` を追加）。`ask_user` 除外を追記。**行番号参照を全廃**（v1.0 の 4 件がすべて別のコードを指していた）。解消済みの制約（複数質問）を整理 |

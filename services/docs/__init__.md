@@ -1,6 +1,6 @@
 # __init__.py - services パッケージ ドキュメント
 
-**Version 1.5** | 最終更新: 2026-09-26
+**Version 1.6** | 最終更新: 2026-09-26
 
 ---
 
@@ -24,7 +24,7 @@
 
 このモジュールは **再エクスポート専用** であり、独自のクラス・関数・実行ロジックを一切定義しません。すべての実体は各サブモジュール側に存在し、本ファイルは `import` 文と `__all__` リストのみで構成されます。したがって本ドキュメントの「IPO詳細」セクションは、再エクスポートされる各シンボルとその由来サブモジュールの対応表を中心に据えます。
 
-技術スタックとして、LLM は Anthropic Claude（既定 `claude-sonnet-5`、鍵 `ANTHROPIC_API_KEY`）、Embedding は Gemini `gemini-embedding-2`（3072次元、鍵 `GOOGLE_API_KEY`）、ベクトルDB は Qdrant を用います。
+技術スタックとして、LLM は Anthropic Claude（既定 `claude-sonnet-5`、鍵 `ANTHROPIC_API_KEY`）、Embedding は Gemini `gemini-embedding-001`（3072次元、鍵 `GOOGLE_API_KEY`）、ベクトルDB は Qdrant を用います。
 
 ### 主な責務
 
@@ -428,6 +428,7 @@ __all__ = [
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 1.6 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
 | 1.5 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
 | 1.4 | 使用例を IPO 詳細の冒頭（`### 4.1 使用例`）へ移し、末尾の「## 6. 使用例」章を削除（基本フォーマット `a_class_method_md_format.md` v1.6〜 §6.1 に準拠。2026-09-24）。IPO の小節を 4.2 以降へ繰り下げ、後続の章番号を 1 つ繰り上げた。文書内の `§4.x` 参照も追随。あわせて概要の「各責務対応のモジュール」を主な責務と 1:1 に作り直し（従来のサブモジュール表は「サブモジュール一覧」として残し、再エクスポート対象外の 3 件を明記）。主な責務の削除済みサービス（データセット・ファイル）を外し、既定モデルの記述を `claude-sonnet-5` へ是正 |
 | 1.3 | **`dataset_service.py` / `file_service.py` の削除に追随。** 呼び出し元が `services/__init__.py` の再エクスポートしか無い死にコード（Streamlit 版アプリの名残）だったため実装ごと削除し、本書の一覧・Mermaid・エクスポート表から除いた。あわせて実在する `data_pipeline_service` / `agent_service` / `log_service` を一覧へ追加（2026-09-12） |

@@ -1,6 +1,6 @@
 # GRACE-Support インストール・環境設定ガイド
 
-**Version 1.5** | 最終更新: 2026-09-26
+**Version 1.6** | 最終更新: 2026-09-26
 
 ---
 
@@ -165,7 +165,7 @@ cd ..
 ```bash
 # .env（リポジトリルート）
 ANTHROPIC_API_KEY=sk-ant-xxxxxxxx      # LLM（Plan/Execute/Reasoning/Confidence 等）
-GOOGLE_API_KEY=AIzaxxxxxxxx            # Embedding（Gemini gemini-embedding-2）
+GOOGLE_API_KEY=AIzaxxxxxxxx            # Embedding（Gemini gemini-embedding-001）
 # QDRANT_URL=http://localhost:6333     # 任意。未指定なら localhost:6333
 ```
 
@@ -314,3 +314,4 @@ npm run build   # tsc --noEmit + vite build
 | 1.3 | `run_dev.sh` の使用中ポートの自動解放と `RUN_DEV_FREE_PORTS` を §6.1 に、`Address already in use` をトラブルシュートに追記 |
 | 1.4 | `a_cross_doc_md_format.md` v1.1（種別 B）に準拠（2026-09-24）。概要（結論・対象モジュール）を追加し、冒頭の説明文を概要へ移した。本文の章番号は変えていない |
 | 1.5 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
+| 1.6 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |

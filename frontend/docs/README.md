@@ -1,6 +1,6 @@
 # frontend — 責務・構成・モジュール構造
 
-**Version 2.5** | 最終更新: 2026-09-26
+**Version 2.6** | 最終更新: 2026-09-26
 
 `frontend/`（Vite + React 18 + TypeScript）の**入口文書**である。
 前半（§1〜§7）で frontend の責務・構成・モジュール構造・データの流れを説明し、
@@ -428,7 +428,7 @@ result の型が違うため**無理にジェネリック化しない**方針で
 | `SupportPanel.md` | `components/SupportPanel.tsx` — 基本版 / GRACE-Support 共用 | 192 | 1.7 | ★★★ |
 | `ReviewPanel.md` | `components/ReviewPanel.tsx` — GRACE-Review 本体 | 208 | 1.5 | ★★★ |
 | `DataPanel.md` | `components/DataPanel.tsx` — データ管理タブの枠（サブタブ） | 111 | 1.5 | ★★ |
-| `DataJobPanel.md` | `components/DataJobPanel.tsx` — チャンキング / Q/A 作成 / 登録ジョブ | 751 | 1.7 | ★★★ |
+| `DataJobPanel.md` | `components/DataJobPanel.tsx` — チャンキング / Q/A 作成 / 登録ジョブ | 751 | 1.8 | ★★★ |
 | `CollectionPanel.md` | `components/CollectionPanel.tsx` — コレクション管理 | 413 | 1.4 | ★★ |
 
 ### 8.2 入力・モーダル
@@ -458,7 +458,7 @@ result の型が違うため**無理にジェネリック化しない**方針で
 
 | 文書 | 内容 | 版 | 備考 |
 |---|---|---|---|
-| `README.md` | 本書（責務・構成・モジュール構造・棚卸し） | 2.5 | — |
+| `README.md` | 本書（責務・構成・モジュール構造・棚卸し） | 2.6 | — |
 | `review_ui.md` | GRACE-Review 画面全体の設計を俯瞰する**横断文書** | 1.7 | 対応する `.tsx` は無い。個別仕様は各 `<Component>.md` が正 |
 
 ---
@@ -612,6 +612,7 @@ npm run build    # 本番ビルド
 
 | 版 | 日付 | 変更内容 |
 |---|---|---|
+| 2.6 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随して `DataJobPanel.md` の Ver を 1.8 へ更新（実装行数は変化なし）。テスト件数 321 件は変化なし |
 | 2.5 | 2026-09-26 | Embedding のモデル名を画面に直書きするのをやめ、`GET /api/model` の `embedding_model` / `embedding_dims` から出すようにしたのに追随。§8 の版・実装行数（`App` 1.7 / 174・`DataPanel` 1.5 / 111・`DataJobPanel` 1.7 / 751・`modelLabel.ts` 42）、§11 のテスト件数を **23 ファイル / 321 件**（実測）へ更新 |
 | 2.4 | 2026-09-26 | §13 残タスク 1（スクリーンショット残り 14 枚）を完了へ。PR #210（D-05〜D-08）と PR #211（残り 10 枚）で全 31 枚を撮影・掲載したのに、本表だけ未完のまま残っていた |
 | 2.3 | 2026-09-24 | `AnswerCard.md` の Props を実装に追随させたのにあわせ §8 の版を更新（1.4）。§8 の本書自身の版（2.1 のままだった）も更新。§11 のテスト件数は `npx vitest run` で再実測し、記載どおり（23 ファイル / 318 件）であることを確認 |

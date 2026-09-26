@@ -1,6 +1,6 @@
 # DataJobPanel.tsx - チャンキング / Qdrant 登録の実行パネル ドキュメント
 
-**Version 1.7** | 最終更新: 2026-09-26
+**Version 1.8** | 最終更新: 2026-09-26
 
 ---
 
@@ -188,7 +188,7 @@ export function DataJobPanel({
 | `variant` | `DataJobVariant` | ✅ | — | フォームの中身と呼ぶ API を決める |
 | `chunkingModel` | `string` | | `''` | ヘッダーの「① チャンキング」で選んだモデル。`ChunkingFormState.model` に入る |
 | `qaModel` | `string` | | `''` | ヘッダーの「② Q/A 作成」で選んだモデル。`QaFormState.model` に入る |
-| `embeddingLabel` | `string` | | `''` | ③ Qdrant 登録の注記に出す Embedding の表示（例: `gemini-embedding-2・3072 次元`）。値は `GET /api/model` の `embedding_model` / `embedding_dims` から `App` が組み立てる。空なら注記はモデル名なし |
+| `embeddingLabel` | `string` | | `''` | ③ Qdrant 登録の注記に出す Embedding の表示（例: `gemini-embedding-001・3072 次元`）。値は `GET /api/model` の `embedding_model` / `embedding_dims` から `App` が組み立てる。空なら注記はモデル名なし |
 
 ### コールバックの契約
 
@@ -592,3 +592,4 @@ LLM 用途（Anthropic Claude）とは別系統なので、画面から切り替
 | 1.5 | 2026-09-23 | **詳細ログの既定を ON へ変更**（基本版 / GRACE-Support / GRACE-Review は `DEFAULT_QUERY_FORM` / `DEFAULT_REVIEW_FORM` の `verbose`、データ管理は `DataJobPanel` の `useState`） |
 | 1.6 | 2026-09-24 | `a_react_page_md_format.md` v1.1 に追随（2026-09-24）。概要に「各責務対応のモジュール」（主な責務と 1:1）を追加し、`## 1.` を「アーキテクチャ構成図」として **1.1 システム全体での位置づけ（3 層）** と 1.2 コンポーネントツリー図の 2 枚構成にした。Mermaid の `classDef subgraphStyle` の欠落を補った |
 | 1.7 | 2026-09-26 | Embedding を `gemini-embedding-2` へ変更し、モデル名の定義を `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所へ集約（2026-09-26）。`embeddingLabel` prop を追加し、③ Qdrant 登録の注記のモデル名を API 由来にした（直書きをやめた） |
+| 1.8 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |

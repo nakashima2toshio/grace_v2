@@ -1,6 +1,6 @@
 # make_qa_register_qdrant.py - Q/A 生成 → Qdrant 登録 統合 CLI ドキュメント
 
-**Version 1.6** | 最終更新: 2026-09-26
+**Version 1.7** | 最終更新: 2026-09-26
 
 ---
 
@@ -24,7 +24,7 @@
 `qa_qdrant/make_qa_register_qdrant.py` は、チャンク済み CSV・テキストファイル（`.txt`・先にチャンク化する）・
 事前定義データセットのいずれかから Q/A ペアを生成し（Phase 1）、その Q/A を Embedding して Qdrant コレクションへ登録する（Phase 2）
 **統合 CLI** です。Q/A 生成は `qa_generation.pipeline.QAPipeline`（Anthropic Claude・既定 `claude-sonnet-5`）に、
-Embedding と Qdrant 操作は `services/qdrant_service.py`（Gemini `gemini-embedding-2`・3072 次元）に委譲し、
+Embedding と Qdrant 操作は `services/qdrant_service.py`（Gemini `gemini-embedding-001`・3072 次元）に委譲し、
 本モジュールは**入力の振り分け・`.txt` のチャンク化の呼び出し・2 フェーズの順序制御・登録ループ・UI 用 CSV の出力**を受け持ちます。
 
 > 📎 **使い方（運用手順）は [`make_qa_register_qdrant.md`](make_qa_register_qdrant.md)（種別 B・手順書）**、
@@ -89,7 +89,7 @@ flowchart TB
         PIPE["QAPipeline（qa_generation）"]
         CLAUDE["Anthropic Claude（Q/A 生成）"]
         QSVC["services.qdrant_service"]
-        GEMINI["Gemini gemini-embedding-2（3072 次元）"]
+        GEMINI["Gemini gemini-embedding-001（3072 次元）"]
         QDRANT["Qdrant"]
         FS["ファイルシステム（output_chunked/・qa_output/）"]
     end
@@ -186,7 +186,7 @@ style PHASE2 fill:#1a1a1a,stroke:#fff,color:#fff
 | `qa_generation.pipeline.QAPipeline` | Phase 1 の Q/A 生成（`SmartQAGenerator`・Celery 並列対応） |
 | `qdrant_client_wrapper.create_qdrant_client` | Qdrant クライアントの生成 |
 | `services.qdrant_service.create_or_recreate_collection_for_qdrant` | コレクションの作成・再作成（既定 3072 次元） |
-| `services.qdrant_service.embed_texts_for_qdrant` | Gemini Embedding（`gemini-embedding-2`） |
+| `services.qdrant_service.embed_texts_for_qdrant` | Gemini Embedding（`gemini-embedding-001`） |
 | `services.qdrant_service.build_points_for_qdrant` | DataFrame → `PointStruct`（payload: `domain` / `question` / `answer` / `source` / `created_at` / `schema` ほか） |
 | `services.qdrant_service.upsert_points_to_qdrant` | ポイントのアップサート |
 
@@ -592,7 +592,7 @@ print(normalize_source_filename("qa_pairs_livedoor.csv"))
 
 | 変数 | 起動時の検査 | 用途 |
 |------|:-----------:|------|
-| `GOOGLE_API_KEY` | ✅（無ければ終了コード 1） | Embedding（Gemini `gemini-embedding-2`） |
+| `GOOGLE_API_KEY` | ✅（無ければ終了コード 1） | Embedding（Gemini `gemini-embedding-001`） |
 | `ANTHROPIC_API_KEY` | Q/A を生成するときだけ ✅（`.txt`・チャンク済み CSV・`--dataset`。生成・チャンク化の前。無ければ終了コード 1） | チャンク化と Q/A 生成（`QAPipeline` → `SmartQAGenerator`）。Q/A 済み CSV を登録するだけなら不要 |
 
 ### 6.3 モジュール定数・副作用
@@ -639,6 +639,7 @@ normalize_source_filename   # 日時サフィックスの除去
 | 1.4 | §3.3 の 4（`--text-column` が Q/A 生成に渡らない）の修正に追随（2026-09-25）。これで §3.3 の 5 件はすべて解消。概要の注記・§3.1 の 4・§3.3・§6.1・§7 を更新 |
 | 1.5 | §3.2 の `<種別>` の記述を是正（2026-09-26）。「`--dataset` のときはデータセット設定の `type`」は誤りで、`type` キーが無いため一律 `unknown` になっていた。`QAPipeline._load_config()` がデータセット名で補うよう直したのに合わせ、出力名・チャンク ID・途中経過ファイルがデータセット間で共有されていたことも記録 |
 | 1.6 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
+| 1.7 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
 
 ---
 

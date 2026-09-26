@@ -1,6 +1,6 @@
 # semantic.py - セマンティックチャンク分割・埋め込み ドキュメント
 
-**Version 1.2** | 最終更新: 2026-09-26
+**Version 1.3** | 最終更新: 2026-09-26
 
 ---
 
@@ -39,7 +39,7 @@
 | 1 | 文書を意味のまとまりでチャンクに分割する | `SemanticCoverage.create_semantic_chunks()` | 段落 → 文の優先順で分割し、トークン上限・下限・オーバーラップを守る |
 | 2 | 段落・文の境界を検出する | `_split_into_paragraphs()` / `_split_into_sentences()` / `_split_sentences_mecab()` | 日本語の文境界を正規表現（MeCab があれば MeCab）で判定 |
 | 3 | 上限を超える文やチャンクを調整する | `_force_split_sentence()` / `_adjust_chunks_for_topic_continuity()` / `_apply_chunk_overlap()` | 強制分割・短いチャンクの結合・前後の重なりを付ける |
-| 4 | 埋め込みベクトルを生成する | `generate_embeddings()` / `generate_embedding()` / `generate_embeddings_batch()` | Gemini Embedding（`gemini-embedding-2`・3072 次元）をバッチで呼ぶ |
+| 4 | 埋め込みベクトルを生成する | `generate_embeddings()` / `generate_embedding()` / `generate_embeddings_batch()` | Gemini Embedding（`gemini-embedding-001`・3072 次元）をバッチで呼ぶ |
 | 5 | ベクトル間の類似度を計算する | `cosine_similarity()` / `_calculate_sentence_similarities()` | コサイン類似度（類似度ベース分割にも使う） |
 
 ### 主要機能一覧
@@ -246,7 +246,7 @@ class A,B,C,D,E,F,G,H,I,J,K default
 
 | 項目 | 値 |
 |-----|---|
-| モデル | gemini-embedding-2 |
+| モデル | gemini-embedding-001 |
 | 次元数 | 3072 |
 | 正規化 | L2正規化（自動適用） |
 
@@ -384,7 +384,7 @@ chunks = analyzer.create_semantic_chunks(
 
 | 区分 | 内容 |
 |-----|------|
-| **Input** | `embedding_model`: str（埋め込みモデル名、デフォルト: `ModelConfig.EMBEDDING_MODEL` = "gemini-embedding-2"） |
+| **Input** | `embedding_model`: str（埋め込みモデル名、デフォルト: `ModelConfig.EMBEDDING_MODEL` = "gemini-embedding-001"） |
 | **Process** | 1. 埋め込みクライアント初期化（Gemini / `ModelConfig.EMBEDDING_MODEL`）<br>2. 埋め込み次元数取得（3072）<br>3. LLMクライアント初期化（Anthropic Claude・トークン計算用）<br>4. tiktokenエンコーダ初期化<br>5. MeCab利用可否チェック |
 | **Output** | SemanticCoverageインスタンス |
 
@@ -652,7 +652,7 @@ class A,B,C,D,E,F,G,H default
 
 | パラメータ | 型 | デフォルト | 説明 |
 |----------|---|----------|------|
-| `embedding_model` | str | `ModelConfig.EMBEDDING_MODEL`（= "gemini-embedding-2"） | 使用する埋め込みモデル |
+| `embedding_model` | str | `ModelConfig.EMBEDDING_MODEL`（= "gemini-embedding-001"） | 使用する埋め込みモデル |
 
 ### 7.2 create_semantic_chunksパラメータ
 
@@ -777,3 +777,4 @@ embeddings = analyzer.generate_embeddings_batch(
 | 1.0 | 2026-06-21 | 初版（LLM 文脈の表記を Anthropic Claude に統一・Embedding は Gemini 維持。2026-09-05 に `qa_generation/docs/` へ移設） |
 | 1.1 | 2026-09-24 | 基本フォーマット `a_class_method_md_format.md` の章構成へ組み替え。概要に「主な責務」と「各責務対応のモジュール」（1:1）を置き、`## 1. アーキテクチャ構成図`（3 層＋データフロー）を新設。既存の構成図は `## 2. モジュール構成図` へ、使用方法は IPO 詳細の冒頭（`### 6.1 使用例`）へ移した。固有の解説章（「セマンティックチャンク分割」・「埋め込みベクトル生成」）は §1.3 に従い一覧表の前に置き、章・小節に番号を振った。本文の内容は変えていない |
 | 1.2 | 2026-09-26 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所）。`SemanticCoverage.__init__` の既定引数（`ModelConfig.EMBEDDING_MODEL`）を実装に合わせた |
+| 1.3 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |

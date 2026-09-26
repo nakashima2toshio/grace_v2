@@ -1,6 +1,6 @@
 # GRACE-Review 処理フローと設計 ドキュメント
 
-**Version 2.3** | 最終更新: 2026-09-26
+**Version 2.4** | 最終更新: 2026-09-26
 
 > **本書の位置づけ**: GRACE-Review（文書 → 指摘）の**処理フロー（HOW）と設計判断（WHY）を
 > 1 本にまとめた正本**。v2.0 で `review_spec.md`（1,080 行）を統合した。
@@ -142,7 +142,7 @@ GRACE-Review は、**文書（EC の LP・商品説明文など）を規程（�
 |---|---|
 | LLM（検出・判定・要約） | Anthropic Claude `claude-sonnet-5` |
 | LLM（軽量二段判定） | Anthropic Claude `claude-haiku-4-5-20251001` |
-| Embedding（規程検索） | Gemini `gemini-embedding-2`（3072次元） |
+| Embedding（規程検索） | Gemini `gemini-embedding-001`（3072次元） |
 | ベクトル DB | Qdrant（コレクション `*_anthropic`） |
 | Web API | FastAPI（`:8000`）・SSE |
 | フロントエンド | Vite + React 18 + TypeScript（`:5173`） |
@@ -1049,6 +1049,7 @@ _emit(SupportEvent(
 
 | Version | 変更内容 |
 |---|---|
+| 2.4 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
 | 2.3 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
 | 2.2 | 目次の §4 へのリンクが見出しの丸数字（①⑦）を含むアンカーと一致せず切れていたのを修正（2026-09-24） |
 | 2.1 | 概要の「各責務対応のモジュール」を主な責務と 1:1（6 行）に揃えた（7 行で、1 つの責務が複数行に割れていた。基本フォーマット §2.4。2026-09-24） |

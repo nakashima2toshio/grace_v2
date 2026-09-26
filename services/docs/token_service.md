@@ -1,6 +1,6 @@
 # token_service.py - トークン管理サービス ドキュメント
 
-**Version 1.3** | 最終更新: 2026-09-26
+**Version 1.4** | 最終更新: 2026-09-26
 
 ---
 
@@ -15,7 +15,7 @@
 > | 用途 | プロバイダ | 既定 |
 > |---|---|---|
 > | LLM 全般 | **Anthropic** | `claude-sonnet-5`（軽量 `claude-haiku-4-5-20251001`） |
-> | Embedding のみ | **Gemini** | `gemini-embedding-2`（3072 次元） |
+> | Embedding のみ | **Gemini** | `gemini-embedding-001`（3072 次元） |
 >
 > 表に OpenAI / Gemini のモデルが並んでいるのは、**過去に扱ったモデルの
 > トークナイザ・単価を引ける互換辞書**だからで、「このプロジェクトが GPT-4o を
@@ -46,7 +46,7 @@
 
 `token_service.py`は、トークンカウント・コスト推定・テキスト切り詰めを統合的に提供するサービスモジュールです。`tiktoken`を用いたトークン数算出を中核とし、複数モデルのエンコーディング・価格・トークン制限を一元管理します。複数の旧ヘルパー（`helper_api.py::TokenManager`、`helper_rag.py::TokenManager`、`helper_text.py::count_tokens`）を統合した後継実装です。
 
-技術スタックではLLMに **Anthropic Claude**（既定 `claude-sonnet-5` / 軽量 `claude-haiku-4-5-20251001`）、Embedding に **Gemini**（`gemini-embedding-2`）を採用します。本モジュールの定数表（`MODEL_ENCODINGS` / `LLM_PRICING` / `EMBEDDING_PRICING` / `MODEL_LIMITS`）には既定 LLM の Claude を先頭に定義し、Gemini / OpenAI 系のエントリは後方互換のため残置しています。
+技術スタックではLLMに **Anthropic Claude**（既定 `claude-sonnet-5` / 軽量 `claude-haiku-4-5-20251001`）、Embedding に **Gemini**（`gemini-embedding-001`）を採用します。本モジュールの定数表（`MODEL_ENCODINGS` / `LLM_PRICING` / `EMBEDDING_PRICING` / `MODEL_LIMITS`）には既定 LLM の Claude を先頭に定義し、Gemini / OpenAI 系のエントリは後方互換のため残置しています。
 
 ### 主な責務
 
@@ -276,7 +276,7 @@ total_tokens = sum(count_tokens(c) for c in chunks)
 embed_cost = TokenManager.estimate_cost(
     input_tokens=total_tokens,
     output_tokens=0,
-    model=ModelConfig.EMBEDDING_MODEL,   # 定義は config.py（現在 gemini-embedding-2）
+    model=ModelConfig.EMBEDDING_MODEL,   # 定義は config.py（現在 gemini-embedding-001）
     is_embedding=True,
 )
 print(f"Embedding推定コスト: ${embed_cost:.6f}")
@@ -611,13 +611,13 @@ def get_embedding_pricing(model: str) -> float
 
 **戻り値例**:
 ```python
-0.0002
+0.0001
 ```
 
 ```python
 # 使用例
-print(get_embedding_pricing("gemini-embedding-2"))
-# 出力: 0.0002
+print(get_embedding_pricing("gemini-embedding-001"))
+# 出力: 0.0001
 ```
 
 #### `get_model_limits`
@@ -753,8 +753,8 @@ EMBEDDING_PRICING = ModelConfig.EMBEDDING_PRICING
 
 | モデル | 単価 ($/1K) |
 |--------|------------|
-| `gemini-embedding-2`（`ModelConfig.EMBEDDING_MODEL`・既定） | 0.0002 |
-| `gemini-embedding-001`（旧既定・後方互換） | 0.0001 |
+| `gemini-embedding-001`（`ModelConfig.EMBEDDING_MODEL`・既定） | 0.0001 |
+| `gemini-embedding-001`（切り替え候補。既存コレクションは再登録が要る） | 0.0002 |
 | `text-embedding-3-small` | 0.00002 |
 | `text-embedding-3-large` | 0.00013 |
 
@@ -843,6 +843,7 @@ __all__ = [
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 1.4 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`）。単価表・使用例を 001（0.0001）へ戻し、`gemini-embedding-2` は切り替え候補として残した（コードの `EMBEDDING_PRICING` と同じ） |
 | 1.3 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所）。§5.4 `EMBEDDING_PRICING` は `ModelConfig.EMBEDDING_PRICING` を参照する形になったので表と単価例（0.0002）を実装に合わせた |
 | 1.2 | 使用例を IPO 詳細の冒頭（`### 4.1 使用例`）へ移し、末尾の「## 6. 使用例」章を削除（基本フォーマット `a_class_method_md_format.md` v1.6〜 §6.1 に準拠。2026-09-24）。IPO の小節を 4.2 以降へ繰り下げ、後続の章番号を 1 つ繰り上げた。文書内の `§4.x` 参照も追随。あわせて`MODEL_ENCODINGS` / `LLM_PRICING` / `MODEL_LIMITS` の Claude 行を実装に同期（`claude-sonnet-5` など 5 モデルが欠落、`claude-haiku-4-5-20251001` の上限が 8192 のままだった）。2026-09-12 に解消済みの `claude-haiku-4-5` 欠落の警告を「解消済み」へ更新 |
 | 1.1 | 本モジュールが**トークン計算の互換テーブル**であることを冒頭に明記。表に並ぶ `gpt-4o` / `gemini-*` / `text-embedding-3-*` は実装どおりで変更していない（プロジェクトの既定 LLM は `claude-sonnet-4-6`）（2026-09-12） |

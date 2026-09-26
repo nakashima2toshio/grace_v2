@@ -1,6 +1,6 @@
 # webapp_flow.md - GRACE-Support Web アプリ処理フロー（`run_dev.sh` 起点）ドキュメント
 
-**Version 2.4** | 最終更新: 2026-09-26
+**Version 2.5** | 最終更新: 2026-09-26
 
 > ⚠️ **`React`（フロントエンドのライブラリ）の話であって、`ReAct`（推論と行動を反復する
 > エージェントパターン）の解説書ではない。** 旧ファイル名 `react_processing_flow.md` は
@@ -38,7 +38,7 @@
 
 本ドキュメントは、`run_dev.sh` で起動する **GRACE-Support の React 版（Web UI + FastAPI + 自律エージェント中核）** の処理の流れを、**処理順のステップ・各ステップの概要・担当モジュール**の観点でまとめたものである。コア（`backend/app/core/support_agent.py`）を Web から呼ぶ構成で、フロントエンドは `frontend/`（Vite + React + TypeScript）、バックエンドは `backend/`（FastAPI）、推論・検索の中核は `grace/`（Plan/Execute/Confidence/Replan/Intervention）に置かれる。
 
-LLM は **Anthropic Claude**（既定 `claude-sonnet-5` / 軽量 `claude-haiku-4-5-20251001`）、Embedding は **Gemini**（`gemini-embedding-2`・3072次元）、ベクタDBは **Qdrant** を用いる。
+LLM は **Anthropic Claude**（既定 `claude-sonnet-5` / 軽量 `claude-haiku-4-5-20251001`）、Embedding は **Gemini**（`gemini-embedding-001`・3072次元）、ベクタDBは **Qdrant** を用いる。
 
 ### 主な責務
 
@@ -665,6 +665,7 @@ sequenceDiagram
 | 2.0 | **`react_processing_flow.md` → `webapp_flow.md` へ改称**（2026-09-15）。`React`（フロントエンド）と `ReAct`（エージェントパターン）の取り違えを誘発しており、`backend/docs/README.md` も本書を「ReAct の処理フロー」と誤って説明していた。内容は変更せず、冒頭に位置づけ（end-to-end フロー）と正本リンクを追加した。§5「エージェントパターン対応」は本書に残し、[`../../docs/pipelines.md`](../../docs/pipelines.md) と相互リンクした |
 | 2.3 | 概要の「各責務対応のモジュール」を主な責務と 1:1（7 行）に揃えた（8 行で、1 つの責務が複数行に割れていた。基本フォーマット §2.4。2026-09-24） |
 | 2.4 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
+| 2.5 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
 
 ---
 
