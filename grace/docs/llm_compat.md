@@ -1,6 +1,6 @@
 # llm_compat.py - GRACE LLM 互換クライアント ドキュメント
 
-**Version 1.3** | 最終更新: 2026-09-24
+**Version 1.4** | 最終更新: 2026-09-26
 
 ---
 
@@ -539,7 +539,7 @@ def create_chat_client(config: Any = None) -> Any
 | 項目 | 内容 |
 |------|------|
 | **Input** | `config: Any = None` |
-| **Process** | 1. provider="anthropic"・model=DEFAULT_ANTHROPIC_MODEL を初期値とする<br>2. `config.llm` があれば provider（小文字化）・model を上書き<br>3. provider が `_GEMINI_PROVIDERS` に含まれれば `genai.Client()` を返す<br>4. それ以外は `AnthropicGenaiClient(default_model=model)` を返す |
+| **Process** | 1. provider="anthropic"・model=DEFAULT_ANTHROPIC_MODEL を初期値とする<br>2. `config.llm` があれば provider（小文字化。**文字列のときだけ**。テストの MagicMock 等は既定のまま）・model を上書き<br>3. provider が `_GEMINI_PROVIDERS` に含まれれば `genai.Client()` を返す<br>4. provider が `_ANTHROPIC_PROVIDERS`（`anthropic` / `claude`）に含まれなければ **`ValueError`**（例 `"anthropc"` の打ち間違い。2026-09-26 まで黙って Anthropic にしていた）<br>5. `AnthropicGenaiClient(default_model=model)` を返す |
 | **Output** | `Any`: genai.Client または AnthropicGenaiClient |
 
 **戻り値例**:
@@ -757,6 +757,7 @@ from .llm_compat import create_chat_client
 | 1.1 | 実装（07-27）へ追随（2026-08-01）。`_thinking_budget()` と `_MIN_TEXT_TOKENS` / `_MIN_THINKING_BUDGET`（M-1 拡張思考）を §3.2 と §5.3 に追加。0 / None / 不正値は無効、有効時は API 下限 1024 まで引き上げるという正規化の表を付け、`heavy_model` 未設定ならそもそも走らない点を明記。旧 §5.3（関連環境変数）を §5.4 へ繰り下げ |
 | 1.2 | 使用例を IPO 詳細の冒頭（`### 4.1 使用例`）へ移し、末尾の「## 6. 使用例」章を削除（基本フォーマット `a_class_method_md_format.md` v1.6〜 §6.1 に準拠。2026-09-24）。IPO の小節を 4.2 以降へ繰り下げ、後続の章番号を 1 つ繰り上げた。文書内の `§4.x` 参照も追随。現在の既定モデルの記載 `claude-sonnet-4-6` を実装（`grace/config.py` の `LLMConfig.model` = `claude-sonnet-5`）に合わせて是正した（CLAUDE.md §9.3。旧既定は履歴の記述にだけ残す） |
 | 1.3 | `extract_json_block` の IPO 表で、表セル内で閉じていなかったバッククォート 3 連をインラインコード表記へ修正（2026-09-24） |
+| 1.4 | `create_chat_client()` が未知の `config.llm.provider` を `ValueError` にするようになったのに追随（2026-09-26）。IPO の Process を更新（`backend/tests/test_llm_provider_validation.py`） |
 
 ---
 

@@ -1,6 +1,6 @@
 # make_qa_register_qdrant.py - Q/A 生成 → Qdrant 登録 統合 CLI ドキュメント
 
-**Version 1.4** | 最終更新: 2026-09-25
+**Version 1.5** | 最終更新: 2026-09-26
 
 ---
 
@@ -250,7 +250,12 @@ class START,DS,EXT,COLS,CHUNK,GEN,SKIP,FAIL,REG default
 | UI 用 CSV（Phase 2） | `<--ui-output>/<Q/A CSV 名から日時を除いた名前>`（例 `qa_output/qa_pairs_cc_news_1per_chunks.csv`） | `question` / `answer` の 2 列だけ。**同じ入力なら上書き** |
 | Qdrant | コレクション `--collection` | Q/A 1 件 = 1 ポイント。`source` payload は UI 用 CSV と同じ正規化名 |
 
-`<種別>` は `--input-file` のときは入力ファイル名の拡張子を除いた部分（`.txt` 入力ではチャンク CSV の名前なので `<入力名>_chunks`）、`--dataset` のときはデータセット設定の `type` です。
+`<種別>` は `--input-file` のときは入力ファイル名の拡張子を除いた部分（`.txt` 入力ではチャンク CSV の名前なので `<入力名>_chunks`）、`--dataset` のときは**データセット名**（例 `cc_news`）です。
+`config.DATASET_CONFIGS` の各エントリには `type` キーが無いため、`QAPipeline._load_config()` がデータセット名で補います。
+2026-09-26 までは補っておらず（v1.4 までの本書の「データセット設定の `type`」という記述も誤り）、`self.config.get("type", "unknown")` の既定値へ倒れて
+**どのデータセットでも `unknown`** になっていました。UI 用 CSV（`qa_pairs_unknown.csv`）が上書きされるだけでなく、チャンク ID（`unknown_chunk_<n>`）と
+途中経過ファイル（`qa_progress_unknown.jsonl`）もデータセット間で共有され、途中で落ちたデータセットの途中経過を別のデータセットの再開が読んでいました
+（`backend/tests/test_qa_pipeline_dataset_type.py`。修正前の実装で fail することを確認）。
 
 ### 3.3 既知の問題（2026-09-25 実測）
 
@@ -632,6 +637,7 @@ normalize_source_filename   # 日時サフィックスの除去
 | 1.2 | §3.3 の 1（`.txt` 入力が必ず失敗する）の修正に追随（2026-09-25）。`.txt` は `chunk_text_file()` で先にチャンク化してから Q/A 生成するようになった。概要・責務表・構成図 3 枚・§3.1 の判定表と図・§3.2 の出力・§5.4（`chunk_text_file` の IPO を新設。旧 §5.4 は §5.5 へ）・§5.1.2 の使用例・§6 の CLI 引数／環境変数／定数・§7 を更新。あわせて §5.2 の Process 7 に残っていた「登録失敗時はエラーログだけ」（v1.1 の取り残し）を「終了コード 1」へ直した |
 | 1.3 | §3.3 の 3（`--provider` が効かない）と 5（`ANTHROPIC_API_KEY` を起動時に確かめない）の修正に追随（2026-09-25）。`--provider` は `choices=["gemini"]`、Q/A を生成する経路では新設の `require_anthropic_key()` が生成前に確かめる。概要の注記・§1.2・§3.3・§4.2・§5.2・§5.3 の `provider`・§5.4（`require_anthropic_key` の IPO を追加）・§6.1／§6.2・§7 を更新 |
 | 1.4 | §3.3 の 4（`--text-column` が Q/A 生成に渡らない）の修正に追随（2026-09-25）。これで §3.3 の 5 件はすべて解消。概要の注記・§3.1 の 4・§3.3・§6.1・§7 を更新 |
+| 1.5 | §3.2 の `<種別>` の記述を是正（2026-09-26）。「`--dataset` のときはデータセット設定の `type`」は誤りで、`type` キーが無いため一律 `unknown` になっていた。`QAPipeline._load_config()` がデータセット名で補うよう直したのに合わせ、出力名・チャンク ID・途中経過ファイルがデータセット間で共有されていたことも記録 |
 
 ---
 

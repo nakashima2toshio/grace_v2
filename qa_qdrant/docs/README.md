@@ -1,6 +1,6 @@
 # qa_qdrant/docs/ 棚卸し
 
-**Version 1.7** | 最終更新: 2026-09-26
+**Version 1.8** | 最終更新: 2026-09-26
 
 > 📎 **姉妹版**: [`docs/README.md`](../../docs/README.md)（直下・配置の境界） /
 > [`chunking/docs/README.md`](../../chunking/docs/README.md) /
@@ -73,7 +73,7 @@
 | [`register_to_qdrant.md`](register_to_qdrant.md) | `register_to_qdrant.py` — 既存 CSV → Qdrant | 587 | 586 | 2.1 | ★★★ |
 | [`make_qa.md`](make_qa.md) | `make_qa.py` — Q/A 生成のみの CLI | 265 | 448 | 3.3 | ★★☆ |
 | [`qdrant_delete_collection.md`](qdrant_delete_collection.md) | **`qdrant_delete_collection.py`（リポジトリ直下）** — コレクション削除 CLI | 73 | 304 | 1.1 | ★★☆ |
-| [`make_qa_register_qdrant_ipo.md`](make_qa_register_qdrant_ipo.md) | `make_qa_register_qdrant.py` — Q/A 生成 → Qdrant 登録の統合 CLI。§3.3 の既知の問題 5 件は修正済み | 708 | 693 | 1.4 | ★★★ |
+| [`make_qa_register_qdrant_ipo.md`](make_qa_register_qdrant_ipo.md) | `make_qa_register_qdrant.py` — Q/A 生成 → Qdrant 登録の統合 CLI。§3.3 の既知の問題 5 件は修正済み | 708 | 699 | 1.5 | ★★★ |
 | [`make_qa_qapipeline.md`](make_qa_qapipeline.md) | `QAPipeline` ＋ `SmartQAGenerator` の連携（**実体は `qa_generation/`**） | — | 936 | 1.2 | ★★☆ |
 
 > ⚠️ **`qdrant_delete_collection.md` の対象はこのパッケージの外にある**（リポジトリ直下の
@@ -203,6 +203,7 @@ uv run --no-sync pytest backend/tests/test_qa_qdrant_package_init.py -q
 
 | Version | 日付 | 変更 |
 |---|---|---|
+| 1.8 | 2026-09-26 | `make_qa_register_qdrant_ipo.md` v1.5（`--dataset` の種別が `unknown` になる問題の是正）に追随して §2.2 の行数・Ver を更新 |
 | 1.7 | 2026-09-26 | `make_qa_register_qdrant.md` v1.6（§7 の `--model` 既定を `claude-sonnet-5` へ是正）に追随。§2 の行数・Ver と残タスク 2 の注記を更新 |
 | 1.6 | 2026-09-25 | 残タスク 4 の④（`--text-column` が Q/A 生成に渡らない）を修正し、残タスク 4 を完了。§2・§3 の行数・Ver と §7 に `test_qa_pipeline_text_column.py` を追加 |
 | 1.5 | 2026-09-25 | 残タスク 4 の③（`--provider` が効かない）と⑤（`ANTHROPIC_API_KEY` を起動時に確かめない）を修正したのに追随。§2・§3 の行数・Ver と §7 に `test_make_qa_register_qdrant_startup_checks.py` を追加 |
