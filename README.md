@@ -1,6 +1,6 @@
 # GRACE アプリ（`./run_dev.sh`）- 画面・操作・プログラム対応 ドキュメント
 
-**Version 3.3** | 最終更新: 2026-09-24
+**Version 3.4** | 最終更新: 2026-09-26
 
 ![B-01 起動直後（基本版）](docs/images/b-01-basic-initial.png)
 
@@ -222,23 +222,27 @@ Support の `VerticalProfile` と Review の `RuleSet` は、**9 フィールド
 
 | 状態 | 枚数 | スロット |
 |---|---:|---|
-| ✅ **撮影済み・掲載中** | 17 | `B-01` / `S-01` / `S-02` / `S-06a` / `S-06b` / `H-01` / `H-02a` / `H-02b` / `R-01` / `R-02` / `D-01` / `D-02` / `D-04` / `D-09` / `E-01` / `E-02` / `E-03` |
-| ⬜ 未撮影（コメントのまま） | 14 | `S-03`〜`S-05` / `R-03`〜`R-06` / `C-01` / `D-03` / `D-05` / `D-06` / `D-07` / `D-08` / `T-01` |
+| ✅ **撮影済み・掲載中** | 31 | `B-01` / `S-01`〜`S-05` / `S-06a` / `S-06b` / `H-01` / `H-02a` / `H-02b` / `R-01`〜`R-06` / `C-01` / `D-01`〜`D-09` / `E-01`〜`E-03` / `T-01` |
+| ⬜ 未撮影（コメントのまま） | 0 | — |
 
 **`B-01` は README 冒頭にも再掲**してあり（アプリの第一印象を最初に見せるため）、
 §2 の本文と 2 箇所で参照している。
 
-> 📌 **未撮影 14 枚が残っている理由（2026-09-12 時点）。** 撮影環境に
-> **`ANTHROPIC_API_KEY` と Qdrant が無かった**ため、次の 2 群は再現できなかった。
+> 📌 **残り 14 枚は 2026-09-26 に撮影した。** 2026-09-12 の撮影環境には
+> `ANTHROPIC_API_KEY` と Qdrant が無く、実行結果・実行中の画面（`S-03`〜`S-05` /
+> `R-03`〜`R-06` / `C-01` / `D-03` / `T-01`）とコレクションが在る状態（`D-05`〜`D-08`）を
+> 再現できなかった。今回はキーと Qdrant（Linux バイナリを `localhost:6333` で起動）を
+> 用意し、§各スロットの手順どおりに実画面を撮った。撮影条件は既存の画像と同じ
+> （ビューポート幅 1440px・2 倍解像度・ライトテーマ）。
 >
-> | 群 | 対象 | 必要なもの |
-> |---|---|---|
-> | 実行結果・実行中の画面 | `S-03`〜`S-05` / `R-03`〜`R-06` / `C-01` / `D-03` / `T-01` | `ANTHROPIC_API_KEY`（LLM 実行） |
-> | コレクションが在る状態 | `D-05` / `D-06` / `D-07` / `D-08` | Qdrant 起動（`docker-compose ... up -d`） |
->
-> **逆に、キーが無いからこそ `E-01`（`ANTHROPIC_API_KEY` 未設定エラー）と
-> `E-02`（backend 停止時のメタ取得エラー）は正確に再現できた。**
-> 残り 14 枚は、キーと Qdrant のある環境で同じ手順（§各スロットの説明）を踏めば撮れる。
+> | 撮影時の条件 | 画面への現れ方 |
+> |---|---|
+> | Qdrant の中身は最小限（`ec_ad_rules_anthropic` 23 件 ＋ `ec_policy_anthropic` 8 件のサンプル返品 FAQ） | `D-06` / `D-07` の件数。`S-04` の出典が `社内` の 1 件だけ |
+> | 撮影環境のネットワーク制限で **Web 検索が 0 件**、HuggingFace（sparse モデル）へ到達できず **dense 検索のみ** | `S-04` に `Web` ラベルの出典が無い。`S-05`（`ec: 返品したい`）は初回リクエストで sparse モデルの取得待ちが内部 RAG の 30 秒タイムアウトを超え、根拠なし → escalate になった実画面 |
+> | tiktoken の符号化ファイルを取得できず、チャンク化は **③ CSV 出力で失敗** | `D-03` は実行中（② の途中）の画面なので影響なし |
+> | `C-01` / `S-03` / `S-04` / `T-01` は `ec` ＋ **dry-run ON**（既定は OFF）＋ 識別子にダミー値（`1001` / `a@example.com`） | dry-run 中はデモ照合で本人確認が通り、`create_ticket` の CONFIRM が出る |
+> | `D-05` / `D-08` はモーダルを撮ったあと **拒否** した | コレクションは消えていない |
+> | `R-04` の件数は実行結果そのもの（`指摘 11 件` `重大 7` `中 4` …） | スロット説明の件数は例示で、実画面とは一致しない |
 
 ### 各スロットが書いてあること
 
@@ -793,7 +797,8 @@ return IdentityVerifier(checker=None, method="none")   # 常に未確認（安�
 
 > 📷 **[S-03] Support 実行中のタイムライン** — 一部が `▶`（実行中）、上の方が `✓`（完了）に
 > なっている途中経過。1 ステップのログを開いた状態が望ましい。
-> <!-- ![S-03 Support 実行中](docs/images/s-03-support-running.png) -->
+
+![S-03 Support 実行中](docs/images/s-03-support-running.png)
 
 | 状態 | アイコン | 意味 |
 |---|:--:|---|
@@ -827,11 +832,13 @@ return IdentityVerifier(checker=None, method="none")   # 常に未確認（安�
 
 > 📷 **[S-04] Support 回答カード（answer）** — 緑の `answer（回答）` バッジ、本文、
 > 出典リスト（`社内` と `Web` のラベルが混在していると良い）、下部の指標まで。
-> <!-- ![S-04 Support 回答](docs/images/s-04-support-answer.png) -->
+
+![S-04 Support 回答](docs/images/s-04-support-answer.png)
 
 > 📷 **[S-05] Support 回答カード（escalate）** — 赤の `escalate（有人対応へ）` バッジと
 > 「理由: …」が見える状態。`ec: 返品したい` などで再現しやすい。
-> <!-- ![S-05 Support エスカレ](docs/images/s-05-support-escalate.png) -->
+
+![S-05 Support エスカレ](docs/images/s-05-support-escalate.png)
 
 | 表示部品 | 条件 | 内容 |
 |---|---|---|
@@ -915,7 +922,8 @@ return IdentityVerifier(checker=None, method="none")   # 常に未確認（安�
 
 > 📷 **[R-03] Review 実行中のタイムライン** — `③ Detect` あたりが `▶` で、
 > `① Segment` に `18 セグメント` バッジが付いている途中経過。
-> <!-- ![R-03 Review 実行中](docs/images/r-03-review-running.png) -->
+
+![R-03 Review 実行中](docs/images/r-03-review-running.png)
 
 **Review 固有のバッジ**（`ReviewTimeline.tsx::stepBadges`）:
 
@@ -934,7 +942,8 @@ return IdentityVerifier(checker=None, method="none")   # 常に未確認（安�
 
 > 📷 **[R-04] 指摘サマリバー** — `指摘 3 件` `重大 1` `中 2` `軽微 0` `確定 1` `要確認 2` `抑止 2`
 > が横一列に並んだ帯。
-> <!-- ![R-04 指摘サマリ](docs/images/r-04-finding-summary.png) -->
+
+![R-04 指摘サマリ](docs/images/r-04-finding-summary.png)
 
 | 表示 | 元データ | 備考 |
 |---|---|---|
@@ -950,7 +959,8 @@ return IdentityVerifier(checker=None, method="none")   # 常に未確認（安�
 > 📷 **[R-05] 原文ハイライト＋指摘カード（左右ペイン）** — 画面を広めに撮り、
 > 左に色付きハイライト、右に指摘カードが並ぶ全体像。1 件を選択して**両側が強調**
 > されている状態が理想。
-> <!-- ![R-05 Review 結果](docs/images/r-05-review-panes.png) -->
+
+![R-05 Review 結果](docs/images/r-05-review-panes.png)
 
 | 項目 | 内容 |
 |------|------|
@@ -975,7 +985,8 @@ return IdentityVerifier(checker=None, method="none")   # 常に未確認（安�
 > 📷 **[R-06] 指摘カードの詳細** — 1 枚のカードを拡大。severity バッジ・ルール名・
 > 法令条文・状態・`重大リスク語` バッジ・引用・指摘文・修正案・根拠（開いた状態）・
 > 確信度まで入るように。
-> <!-- ![R-06 指摘カード詳細](docs/images/r-06-finding-card.png) -->
+
+![R-06 指摘カード詳細](docs/images/r-06-finding-card.png)
 
 **並び順**: `severity` 降順（重大 → 中 → 軽微）→ 同値なら原文の**出現順**（`start` 昇順）。
 重大な指摘から読める並びにしている。
@@ -1023,7 +1034,8 @@ Support と Review で**同じコンポーネント**を使う。
 
 > 📷 **[C-01] HITL CONFIRM モーダル** — アクション種別・引数（JSON）・バックエンド
 > （dry-run 表示）・タイムアウト秒・承認/拒否ボタンが入るように撮影。
-> <!-- ![C-01 CONFIRM モーダル](docs/images/c-01-confirm-modal.png) -->
+
+![C-01 CONFIRM モーダル](docs/images/c-01-confirm-modal.png)
 
 | 表示行 | 元データ | 備考 |
 |---|---|---|
@@ -1125,7 +1137,8 @@ sequenceDiagram
 > `① 入力読み込み → ② セマンティックチャンク化 → ③ CSV 出力` と進む様子。
 > ログ行（既存モジュールの `logging` を `job_logs.py` が横取りしたもの）を
 > 1 つ展開した状態で撮る。
-> <!-- ![D-03 チャンキング 実行中](docs/images/d-03-chunking-running.png) -->
+
+![D-03 チャンキング 実行中](docs/images/d-03-chunking-running.png)
 
 #### 4.5.3 ② Q/A 作成
 
@@ -1161,7 +1174,8 @@ sequenceDiagram
 > 📷 **[D-05] 登録の CONFIRM（recreate）** — `recreate=ON` かつ既存コレクションが
 > あるときだけ出るモーダル。**既存の件数と「失われます」の文言**が読めるように撮る。
 > `recreate=OFF` では出ないことが対比できると良い。
-> <!-- ![D-05 登録の CONFIRM](docs/images/d-05-register-confirm.png) -->
+
+![D-05 登録の CONFIRM](docs/images/d-05-register-confirm.png)
 
 #### 4.5.5 ④ コレクション管理
 
@@ -1169,16 +1183,19 @@ sequenceDiagram
 
 > 📷 **[D-06] コレクション一覧** — 名前・件数・ステータスの一覧。
 > Qdrant 稼働状況のバッジが見えるように撮影。
-> <!-- ![D-06 コレクション一覧](docs/images/d-06-collection-list.png) -->
+
+![D-06 コレクション一覧](docs/images/d-06-collection-list.png)
 
 > 📷 **[D-07] コレクション詳細＋ポイントプレビュー** — 1 件選択した状態。
 > ベクトル設定（次元・距離）とポイントのテーブルが入るように撮る。
 > **列はコレクションごとに変わる**（payload のキーが可変）ことが分かる構図が良い。
-> <!-- ![D-07 コレクション詳細](docs/images/d-07-collection-detail.png) -->
+
+![D-07 コレクション詳細](docs/images/d-07-collection-detail.png)
 
 > 📷 **[D-08] 削除の CONFIRM** — **常に**出るモーダル。対象名・合計件数・
 > 「元に戻せません」の文言が読めるように撮影。承認するまで削除されない。
-> <!-- ![D-08 削除の CONFIRM](docs/images/d-08-delete-confirm.png) -->
+
+![D-08 削除の CONFIRM](docs/images/d-08-delete-confirm.png)
 
 | 操作 | エンドポイント | 承認 |
 |---|---|---|
@@ -1236,7 +1253,8 @@ sequenceDiagram
 > 📷 **[T-01] 実行時間の表示** — 決着後の GRACE-Support。
 > **「開始」がフォーム直下に、「完了」と「所要」が回答カードの一番下にある**ことが
 > 1 枚で分かるように、フォームから回答カード末尾までを縦に収めて撮る。
-> <!-- ![T-01 実行時間の表示](docs/images/t-01-job-timing.png) -->
+
+![T-01 実行時間の表示](docs/images/t-01-job-timing.png)
 
 ---
 
@@ -1378,27 +1396,27 @@ docker-compose -f docker-compose/docker-compose.yml up -d
 | **S-02** | ✅ | `s-02-support-form.png` | 入力フォーム（プロファイル選択を開く＋トグル 4 つ） | §4.2.1 |
 | **S-06a** | ✅ | `s-06a-identity-disabled.png` | 識別子欄が **disabled**（`ec` 以外） | §4.2.1 / §4.2.2 |
 | **S-06b** | ✅ | `s-06b-identity-enabled.png` | 識別子欄が**有効**（`ec` ＋ dry-run ON の注記） | §4.2.1 / §4.2.2 |
-| **S-03** | ⬜ | `s-03-support-running.png` | 実行中のタイムライン（ログを 1 つ開く） | §4.2.3 |
-| **S-04** | ⬜ | `s-04-support-answer.png` | 回答カード（answer・出典あり） | §4.2.4 |
-| **S-05** | ⬜ | `s-05-support-escalate.png` | 回答カード（escalate・理由表示） | §4.2.4 |
+| **S-03** | ✅ | `s-03-support-running.png` | 実行中のタイムライン（ログを 1 つ開く） | §4.2.3 |
+| **S-04** | ✅ | `s-04-support-answer.png` | 回答カード（answer・出典あり） | §4.2.4 |
+| **S-05** | ✅ | `s-05-support-escalate.png` | 回答カード（escalate・理由表示） | §4.2.4 |
 | **R-01** | ✅ | `r-01-review-initial.png` | Review タブ初期表示 | §4.3.1 |
 | **R-02** | ✅ | `r-02-review-form.png` | 文書貼付後（文字数カウンタ表示） | §4.3.1 |
-| **R-03** | ⬜ | `r-03-review-running.png` | 実行中のタイムライン（バッジ付き） | §4.3.2 |
-| **R-04** | ⬜ | `r-04-finding-summary.png` | 指摘サマリバー | §4.3.3 |
-| **R-05** | ⬜ | `r-05-review-panes.png` | 左右ペイン全体（1 件選択状態） | §4.3.4 |
-| **R-06** | ⬜ | `r-06-finding-card.png` | 指摘カード拡大（根拠を開く） | §4.3.5 |
-| **C-01** | ⬜ | `c-01-confirm-modal.png` | HITL CONFIRM モーダル | §4.4 |
+| **R-03** | ✅ | `r-03-review-running.png` | 実行中のタイムライン（バッジ付き） | §4.3.2 |
+| **R-04** | ✅ | `r-04-finding-summary.png` | 指摘サマリバー | §4.3.3 |
+| **R-05** | ✅ | `r-05-review-panes.png` | 左右ペイン全体（1 件選択状態） | §4.3.4 |
+| **R-06** | ✅ | `r-06-finding-card.png` | 指摘カード拡大（根拠を開く） | §4.3.5 |
+| **C-01** | ✅ | `c-01-confirm-modal.png` | HITL CONFIRM モーダル | §4.4 |
 | **D-01** | ✅ | `d-01-data-initial.png` | **データ管理**タブ初期表示（タブ 4 つ＋サブタブ 4 つ） | §4.5.1 |
 | **D-02** | ✅ | `d-02-chunking-form.png` | チャンキング フォーム（モデル既定値が見えること） | §4.5.2 |
-| **D-03** | ⬜ | `d-03-chunking-running.png` | チャンキング 実行中のタイムライン（ログを 1 つ開く） | §4.5.2 |
+| **D-03** | ✅ | `d-03-chunking-running.png` | チャンキング 実行中のタイムライン（ログを 1 つ開く） | §4.5.2 |
 | **D-09** | ✅ | `d-09-qa-form.png` | **② Q/A 作成** フォーム（モデル既定値・Celery 並列トグル） | §4.5.3 |
 | **E-03** | ✅ | `e-03-review-over-limit.png` | Review の**文字数上限超過**（赤いカウンタ・送信ボタン無効） | §8 |
 | **D-04** | ✅ | `d-04-register-form.png` | Qdrant 登録 フォーム（コレクション名の自動補完） | §4.5.4 |
-| **D-05** | ⬜ | `d-05-register-confirm.png` | 登録の CONFIRM（`recreate=ON` のときだけ出る） | §4.5.4 |
-| **D-06** | ⬜ | `d-06-collection-list.png` | コレクション一覧（件数・ステータス） | §4.5.5 |
-| **D-07** | ⬜ | `d-07-collection-detail.png` | コレクション詳細＋ポイントプレビュー | §4.5.5 |
-| **D-08** | ⬜ | `d-08-delete-confirm.png` | 削除の CONFIRM（**常に**出る・不可逆の警告） | §4.5.5 |
-| **T-01** | ⬜ | `t-01-job-timing.png` | 実行時間の表示（開始＝フォーム直下 / 完了＋所要＝回答カード末尾） | §4.6 |
+| **D-05** | ✅ | `d-05-register-confirm.png` | 登録の CONFIRM（`recreate=ON` のときだけ出る） | §4.5.4 |
+| **D-06** | ✅ | `d-06-collection-list.png` | コレクション一覧（件数・ステータス） | §4.5.5 |
+| **D-07** | ✅ | `d-07-collection-detail.png` | コレクション詳細＋ポイントプレビュー | §4.5.5 |
+| **D-08** | ✅ | `d-08-delete-confirm.png` | 削除の CONFIRM（**常に**出る・不可逆の警告） | §4.5.5 |
+| **T-01** | ✅ | `t-01-job-timing.png` | 実行時間の表示（開始＝フォーム直下 / 完了＋所要＝回答カード末尾） | §4.6 |
 | **E-01** | ✅ | `e-01-error-banner.png` | **実行エラー**のバナー（APIキー未設定など・実行後に出る） | §6.5 |
 | **E-02** | ✅ | `e-02-meta-error-banner.png` | **メタ取得エラー**のバナー（backend 停止・実行前に出る・再取得ボタン） | §6.5 |
 
@@ -1549,6 +1567,7 @@ from backend.app.core.jobs import job_manager, JobParams
 | 3.1 | §5.2 に `run_dev.sh` の使用中ポートの解放（:8000 / :5173。`RUN_DEV_FREE_PORTS=0` で無効）と、Ctrl+C で子プロセスまで止めるようにした変更を追記（grace_v2_local と同じ変更） |
 | 3.2 | **詳細ログの既定を ON へ変更**（基本版 / GRACE-Support / GRACE-Review は `DEFAULT_QUERY_FORM` / `DEFAULT_REVIEW_FORM` の `verbose`、データ管理は `DataJobPanel` の `useState`） |
 | 3.3 | **フォーマット仕様の共通骨格に合わせた**（2026-09-24）。1 行目のタイトルが `##`（H2）になっていたのを H1 へ直し、目次の前に `##` 見出しで置かれていたスローガンを引用行へ改めた（見出し階層から外す）。目次に「grace_v2 で実装した機構」を追加 |
+| 3.4 | **未撮影だった画面ショット 14 枚（`S-03`〜`S-05` / `R-03`〜`R-06` / `C-01` / `D-03` / `D-05`〜`D-08` / `T-01`）を撮影して掲載した**（2026-09-26）。これで全 31 枚が揃った。「撮影の進捗」表を 31 / 0 へ更新し、§6.4 の状態列をすべて ✅ にした。未撮影の理由の注記を、撮影時の条件（Qdrant は最小データ・Web 検索と sparse モデルはネットワーク制限で不可・dry-run ON など）が画面にどう現れているかの表へ置き換えた |
 
 ---
 
