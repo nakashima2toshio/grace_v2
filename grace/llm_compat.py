@@ -33,6 +33,8 @@ logger = logging.getLogger(__name__)
 
 # Gemini をそのまま使う場合のプロバイダー名
 _GEMINI_PROVIDERS = {"gemini", "google", "google-genai", "genai"}
+# 既定。"claude" は従来（未知の名前はすべて Anthropic だった）でも通っていた別名
+_ANTHROPIC_PROVIDERS = {"anthropic", "claude"}
 
 # Anthropic デフォルトモデル（config 未指定時のフォールバック）
 DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-5"
@@ -293,11 +295,22 @@ def create_chat_client(config: Any = None) -> Any:
     model = DEFAULT_ANTHROPIC_MODEL
     llm = getattr(config, "llm", None) if config is not None else None
     if llm is not None:
-        provider = (getattr(llm, "provider", None) or provider).lower()
+        # 検証するのは文字列で指定された名前だけ（テストの MagicMock 等、文字列でない値は既定のまま）
+        configured = getattr(llm, "provider", None)
+        if isinstance(configured, str) and configured:
+            provider = configured.lower()
         model = getattr(llm, "model", None) or model
 
     if provider in _GEMINI_PROVIDERS:
         from google import genai
         return genai.Client()
+
+    # ⚠️ 未知のプロバイダ名は ValueError。2026-09-26 まで黙って Anthropic にしていたため、
+    #    grace_config.yml の llm.provider の打ち間違い（例 "anthropc"）に気付けなかった。
+    if provider not in _ANTHROPIC_PROVIDERS:
+        raise ValueError(
+            f"未知の LLM プロバイダです: config.llm.provider={provider!r}"
+            "（anthropic / gemini のいずれか）"
+        )
 
     return AnthropicGenaiClient(default_model=model)

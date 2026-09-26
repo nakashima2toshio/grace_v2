@@ -1,6 +1,6 @@
 # grace/docs 棚卸し
 
-**Version 1.7** | 最終更新: 2026-09-24
+**Version 1.8** | 最終更新: 2026-09-26
 
 `grace/` パッケージのドキュメント一覧と、実装への追随状況・残タスク・検証手順をまとめる。
 新しく文書を書く／直す前に、まずここを見る。
@@ -87,7 +87,7 @@ A と B の線引きは思いつきではなく、**実測した依存の向き*
 |---|---|---:|---|---|
 | `config.md` | `grace/config.py` | 971 | 1.4 | ★★★ |
 | `schemas.md` | `grace/schemas.py` | 1326 | 2.2 | ★★★ |
-| `llm_compat.md` | `grace/llm_compat.py` | 805 | 1.2 | ★★★ |
+| `llm_compat.md` | `grace/llm_compat.py` | 807 | 1.4 | ★★★ |
 
 ### 2.3 C. 横断・アーキテクチャ文書（4）
 
@@ -399,6 +399,7 @@ PY
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 1.8 | `llm_compat.md` v1.4（`create_chat_client()` が未知の `config.llm.provider` を `ValueError` にする）に追随して §2 の行数・Ver を更新（2026-09-26）。表は v1.2 のまま取り残されていた |
 | 1.7 | `grace/docs/` を基本フォーマット・横断文書フォーマットへ追随させた（2026-09-24）。IPO 文書は使用例を IPO 詳細の冒頭へ移し（`config` / `llm_compat` / `schemas` / `tools`）、各責務対応のモジュールを主な責務と 1:1 に揃えた（`confidence` / `memory` / `tools` / `schemas`）。横断文書（`grace` / `grace_runtime` / `confidence_calibration`）の概要へ共通骨格を追加。現在の既定モデルの記載 `claude-sonnet-4-6` を `claude-sonnet-5` へ是正。§2 の各節へ種別を明記し、行数・Ver を実測へ更新 |
 | 1.6 | **見出しアンカーの解決確認を §4.5 として追加し、壊れていた 9 件を是正**（2026-09-14・問題 #15）。`executor.md` 6 件（v4.4 で `4.1 使用例` を挿入し `### 4.N` を繰り下げた際、目次だけ旧番号のまま残った。あわせて移動前の「## 6. 使用例」配下に取り残されていた使用例 3 件を §4.1 の下へ移した）、`backend/docs/README.md` 1 件・`backend/docs/support_spec.md` 1 件（見出しを言い換えたが目次は旧題のまま）、`docs/support_spec.md` 1 件。**この種の腐りは §4.3 のリンク存在チェックでは捕まらない**（ファイルは実在し、壊れているのは `#` 以降だけ）ため、検証手順を 4 つから 5 つへ増やした |
 | 1.5 | **横断文書 4 本を WHY/WHAT/HOW の 3 本へ統合**（2026-09-14・問題 #13）。`grace.md` / `grace_core.md` / `grace_core_flow.md` は**同じ表と同じ図を重複して持って**いた（構成図 Mermaid 68 行と依存関係テーブルは `grace_core.md` と `grace_core_flow.md` で**バイト単位で一致**、11 行役割サマリー表は `grace.md` と `grace_core_flow.md` で一致、5 段階設計の ASCII 図・使用例コードも重複）。正本を 1 箇所ずつ決め、**`grace.md`＝5 段階設計の定義（WHY）／ `grace_core.md`＝構成図・依存関係・役割サマリー §3.0・最小実行サンプル §7（WHAT）／ `grace_runtime.md`（旧 `grace_core_flow.md` から改称）＝プロンプトと API 発行部（HOW）** に整理した。重複禁止ルールを §2.6、検出スクリプトを §2.7 として明文化。あわせて §2.1〜§2.3 の行数・Ver を `wc -l` と Version ヘッダーで**実測し直した**（問題 #14。`planner.md` 1139→1183 等がずれていた）。外部からのリンク（`backend/docs/support_spec.md` / `support_spec.md` / `backend/docs/README.md` / `docs/doc_modernization_todo.md`）も張り替えた |

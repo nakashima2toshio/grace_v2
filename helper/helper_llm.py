@@ -414,12 +414,23 @@ class AnthropicClient(LLMClient):
 
 
 def create_llm_client(provider: str = None, **kwargs) -> LLMClient:
+    """プロバイダ名から LLM クライアントを作る（既定は環境変数 LLM_PROVIDER、無ければ anthropic）。
+
+    ⚠️ 未知のプロバイダ名は ValueError。2026-09-26 まで最後の分岐で黙って GeminiClient に
+    していたため、"anthropc" のような打ち間違いでも（Embedding 用の GOOGLE_API_KEY があれば）
+    Gemini LLM API を呼んでいた。
+    """
     provider = (provider or DEFAULT_LLM_PROVIDER).lower()
     if provider == "openai":
         return OpenAIClient(**kwargs)
     if provider == "anthropic":
         return AnthropicClient(**kwargs)
-    return GeminiClient(**kwargs)
+    if provider in ("gemini", "google"):
+        return GeminiClient(**kwargs)
+    raise ValueError(
+        f"未知の LLM プロバイダです: {provider!r}"
+        "（anthropic / openai / gemini のいずれか。既定は環境変数 LLM_PROVIDER）"
+    )
 
 
 # Helper functions
