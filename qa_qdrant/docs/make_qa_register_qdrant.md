@@ -1,6 +1,6 @@
 # make_qa_register_qdrant.py - Q/A 生成 → Qdrant 登録 統合 CLI ガイド
 
-**Version 1.5** | 最終更新: 2026-09-25
+**Version 1.6** | 最終更新: 2026-09-26
 
 ---
 
@@ -36,7 +36,7 @@
 - `make_qa_register_qdrant.py` 1 本で、チャンク済み CSV（またはデータセット）→ Q/A 生成 → Qdrant 登録までを実行できる
 - 本文の「提供ファイル一覧」の `*_modified.py` や `README_改修版.md` は改修当時の配布物で、**現在のリポジトリには無い**
 - 生成方式は SmartQAGenerator のみ（従来方式は削除済み）。現行の引数は `python qa_qdrant/make_qa_register_qdrant.py --help` を正とする
-- 本文の引数一覧にある `--model` の既定「Gemini モデル `gemini-2.0-flash`」は当時の値。**現在の既定は Anthropic Claude の `claude-sonnet-5`**（`make_qa_register_qdrant.py` の `--model`）
+- 本文 §7 の引数一覧にある `--model` の既定は、2026-09-26 に現在の値（Anthropic Claude の `claude-sonnet-5`。`make_qa_register_qdrant.py` の `--model`）へ直した。それまでは改修当時の値「Gemini モデル `gemini-2.0-flash`」のままだった
 - 本書は IPO 形式ではない。本モジュールの仕様（IPO）は [`make_qa_register_qdrant_ipo.md`](make_qa_register_qdrant_ipo.md)（2026-09-25 新設）
 - 本文の「テキストファイル（.txt）からのチャンク作成」は、2026-09-25 まで**動いていなかった**（`.txt` を渡すと必ず失敗した）。現在は修正済みで、`.txt` を渡すと先に `<--chunk-output>/<入力名>_chunks.csv`（既定 `output_chunked/`）を作ってから Q/A 生成する（IPO 文書 §3.1・§3.3）
 
@@ -409,7 +409,7 @@ python make_qa_register_qdrant_modified.py \
 #### **QA生成パラメータ**
 
 ```bash
---model MODEL_NAME            # Geminiモデル（デフォルト: gemini-2.0-flash）
+--model MODEL_NAME            # LLMモデル（Anthropic Claude / デフォルト: claude-sonnet-5）
 --max-docs N                  # 最大処理文書数
 --use-celery                  # Celery並列処理を使用
 --celery-workers N            # Celeryワーカー数（デフォルト: 8）
@@ -939,6 +939,7 @@ python -m chunking.csv_to_chunks_text_para_modified \
 
 | バージョン | 変更内容 |
 |---|---|
+| 1.6 | §7 の `--model` の既定を、当時の値 `gemini-2.0-flash` から現在の実装（`claude-sonnet-5`）へ直し、概要の「結論」の注記もそれに合わせた（2026-09-26）。§7 の `csv_to_chunks_text_para_modified.py` の項は、現在のリポジトリに無い改修当時の配布物の記録なので変えていない |
 | 1.4 | 概要の「結論」の `.txt` 入力の注記を「修正済み」へ更新（2026-09-25） |
 | 1.5 | `--provider` が `gemini` しか受け付けなくなったのに追随（2026-09-25） |
 | 1.3 | 概要の「結論」に IPO 文書 `make_qa_register_qdrant_ipo.md` へのリンクと、`.txt` 入力が現在は動かない旨を追記（2026-09-25） |

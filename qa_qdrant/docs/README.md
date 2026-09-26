@@ -1,6 +1,6 @@
 # qa_qdrant/docs/ 棚卸し
 
-**Version 1.6** | 最終更新: 2026-09-25
+**Version 1.7** | 最終更新: 2026-09-26
 
 > 📎 **姉妹版**: [`docs/README.md`](../../docs/README.md)（直下・配置の境界） /
 > [`chunking/docs/README.md`](../../chunking/docs/README.md) /
@@ -62,7 +62,7 @@
 |---|---|---:|---|:--:|
 | [`01_install.md`](01_install.md) | 環境構築。MeCab・Docker（Qdrant / Redis）・Celery・API キー。**運用の唯一の入口** | 859 | 2.3 | ★★★ |
 | [`celery_quick_start.md`](celery_quick_start.md) | Celery ワーカーの起動手順（`-A celery_config`。キュー名に `qa_generation` は無い・CLAUDE.md §9.4） | 523 | 2.3 | ★★☆ |
-| [`make_qa_register_qdrant.md`](make_qa_register_qdrant.md) | `make_qa_register_qdrant.py`（Q/A 生成 → Qdrant 登録の統合 CLI）の使い方。**IPO ではない**。冒頭で「一部古い（2025-01 の改修時の記述を含む）」と明示している | 947 | 1.5 | ★★★ |
+| [`make_qa_register_qdrant.md`](make_qa_register_qdrant.md) | `make_qa_register_qdrant.py`（Q/A 生成 → Qdrant 登録の統合 CLI）の使い方。**IPO ではない**。冒頭で「一部古い（2025-01 の改修時の記述を含む）」と明示している | 948 | 1.6 | ★★★ |
 
 ### 2.2 IPO（モジュール仕様）
 
@@ -163,7 +163,7 @@
 | # | 内容 | 優先 |
 |---|---|:--:|
 | 1 | ~~現在の既定モデルを旧既定 `claude-sonnet-4-6` と書いている（`make_qa.md` 3・`qa_qdrant_architecture.md` 4・`01_install.md` 3 箇所）~~ | ✅ **完了**（2026-09-25）。実装どおり `claude-sonnet-5` へ是正（make_qa v3.3 / architecture v3.2 / 01_install v2.3） |
-| 2 | ~~`make_qa_register_qdrant.md` の `--model` 既定（`gemini-2.0-flash`）と `qa_qdrant_architecture.md` の環境変数例~~ | ✅ **完了**（2026-09-25）。前者は種別 B なので本文は残し、概要で現在の既定 `claude-sonnet-5` を明示（v1.2）。後者は §9 を実装が読む環境変数（`ANTHROPIC_API_KEY` 必須・`REDIS_URL`）へ書き直した |
+| 2 | ~~`make_qa_register_qdrant.md` の `--model` 既定（`gemini-2.0-flash`）と `qa_qdrant_architecture.md` の環境変数例~~ | ✅ **完了**（2026-09-25）。前者は概要で現在の既定 `claude-sonnet-5` を明示（v1.2）し、2026-09-26 に §7 の本文の値も `claude-sonnet-5` へ直した（v1.6）。後者は §9 を実装が読む環境変数（`ANTHROPIC_API_KEY` 必須・`REDIS_URL`）へ書き直した |
 | 3 | ~~`make_qa_register_qdrant.py` の IPO 文書が無い~~ | ✅ **完了**（2026-09-25）。[`make_qa_register_qdrant_ipo.md`](make_qa_register_qdrant_ipo.md) を新設 |
 | 4 | `make_qa_register_qdrant.py` の既知の問題（IPO 文書 §3.3・2026-09-25 実測）。~~① `.txt` 入力は必ず失敗する~~（✅ 2026-09-25 修正・先にチャンク化する）~~② Qdrant 登録が失敗しても終了コード 0~~（✅ 2026-09-25 修正） ~~③ `--provider` が効かない~~（✅ 2026-09-25 修正・`gemini` 以外は終了コード 2）~~④ `--text-column` が Q/A 生成に渡らない~~（✅ 2026-09-25 修正・`QAPipeline(text_column=...)` へ渡す）~~⑤ 起動時に `ANTHROPIC_API_KEY` を確かめない~~（✅ 2026-09-25 修正・Q/A 生成の前に確かめる）。**5 件とも完了** | ✅ |
 
@@ -203,6 +203,7 @@ uv run --no-sync pytest backend/tests/test_qa_qdrant_package_init.py -q
 
 | Version | 日付 | 変更 |
 |---|---|---|
+| 1.7 | 2026-09-26 | `make_qa_register_qdrant.md` v1.6（§7 の `--model` 既定を `claude-sonnet-5` へ是正）に追随。§2 の行数・Ver と残タスク 2 の注記を更新 |
 | 1.6 | 2026-09-25 | 残タスク 4 の④（`--text-column` が Q/A 生成に渡らない）を修正し、残タスク 4 を完了。§2・§3 の行数・Ver と §7 に `test_qa_pipeline_text_column.py` を追加 |
 | 1.5 | 2026-09-25 | 残タスク 4 の③（`--provider` が効かない）と⑤（`ANTHROPIC_API_KEY` を起動時に確かめない）を修正したのに追随。§2・§3 の行数・Ver と §7 に `test_make_qa_register_qdrant_startup_checks.py` を追加 |
 | 1.4 | 2026-09-25 | 残タスク 4 の①（`.txt` 入力が必ず失敗する）を修正したのに追随。§2・§3 の行数・Ver（§3 の実装行数は v1.3 で 609 のまま取り残していた）と §7 に `test_make_qa_register_qdrant_txt_input.py` を追加 |
