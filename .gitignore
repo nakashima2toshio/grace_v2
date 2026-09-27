@@ -246,3 +246,4 @@ logs/grace_memory.jsonl
 
 # チャンク化の再開用チェックポイント（成果物）
 checkpoints/
+output_chunked/
