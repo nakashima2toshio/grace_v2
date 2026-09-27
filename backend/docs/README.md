@@ -1,6 +1,6 @@
 # backend/docs — 文書の地図
 
-**Version 2.5** | 最終更新: 2026-09-26
+**Version 2.6** | 最終更新: 2026-09-27
 
 ---
 
@@ -20,15 +20,70 @@
 
 ## 目次
 
-- [1. 読む順路](#1-読む順路)
-- [2. 文書一覧](#2-文書一覧)
-- [3. 目的別の早見表](#3-目的別の早見表)
-- [4. 文書を書くときの規約](#4-文書を書くときの規約)
-- [5. 変更履歴](#5-変更履歴)
+- [1. backend の責務](#1-backend-の責務)
+- [2. 読む順路](#2-読む順路)
+- [3. 文書一覧](#3-文書一覧)
+- [4. 目的別の早見表](#4-目的別の早見表)
+- [5. 文書を書くときの規約](#5-文書を書くときの規約)
+- [6. 変更履歴](#6-変更履歴)
 
 ---
 
-## 1. 読む順路
+## 1. backend の責務
+
+`backend/` は**「ジョブの受付・実行・進捗の配信」**を受け持つ。ただし `backend/` 自体は薄い Web 層で、
+エージェントの中身の多くはリポジトリ直下の `grace/` などにある。
+画面と操作は `frontend/` の担当で、frontend は判断も処理もしない
+（frontend 側の役割表は [`frontend/docs/README.md` §1](../../frontend/docs/README.md#1-frontend-の責務)。2026-09-27 時点のコードから整理）。
+
+**全体像**
+
+```
+ブラウザ ─ frontend/（Vite + React 18 + TypeScript, :5173）
+             │  /api/* は Vite の proxy で :8000 へ転送（vite.config.ts）
+             ▼
+          backend/app/（FastAPI, :8000）── Web の入口・ジョブ管理・SSE 配信
+             │  関数呼び出し
+             ▼
+          grace/・agent_tools.py・support_actions.py・chunking/・qa_generation/ …
+             │                     （エージェント基盤・RAG・アクション・データ準備）
+             ▼
+          Anthropic（LLM）/ Gemini（Embedding）/ Qdrant（ベクトル DB）
+```
+
+**backend/ の役割（Web の入口とジョブの実行）**
+
+| 場所 | 役割 |
+|---|---|
+| `app/main.py` | FastAPI の起動と 5 つのルーターの登録 |
+| `app/api/support.py` | `POST /api/support/query` → 実行（`job_id` を返す）、`GET /stream/{id}` → SSE、`POST /confirm/{id}` → HITL 承認、`GET /result/{id}` |
+| `app/api/review.py` | Review 用の同じ 4 本（`/api/review/submit` …） |
+| `app/api/data.py`・`qdrant.py` | チャンク化 / Q&A 生成 / Qdrant 登録・削除のジョブ、コレクション一覧・詳細、入力ファイル一覧 |
+| `app/api/meta.py` | 選べるモデル・業界プロファイル・ルールセット・ヘルスチェック |
+| `app/schemas.py` | リクエスト・レスポンスの型（pydantic）。入力の検証もここで行う |
+| `app/core/support_agent.py`・`review_agent.py` | 2 つのエージェントのパイプライン本体（① Plan → … → ⑥/⑦ Action） |
+| `app/core/gates.py`・`review_gates.py`・`verticals.py`・`rulesets.py` | 回答ゲート・判定ルール・業界プロファイル・ルールセットの定義 |
+| `app/core/jobs.py`・`data_jobs.py`・`intervention_bridge.py` | ジョブの管理と進捗イベントの発行、HITL 承認の待ち合わせ |
+
+**持たないもの**: 画面の描画と入力の保持（`frontend/`）、エージェント基盤・RAG・アクション実行の実装本体
+（`grace/`・`agent_tools.py`・`support_actions.py` など。`backend/app/core/` はこれらを呼び出して 1 周のパイプラインに組み立てる）。
+
+**1 回の問い合わせの流れ**（GRACE-Support の例。詳細は [`job_runtime.md`](./job_runtime.md)・[`api_contract.md`](./api_contract.md)）
+
+1. 画面で「送信」を押すと、frontend の `api/client.ts` が `POST /api/support/query` を送る。backend はすぐに `job_id` を返す（202）
+2. 画面は `EventSource('/api/support/stream/{job_id}')` で購読を始める。backend は各ステップの開始・完了・ログを SSE で順に送り、ステップトレースが更新される
+3. ⑥ Action で承認が必要になると、backend は承認待ちのイベントを送って止まる。画面は CONFIRM モーダルを出し、押されたボタンに応じて `POST /api/support/confirm/{job_id}` を送る
+4. 完了のイベントで、回答カードが表示される
+
+**分担のルール**（CLAUDE.md より）
+
+- **スキーマは両側で合わせる**: `backend/app/schemas.py` を変えたら `frontend/src/types.ts` も直す。直さないと frontend の CI ゲート（tsc）でマージが止まる
+- **入口は Web API だけ**: エージェントを動かす入口は backend の Web API だけで、CLI は無い。データ準備の CLI（`chunking/`・`qa_qdrant/`）は現役
+- **判断を画面に書かない**（frontend 側の規約）: 画面側の判断ロジックは `frontend/src/state/` の純関数へ出す。backend が返す値（モデル名・業界プロファイル等）を frontend で読み替えない
+
+---
+
+## 2. 読む順路
 
 ```
 architecture.md            層構造・モジュール責務・外部境界（まずここ）
@@ -44,9 +99,9 @@ reference/*.md             引く（通読しない）
 
 ---
 
-## 2. 文書一覧
+## 3. 文書一覧
 
-### 2.1 横断（backend 全体を理解する）
+### 3.1 横断（backend 全体を理解する）
 
 | 文書 | 種別 | 何が書いてあるか |
 |---|:--:|---|
@@ -56,7 +111,7 @@ reference/*.md             引く（通読しない）
 | [`config_and_providers.md`](./config_and_providers.md) | A | **モデル名の 3 本の解決経路**、`judge_model()` / `detect_model()`、API キーのガード位置 |
 | [`pitfalls.md`](./pitfalls.md) | B | 非自明な設計判断・過去に壊れた箇所・**直してはいけないもの** |
 
-### 2.2 系統別（何をどう判断しているか）
+### 3.2 系統別（何をどう判断しているか）
 
 | 文書 | 種別 | 対象 |
 |---|:--:|---|
@@ -66,7 +121,7 @@ reference/*.md             引く（通読しない）
 | [`data_pipeline.md`](./data_pipeline.md) | A | チャンク化 → Q/A 生成 → Qdrant 登録（付録A: 規程コレクションの準備） |
 | [`webapp_flow.md`](./webapp_flow.md) | A | `run_dev.sh` 起点の end-to-end（ブラウザ → FastAPI → コア → 描画） |
 
-### 2.3 モジュール参照（`reference/`）— 引く用
+### 3.3 モジュール参照（`reference/`）— 引く用
 
 種別はすべて E（`a_class_method_md_format.md` の IPO 形式。使用例は IPO 詳細の冒頭 `### 4.1 使用例`）。
 
@@ -82,7 +137,7 @@ reference/*.md             引く（通読しない）
 | `core/review_agent.py` / `review_gates.py` / `rulesets.py` | [`reference/core_review_agent.md`](./reference/core_review_agent.md)・[`core_review_gates.md`](./reference/core_review_gates.md)・[`core_rulesets.md`](./reference/core_rulesets.md) |
 | `core/jobs.py` / `intervention_bridge.py` / `job_logs.py` / `data_jobs.py` | [`reference/core_jobs.md`](./reference/core_jobs.md)・[`core_intervention_bridge.md`](./reference/core_intervention_bridge.md)・[`core_job_logs.md`](./reference/core_job_logs.md)・[`core_data_jobs.md`](./reference/core_data_jobs.md) |
 
-### 2.4 運用・記録
+### 3.4 運用・記録
 
 | 文書 | 種別 | 内容 |
 |---|:--:|---|
@@ -94,7 +149,7 @@ reference/*.md             引く（通読しない）
 
 ---
 
-## 3. 目的別の早見表
+## 4. 目的別の早見表
 
 | やりたいこと | 読む文書 |
 |---|---|
@@ -112,7 +167,7 @@ reference/*.md             引く（通読しない）
 
 ---
 
-## 4. 文書を書くときの規約
+## 5. 文書を書くときの規約
 
 | 対象 | 仕様書 |
 |---|---|
@@ -128,10 +183,11 @@ reference/*.md             引く（通読しない）
 
 ---
 
-## 5. 変更履歴
+## 6. 変更履歴
 
 | Version | 日付 | 変更内容 |
 |---|---|---|
+| 2.6 | 2026-09-27 | **§1「backend の責務」を新設**し、frontend / backend の役割分担の要約（全体像の図・backend の役割表・持たないもの・1 回の問い合わせの流れ・分担のルール）を置いた。frontend 側の同じ要約（`frontend/docs/README.md` §1 v2.8）と対になる。これに伴い既存の §1〜§5 を §2〜§6 へ繰り下げた（本書内・他文書から本書の節番号を参照している箇所は無いことを grep で確認） |
 | 2.5 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
 | 2.4 | 2026-09-26 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
 | 2.3 | 2026-09-24 | `a_cross_doc_md_format.md` v1.1（種別 C）に準拠（2026-09-24）。目次を追加し、§2 の各表へ「種別」列（A / B / C、`reference/` は E）を足し、§4 の規約表に横断文書フォーマットを追加した |
