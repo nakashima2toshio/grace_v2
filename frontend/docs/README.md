@@ -68,6 +68,19 @@
 
 **持たないもの**: LLM の呼び出し、RAG、判定ロジック、API キー。キーはブラウザ側に一切置かない。
 
+**1 回の問い合わせの流れ**（GRACE-Support の例。詳細は §6）
+
+1. 画面で「送信」を押すと、`api/client.ts` が `POST /api/support/query` を送る。backend はすぐに `job_id` を返す（202）
+2. 画面は `EventSource('/api/support/stream/{job_id}')` で購読を始める。backend は各ステップの開始・完了・ログを SSE で順に送り、ステップトレースが更新される
+3. ⑥ Action で承認が必要になると、backend は承認待ちのイベントを送って止まる。画面は CONFIRM モーダルを出し、押されたボタンに応じて `POST /api/support/confirm/{job_id}` を送る
+4. 完了のイベントで、回答カードが表示される
+
+**分担のルール**（CLAUDE.md より）
+
+- **判断を画面に書かない**: 画面側の判断ロジックは、テストできるように `frontend/src/state/` の純関数へ出す。コンポーネントに残すのは入力の保持と描画だけ（§7.1）
+- **スキーマは両側で合わせる**: `backend/app/schemas.py` を変えたら `frontend/src/types.ts` も直す。直さないと frontend の CI ゲート（tsc）でマージが止まる
+- **入口は Web API だけ**: エージェントを動かす入口は backend の Web API だけで、CLI は無い。データ準備の CLI（`chunking/`・`qa_qdrant/`）は現役
+
 GRACE のローカル開発用 Web UI。**唯一のエージェント実行入口**である Web API
 （`backend/app/`・FastAPI :8000）を画面から操作する（CLI 入口は 2026-09-19 に削除済み。CLAUDE.md §1）。
 
@@ -643,7 +656,7 @@ npm run build    # 本番ビルド
 
 | 版 | 日付 | 変更内容 |
 |---|---|---|
-| 2.8 | 2026-09-27 | §1 の冒頭に frontend / backend の役割分担の要約（全体像の図・frontend の役割表・持たないもの）を追加した。§1.1 / §1.2 の詳細表と章番号は変えていない |
+| 2.8 | 2026-09-27 | §1 の冒頭に frontend / backend の役割分担の要約（全体像の図・frontend の役割表・持たないもの・1 回の問い合わせの流れ・分担のルール）を追加した。§1.1 / §1.2 の詳細表と章番号は変えていない |
 | 2.7 | 2026-09-26 | §8.2 の `QueryForm.md` の版を 1.8 へ更新（dry-run の既定が OFF になった現状に合わせて、formMemory の説明の言い回しを直した） |
 | 2.6 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随して `DataJobPanel.md` の Ver を 1.8 へ更新（実装行数は変化なし）。テスト件数 321 件は変化なし |
 | 2.5 | 2026-09-26 | Embedding のモデル名を画面に直書きするのをやめ、`GET /api/model` の `embedding_model` / `embedding_dims` から出すようにしたのに追随。§8 の版・実装行数（`App` 1.7 / 174・`DataPanel` 1.5 / 111・`DataJobPanel` 1.7 / 751・`modelLabel.ts` 42）、§11 のテスト件数を **23 ファイル / 321 件**（実測）へ更新 |
