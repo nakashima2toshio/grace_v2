@@ -30,6 +30,7 @@ DEFAULT_ENCODING = "cl100k_base"
 # モデル別エンコーディング対応表
 MODEL_ENCODINGS = {
     # Anthropic Claude（本プロジェクト既定 LLM。tiktokenでは近似）
+    "claude-sonnet-5-5": "cl100k_base",
     "claude-sonnet-5": "cl100k_base",
     "claude-fable-5-1": "cl100k_base",
     "claude-opus-5-5": "cl100k_base",
@@ -62,6 +63,7 @@ MODEL_ENCODINGS = {
 # LLMモデル価格 ($/1000トークン)
 LLM_PRICING = {
     # Anthropic Claude（本プロジェクト既定 LLM）
+    "claude-sonnet-5-5": {"input": 0.002, "output": 0.010},
     "claude-sonnet-5": {"input": 0.002, "output": 0.010},
     "claude-fable-5-1": {"input": 0.010, "output": 0.050},
     "claude-opus-5-5": {"input": 0.004, "output": 0.020},
@@ -85,6 +87,7 @@ EMBEDDING_PRICING = ModelConfig.EMBEDDING_PRICING
 # モデル制限
 MODEL_LIMITS = {
     # Anthropic Claude（本プロジェクト既定 LLM）
+    "claude-sonnet-5-5": {"max_tokens": 1000000, "max_output": 128000},
     "claude-sonnet-5": {"max_tokens": 1000000, "max_output": 128000},
     "claude-fable-5-1": {"max_tokens": 1000000, "max_output": 128000},
     "claude-opus-5-5": {"max_tokens": 1000000, "max_output": 128000},

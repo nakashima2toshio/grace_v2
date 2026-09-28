@@ -492,7 +492,7 @@ class QaGenerationRequest(BaseModel):
     #    「③ Qdrant 登録」の選択肢に出てこない（`QaGenerationParams` と同じ理由）
     output_dir: str = Field(default="qa_output", description="Q/A CSV・JSON の出力先")
     model: str = Field(
-        default="claude-sonnet-5",
+        default="claude-sonnet-5-5",
         description="Q/A 生成に使う LLM（GET /api/models の選択肢から 1 つ）",
     )
     max_docs: Optional[int] = Field(
