@@ -60,7 +60,7 @@ class LLMConfig(BaseModel):
     provider: str = "anthropic"
     # 既定モデル。UI のモデルセレクタ（GET /api/models）で
     # claude-opus-5 / claude-haiku-4-5 へリクエスト単位に上書きできる。
-    model: str = "claude-sonnet-5"
+    model: str = "claude-sonnet-5-5"
     # ステップ毎の確信度評価（evaluate_with_factors）などテレメトリ級の
     # 定型評価タスクに使う軽量モデル。回答生成・根拠検証は model を使う。
     light_model: str = "claude-haiku-4-5-20251001"

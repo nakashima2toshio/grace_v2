@@ -28,7 +28,7 @@ llm:
   # 既定モデル。UI のモデルセレクタ（GET /api/models の選択肢 =
   # config.py::ModelConfig.SELECTABLE_MODELS）からリクエスト単位に上書きできる。
   # ここを変えると「未選択（既定値）」で走ったときのモデルが変わる。
-  model: "claude-sonnet-5"
+  model: "claude-sonnet-5-5"
   # 分類・YES/NO 判定など軽量な用途に使うモデル
   light_model: "claude-haiku-4-5-20251001"
   # M-1: 論理層（計画生成・推論・根拠検証・ReAct）に使う上位モデル。

@@ -28,7 +28,9 @@ DEFAULT_MODELS = {
     # backend/app/core/data_jobs.py::QaGenerationParams.model
     # qa_qdrant/make_qa.py / make_qa_register_qdrant.py の CLI --model 既定
     # qa_generation/pipeline.py::QAPipeline / smart_qa_generator.py
-    "claude-sonnet-5": "Q/A 生成・LLM 全般の既定",
+    "claude-sonnet-5-5": "Q/A 生成・LLM 全般の既定",
+    # 旧既定（Sonnet 5）。選択肢からは外したが既存設定がまだ指しうる
+    "claude-sonnet-5": "旧既定 Sonnet 5（後方互換）",
     # config.ModelConfig の軽量モデル（grace/config.py::llm.light_model）
     "claude-haiku-4-5-20251001": "軽量モデル（日付指定）",
     # UI（GET /api/models）で選べる上位モデル
@@ -98,4 +100,4 @@ def test_available_models_are_priced():
 def test_config_module_is_the_repo_one():
     """取り違え防止: 参照している config が本リポジトリのものであること。"""
     assert hasattr(config, "ModelConfig")
-    assert ModelConfig.DEFAULT_MODEL == "claude-sonnet-5"
+    assert ModelConfig.DEFAULT_MODEL == "claude-sonnet-5-5"

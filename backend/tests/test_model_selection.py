@@ -3,8 +3,8 @@
 
 ## 何を守るか
 
-既定は `claude-sonnet-5`、選択肢は `claude-fable-5-1` / `claude-opus-5-5` /
-`claude-sonnet-5` / `claude-haiku-4-5` の 4 つ（上位 → 軽量の順）。選択肢の解決は `config.py::get_selectable_models()`
+既定は `claude-sonnet-5-5`、選択肢は `claude-fable-5-1` / `claude-opus-5-5` /
+`claude-sonnet-5-5` / `claude-haiku-4-5` の 4 つ（上位 → 軽量の順）。選択肢の解決は `config.py::get_selectable_models()`
 の**1 箇所**に寄せてあり、API のバリデータ・`GET /api/models`・エージェント
 コアの上書きがすべてそこを読む。どれか 1 つが独自の一覧を持つと、画面で選べる
 のに 422 になる（またはその逆）といった食い違いが起きる。
@@ -38,7 +38,7 @@ client = TestClient(app)
 EXPECTED_CHOICES = [
     "claude-fable-5-1",
     "claude-opus-5-5",
-    "claude-sonnet-5",
+    "claude-sonnet-5-5",
     "claude-haiku-4-5",
 ]
 
@@ -53,9 +53,9 @@ def test_selectable_models_are_the_four_current_ones():
     assert get_selectable_models() == EXPECTED_CHOICES
 
 
-def test_default_model_is_sonnet_5_and_selectable():
-    """既定は `claude-sonnet-5`。既定が選択肢に無いと、画面で既定を選び直せない。"""
-    assert ModelConfig.DEFAULT_MODEL == "claude-sonnet-5"
+def test_default_model_is_sonnet_5_5_and_selectable():
+    """既定は `claude-sonnet-5-5`。既定が選択肢に無いと、画面で既定を選び直せない。"""
+    assert ModelConfig.DEFAULT_MODEL == "claude-sonnet-5-5"
     assert ModelConfig.DEFAULT_MODEL in get_selectable_models()
 
 
@@ -97,7 +97,7 @@ def test_selectable_models_contain_no_embedding_model():
 
 def test_default_model_is_selectable():
     """既定モデル自体も選択肢に含まれる（「（既定値）」と実名が一致する）。"""
-    assert ModelConfig.DEFAULT_MODEL == "claude-sonnet-5"
+    assert ModelConfig.DEFAULT_MODEL == "claude-sonnet-5-5"
     assert ModelConfig.DEFAULT_MODEL in get_selectable_models()
 
 
@@ -154,7 +154,7 @@ def test_review_request_shares_the_same_validation():
 def test_data_requests_default_to_the_new_models():
     """データ準備側の既定。チャンク化は軽量、Q/A 生成は既定モデル。"""
     assert ChunkingRequest(input_file="a/b.csv").model == "claude-haiku-4-5"
-    assert QaGenerationRequest(input_file="a/b.csv").model == "claude-sonnet-5"
+    assert QaGenerationRequest(input_file="a/b.csv").model == "claude-sonnet-5-5"
 
 
 def test_data_requests_reject_empty_model():

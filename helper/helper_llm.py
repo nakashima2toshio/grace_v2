@@ -53,7 +53,8 @@ logger = logging.getLogger(__name__)
 # --- LLM モデル設定 --- #
 # 本プロジェクトの LLM は Anthropic（Claude）。Gemini は後方互換のため残置。
 LLM_MODELS = [
-    "claude-sonnet-5",            # デフォルト（GRACE 本体・推論）
+    "claude-sonnet-5-5",          # デフォルト（GRACE 本体・推論）
+    "claude-sonnet-5",            # 旧既定（Sonnet 5）
     "claude-fable-5-1",           # 最上位（難しい推論・長時間のエージェント処理）
     "claude-opus-5-5",            # 上位（下の旧上位の後継）
     "claude-opus-5",              # 旧上位（後方互換）
@@ -69,6 +70,7 @@ LLM_MODELS = [
 
 # 価格は 1K トークンあたりの USD（概算）
 LLM_PRICING = {
+    "claude-sonnet-5-5"          : {"input": 0.002, "output": 0.010},
     "claude-sonnet-5"            : {"input": 0.002, "output": 0.010},
     "claude-fable-5-1"           : {"input": 0.010, "output": 0.050},
     "claude-opus-5-5"            : {"input": 0.004, "output": 0.020},
@@ -84,6 +86,7 @@ LLM_PRICING = {
 }
 
 LLM_LIMITS = {
+    "claude-sonnet-5-5"          : {"max_tokens": 1000000, "max_output": 128000},
     "claude-sonnet-5"            : {"max_tokens": 1000000, "max_output": 128000},
     "claude-fable-5-1"           : {"max_tokens": 1000000, "max_output": 128000},
     "claude-opus-5-5"            : {"max_tokens": 1000000, "max_output": 128000},
@@ -265,7 +268,7 @@ class AnthropicClient(LLMClient):
     API キー・ベース URL は環境変数（ANTHROPIC_API_KEY / ANTHROPIC_BASE_URL）から解決。
     """
 
-    def __init__(self, api_key: Optional[str] = None, default_model: str = "claude-sonnet-5"):
+    def __init__(self, api_key: Optional[str] = None, default_model: str = "claude-sonnet-5-5"):
         # 遅延初期化: SDK import / クライアント生成は最初の API 呼び出し時まで遅延する。
         # （GeminiClient と異なり anthropic.Anthropic() は API キー必須のため、
         #   構築だけで失敗しないよう副作用を持たせない。テスト容易性のためにも重要。）
