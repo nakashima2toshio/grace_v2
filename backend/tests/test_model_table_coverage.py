@@ -29,8 +29,8 @@ DEFAULT_MODELS = {
     # qa_qdrant/make_qa.py / make_qa_register_qdrant.py の CLI --model 既定
     # qa_generation/pipeline.py::QAPipeline / smart_qa_generator.py
     "claude-sonnet-5-5": "Q/A 生成・LLM 全般の既定",
-    # 旧既定（Sonnet 5）。UI の選択肢にも残している
-    "claude-sonnet-5": "Sonnet 5（モデルセレクタの選択肢）",
+    # 旧既定（Sonnet 5）。選択肢からは外したが既存設定がまだ指しうる
+    "claude-sonnet-5": "旧既定 Sonnet 5（後方互換）",
     # config.ModelConfig の軽量モデル（grace/config.py::llm.light_model）
     "claude-haiku-4-5-20251001": "軽量モデル（日付指定）",
     # UI（GET /api/models）で選べる上位モデル

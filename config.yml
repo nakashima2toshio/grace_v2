@@ -6,11 +6,10 @@
 #    （backend/tests/test_model_selection.py が一致を検査する）。
 models:
   default: "claude-sonnet-5-5"  # Anthropic デフォルトモデル（推論・生成）
-  available:                  # config.py::ModelConfig.SELECTABLE_MODELS と同じ 5 つ
+  available:                  # config.py::ModelConfig.SELECTABLE_MODELS と同じ 4 つ
     - "claude-fable-5-1"              # 最上位
     - "claude-opus-5-5"               # 上位
     - "claude-sonnet-5-5"             # 推論・生成（既定）
-    - "claude-sonnet-5"               # 旧既定（Sonnet 5）
     - "claude-haiku-4-5"              # 軽量・高速
 
   categories:

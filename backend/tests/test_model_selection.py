@@ -4,7 +4,7 @@
 ## 何を守るか
 
 既定は `claude-sonnet-5-5`、選択肢は `claude-fable-5-1` / `claude-opus-5-5` /
-`claude-sonnet-5-5` / `claude-sonnet-5` / `claude-haiku-4-5` の 5 つ（上位 → 軽量の順）。選択肢の解決は `config.py::get_selectable_models()`
+`claude-sonnet-5-5` / `claude-haiku-4-5` の 4 つ（上位 → 軽量の順）。選択肢の解決は `config.py::get_selectable_models()`
 の**1 箇所**に寄せてあり、API のバリデータ・`GET /api/models`・エージェント
 コアの上書きがすべてそこを読む。どれか 1 つが独自の一覧を持つと、画面で選べる
 のに 422 になる（またはその逆）といった食い違いが起きる。
@@ -39,7 +39,6 @@ EXPECTED_CHOICES = [
     "claude-fable-5-1",
     "claude-opus-5-5",
     "claude-sonnet-5-5",
-    "claude-sonnet-5",
     "claude-haiku-4-5",
 ]
 
@@ -49,8 +48,8 @@ EXPECTED_CHOICES = [
 # ---------------------------------------------------------------------------
 
 
-def test_selectable_models_are_the_five_current_ones():
-    """選択肢は現行世代の 5 つだけ（並びはプルダウンの表示順）。"""
+def test_selectable_models_are_the_four_current_ones():
+    """選択肢は現行世代の 4 つだけ（並びはプルダウンの表示順）。"""
     assert get_selectable_models() == EXPECTED_CHOICES
 
 

@@ -26,14 +26,14 @@ class ModelConfig:
 
     # 利用可能なモデル一覧（テキスト生成）
     AVAILABLE_MODELS: List[str] = [
-        "claude-sonnet-5-5",            # デフォルト（推論・生成）
-        "claude-sonnet-5",              # 旧既定（Sonnet 5。UI でも選べる）
-        "claude-fable-5-1",             # 最上位（難しい推論・長時間のエージェント処理）
-        "claude-opus-5-5",              # 上位（下の旧上位の後継。単価も安い）
-        "claude-opus-5",                # 旧上位（後方互換。heavy_model 等の既存設定用）
-        "claude-haiku-4-5",             # 軽量。日付なしエイリアス。UI の選択肢
-        "claude-haiku-4-5-20251001",    # 同上の日付指定。light_model の既定値
-        "claude-sonnet-4-6",            # 旧既定（後方互換。既存設定の読み込み用）
+        "claude-sonnet-5-5",  # デフォルト（推論・生成）
+        "claude-sonnet-5",  # 旧既定（Sonnet 5。後方互換。既存設定の読み込み用。UI の選択肢からは外した）
+        "claude-fable-5-1",  # 最上位（難しい推論・長時間のエージェント処理）
+        "claude-opus-5-5",  # 上位（下の旧上位の後継。単価も安い）
+        "claude-opus-5",  # 旧上位（後方互換。heavy_model 等の既存設定用）
+        "claude-haiku-4-5",  # 軽量。日付なしエイリアス。UI の選択肢
+        "claude-haiku-4-5-20251001",  # 同上の日付指定。light_model の既定値
+        "claude-sonnet-4-6",  # 旧既定（後方互換。既存設定の読み込み用）
     ]
 
     # UI（ヘッダーのモデルセレクタ）に出す選択肢。
@@ -46,7 +46,6 @@ class ModelConfig:
         "claude-fable-5-1",
         "claude-opus-5-5",
         "claude-sonnet-5-5",
-        "claude-sonnet-5",
         "claude-haiku-4-5",
     ]
 
@@ -540,7 +539,7 @@ class GeminiConfig:
 
     # 利用可能なモデル一覧
     AVAILABLE_MODELS: List[str] = [
-        "gemini-2.5-flash",            # デフォルト
+        "gemini-2.5-flash",  # デフォルト
         "gemini-2.5-pro-preview",
         "gemini-2.5-flash-preview",
         "gemini-2.0-flash",
