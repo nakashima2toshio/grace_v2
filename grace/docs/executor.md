@@ -1,6 +1,6 @@
 # executor.py - GRACE計画実行エージェント ドキュメント
 
-**Version 4.8** | 最終更新: 2026-09-26
+**Version 4.9** | 最終更新: 2026-09-29
 
 ---
 
@@ -315,6 +315,7 @@ style FACTORY_GRP fill:#1a1a1a,stroke:#fff,color:#fff
 | `_handle_intervention_confirm(request)` | CONFIRMレベルの介入処理 |
 | `_handle_intervention_escalate(request)` | ESCALATEレベルの介入処理 |
 | `_should_pause_for_intervention(level)` | 介入で一時停止すべきか。**ESCALATE は常に停止／CONFIRM は対話モードかつ非ブロッキング時のみ** |
+| `_result_on_pause(state)` | 一時停止時の結果を返す。**最終回答があれば全体信頼度も計算してから返す**（以前は 0.0 のまま返り、回答済みでも画面の全体信頼度が 0.00 になっていた）。回答が無いときは 0.0（回答未生成） |
 | `_handle_intervention_if_needed(action_decision, step, state)` | 介入が必要か判定して処理 |
 
 ### 3.2 関数一覧（カテゴリ別）
@@ -769,7 +770,7 @@ def execute_plan_generator(
 | 項目 | 内容 |
 |------|------|
 | **Input** | `plan: ExecutionPlan`, `state: Optional[ExecutionState] = None` |
-| **Process** | 1. 計画内容をログ出力<br>2. ExecutionState初期化（未指定時、プリフェッチキャッシュもクリア）<br>3. 未完了ステップのリストを取得<br>4. 各ステップを順次実行（キャンセル／SKIP／依存関係チェック → 並列プリフェッチ → `_execute_step`）<br>5. Generatorの場合は`yield from`で中間イベントを中継<br>6. `rag_search`成功時はスコアと`_evaluate_rag_relevance`で動的にweb_search/ask_userを挿入、十分なら後続web_searchをSKIP<br>7. CONFIRM/ESCALATE介入時はInterventionRequestを作成し、一時停止状態をyield後にreturn<br>8. `_should_trigger_replan`判定でReplanOrchestratorを起動し再帰的にyield from<br>9. 全体信頼度を計算しExecutionResultをreturn<br>10. 例外時はoverall_status="failed"の結果をreturn |
+| **Process** | 1. 計画内容をログ出力<br>2. ExecutionState初期化（未指定時、プリフェッチキャッシュもクリア）<br>3. 未完了ステップのリストを取得<br>4. 各ステップを順次実行（キャンセル／SKIP／依存関係チェック → 並列プリフェッチ → `_execute_step`）<br>5. Generatorの場合は`yield from`で中間イベントを中継<br>6. `rag_search`成功時はスコアと`_evaluate_rag_relevance`で動的にweb_search/ask_userを挿入、十分なら後続web_searchをSKIP<br>7. CONFIRM/ESCALATE介入時はInterventionRequestを作成し、一時停止状態をyield後に`_result_on_pause`でreturn（最終回答があれば全体信頼度も計算する）<br>8. `_should_trigger_replan`判定でReplanOrchestratorを起動し再帰的にyield from<br>9. 全体信頼度を計算しExecutionResultをreturn<br>10. 例外時はoverall_status="failed"の結果をreturn |
 | **Output** | `Generator[ExecutionState, None, ExecutionResult]`<br>- Yields: 各ステップ完了後の`ExecutionState`<br>- Returns: 最終`ExecutionResult` |
 
 **戻り値例**:
@@ -2055,6 +2056,7 @@ __all__ = [
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 4.9 | 一時停止（介入）時の結果を返す `_result_on_pause` を追加（2026-09-29）。一時停止の分岐が全体信頼度の計算より前に `return` していたため、回答が生成済み・支持率 1.00 でも全体信頼度が 0.00 で返っていた不具合の修正。ReAct 経路の一時停止も同じ関数を使う |
 | 4.8 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
 | 4.7 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
 | 4.6 | 現在の既定モデルの記載 `claude-sonnet-4-6` を実装（`grace/config.py` の `LLMConfig.model` = `claude-sonnet-5`）に合わせて是正した（CLAUDE.md §9.3。旧既定は履歴の記述にだけ残す）（2026-09-24） |
