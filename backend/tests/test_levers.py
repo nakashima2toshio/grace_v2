@@ -269,7 +269,8 @@ def test_thinking_budget_falsy_means_disabled(value):
 
 
 @pytest.mark.parametrize(
-    "model", ["claude-sonnet-5", "claude-opus-5", "claude-opus-5-5", "claude-fable-5-1"]
+    "model",
+    ["claude-sonnet-5-5", "claude-sonnet-5", "claude-opus-5", "claude-opus-5-5", "claude-fable-5-1"],
 )
 def test_new_generation_never_sends_temperature(model):
     """temperature を送ると 400 になる世代には送らない。"""
@@ -298,7 +299,8 @@ def test_adaptive_generation_can_still_disable_thinking(model):
 
 
 @pytest.mark.parametrize(
-    "model", ["claude-sonnet-5", "claude-opus-5", "claude-opus-5-5", "claude-fable-5-1"]
+    "model",
+    ["claude-sonnet-5-5", "claude-sonnet-5", "claude-opus-5", "claude-opus-5-5", "claude-fable-5-1"],
 )
 def test_adaptive_generation_uses_adaptive_instead_of_budget(model):
     """budget_tokens を受け付けない世代では adaptive を送る。"""
@@ -309,7 +311,9 @@ def test_adaptive_generation_uses_adaptive_instead_of_budget(model):
     assert "temperature" not in kwargs
 
 
-@pytest.mark.parametrize("model", ["claude-opus-5-5", "claude-fable-5-1"])
+@pytest.mark.parametrize(
+    "model", ["claude-sonnet-5-5", "claude-opus-5-5", "claude-fable-5-1"]
+)
 def test_always_thinking_models_omit_thinking_and_lower_effort(model):
     """思考を無効化できないモデルには disabled を送らず、effort=low で抑える。
 

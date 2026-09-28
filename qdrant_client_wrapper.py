@@ -120,6 +120,29 @@ COLLECTION_CSV_MAPPING = {
 # ユーティリティ関数
 # ===================================================================
 
+def is_qdrant_unreachable(exc: BaseException) -> bool:
+    """例外が「Qdrant に接続できない」ことを表すか（Errno 61 / 111 など）。
+
+    qdrant-client は接続失敗を `ResponseHandlingException` に包んで投げるので、
+    `__cause__` / `__context__` をたどって OS レベルの接続エラーまで見る。
+    サーバ未起動のたびに 100 行超のトレースバックを出さず、原因と対処の 1 行で
+    済ませるための判定（呼び出し側は接続エラー以外なら従来どおりトレースを残す）。
+    """
+    seen: set = set()
+    cur: Optional[BaseException] = exc
+    while cur is not None and id(cur) not in seen:
+        seen.add(id(cur))
+        if isinstance(cur, (ConnectionError, TimeoutError)):
+            return True
+        if type(cur).__name__ in ("ConnectError", "ConnectTimeout"):  # httpx
+            return True
+        cur = cur.__cause__ or cur.__context__
+    return False
+
+
+QDRANT_START_HINT = "docker-compose -f docker-compose/docker-compose.yml up -d"
+
+
 def stable_point_id(key: str) -> int:
     """文字列キーから決定的な Qdrant ポイントIDを生成する。
 

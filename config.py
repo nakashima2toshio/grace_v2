@@ -113,6 +113,7 @@ class ModelConfig:
     # thinking パラメータは省略し、深さは effort（output_config）で抑える。
     # max_tokens は「思考 + 本文」の合計上限になる点に注意（grace/llm_compat.py）。
     ALWAYS_THINKING_MODELS: List[str] = [
+        "claude-sonnet-5-5",  # 2026-09-29 実機で `thinking.type.disabled` が 400 と判明（Sonnet 5 とは別）
         "claude-opus-5-5",
         "claude-fable-5-1",
     ]
