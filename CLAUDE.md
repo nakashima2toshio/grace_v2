@@ -283,6 +283,12 @@ cd frontend && npm run lint && npm test && npm run build   # frontend
 > （`{"type": "disabled"}` も 400）を `grace/llm_compat.py` と
 > `helper/helper_llm.py` が読む。**選択肢にモデルを足すときはこの 3 表も確認する**
 > （詳細は `backend/docs/config_and_providers.md` §3.1）。
+>
+> ⚠️ **Sonnet 5.5 は `stop_reason` も見る。** `grace/llm_compat.py` は `refusal` を
+> `LLMRefusalError`、JSON 応答の `max_tokens` 打ち切りを 1 回再試行のうち
+> `LLMTruncatedError` にする（以前は握りつぶされ、「本文が空の成功」や「途中で切れた JSON」に
+> なっていた）。effort は現在すべて `low` 固定で、呼び出しごとの調整は**未実装・要評価**
+> （`backend/docs/config_and_providers.md` §3.1 の補足）。
 
 ### 3.3 調査済み・触らなくてよい残置コード
 

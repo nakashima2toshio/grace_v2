@@ -1,6 +1,6 @@
 # llm_compat.py - GRACE LLM 互換クライアント ドキュメント
 
-**Version 1.6** | 最終更新: 2026-09-26
+**Version 1.7** | 最終更新: 2026-09-29
 
 ---
 
@@ -423,7 +423,7 @@ def generate_content(
 | 項目 | 内容 |
 |------|------|
 | **Input** | `model: Optional[str] = None`, `contents: Any = None`, `config: Any = None`, `**_kwargs` |
-| **Process** | 1. `_extract_config(config)` で設定抽出、model 未指定なら既定モデル<br>2. contents を文字列化<br>3. response_mime_type=="application/json" または response_schema 有で JSON 要求と判定し system 指示・スキーマヒントを付与<br>4. max_tokens（未指定時 2048）・temperature を組み立て `messages.create` を呼ぶ<br>5. content の text ブロックを連結<br>6. JSON 要求時は `_strip_to_json` で JSON 本体を抽出<br>7. usage から `_UsageMetadata` を構築 |
+| **Process** | 1. `_extract_config(config)` で設定抽出、model 未指定なら既定モデル<br>2. contents を文字列化<br>3. response_mime_type=="application/json" または response_schema 有で JSON 要求と判定し system 指示・スキーマヒントを付与<br>4. max_tokens（未指定時 2048）・temperature を組み立て `messages.create` を呼ぶ<br>5. content の text ブロックを連結<br>6. JSON 要求時は `_strip_to_json` で JSON 本体を抽出<br>7. usage から `_UsageMetadata` を構築<br>**停止理由（v1.7）**: `stop_reason=="refusal"` → `LLMRefusalError`（カテゴリ付き）。`"max_tokens"` かつ JSON 要求 → `max_tokens` を倍（モデル上限まで）にして 1 回だけ再試行し、なお打ち切られたら `LLMTruncatedError`（本文が有効な JSON に見えても失敗扱い）。自由文の `max_tokens` は警告ログのみで本文を返す |
 | **Output** | `_GenaiCompatResponse`: `.text` / `.parsed`(None) / `.usage_metadata` |
 
 **戻り値例**:
@@ -760,6 +760,7 @@ from .llm_compat import create_chat_client
 | 1.4 | `create_chat_client()` が未知の `config.llm.provider` を `ValueError` にするようになったのに追随（2026-09-26）。IPO の Process を更新（`backend/tests/test_llm_provider_validation.py`） |
 | 1.5 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
 | 1.6 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
+| 1.7 | `stop_reason` の扱いを追加（2026-09-29）。拒否（`refusal`）は `LLMRefusalError`、JSON 応答の `max_tokens` 打ち切りは 1 回再試行のうち `LLMTruncatedError`。従来は `stop_reason` を見ず、拒否は「本文が空の成功」、打ち切りは「途中で切れた JSON」として下流へ流れていた（Sonnet 5.5 のプロンプトガイドの推奨に対応） |
 
 ---
 

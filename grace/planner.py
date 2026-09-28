@@ -13,7 +13,6 @@ from typing import Optional
 
 from qdrant_client import QdrantClient
 
-from services.prompts import SEARCH_QUERY_INSTRUCTION
 from services.qdrant_service import get_all_collections
 
 from .config import GraceConfig, get_config, heavy_thinking_budget, resolve_heavy_model
@@ -81,7 +80,7 @@ def is_ambiguous_query(query: str) -> bool:
 # プロンプト定義
 # =============================================================================
 
-PLAN_GENERATION_PROMPT = f"""
+PLAN_GENERATION_PROMPT = """
 あなたは計画策定の専門家です。ユーザーの質問を分析し、回答を生成するための実行計画を作成してください。
 
 【利用可能なアクション】
@@ -91,7 +90,7 @@ PLAN_GENERATION_PROMPT = f"""
 - ask_user: ユーザーに追加情報や確認を求める
 
 【利用可能なコレクション (rag_search用)】
-{{available_collections}}
+{available_collections}
 
 【コレクション選択のルール (重要)】
 - `rag_search` の `collection` 引数は、原則として指定しないでください（`null` または省略）。
@@ -122,8 +121,6 @@ PLAN_GENERATION_PROMPT = f"""
     * 例外: ユーザーが明示的に「最新ニュースを検索して」等と指示した場合のみ、
       web_search 単体のステップを計画に含めてよい
 
-{SEARCH_QUERY_INSTRUCTION}
-
 【計画の複雑度(complexity)の目安】
 - 0.0-0.3: 単純な質問（1-2ステップ）
 - 0.4-0.6: 中程度の質問（2-3ステップ）
@@ -134,7 +131,7 @@ PLAN_GENERATION_PROMPT = f"""
 - 実行に時間がかかる可能性がある場合
 - 外部リソースへのアクセスが必要な場合
 
-ユーザーの質問: {{query}}
+ユーザーの質問: {query}
 
 JSON形式で実行計画を出力してください。
 """

@@ -53,6 +53,28 @@ _MIN_THINKING_BUDGET = 1024
 _ALWAYS_THINKING_MIN_TOKENS = 4096
 
 
+class LLMRefusalError(RuntimeError):
+    """安全性分類器による拒否（`stop_reason == "refusal"`）。
+
+    拒否は通常の応答として届くため、握りつぶすと「本文が空の成功」に見える。
+    呼び出し側の既存の `except Exception` フォールバックへ載せるため例外にする。
+    """
+
+    def __init__(self, category: Optional[str] = None):
+        self.category = category
+        super().__init__(f"モデルが応答を拒否しました（category={category or '不明'}）")
+
+
+class LLMTruncatedError(RuntimeError):
+    """JSON 応答が `max_tokens` で打ち切られた（再試行しても同じ）。"""
+
+
+def _stop_category(message: Any) -> Optional[str]:
+    details = getattr(message, "stop_details", None)
+    category = getattr(details, "category", None)
+    return category if isinstance(category, str) else None
+
+
 def _thinking_budget(requested: Any, max_tokens: int) -> int:
     """拡張思考の budget を正規化する。0 / None / 不正値は「無効」。
 
@@ -229,6 +251,37 @@ class _AnthropicModels:
                 kwargs["temperature"] = float(temperature)
 
         message = self._get_client().messages.create(**kwargs)
+
+        # --- 停止理由の確認 -----------------------------------------------------
+        # `stop_reason` を見ないと、拒否は「本文が空の成功」、上限到達は
+        # 「途中で切れた JSON」として下流へ流れ、原因が分からないまま失敗する。
+        stop_reason = getattr(message, "stop_reason", None)
+        if stop_reason == "refusal":
+            raise LLMRefusalError(_stop_category(message))
+        if stop_reason == "max_tokens" and want_json:
+            # 思考が `max_tokens` を食い切った可能性が高い。上限を倍にして 1 回だけ
+            # 再試行する（それでも打ち切られたら、有効な JSON に見えても失敗扱い）。
+            limit = ModelConfig.get_model_limits(model_name)["max_output"]
+            widened = min(int(kwargs["max_tokens"]) * 2, limit)
+            if widened > int(kwargs["max_tokens"]):
+                logger.warning(
+                    "JSON 応答が max_tokens=%s で打ち切られたため %s へ広げて再試行します（model=%s）",
+                    kwargs["max_tokens"], widened, model_name,
+                )
+                kwargs["max_tokens"] = widened
+                message = self._get_client().messages.create(**kwargs)
+                stop_reason = getattr(message, "stop_reason", None)
+                if stop_reason == "refusal":
+                    raise LLMRefusalError(_stop_category(message))
+            if stop_reason == "max_tokens":
+                raise LLMTruncatedError(
+                    f"JSON 応答が max_tokens={kwargs['max_tokens']} で打ち切られました（model={model_name}）"
+                )
+        elif stop_reason == "max_tokens":
+            # 自由文の回答は途中まででも使えるので返すが、切れたことは残す
+            logger.warning(
+                "応答が max_tokens=%s で打ち切られました（model=%s）", kwargs["max_tokens"], model_name
+            )
 
         # text ブロックを連結
         text_parts: list[str] = []
