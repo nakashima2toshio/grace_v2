@@ -1,6 +1,6 @@
 # planner.py - GRACE 計画生成エージェント ドキュメント
 
-**Version 3.10** | 最終更新: 2026-09-26
+**Version 3.11** | 最終更新: 2026-09-29
 
 ---
 
@@ -219,7 +219,6 @@ style FACTORY fill:#1a1a1a,stroke:#fff,color:#fff
 | `grace.llm_compat` | `create_chat_client`（Anthropic Claude の genai互換クライアント生成） |
 | `grace.memory` | `create_execution_memory`（P4 実行メモリ層・優先コレクションの学習） |
 | `services.qdrant_service` | `get_all_collections`（コレクション一覧取得） |
-| `services.prompts` | `SEARCH_QUERY_INSTRUCTION`（検索クエリ作成指示） |
 
 ---
 
@@ -1092,7 +1091,7 @@ class MemoryConfig(BaseModel):
 
 | 定数名 | 説明 |
 |-------|------|
-| `PLAN_GENERATION_PROMPT` | LLM計画生成用テンプレート。`available_collections` / `query` を埋め込み、`SEARCH_QUERY_INSTRUCTION` を含む |
+| `PLAN_GENERATION_PROMPT` | LLM計画生成用テンプレート。`available_collections` / `query` を埋め込む（検索クエリは「元の質問文を完全一致でコピー」に一本化。`SEARCH_QUERY_INSTRUCTION` は矛盾するため埋め込まない） |
 | `COMPLEXITY_ESTIMATION_PROMPT` | LLM複雑度推定用テンプレート（0.0-1.0の数値のみを要求） |
 | `Planner._LLM_PLAN_MARKERS` | LLM計画生成を強制するマーカー（"最新ニュース", "ニュースを検索", "web検索", "ウェブ検索", "webで検索"） |
 | `_COMPLEXITY_FACTORS` | ヒューリスティック複雑度推定（`estimate_complexity`）のキーワード別加点表。`(キーワード, 重み)` のタプル列（"比較" 0.15, "違い" 0.15, "複数" 0.2, "最新" 0.1, "理由" 0.1, "方法" 0.1, "詳しく" 0.15, "ステップ" 0.1, "手順" 0.1, "なぜ" 0.1, "どのように" 0.15）。ベース 0.5 に出現キーワードの重みを加算 |
@@ -1124,6 +1123,7 @@ __all__ = [
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 3.11 | 計画生成プロンプトから `SEARCH_QUERY_INSTRUCTION` を外した（2026-09-29）。「rag_search の query は元の質問文を完全一致でコピー・キーワード化は禁止」と「質問をキーワード列に変換せよ」を同じプロンプトに入れており、指示が正反対で矛盾していた。`services.prompts` への依存も解消 |
 | 3.10 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
 | 3.9 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
 | 3.8 | 現在の既定モデルの記載 `claude-sonnet-4-6` を実装（`grace/config.py` の `LLMConfig.model` = `claude-sonnet-5`）に合わせて是正した（CLAUDE.md §9.3。旧既定は履歴の記述にだけ残す）（2026-09-24） |

@@ -1,6 +1,6 @@
 # 設定・モデル・プロバイダの解決経路 ドキュメント
 
-**Version 1.6** | 最終更新: 2026-09-29
+**Version 1.7** | 最終更新: 2026-09-29
 
 ---
 
@@ -211,6 +211,8 @@ def get_selectable_models() -> List[str]: ...
 | `ADAPTIVE_THINKING_MODELS` | 同上 | 思考を有効にするときは `{"type": "adaptive"}`（`budget_tokens` は 400） |
 | `ALWAYS_THINKING_MODELS` | **Sonnet 5.5** / Opus 5.5 / Fable 5.1 | 思考を無効化できない。`thinking` を省略し `output_config.effort = "low"`、`max_tokens` を 4096 以上に広げる |
 
+> **Sonnet 5.5 だけの補足（公式ガイド）**: `{"type": "disabled"}` の代わりに、最も低い思考設定 `{"type": "between_tools"}`（事前思考なし。`high` 以下・`display` 等と併用不可）がある。現状の実装は `thinking` 省略＋`effort=low` で、`between_tools` は使っていない。JSON を返す数ステップの推論タスク（Groundedness・Review の違反検出など）は、`low`/`medium` だと事前に思考せず精度が落ちるため、適応型思考にしてプロンプト末尾へ `Think the problem through before you answer.` を足すか effort を上げる（**未実装・要評価**）。
+
 Haiku 4.5・Sonnet 4.6 はどの表にも載らず、従来どおり
 `{"type": "disabled"}` ＋ `temperature`（思考有効時は `budget_tokens`）で送る。
 
@@ -327,6 +329,7 @@ class Yml,Env,Loader,Validated,Users,Dotenv,Runtime default
 
 | Version | 日付 | 変更内容 |
 |---|---|---|
+| 1.7 | 2026-09-29 | Sonnet 5.5 のプロンプトガイドの要点（`between_tools`・JSON 推論タスクの扱い）を §3.1 に追記 |
 | 1.6 | 2026-09-29 | 既定を `claude-sonnet-5-5` へ変更したのに追随。`claude-sonnet-5-5` は思考を無効化できない（`{"type": "disabled"}` が 400）ので `ALWAYS_THINKING_MODELS` に載せる旨を追記（実機の 400 で判明。Sonnet 5 と同じ扱いにした当初の仮定が誤りだった） |
 | 1.5 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
 | 1.4 | 2026-09-26 | Embedding を `gemini-embedding-2` へ変更し、モデル名の定義を `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所へ集約（2026-09-26）。§3 の表と「Embedding は対象外」を追随 |
