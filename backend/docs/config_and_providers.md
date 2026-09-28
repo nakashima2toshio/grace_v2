@@ -1,6 +1,6 @@
 # 設定・モデル・プロバイダの解決経路 ドキュメント
 
-**Version 1.5** | 最終更新: 2026-09-26
+**Version 1.6** | 最終更新: 2026-09-29
 
 ---
 
@@ -95,7 +95,7 @@ style EXTERNAL fill:#1a1a1a,stroke:#fff,color:#fff
 | 用途 | プロバイダ | 既定 | API キー |
 |---|---|---|---|
 | **Embedding（検索）のみ** | **Gemini** | `gemini-embedding-001`（3072 次元。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） | `GOOGLE_API_KEY` |
-| **それ以外の全 LLM 用途** | **Anthropic** | `claude-sonnet-5`（軽量 `claude-haiku-4-5-20251001`） | `ANTHROPIC_API_KEY` |
+| **それ以外の全 LLM 用途** | **Anthropic** | `claude-sonnet-5-5`（軽量 `claude-haiku-4-5-20251001`） | `ANTHROPIC_API_KEY` |
 
 - **LLM 用途**: Plan / Execute / Reasoning / Confidence / Replan / ReAct、意図分類・
   情報なし判定・違反検出、Q/A 生成、チャンク化
@@ -152,12 +152,12 @@ def detect_model(config) -> str:
 
 | 使う場所 | 解決 | 既定 |
 |---|---|---|
-| planner / executor / reasoning / groundedness（`grace/`） | 経路 1 | `llm.model` = `claude-sonnet-5` |
+| planner / executor / reasoning / groundedness（`grace/`） | 経路 1 | `llm.model` = `claude-sonnet-5-5` |
 | 意図分類・情報なし判定（`gates.py`） | `judge_model()` | `llm.light_model` = `claude-haiku-4-5-20251001` |
 | 言及分類・空疎判定（`review_gates.py`） | `judge_model()` | 同上 |
 | ③ Detect 第2段（`review_gates.py`） | `detect_model()` | `llm.model` |
 | チャンク化（`ChunkingParams.model`） | 経路 3 相当のリクエスト既定 | `claude-haiku-4-5` |
-| Q/A 生成（`QaGenerationParams.model`） | 同上 | `claude-sonnet-5` |
+| Q/A 生成（`QaGenerationParams.model`） | 同上 | `claude-sonnet-5-5` |
 | Qdrant 登録の Embedding（`RegisterParams.provider`） | リクエスト既定 | `gemini` |
 
 > ⚠️ **`claude-haiku-4-5`（日付なし）はエイリアスであって書き損じではない。**
@@ -178,7 +178,7 @@ def detect_model(config) -> str:
 ModelConfig.SELECTABLE_MODELS = [
     "claude-fable-5-1",  # 最上位
     "claude-opus-5-5",   # 上位
-    "claude-sonnet-5",   # 既定
+    "claude-sonnet-5-5", # 既定（Sonnet 5 は選択肢から外し、後方互換の表にだけ残している）
     "claude-haiku-4-5",  # 軽量
 ]
 
@@ -207,9 +207,9 @@ def get_selectable_models() -> List[str]: ...
 
 | 表 | 該当モデル | 意味 |
 |---|---|---|
-| `NO_TEMPERATURE_MODELS` | Sonnet 5 / Opus 5 / Opus 5.5 / Fable 5.1 | `temperature` を送らない（送ると 400） |
+| `NO_TEMPERATURE_MODELS` | Sonnet 5.5 / Sonnet 5 / Opus 5 / Opus 5.5 / Fable 5.1 | `temperature` を送らない（送ると 400） |
 | `ADAPTIVE_THINKING_MODELS` | 同上 | 思考を有効にするときは `{"type": "adaptive"}`（`budget_tokens` は 400） |
-| `ALWAYS_THINKING_MODELS` | Opus 5.5 / Fable 5.1 | 思考を無効化できない。`thinking` を省略し `output_config.effort = "low"`、`max_tokens` を 4096 以上に広げる |
+| `ALWAYS_THINKING_MODELS` | **Sonnet 5.5** / Opus 5.5 / Fable 5.1 | 思考を無効化できない。`thinking` を省略し `output_config.effort = "low"`、`max_tokens` を 4096 以上に広げる |
 
 Haiku 4.5・Sonnet 4.6 はどの表にも載らず、従来どおり
 `{"type": "disabled"}` ＋ `temperature`（思考有効時は `budget_tokens`）で送る。
@@ -236,11 +236,11 @@ if model:
 
 ```json
 {
-  "model": "claude-sonnet-5",
+  "model": "claude-sonnet-5-5",
   "light_model": "claude-haiku-4-5-20251001",
   "heavy_model": "",
   "chunking_model": "claude-haiku-4-5",
-  "qa_model": "claude-sonnet-5"
+  "qa_model": "claude-sonnet-5-5"
 }
 ```
 
@@ -327,6 +327,7 @@ class Yml,Env,Loader,Validated,Users,Dotenv,Runtime default
 
 | Version | 日付 | 変更内容 |
 |---|---|---|
+| 1.6 | 2026-09-29 | 既定を `claude-sonnet-5-5` へ変更したのに追随。`claude-sonnet-5-5` は思考を無効化できない（`{"type": "disabled"}` が 400）ので `ALWAYS_THINKING_MODELS` に載せる旨を追記（実機の 400 で判明。Sonnet 5 と同じ扱いにした当初の仮定が誤りだった） |
 | 1.5 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
 | 1.4 | 2026-09-26 | Embedding を `gemini-embedding-2` へ変更し、モデル名の定義を `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所へ集約（2026-09-26）。§3 の表と「Embedding は対象外」を追随 |
 | 1.3 | 2026-09-24 | `a_cross_doc_md_format.md` v1.1（種別 A）に準拠（2026-09-24）。概要（主な責務／各責務対応のモジュール／3 層のアーキテクチャ構成図）を追加し、冒頭の説明文を概要へ移した。本文の章番号は変えていない。ヘッダーの Version と変更履歴の最新版の食い違いも解消した |

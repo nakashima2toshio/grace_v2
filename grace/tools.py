@@ -467,8 +467,17 @@ class RAGSearchTool(BaseTool):
             return sorted_collections
 
         except Exception as e:
-            logger.error(f"Failed to get collections dynamically: {e}", exc_info=True)
-            print(f"❌ Failed to get collections dynamically: {e}")
+            from qdrant_client_wrapper import QDRANT_START_HINT, is_qdrant_unreachable
+
+            if is_qdrant_unreachable(e):
+                # サーバ未起動。トレースバックは情報が無いので 1 行にする
+                logger.error(
+                    f"RAGSearchTool: Qdrant に接続できません（{self.qdrant_url}: {e}）。"
+                    f"起動: {QDRANT_START_HINT}"
+                )
+            else:
+                logger.error(f"Failed to get collections dynamically: {e}", exc_info=True)
+                print(f"❌ Failed to get collections dynamically: {e}")
             return [c for c in self.config.qdrant.search_priority if "_768" not in c]
 
     @classmethod

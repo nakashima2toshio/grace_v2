@@ -18,9 +18,11 @@ from qdrant_client.http.exceptions import ResponseHandlingException, UnexpectedR
 
 from config import AgentConfig, CohereConfig
 from qdrant_client_wrapper import (
+    QDRANT_START_HINT,
     embed_query,
     embed_sparse_query_unified,
     get_qdrant_client,
+    is_qdrant_unreachable,
     search_collection,
 )
 
@@ -569,7 +571,11 @@ def search_rag_knowledge_base_structured(
         return filtered_results
 
     except Exception as e:
-        logger.error(f"RAGツールエラー: {e}", exc_info=True)
+        if is_qdrant_unreachable(e):
+            # サーバ未起動。トレースバックは情報が無いので 1 行にする
+            logger.error(f"RAGツールエラー: Qdrant に接続できません（{e}）。起動: {QDRANT_START_HINT}")
+        else:
+            logger.error(f"RAGツールエラー: {e}", exc_info=True)
         return f"[[RAG_TOOL_ERROR]] エラーが発生しました: {str(e)}"
 
 
