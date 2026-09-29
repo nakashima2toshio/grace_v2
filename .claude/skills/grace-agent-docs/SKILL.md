@@ -129,7 +129,7 @@ description: >-
   | バックエンド単体 | `uvicorn backend.app.main:app --reload --port 8000` |
   | チャンク化 | `python -m chunking.csv_text_to_chunks_text_csv` |
   | Q/A生成＋登録 | `python qa_qdrant/make_qa_register_qdrant.py`（登録のみ `register_to_qdrant.py`） |
-  | Qdrant 起動 | `docker-compose -f docker-compose/docker-compose.yml up -d` |
+  | Qdrant 起動 | `docker compose -f docker-compose/docker-compose.yml up -d` |
 
 - データ準備パイプラインは3段階（チャンキング→Q/A生成→Qdrant登録）。チャンキングは
   文書境界保証（`load_documents_from_csv`/`doc_id`）・`continuity_mode="rule"`・

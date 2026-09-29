@@ -47,6 +47,14 @@ COSINE_SIMILARITY_THRESHOLD: float = 0.7
 COSINE_SIMILARITY_THRESHOLD_RELAXED: float = 0.5
 # 一次の結果がこの件数未満のときだけ緩和する（＝0 件・1 件が対象）。
 MIN_RESULTS_BEFORE_RELAX: int = 2
+# 緩和で追加する候補は、首位スコアからこの幅以内に限る（相対マージン）。
+#
+# 絶対値 0.5 だけを下限にすると、首位が 0.80 と強いのに 0.62〜0.68 の**無関係な文書**
+# まで 4 件混ざる（実測 2026-09-29「住民票の写しの取り方は？」: 転入届・マイナンバー・
+# 印鑑登録・国民健康保険。首位との差 0.12〜0.18）。首位が強いときは単独で足りるので、
+# 首位に近いものだけを補強として足す。首位が 0.7 未満（一次 0 件）のときは、従来どおり
+# 首位付近を救う。
+RELAXED_SCORE_MARGIN: float = 0.10
 
 
 def select_by_similarity(
@@ -55,10 +63,13 @@ def select_by_similarity(
         threshold: float = COSINE_SIMILARITY_THRESHOLD,
         relaxed_threshold: float = COSINE_SIMILARITY_THRESHOLD_RELAXED,
         min_results: int = MIN_RESULTS_BEFORE_RELAX,
+        score_margin: Optional[float] = RELAXED_SCORE_MARGIN,
 ) -> Tuple[List[Dict[str, Any]], float]:
     """コサイン類似度による二段構えの選抜（純関数・副作用なし）。
 
     一次閾値で選抜し、件数が `min_results` 未満のときに限り緩和閾値で再選抜する。
+    緩和の下限は `max(緩和閾値, 首位スコア - score_margin)`（ただし一次閾値以下）で、
+    首位から離れた低関連の候補は足さない。
     緩和しても件数が増えない場合は一次の結果を返す（無意味な緩和を避ける）。
 
     Args:
@@ -67,9 +78,11 @@ def select_by_similarity(
         threshold: 一次閾値
         relaxed_threshold: 二次（緩和）閾値
         min_results: この件数未満なら緩和する
+        score_margin: 緩和で足す候補を首位スコアからこの幅以内に限る。None なら無効
+            （＝従来どおり緩和閾値だけを下限にする）
 
     Returns:
-        (選抜結果（score 降順・最大 limit 件）, 実際に採用した閾値)
+        (選抜結果（score 降順・最大 limit 件）, 実際に採用した閾値（緩和時は実効の下限）)
     """
 
     def _pick(th: float) -> List[Dict[str, Any]]:
@@ -83,9 +96,14 @@ def select_by_similarity(
     if len(primary) >= min_results or relaxed_threshold >= threshold:
         return primary, threshold
 
-    relaxed = _pick(relaxed_threshold)
+    floor = relaxed_threshold
+    if score_margin is not None and candidates:
+        top = max(r.get("score", 0.0) for r in candidates)
+        # 一次閾値を超える下限は意味が無い（一次の部分集合になる）ので頭打ちにする
+        floor = min(threshold, max(relaxed_threshold, top - score_margin))
+    relaxed = _pick(floor)
     if len(relaxed) > len(primary):
-        return relaxed, relaxed_threshold
+        return relaxed, floor
     return primary, threshold
 
 

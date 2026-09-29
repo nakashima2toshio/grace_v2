@@ -129,7 +129,7 @@ Retrieve・Ground・誤検知抑止・Action は Support と同じ機構の再�
 ### 起動
 ```bash
 # 前提: .env に ANTHROPIC_API_KEY / GOOGLE_API_KEY、Qdrant 起動済み
-docker-compose -f docker-compose/docker-compose.yml up -d
+docker compose -f docker-compose/docker-compose.yml up -d
 
 # 開発サーバ一括起動（backend :8000 + frontend :5173）
 ./run_dev.sh

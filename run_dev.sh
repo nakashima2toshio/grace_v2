@@ -12,7 +12,7 @@
 #   - リポジトリルートの .env に ANTHROPIC_API_KEY（LLM）と
 #     GOOGLE_API_KEY（Embedding）が設定済み
 #   - Qdrant が起動済み（別実行）:
-#       docker-compose -f docker-compose/docker-compose.yml up -d
+#       docker compose -f docker-compose/docker-compose.yml up -d
 #   - uv / Node.js（npm）が導入済み
 #
 # このスクリプトがやること:
@@ -57,7 +57,7 @@ QDRANT_URL="${QDRANT_URL:-http://localhost:6333}"
 if command -v curl >/dev/null 2>&1; then
   if ! curl -sf "${QDRANT_URL}/healthz" >/dev/null 2>&1; then
     echo "⚠️  Qdrant (${QDRANT_URL}) に接続できません。別ターミナルで起動してください:"
-    echo "      docker-compose -f docker-compose/docker-compose.yml up -d"
+    echo "      docker compose -f docker-compose/docker-compose.yml up -d"
   fi
 fi
 

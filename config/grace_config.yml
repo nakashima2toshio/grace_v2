@@ -105,6 +105,9 @@ confidence:
   # strength: 0.0 で従来どおり（減衰なし）
   groundedness_coverage_strength: 0.3
   groundedness_coverage_target: 0.8
+  # 「〜は情報源に記載がない」型の主張を母数から外す（回答が答えられない部分を断る文。
+  # 支持済みと数えると支持率・判定率が水増しされる。false で従来どおり全件を数える）
+  groundedness_exclude_absence_claims: true
   # これ未満なら回答せず聞き返す
   clarification_confidence: 0.3
   calibration_path: "config/calibration.json"
@@ -258,6 +261,9 @@ executor:
     web_search: "ask_user"
   parallel_search: true
   max_parallel_steps: 4
+  # 回答生成の直後に、最終評価と Groundedness 検証を先行実行し、ステップ確信度の評価と
+  # 重ねる（互いに独立なので順番に待たない）。false で従来どおり順番に実行する
+  prefetch_final_evaluation: true
   # S3: ハイブリッド ReAct（観測駆動ループ）
   react_enabled: true
   react_complexity_threshold: 0.7

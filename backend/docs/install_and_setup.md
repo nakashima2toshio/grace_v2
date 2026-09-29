@@ -189,10 +189,10 @@ GOOGLE_API_KEY=AIzaxxxxxxxx            # Embedding（Gemini gemini-embedding-001
 
 ```bash
 # まとめて起動（Qdrant + Redis）
-docker-compose -f docker-compose/docker-compose.yml up -d
+docker compose -f docker-compose/docker-compose.yml up -d
 
 # Qdrant だけ起動したい場合
-docker-compose -f docker-compose/docker-compose.yml up -d qdrant
+docker compose -f docker-compose/docker-compose.yml up -d qdrant
 ```
 
 - Qdrant: `localhost:6333`（データは docker volume `qdrant_data` に永続化）。
@@ -294,7 +294,7 @@ npm run build   # tsc --noEmit + vite build
 |---|---|---|
 | `http://localhost:8000/` が 404 | 仕様（API 専用） | 画面は **http://localhost:5173** を開く |
 | `GET /api/health` で `anthropic_api_key: false` | `.env` 未設定／読み込み前に起動 | ルートの `.env` にキーを設定し、バックエンドを再起動 |
-| バックエンド起動時に接続エラー（6333） | Qdrant 未起動 | `docker-compose ... up -d qdrant` で起動 |
+| バックエンド起動時に接続エラー（6333） | Qdrant 未起動 | `docker compose ... up -d qdrant` で起動 |
 | フロントの `/api` が繋がらない | バックエンド未起動／ポート不一致 | :8000 で uvicorn が動いているか確認（proxy 先は `vite.config.ts`） |
 | `[Errno 48] Address already in use` | 前回の uvicorn / vite が残っている（旧 `run_dev.sh` は Ctrl+C で子プロセスを止めていなかった） | 現行の `run_dev.sh` は起動時に自動で停止する。手動なら `lsof -i tcp:8000` で PID を確認して停止 |
 | `uv: command not found` | uv 未導入 | §2「uv の導入」を実施 |

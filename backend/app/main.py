@@ -21,7 +21,7 @@ CLI と同じコアサービスを Web から呼ぶための API。エージェ�
     uvicorn backend.app.main:app --reload --port 8000
 
 前提: `.env` に ANTHROPIC_API_KEY / GOOGLE_API_KEY、Qdrant 起動済み
-（docker-compose -f docker-compose/docker-compose.yml up -d）。
+（docker compose -f docker-compose/docker-compose.yml up -d）。
 """
 from __future__ import annotations
 

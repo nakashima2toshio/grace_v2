@@ -164,6 +164,27 @@ class RAGSearchTool(BaseTool):
             # フォールバック用のコレクションを追加（重複排除・動的取得）
             # Qdrantから全コレクションを取得し、優先順位リストに従ってソート
             dynamic_collections = self._get_all_collections_dynamic()
+            if dynamic_collections is None:
+                # ⚠️ Qdrant に繋がらないときは、ここで**即失敗**にする。
+                #
+                # 以前は既定の候補（優先順位リスト）へ倒れて検索を続け、クエリの
+                # Embedding（Gemini API）と Sparse モデルの読み込み（初回は 500MB 超の
+                # ダウンロード）を済ませたうえで、候補コレクションの数だけ接続エラーを
+                # 繰り返していた（実測 2026-09-29: 約 4 秒の無駄）。どうせ全部失敗するので、
+                # 何もせず失敗を返し、executor の fallback（Web 検索）へ進ませる。
+                from qdrant_client_wrapper import QDRANT_START_HINT
+
+                msg = (
+                    f"Qdrant に接続できません（{self.qdrant_url}）。"
+                    f"起動: {QDRANT_START_HINT}"
+                )
+                return ToolResult(
+                    success=False,
+                    output=[],
+                    error=msg,
+                    confidence_factors={"result_count": 0, "avg_score": 0.0, "message": msg},
+                    execution_time_ms=int((time.time() - start_time) * 1000),
+                )
             for c in dynamic_collections:
                 if c not in search_candidates:
                     search_candidates.append(c)
@@ -411,7 +432,7 @@ class RAGSearchTool(BaseTool):
             logger.warning(f"RAGSearchTool: get_collection('{name}') failed: {e}")
             return None
 
-    def _get_all_collections_dynamic(self) -> List[str]:
+    def _get_all_collections_dynamic(self) -> Optional[List[str]]:
         """Qdrantから検索可能なコレクションを取得し、優先順位付けして返す。
 
         embedding次元と一致し、かつ実体（points>0）があるコレクションだけを採用する。
@@ -475,6 +496,9 @@ class RAGSearchTool(BaseTool):
                     f"RAGSearchTool: Qdrant に接続できません（{self.qdrant_url}: {e}）。"
                     f"起動: {QDRANT_START_HINT}"
                 )
+                # 呼び出し側（execute）が即失敗にできるよう None で知らせる。
+                # 既定の候補へ倒れて検索を続けても、全コレクションで接続エラーになるだけ。
+                return None
             else:
                 logger.error(f"Failed to get collections dynamically: {e}", exc_info=True)
                 print(f"❌ Failed to get collections dynamically: {e}")

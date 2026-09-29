@@ -533,7 +533,7 @@ def _register_runner(
     except Exception as e:
         error(
             f"❌ Qdrant へ接続できません: {e}\n"
-            "docker-compose -f docker-compose/docker-compose.yml up -d で起動してください。"
+            "docker compose -f docker-compose/docker-compose.yml up -d で起動してください。"
         )
         return None
 
@@ -676,7 +676,7 @@ def _delete_runner(
     except Exception as e:
         error(
             f"❌ Qdrant へ接続できません: {e}\n"
-            "docker-compose -f docker-compose/docker-compose.yml up -d で起動してください。"
+            "docker compose -f docker-compose/docker-compose.yml up -d で起動してください。"
         )
         return None
 

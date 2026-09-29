@@ -336,7 +336,9 @@ class FinalEvaluationResult(BaseModel):
     """最終回答の統合評価スキーマ（自己評価＋クエリ網羅度を1回の呼び出しで取得）"""
     self_eval_score: float = Field(..., ge=0.0, le=1.0, description="回答の確信度（正確性・適切性・スタイル）")
     coverage_score: float = Field(..., ge=0.0, le=1.0, description="質問要素に対する回答の網羅度")
-    reason: str = Field("", description="評価理由の要約")
+    # ⚠️ 短くさせる。JSON はスコアが先・reason が後に出るので、reason を短くしても
+    #    スコアは変わらず、出力トークン（＝待ち時間）だけが減る。
+    reason: str = Field("", description="評価理由の要約（1 文・80 字以内）")
 
 
 class LLMSelfEvaluator:
@@ -357,6 +359,8 @@ class LLMSelfEvaluator:
 質問: {query}
 回答: {answer}
 使用した情報源: {sources}
+
+reason は 1 文・80 字以内で簡潔に書いてください。
 """
 
     EVAL_PROMPT = """以下の基準に基づいて、回答の確信度を0.0から1.0の数値で評価してください。
@@ -567,6 +571,7 @@ class LLMSelfEvaluator:
 
 回答は以下のJSON形式のみで出力してください。Markdownのコードブロックは不要です。
 {{"score": 0.0, "reason": "評価理由"}}
+reason は 1 文・80 字以内で簡潔に書いてください（長い説明は不要です）。
 """
         try:
             logger.info(f"LLM evaluate_with_factors prompt len: {len(prompt)}")
@@ -815,7 +820,8 @@ class ClaimVerdict(BaseModel):
 class GroundednessResponse(BaseModel):
     """groundedness 検証のLLM応答スキーマ。"""
     claims: List[ClaimVerdict] = Field(default_factory=list)
-    reason: str = Field("", description="判定理由の要約")
+    # ⚠️ claims の後に出るので、短くしても判定（claims）は変わらない。待ち時間だけが減る。
+    reason: str = Field("", description="判定理由の要約（1 文・80 字以内）")
 
 
 # 方針文（担当範囲外の断り・窓口案内）に現れる語。
@@ -834,6 +840,64 @@ POLICY_CLAIM_MARKERS = (
     "お問い合わせください",
     "ご利用ください",
 )
+
+
+# 「情報源に記載がない」型の主張を見分ける語。
+#
+# ⚠️ **2 つの語群が両方そろったときだけ該当とする。** 「記載」「確認」だけでは
+# 「申請書に記載してください」「本人確認ができない場合は…」のような**手続きの事実**まで
+# 落としてしまう。「情報源・抜粋・検索結果」など**情報源を指す語**と、「見当たらない・
+# 含まれていない・明示されていない」など**不在を述べる語**の組み合わせに限る。
+ABSENCE_CLAIM_SOURCE_WORDS = (
+    "情報源", "参照情報", "提供された", "抜粋", "スニペット", "検索結果", "出典", "ソース",
+    "ページ", "記述",
+)
+ABSENCE_CLAIM_MARKERS = (
+    "見当たらな", "見当たりませ", "含まれていな", "記載がな", "記載されていな", "明示されていな",
+    "示されていな", "書かれていな", "載っていな", "確認できな", "確認できませ",
+    "分かりません", "分からない", "判断できな", "断定できな",
+)
+
+
+def is_absence_claim(claim) -> bool:
+    """「情報源に○○は記載がない」型の主張か（＝母数から外すべきか）。
+
+    ## なぜ外すのか
+
+    回答が「参照情報には降水確率が見当たりませんでした」のように**答えられない部分を
+    正直に断る**と、その断り文が claim として抽出され、検証器は「情報源に確かに無い」
+    と確認できるので **supported** にする。断りが正しいほど支持済みの件数が増える。
+
+    実測 2026-09-29（「明日の東京の天気は？」）:
+
+        supported 7 / neutral 2（total 9）
+        うち天気の事実は 2 件で、残り 5 件は「〜は記載がない」型
+
+    支持率は割合なので全部 supported なら 1.00 のままだが、次の 2 つが水増しされる。
+
+    - **判定率**（M-6 の減衰 `decided / total`）: 本当に確かめたい事実が neutral でも、
+      断り文の supported が分子に積み上がり、減衰が働かない
+    - **事実に誤りが混ざったときの支持率**: 誤り 1 件 ＋ 事実 1 件 ＋ 断り 5 件なら、
+      支持率は 0.5 ではなく 0.86 に見える
+
+    ## 外す対象
+
+    verdict が supported / neutral のものだけ。**contradicted は外さない**。回答が
+    「情報源に無い」と言っているのに情報源に載っていた、という**本物の矛盾**だから。
+
+    ## 限界（正直に書いておく）
+
+    語による照合なので、言い回しによっては拾えない（取りこぼしは従来どおり数える）。
+    逆に、情報源を指す語と不在の語をともに含む**事実の文**は誤って外しうる。
+    そのため 2 語群の**両方**を要求している。
+    """
+    if getattr(claim, "verdict", None) not in ("supported", "neutral"):
+        return False
+    text = getattr(claim, "claim", "") or ""
+    return (
+        any(w in text for w in ABSENCE_CLAIM_SOURCE_WORDS)
+        and any(m in text for m in ABSENCE_CLAIM_MARKERS)
+    )
 
 
 def is_unsupportable_policy_claim(claim) -> bool:
@@ -921,6 +985,8 @@ class GroundednessVerifier:
 
 # 情報源
 {sources}
+
+reason は 1 文・80 字以内で簡潔に書いてください。
 """
 
     # 直近の検証結果を保持する件数。
@@ -1003,18 +1069,39 @@ class GroundednessVerifier:
             # 支持率の計算からも減衰の母数からも外す（詳細は
             # `is_unsupportable_policy_claim` の docstring）。
             policy_claims = [c for c in parsed.claims if is_unsupportable_policy_claim(c)]
-            scored = [c for c in parsed.claims if c not in policy_claims]
+            # 「情報源に記載がない」型の主張（答えられない部分を断る文）も母数から外す。
+            # 支持済みと数えると支持率・判定率が水増しされる（`is_absence_claim`）。
+            absence_claims = []
+            if getattr(
+                getattr(self.config, "confidence", None),
+                "groundedness_exclude_absence_claims",
+                True,
+            ) is True:
+                absence_claims = [
+                    c for c in parsed.claims
+                    if c not in policy_claims and is_absence_claim(c)
+                ]
+            scored = [
+                c for c in parsed.claims
+                if c not in policy_claims and c not in absence_claims
+            ]
             if policy_claims and scored:
                 logger.info(
                     "[groundedness] 方針文 %d 件を母数から除外（正しく断ったことを減点しない）: %s",
                     len(policy_claims),
                     " / ".join(self._abbreviate(c.claim, 40) for c in policy_claims),
                 )
-            elif policy_claims:
-                # 全部が方針文だった（＝範囲外の質問に断りだけを返した）。
-                # 除外すると検証対象が 0 になり「未検証」へ倒れてしまうため、
+            if absence_claims and scored:
+                logger.info(
+                    "[groundedness] 「記載なし」型 %d 件を母数から除外（断り文を支持済みと数えない）: %s",
+                    len(absence_claims),
+                    " / ".join(self._abbreviate(c.claim, 40) for c in absence_claims),
+                )
+            if (policy_claims or absence_claims) and not scored:
+                # 全部が方針文・断り文だった（＝範囲外の質問や、答えを持たない質問に断りだけを
+                # 返した）。除外すると検証対象が 0 になり「未検証」へ倒れてしまうため、
                 # 従来どおり全件で集計する（後段の ④' が実質回答かを見る）。
-                logger.info("[groundedness] 主張がすべて方針文のため除外しない（従来どおり集計）")
+                logger.info("[groundedness] 主張がすべて方針文・断り文のため除外しない（従来どおり集計）")
                 scored = list(parsed.claims)
 
             supported = sum(1 for c in scored if c.verdict == "supported")

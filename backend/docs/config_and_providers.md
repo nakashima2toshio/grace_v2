@@ -1,6 +1,6 @@
 # 設定・モデル・プロバイダの解決経路 ドキュメント
 
-**Version 1.7** | 最終更新: 2026-09-29
+**Version 1.8** | 最終更新: 2026-09-29
 
 ---
 
@@ -329,6 +329,7 @@ class Yml,Env,Loader,Validated,Users,Dotenv,Runtime default
 
 | Version | 日付 | 変更内容 |
 |---|---|---|
+| 1.8 | 2026-09-29 | `httpx` / `httpcore` の INFO ログを WARNING に絞る（`config.quiet_noisy_loggers()`。`config` の import 時に効く）。1 回の Qdrant 検索でコンソールが `HTTP Request: GET …` の数十行で埋まっていた。環境変数 `GRACE_HTTP_LOG_LEVEL`（例 `INFO`）で戻せる。起動コマンドの案内を `docker compose`（プラグイン版）へ更新 |
 | 1.7 | 2026-09-29 | Sonnet 5.5 のプロンプトガイドの要点（`between_tools`・JSON 推論タスクの扱い）を §3.1 に追記 |
 | 1.6 | 2026-09-29 | 既定を `claude-sonnet-5-5` へ変更したのに追随。`claude-sonnet-5-5` は思考を無効化できない（`{"type": "disabled"}` が 400）ので `ALWAYS_THINKING_MODELS` に載せる旨を追記（実機の 400 で判明。Sonnet 5 と同じ扱いにした当初の仮定が誤りだった） |
 | 1.5 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |

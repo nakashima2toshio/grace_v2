@@ -221,7 +221,7 @@ export function CollectionPanel() {
       {health && !health.available && (
         <div className="warn-banner" role="alert">
           ⚠️ Qdrant に接続できません（{health.message}）。<br />
-          <code>docker-compose -f docker-compose/docker-compose.yml up -d</code> で起動してください。
+          <code>docker compose -f docker-compose/docker-compose.yml up -d</code> で起動してください。
         </div>
       )}
       {loadError && (

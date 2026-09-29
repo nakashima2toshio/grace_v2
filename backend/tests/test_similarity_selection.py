@@ -12,6 +12,9 @@
 - 0 件・1 件のときだけ緩和し、出典数が増える
 - 緩和しても増えないなら一次の結果を返す（無意味な緩和をしない）
 - score 降順・limit 件の契約を守る
+- 緩和で足すのは**首位スコアから `RELAXED_SCORE_MARGIN` 以内**の候補だけ（首位が強いときは
+  低関連の候補を混ぜない。実測 2026-09-29 の「住民票」で、首位 0.80 に 0.62〜0.68 の無関係な
+  4 件が混ざっていた）
 
 `agent_tools` はモジュール import 時に Qdrant へ接続しない（遅延）ため、
 Qdrant 未起動の CI でも import 可能。
@@ -22,6 +25,7 @@ from agent_tools import (
     COSINE_SIMILARITY_THRESHOLD,
     COSINE_SIMILARITY_THRESHOLD_RELAXED,
     MIN_RESULTS_BEFORE_RELAX,
+    RELAXED_SCORE_MARGIN,
     select_by_similarity,
 )
 
@@ -67,27 +71,64 @@ def test_threshold_boundary_is_inclusive():
 # ---------------------------------------------------------------------------
 
 def test_relaxes_when_primary_returns_single_hit():
-    """実測ケース: 一次で 1 件だけ → 緩和して出典を増やす。"""
-    results, used = select_by_similarity(_cands(0.80, 0.65, 0.55, 0.30), limit=3)
+    """一次で 1 件（首位が閾値すれすれ）→ 首位に近い候補だけ足して出典を増やす。"""
+    results, used = select_by_similarity(_cands(0.72, 0.65, 0.55, 0.30), limit=3)
+
+    # 下限 = max(0.5, 0.72 - マージン) = 0.62 → 0.65 は足すが 0.55 は足さない
+    assert used < COSINE_SIMILARITY_THRESHOLD
+    assert used >= COSINE_SIMILARITY_THRESHOLD_RELAXED
+    assert [r["score"] for r in results] == [0.72, 0.65]
+
+
+def test_strong_top_hit_stands_alone_and_noise_is_not_added():
+    """実測ケース: 首位 0.8011 に、0.62〜0.68 の無関係な 4 件（住民票 × 転入届ほか）。
+
+    首位が強いので単独で足りる。緩和しても件数が増えないため一次の結果を返す。
+    """
+    results, used = select_by_similarity(
+        _cands(0.8011, 0.6773, 0.6696, 0.6435, 0.6180), limit=5
+    )
+
+    assert [r["score"] for r in results] == [0.8011]
+    assert used == COSINE_SIMILARITY_THRESHOLD
+
+
+def test_relaxes_when_primary_returns_nothing():
+    """一次で 0 件 → 首位付近を救う（首位から離れた 0.52 は足さない）。"""
+    results, used = select_by_similarity(_cands(0.68, 0.52), limit=3)
+
+    assert [r["score"] for r in results] == [0.68]
+    assert COSINE_SIMILARITY_THRESHOLD_RELAXED <= used < COSINE_SIMILARITY_THRESHOLD
+
+
+def test_relaxed_floor_never_drops_below_the_relaxed_threshold():
+    """首位が低くても、下限は緩和閾値（0.5）を割らない。"""
+    results, used = select_by_similarity(_cands(0.55, 0.49, 0.30), limit=3)
+
+    assert [r["score"] for r in results] == [0.55]
+    assert used == COSINE_SIMILARITY_THRESHOLD_RELAXED
+
+
+def test_relaxed_results_are_sorted_desc_and_capped_by_limit():
+    """緩和時も score 降順・limit 件の契約を守る。"""
+    results, used = select_by_similarity(_cands(0.64, 0.72, 0.66, 0.68), limit=2)
+
+    assert used < COSINE_SIMILARITY_THRESHOLD
+    assert [r["score"] for r in results] == [0.72, 0.68]
+
+
+def test_margin_none_keeps_the_legacy_behavior():
+    """score_margin=None なら従来どおり緩和閾値だけを下限にする（後方互換）。"""
+    results, used = select_by_similarity(
+        _cands(0.80, 0.65, 0.55, 0.30), limit=3, score_margin=None
+    )
 
     assert used == COSINE_SIMILARITY_THRESHOLD_RELAXED
     assert [r["score"] for r in results] == [0.80, 0.65, 0.55]
 
 
-def test_relaxes_when_primary_returns_nothing():
-    """一次で 0 件 → 緩和して救う。"""
-    results, used = select_by_similarity(_cands(0.68, 0.52), limit=3)
-
-    assert used == COSINE_SIMILARITY_THRESHOLD_RELAXED
-    assert [r["score"] for r in results] == [0.68, 0.52]
-
-
-def test_relaxed_results_are_sorted_desc_and_capped_by_limit():
-    """緩和時も score 降順・limit 件の契約を守る。"""
-    results, used = select_by_similarity(_cands(0.55, 0.75, 0.51, 0.60), limit=2)
-
-    assert used == COSINE_SIMILARITY_THRESHOLD_RELAXED
-    assert [r["score"] for r in results] == [0.75, 0.60]
+def test_margin_constant_is_sane():
+    assert 0.0 < RELAXED_SCORE_MARGIN < COSINE_SIMILARITY_THRESHOLD - COSINE_SIMILARITY_THRESHOLD_RELAXED
 
 
 # ---------------------------------------------------------------------------

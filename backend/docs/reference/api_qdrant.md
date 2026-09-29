@@ -209,7 +209,7 @@ def _get_client()
 
 > ⚠️ **`get_qdrant_client()` はシングルトンを返すが、生成時点では接続確認をしない。**
 > 実際にリクエストを送るまで失敗が分からないため、呼び出し側で例外を捕まえて 503 に変換している。
-> 503 の本文には起動コマンド（`docker-compose -f docker-compose/docker-compose.yml up -d`）を載せる。
+> 503 の本文には起動コマンド（`docker compose -f docker-compose/docker-compose.yml up -d`）を載せる。
 
 ### 3.3 `qdrant_health`
 
