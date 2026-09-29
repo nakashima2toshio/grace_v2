@@ -6,6 +6,7 @@ GRACE Confidence - 信頼度計算システム
 """
 
 import logging
+import threading
 from collections import OrderedDict
 from dataclasses import dataclass, field
 from enum import Enum
@@ -994,6 +995,9 @@ reason は 1 文・80 字以内で簡潔に書いてください。
     # 1 リクエストで verify() が呼ばれるのは executor（信頼度ブレンド）・
     # ③ 根拠評価・⑤ Web 回答検証の 3 箇所。うち前 2 つは **同じ回答・同じ
     # ソース**を検証しており、⑤ だけ入力が異なる。少数で足りる。
+    # Review が指摘ごとの verify() を並列に呼ぶので、メモの更新は排他する。
+    # クラス属性なのは、__init__ を通さず生成されるスタブ／サブクラスでも効かせるため。
+    _cache_lock = threading.Lock()
     _CACHE_SIZE = 4
 
     def __init__(self, config: Optional[GraceConfig] = None,
@@ -1034,7 +1038,8 @@ reason は 1 文・80 字以内で簡潔に書いてください。
             return GroundednessResult(0.0, 0, 0, 0, False, False, "no sources")
 
         cache_key = (query, answer, tuple(sources))
-        cached = self._cache.get(cache_key)
+        with self._cache_lock:
+            cached = self._cache.get(cache_key)
         if cached is not None:
             logger.info(
                 "Groundedness cache hit: 同一の回答・ソースなので再検証しません "
@@ -1144,9 +1149,10 @@ reason は 1 文・80 字以内で簡潔に書いてください。
         """
         if getattr(result, "verification_failed", False):
             return
-        self._cache[key] = result
-        while len(self._cache) > self._CACHE_SIZE:
-            self._cache.popitem(last=False)
+        with self._cache_lock:
+            self._cache[key] = result
+            while len(self._cache) > self._CACHE_SIZE:
+                self._cache.popitem(last=False)
 
     @staticmethod
     def _abbreviate(text: str, limit: int = 120) -> str:
