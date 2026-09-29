@@ -226,7 +226,7 @@ style WIRING fill:#1a1a1a,stroke:#fff,color:#fff
 > （本書は `main.py` のモジュールドキュメントであり、手順書ではない）。
 
 ```bash
-docker-compose -f docker-compose/docker-compose.yml up -d   # Qdrant
+docker compose -f docker-compose/docker-compose.yml up -d   # Qdrant
 ./run_dev.sh                                                # backend:8000 + frontend:5173
 ```
 

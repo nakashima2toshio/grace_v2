@@ -148,6 +148,10 @@ class ConfidenceConfig(BaseModel):
     # strength=0.0 で従来どおり（減衰なし）。
     groundedness_coverage_strength: float = 0.3
     groundedness_coverage_target: float = 0.8
+    # 「〜は情報源に記載がない」型の主張（回答が**答えられていない部分を正直に断る文**）を
+    # 支持率・判定率の母数から外す。外さないと、断り文が supported と判定されて
+    # 支持率と判定率が水増しされる（`confidence.is_absence_claim` の docstring）。
+    groundedness_exclude_absence_claims: bool = True
     # 曖昧クエリ等の明確化（ask_user）計画＝最終回答なしのときに用いる低信頼値。
     # 0.4 未満で ESCALATE、0.4〜0.7 で CONFIRM 介入になる（既定は ESCALATE 寄り）。
     clarification_confidence: float = 0.3
@@ -327,6 +331,12 @@ class ExecutorConfig(BaseModel):
     })
     # 依存関係のない検索ステップを並列実行する
     parallel_search: bool = True
+    # 回答生成（reasoning）の直後に、最終評価（自己評価・網羅度）と Groundedness 検証を
+    # **バックグラウンドで先行実行**し、ステップ確信度の評価（LLM）と重ねる。
+    # 3 つとも回答本文と出典だけに依存し、互いに独立なので、順番に待つ必要が無い
+    # （実測 2026-09-29: 約 10 秒 → 最長の 1 つ分）。
+    # false で従来どおり順番に実行する（問題の切り分け用）。
+    prefetch_final_evaluation: bool = True
     max_parallel_steps: int = 4
     # S3: ハイブリッド ReAct（観測駆動ループ）
     react_enabled: bool = True              # 複雑質問を ReAct ループで実行する

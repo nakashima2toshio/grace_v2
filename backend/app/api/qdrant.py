@@ -53,7 +53,7 @@ def _get_client():
             status_code=503,
             detail=(
                 "Qdrant へ接続できません。"
-                "docker-compose -f docker-compose/docker-compose.yml up -d で起動してください。"
+                "docker compose -f docker-compose/docker-compose.yml up -d で起動してください。"
             ),
         )
 

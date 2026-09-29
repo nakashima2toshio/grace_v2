@@ -1,6 +1,6 @@
 # config.py - GRACE 設定管理 ドキュメント
 
-**Version 1.6** | 最終更新: 2026-09-26
+**Version 1.7** | 最終更新: 2026-09-29
 
 > 📌 **`config.GeminiConfig` の LLM モデル一覧は後方互換である。**
 > `config.py:411` のコメントにあるとおり、`GeminiConfig` は
@@ -930,6 +930,7 @@ __all__ = [
 
 | バージョン | 日付 | 変更内容 |
 |-----------|------|---------|
+| 1.7 | 2026-09-29 | 設定を 2 つ追加。`executor.prefetch_final_evaluation`（既定 true。回答生成の直後に最終評価と Groundedness 検証を先行実行する）、`confidence.groundedness_exclude_absence_claims`（既定 true。「記載がない」型の主張を Groundedness の母数から外す） |
 | 1.0 | 2026-06-16 | 初版作成（`config.py` の実装に基づく全設定モデル・ローダー・シングルトン関数を文書化） |
 | 1.2 | 2026-09-04 | **`CodeExecuteConfig` と `MemoryConfig` が未記載**だった（AST 照合）ので追加。`GraceConfig` のフィールド表にも 2 行が欠けており、実装は 15 フィールドなのに文書は 13 しか載せていなかった。§3.1 に「ネストされたドメイン設定モデル」の一覧を新設し、§4.1 の直後に両モデルのフィールド表を追加した |
 | 1.1 | 2026-08-01 | 実装（07-26〜27）へ追随。`LLMConfig` に `heavy_model` / `heavy_thinking_budget_tokens`（M-1 論理層）、`ConfidenceConfig` に `groundedness_coverage_strength` / `groundedness_coverage_target`（支持率の網羅度減衰）、`WebSearchConfig` に `preferred_domains` / `preferred_domain_boost`（W-1・**加点であって絞り込みではない**）、`ExecutorConfig` に `relevance_check_model`（M-3 軽量モデル）を追加。§3.2 と §4.5 に `resolve_heavy_model` / `heavy_thinking_budget` を追記し、`heavy_model` 未設定時に思考予算が 0 になる意図的な仕様を明記 |

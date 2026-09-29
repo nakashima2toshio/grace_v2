@@ -1,6 +1,6 @@
 # tools.py - ツール定義モジュール ドキュメント
 
-**Version 3.5** | 最終更新: 2026-09-26
+**Version 3.6** | 最終更新: 2026-09-29
 
 ---
 
@@ -1630,6 +1630,7 @@ __all__ = [
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 3.6 | Qdrant 到達不能なら RAG 検索を**即失敗**にした（2026-09-29）。`RAGSearchTool._get_all_collections_dynamic` は接続エラーのとき `None` を返し、`execute` は Embedding・Sparse モデル読み込み・全コレクション検索をせず失敗の `ToolResult`（起動コマンドの案内つき）を返す。従来は既定の候補へ倒れ、約 4 秒の無駄（Gemini 埋め込み・500MB 超の Sparse モデル読み込み・接続エラー ×N）を払っていた。接続エラー以外は従来どおり既定の候補へ倒れる。あわせて緩和閾値の下限を首位スコアからの相対マージンにした（`agent_tools.select_by_similarity`、`docs/performance_levers.md` P-04） |
 | 1.0 | 初版作成 |
 | 2.0 | WebSearchTool 追加、動的コレクションフォールバック・動的閾値の反映 |
 | 2.1 | 実ソース（v2）に整合（2026-06-16）。LLM を Anthropic Claude（`llm_compat` 経由）として正確化、`ReasoningTool`/`RAGSearchTool` の挙動・パラメータ・`confidence_factors` を実装に一致、Mermaid 図を黒背景・白文字スタイルに統一、設定・定数を `GraceConfig` 実値で更新 |

@@ -18,6 +18,37 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 # ===================================================================
+# ログ設定
+# ===================================================================
+
+def quiet_noisy_loggers() -> None:
+    """外部ライブラリの INFO ログ（`httpx` / `httpcore`）を WARNING 以上に絞る。
+
+    `httpx` は 1 回の HTTP リクエストごとに INFO を 1 行出す。Qdrant の検索は
+    コレクション数ぶん（GET /collections/<name>・POST .../points/count …）叩くので、
+    1 回の質問でコンソールが数十行の `HTTP Request: GET http://localhost:6333/...` で
+    埋まり、本当に見たい GRACE 側のログ（プラン・信頼度・エラー）が流れてしまう
+    （実測 2026-09-29）。エラーは WARNING 以上で残る。
+
+    環境変数 `GRACE_HTTP_LOG_LEVEL`（例: `INFO` / `DEBUG`）で戻せる。調査で HTTP を
+    追いたいときに使う。不正な値は WARNING にする。
+    """
+    import logging
+
+    name = os.getenv("GRACE_HTTP_LOG_LEVEL", "WARNING").strip().upper()
+    level = logging.getLevelName(name)
+    if not isinstance(level, int):
+        level = logging.WARNING
+    for logger_name in ("httpx", "httpcore"):
+        logging.getLogger(logger_name).setLevel(level)
+
+
+# `config` はほぼ全モジュールが最初に import するので、Qdrant クライアントの生成
+# （起動時のヘルスチェック）より前にここで効く。
+quiet_noisy_loggers()
+
+
+# ===================================================================
 # モデル設定
 # ===================================================================
 

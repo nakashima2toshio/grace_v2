@@ -6,7 +6,9 @@ GRACE Executor - 計画実行エージェント
 
 import ast
 import logging
+import threading
 import time
+from concurrent.futures import Future
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, Generator, List, Literal, Optional, cast
 
@@ -228,6 +230,9 @@ class Executor:
 
         # 並列プリフェッチ結果のキャッシュ（step_id -> ToolResult or Exception）
         self._prefetched_tool_results: Dict[int, Any] = {}
+        # 最終評価・Groundedness 検証の先行実行（`_prefetch_final_evaluation`）。
+        # キーは (種別, 質問, 回答, 出典) で、消費側が同じ入力のときだけ結果を使う。
+        self._final_prefetch: Dict[tuple, Future] = {}
 
         replan_status = "enabled" if self.replan_orchestrator else "disabled"
         logger.info(
@@ -277,6 +282,7 @@ class Executor:
             state.start_time = time.time()
             # 新規実行開始時はプリフェッチキャッシュをクリア
             self._prefetched_tool_results.clear()
+            self._final_prefetch.clear()
 
         try:
             # 各ステップを順次実行
@@ -481,6 +487,87 @@ class Executor:
                 total_token_usage=None,
                 total_cost_usd=None,
             )
+
+    # ------------------------------------------------------------------
+    # 最終評価・Groundedness 検証の先行実行
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _spawn(fn: Callable[..., Any], *args: Any) -> Future:
+        """`fn(*args)` をバックグラウンドのスレッドで実行し、Future を返す。
+
+        daemon スレッドなので、未消費のまま終了してもプロセスの終了を止めない。
+        例外は Future に載せ、消費側（`result()`）で従来どおり送出する。
+        """
+        fut: Future = Future()
+
+        def _run() -> None:
+            try:
+                fut.set_result(fn(*args))
+            except BaseException as exc:  # noqa: BLE001 - 消費側へそのまま渡す
+                fut.set_exception(exc)
+
+        threading.Thread(target=_run, name="grace-prefetch", daemon=True).start()
+        return fut
+
+    def _prefetch_enabled(self) -> bool:
+        return getattr(getattr(self.config, "executor", None), "prefetch_final_evaluation", True) is True
+
+    def _prefetch_final_evaluation(self, state: ExecutionState, answer: Optional[str]) -> None:
+        """回答本文が出た時点で、最終評価と Groundedness 検証を先に走らせる。
+
+        ## なぜ先行するのか
+
+        reasoning の後に、次の 3 つの LLM 呼び出しが**順番に**並んでいた
+        （実測 2026-09-29「住民票の写しの取り方は？」 全体 17 秒のうち約 10 秒）。
+
+            ステップ確信度の評価（haiku）  約 3 秒
+            最終評価（自己評価・網羅度）    約 3 秒
+            Groundedness 検証               約 4 秒
+
+        3 つとも回答本文と出典だけに依存し、互いの結果を使わない。最終評価と
+        Groundedness 検証を、ステップ確信度の評価が走っている間に始めておけば、
+        待ち時間は最長の 1 つ分になる。
+
+        ## 結果は変わらない
+
+        消費側（`_calculate_overall_confidence` / `_blend_groundedness_confidence`）は
+        **質問・回答・出典が完全に一致したときだけ**先行結果を使い、一致しなければ
+        従来どおり自分で呼ぶ。先行実行が失敗しても実行は止まらない（無駄になるだけ）。
+        """
+        if not answer or not answer.strip() or not self._prefetch_enabled():
+            return
+        try:
+            query = state.plan.original_query
+            sources = state.get_completed_source_texts() or state.get_completed_sources()
+            key_tail = (query, answer, tuple(sources))
+            self._final_prefetch[("eval",) + key_tail] = self._spawn(
+                self.llm_evaluator.evaluate_final, query, answer, list(sources)
+            )
+            if getattr(getattr(self.config, "confidence", None), "groundedness_enabled", True):
+                self._final_prefetch[("verify",) + key_tail] = self._spawn(
+                    self.groundedness_verifier.verify, query, answer, list(sources)
+                )
+        except Exception as e:  # 先行実行の失敗で本処理を止めない
+            logger.debug(f"最終評価の先行実行を開始できませんでした（従来どおり順番に実行します）: {e}")
+
+    def _evaluate_final_answer(self, query: str, answer: str, sources: List[str]):
+        """最終評価を返す。先行実行済みで入力が一致すれば、その結果を待って使う。"""
+        fut = self._final_prefetch.pop(("eval", query, answer, tuple(sources)), None)
+        if fut is not None:
+            return fut.result()  # 例外は直接呼んだときと同じく呼び出し側で扱う
+        return self.llm_evaluator.evaluate_final(query=query, answer=answer, sources=sources)
+
+    def _await_prefetched_verify(self, query: str, answer: str, sources: List[str]) -> None:
+        """先行実行中の Groundedness 検証があれば完了を待つ（結果は検証器のキャッシュに載る）。
+
+        待たずに `verify()` を呼ぶと、先行実行の完了前は**同じ検証をもう一度**走らせてしまう。
+        """
+        fut = self._final_prefetch.pop(("verify", query, answer, tuple(sources)), None)
+        if fut is not None:
+            try:
+                fut.result()
+            except Exception:  # 失敗しても、続く verify() が従来どおり自分で処理する
+                pass
 
     def _result_on_pause(self, state: ExecutionState) -> ExecutionResult:
         """介入で一時停止するときの結果を返す。最終回答があれば全体信頼度も計算する。
@@ -1046,6 +1133,11 @@ class Executor:
 
             # 実行時間
             execution_time = int((time.time() - start_time) * 1000)
+
+            # 最終評価・Groundedness 検証を先行実行する（ステップ確信度の評価と重ねる）。
+            # ⚠️ 確信度の評価（下の行）より**前**に始めること。後だと重ならない。
+            if step.action == "reasoning" and tool_result.success:
+                self._prefetch_final_evaluation(state, self._format_output(tool_result.output))
 
             # ----------------------
             # 信頼度を計算（state引数を渡す）
@@ -1989,10 +2081,8 @@ class Executor:
             # 自己評価＋クエリ網羅度を1回のLLM呼び出しで統合評価
             # （旧実装: evaluate() + QueryCoverageCalculator.calculate() の2回）
             try:
-                final_eval = self.llm_evaluator.evaluate_final(
-                    query=state.plan.original_query,
-                    answer=final_answer,
-                    sources=verify_sources
+                final_eval = self._evaluate_final_answer(
+                    state.plan.original_query, final_answer, verify_sources
                 )
 
                 self_eval_score = final_eval.self_eval_score
@@ -2079,6 +2169,8 @@ class Executor:
         if not getattr(cc, "groundedness_enabled", True) or not final_answer:
             return aggregated
 
+        # 先行実行中の検証があれば待つ（待たないと同じ検証を 2 回走らせる）
+        self._await_prefetched_verify(query, final_answer, sources)
         gres = self.groundedness_verifier.verify(query, final_answer, sources)
 
         # 補助項（検索ベース集約）の重み

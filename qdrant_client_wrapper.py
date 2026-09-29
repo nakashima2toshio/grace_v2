@@ -140,7 +140,7 @@ def is_qdrant_unreachable(exc: BaseException) -> bool:
     return False
 
 
-QDRANT_START_HINT = "docker-compose -f docker-compose/docker-compose.yml up -d"
+QDRANT_START_HINT = "docker compose -f docker-compose/docker-compose.yml up -d"
 
 
 def stable_point_id(key: str) -> int:

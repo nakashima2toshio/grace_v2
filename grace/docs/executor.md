@@ -1,6 +1,6 @@
 # executor.py - GRACE計画実行エージェント ドキュメント
 
-**Version 4.9** | 最終更新: 2026-09-29
+**Version 4.10** | 最終更新: 2026-09-29
 
 ---
 
@@ -315,6 +315,10 @@ style FACTORY_GRP fill:#1a1a1a,stroke:#fff,color:#fff
 | `_handle_intervention_confirm(request)` | CONFIRMレベルの介入処理 |
 | `_handle_intervention_escalate(request)` | ESCALATEレベルの介入処理 |
 | `_should_pause_for_intervention(level)` | 介入で一時停止すべきか。**ESCALATE は常に停止／CONFIRM は対話モードかつ非ブロッキング時のみ** |
+| `_prefetch_final_evaluation(state, answer)` | **回答生成（reasoning）の直後**に、最終評価（自己評価・網羅度）と Groundedness 検証をバックグラウンドで先に走らせる。ステップ確信度の評価（LLM）と重なり、待ち時間が最長の 1 つ分になる。`executor.prefetch_final_evaluation`（既定 true）で無効化できる |
+| `_evaluate_final_answer(query, answer, sources)` | 最終評価を返す。先行実行済みで**質問・回答・出典が完全一致**なら、その結果を待って使う。一致しなければ自分で呼ぶ |
+| `_await_prefetched_verify(query, answer, sources)` | 先行実行中の Groundedness 検証があれば完了を待つ（結果は検証器のキャッシュに載る）。待たずに `verify()` を呼ぶと同じ検証を 2 回走らせる |
+| `_spawn(fn, *args)` | `fn` を daemon スレッドで実行し `Future` を返す（例外は `result()` で従来どおり送出） |
 | `_result_on_pause(state)` | 一時停止時の結果を返す。**最終回答があれば全体信頼度も計算してから返す**（以前は 0.0 のまま返り、回答済みでも画面の全体信頼度が 0.00 になっていた）。回答が無いときは 0.0（回答未生成） |
 | `_handle_intervention_if_needed(action_decision, step, state)` | 介入が必要か判定して処理 |
 
@@ -2056,6 +2060,7 @@ __all__ = [
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 4.10 | 最終評価と Groundedness 検証の先行実行を追加（2026-09-29）。回答生成の直後に両方を先に走らせ、ステップ確信度の評価（haiku）と重ねる。3 つとも回答本文と出典だけに依存し互いに独立なのに順番に待っており、実測（住民票）で全体 17 秒のうち約 10 秒を占めていた。消費側は入力が完全一致したときだけ先行結果を使う。`executor.prefetch_final_evaluation` で無効化可 |
 | 4.9 | 一時停止（介入）時の結果を返す `_result_on_pause` を追加（2026-09-29）。一時停止の分岐が全体信頼度の計算より前に `return` していたため、回答が生成済み・支持率 1.00 でも全体信頼度が 0.00 で返っていた不具合の修正。ReAct 経路の一時停止も同じ関数を使う |
 | 4.8 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
 | 4.7 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |

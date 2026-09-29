@@ -966,7 +966,7 @@ class A0,A1,A2,A3,A4 default
 
 ```bash
 # 1) Qdrant を起動（RAG 検索のため）
-docker-compose -f docker-compose/docker-compose.yml up -d
+docker compose -f docker-compose/docker-compose.yml up -d
 
 # 2) .env に API キーを設定
 #   ANTHROPIC_API_KEY=...   ← LLM（計画・推論・信頼度評価）

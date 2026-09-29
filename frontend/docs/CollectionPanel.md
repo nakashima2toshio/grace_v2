@@ -270,7 +270,7 @@ class C,B,P,J,I,IV,M,D,X,R,W default
 | 状態 | 表示 |
 |---|---|
 | `available: true` | `Qdrant: 稼働中（http://localhost:6333）` |
-| `available: false` | ⚠️ バナー ＋ `docker-compose ... up -d` の案内 |
+| `available: false` | ⚠️ バナー ＋ `docker compose ... up -d` の案内 |
 
 一覧の取得（`fetchCollections`）は失敗しうるので `.catch(() => [])` で
 空配列に倒し、**ヘルス情報の表示を優先**する（一覧が取れないことより

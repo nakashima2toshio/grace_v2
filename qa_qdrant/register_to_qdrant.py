@@ -256,7 +256,7 @@ def register_to_qdrant(
     except Exception as e:
         logger.error(f"❌ Qdrant接続エラー: {e}")
         logger.error("   Dockerコンテナが起動しているか確認してください:")
-        logger.error("   docker-compose up -d")
+        logger.error("   docker compose up -d")
         return False
 
     # ================================================================

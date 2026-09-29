@@ -1270,7 +1270,7 @@ sequenceDiagram
 | 前提 | 内容 |
 |---|---|
 | `.env`（リポジトリルート） | `ANTHROPIC_API_KEY`（LLM）／`GOOGLE_API_KEY`（Embedding） |
-| Qdrant | `docker-compose -f docker-compose/docker-compose.yml up -d` |
+| Qdrant | `docker compose -f docker-compose/docker-compose.yml up -d` |
 | ツール | `uv` / Node.js（npm） |
 
 `run_dev.sh` は起動時に Qdrant へ疎通チェックを行い、**繋がらなくても警告を出して続行**する。
@@ -1323,7 +1323,7 @@ Support の `use_web` / `do_action` は **画面のトグル**である（固定
 
 ```bash
 # 1) Qdrant（別ターミナル・初回/停止後のみ）
-docker-compose -f docker-compose/docker-compose.yml up -d
+docker compose -f docker-compose/docker-compose.yml up -d
 
 # 2) アプリ起動（backend + frontend）
 ./run_dev.sh
@@ -1459,7 +1459,7 @@ docker-compose -f docker-compose/docker-compose.yml up -d
 | **業界プロファイル / ルールセットが選べない**（セレクタが空・`（なし）` のみ） | backend（:8000）が起動していない | 画面上部の**メタ取得エラーバナー**に理由と手順が出る。`./run_dev.sh` で起動し直し、**「再取得」ボタン**を押せばリロード不要で復帰する |
 | 画面は出るが実行するとエラーバナー | `ANTHROPIC_API_KEY` 未設定 | `.env` に設定して backend を再起動。`GET /api/health` で確認できる |
 | 「進捗ストリームが切断されました」 | backend が落ちた／再起動中 | ターミナルの uvicorn ログを確認 |
-| 検索結果が空・情報なし回答が続く | Qdrant 未起動 or データ未登録 | `docker-compose ... up -d` ＋ データ準備（下記） |
+| 検索結果が空・情報なし回答が続く | Qdrant 未起動 or データ未登録 | `docker compose ... up -d` ＋ データ準備（下記） |
 | Review で 422 が返る | 文書が 50,000 字超 | 分割して実行（フロントの文字数カウンタが赤くなる） |
 | `:8000` を開いても 404 | 仕様 | UI は **:5173**。:8000 は API 専用（`/docs` は開ける） |
 
