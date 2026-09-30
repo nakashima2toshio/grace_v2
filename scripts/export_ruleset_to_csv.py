@@ -11,7 +11,7 @@
     doc/tokusho-01: 文書全体で判定 / 規程 0 件
     doc/tokusho-02: 文書全体で判定 / 規程 0 件      ← 7 ルール中 6 つが 0 件
 
-結果、指摘の「根拠」はすべて `RuleItem.description`（条文フォールバック）になり、
+結果、指摘の「根拠」はすべて条文フォールバック（`RuleItem.citation()`）になり、
 **「条文つきの指摘を出します」という機能の核が成立していない**。
 
 本スクリプトは `RuleSet` が既に持っている条文情報をそのまま CSV へ落とし、
@@ -134,7 +134,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     print(f"      --collection {args.ruleset}_rules_anthropic \\")
     print("      --recreate")
     print()
-    print("⚠️ answer は RuleItem.description（このリポジトリ自身の要約）です。")
+    print("⚠️ answer は RuleItem.public_description()（description の第 1 段落。")
+    print("   このリポジトリ自身の要約で、LLM 向けの指示文は含まない）です。")
     print("   実際の条文・ガイドライン本文へ置き換えるまで、根拠の中身は")
     print("   条文フォールバックと同じままです（法務監修が必要）。")
     return 0
