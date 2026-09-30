@@ -1,6 +1,6 @@
 # GRACE-Review 処理フローと設計 ドキュメント
 
-**Version 2.6** | 最終更新: 2026-09-30
+**Version 2.7** | 最終更新: 2026-09-30
 
 > **本書の位置づけ**: GRACE-Review（文書 → 指摘）の**処理フロー（HOW）と設計判断（WHY）を
 > 1 本にまとめた正本**。v2.0 で `review_spec.md`（1,080 行）を統合した。
@@ -1049,6 +1049,7 @@ _emit(SupportEvent(
 
 | Version | 変更内容 |
 |---|---|
+| 2.7 | ⑥ Web 裏取りをルールごとに並列化し、全体の待ちを `GRACE_REVIEW_WEB_TIMEOUT`（既定 10 秒）で打ち切る（実測: 2 回目の検索が 23 秒で全体 44 秒の半分を占めた）。`web_checked` は検索が結果を返したルールの指摘にだけ付ける（以前は失敗・タイムアウトでも付いた）。遅延生成クライアント（Qdrant / Embedding / Sparse）の重複作成を `qdrant_client_wrapper` のロックで防止 |
 | 2.6 | ② Retrieve も判定単位ごとに並列化（ログは入力順のまま主スレッドが流す）。指摘の確信度に Support と同じ判定率の減衰（`grace.confidence.damp_support_rate`）を掛け、neutral が混ざる指摘が 1.00 にならないようにした（neutral が無ければ不変）。`RuleItem.retrieval_query()` と規程 CSV の書き出し（`scripts/export_ruleset_to_csv.py`）は `description` 全文ではなく要旨（`public_description()`）を使う |
 | 2.5 | ③ Detect + ④ Ground を判定単位ごとにスレッドプールで並列化（既定 4・環境変数 `GRACE_REVIEW_WORKERS`、1 で直列。結果の並び・ID は入力順で不変。② Retrieve は従来どおり直列）。規程未登録時の根拠フォールバックと条文引用を `RuleItem.public_description()`（`description` の第 1 段落）に限定し、LLM 向け指示文が画面へ漏れるのを止めた（③ Detect の判定基準は全文のまま）。`GroundednessVerifier` のメモ更新を排他化 |
 | 2.4 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
