@@ -237,3 +237,40 @@ class TestRegistrationGuidance:
         printed = self._run(exporter, tmp_path, capsys)
         assert "public_description" in printed
         assert "answer は RuleItem.description（" not in printed
+
+
+# =============================================================================
+# ⑦ 条文置換用の雛形（qa_output/ec_ad_rules_statutes_template.csv）
+# =============================================================================
+
+class TestStatuteTemplate:
+    """人が `answer` へ条文を書き足すための雛形。ルールセットと食い違わないこと。
+
+    ⚠️ `question` はルールのタイトルを含めないと検索が当たらない（付録 A の 3-2）。
+    ルールを足す／改名したのに雛形を作り直し忘れると、条文を書き足した行が
+    どのルールにも対応しなくなる。
+    """
+
+    PATH = "qa_output/ec_ad_rules_statutes_template.csv"
+
+    def _rows(self):
+        import csv
+        from pathlib import Path
+
+        path = Path(__file__).resolve().parents[2] / self.PATH
+        with path.open(encoding="utf-8", newline="") as f:
+            return list(csv.DictReader(f))
+
+    def test_one_row_per_rule_with_the_same_question(self, exporter):
+        rows = self._rows()
+        expected = {r.rule_id: f"{r.law} {r.article}（{r.title}）" for r in EC_AD.rules}
+        assert {r["rule_id"]: r["question"] for r in rows} == expected
+
+    def test_answer_starts_from_the_public_summary(self):
+        rows = {r["rule_id"]: r for r in self._rows()}
+        for rule in EC_AD.rules:
+            assert rows[rule.rule_id]["answer"] == rule.public_description()
+
+    def test_registration_columns_come_first(self):
+        header = list(self._rows()[0])
+        assert header[:3] == ["rule_id", "question", "answer"]

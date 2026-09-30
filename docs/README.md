@@ -1,6 +1,6 @@
 # docs 棚卸し（リポジトリ直下 `docs/`）
 
-**Version 1.9** | 最終更新: 2026-09-30
+**Version 2.0** | 最終更新: 2026-09-30
 
 リポジトリ直下 `docs/` の一覧と、**どのディレクトリに何を置くかの境界**をまとめる。
 各領域の棚卸しは [`backend/docs/README.md`](../backend/docs/README.md) /
@@ -116,7 +116,7 @@ CLAUDE.md §9.1 の表を、判断に使える形へ具体化したもの。
 | 文書 | 種別 | 内容 | 行数 | Ver |
 |---|:--:|---|---:|---|
 | `doc_modernization_todo.md` | C | ドキュメント最新化 TODO。**①〜⑧ と §10 の残タスクはすべて完了**（スクリーンショット全 31 枚を撮影済み） | 488 | 2.6 |
-| `review_rag_rules_todo.md` | C | GRACE-Review の規程 RAG 整備 TODO。`ec_ad_rules_anthropic` の登録後に残る確認・条文置換・policy-01 の規程登録・設計の見直し | 146 | 1.0 |
+| `review_rag_rules_todo.md` | C | GRACE-Review の規程 RAG 整備 TODO。`ec_ad_rules_anthropic` の登録後に残る確認・条文置換・policy-01 の規程登録・設計の見直し | 148 | 1.1 |
 
 ### 3.4 資材ディレクトリ
 
@@ -216,6 +216,7 @@ EOF
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 2.0 | §3.3 の `review_rag_rules_todo.md` を v1.1 へ（条文置換用の雛形 CSV を追記。2026-09-30） |
 | 1.9 | §3.3 に `review_rag_rules_todo.md`（GRACE-Review の規程 RAG 整備 TODO・種別 C）を追加（2026-09-30） |
 | 1.8 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`）。同じ改訂の 3 文書の行数・Ver を再実測 |
 | 1.7 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所）。あわせて同じ改訂の `performance_levers.md` v2.2 / `reasoning_flow.md` v2.2 / `pipelines.md` v1.2 の行数・Ver を再実測 |

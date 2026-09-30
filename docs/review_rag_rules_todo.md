@@ -1,6 +1,6 @@
 # GRACE-Review 規程 RAG の整備 TODO
 
-**Version 1.0** | 作成日: 2026-09-30 | 最終更新: 2026-09-30 | 対象コミット: `213e8b3`（master）＋本 PR
+**Version 1.1** | 作成日: 2026-09-30 | 最終更新: 2026-09-30 | 対象コミット: `213e8b3`（master）＋本 PR
 
 ---
 
@@ -77,6 +77,7 @@ curl -s -X POST http://localhost:6333/collections/ec_ad_rules_anthropic/points/s
 
 **登録しただけでは根拠の中身は条文フォールバックと同じ**（要旨を登録しているため）。RAG が意味を持つのは置換後である。
 
+- **雛形: [`qa_output/ec_ad_rules_statutes_template.csv`](../qa_output/ec_ad_rules_statutes_template.csv)**（23 行。`answer` は要旨で始まる。`source_url` に e-Gov の法令ページ、`status` / `reviewer` で進捗と監修者を管理する）。`answer` の要旨の後ろへ `【条文】…` を書き足して、そのまま登録できる（`rule_id` 以降の余分な列は無視される。`--no-create-ui-csv` を付ける）。
 - 出典: e-Gov の条文、消費者庁の特定商取引法ガイド、景品表示法の各ガイドライン、医薬品等適正広告基準。
 - **要旨を捨てず先頭に残し、条文を足す**（検索スコア 0.70 を割りにくくするため）。
 - 置換後に再登録して、1.2 と同じ確認を行う。**スコアが 0.70 を割るルールが出たら `question` を見直す。**
@@ -143,4 +144,5 @@ class A,B,C,D,E,F,G,H default
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 1.1 | 2.1 に条文置換用の雛形 `qa_output/ec_ad_rules_statutes_template.csv` を追記（2026-09-30） |
 | 1.0 | 初版作成（2026-09-30）。PR #229〜#231 と本 PR までの対応と、登録後の残タスクを整理した |
