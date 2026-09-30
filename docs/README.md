@@ -1,6 +1,6 @@
 # docs 棚卸し（リポジトリ直下 `docs/`）
 
-**Version 2.2** | 最終更新: 2026-09-30
+**Version 2.3** | 最終更新: 2026-09-30
 
 リポジトリ直下 `docs/` の一覧と、**どのディレクトリに何を置くかの境界**をまとめる。
 各領域の棚卸しは [`backend/docs/README.md`](../backend/docs/README.md) /
@@ -116,7 +116,7 @@ CLAUDE.md §9.1 の表を、判断に使える形へ具体化したもの。
 | 文書 | 種別 | 内容 | 行数 | Ver |
 |---|:--:|---|---:|---|
 | `doc_modernization_todo.md` | C | ドキュメント最新化 TODO。**①〜⑧ と §10 の残タスクはすべて完了**（スクリーンショット全 31 枚を撮影済み） | 488 | 2.6 |
-| `review_rag_rules_todo.md` | C | GRACE-Review の規程 RAG 整備 TODO。`ec_ad_rules_anthropic` の登録後に残る確認・条文置換・policy-01 の規程登録・設計の見直し | 148 | 2.1 |
+| `review_rag_rules_todo.md` | C | GRACE-Review の規程 RAG 整備 TODO。`ec_ad_rules_anthropic` の登録後に残る確認・条文置換・policy-01 の規程登録・設計の見直し | 152 | 2.2 |
 
 ### 3.4 資材ディレクトリ
 
@@ -216,6 +216,7 @@ EOF
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 2.3 | §3.3 の `review_rag_rules_todo.md` を v2.2 へ（yakki-02 へ第 66 条の原文を追記した進捗。2026-09-30） |
 | 2.2 | §3.3 の `review_rag_rules_todo.md` を v2.1 へ（「シミが治る」LP の再実行結果 20 秒を反映。2026-09-30） |
 | 2.1 | §3.3 の `review_rag_rules_todo.md` を v2.0 へ（登録後の実測・優先順・セグメント型検索案を反映。2026-09-30） |
 | 2.0 | §3.3 の `review_rag_rules_todo.md` を v1.1 へ（条文置換用の雛形 CSV を追記。2026-09-30） |

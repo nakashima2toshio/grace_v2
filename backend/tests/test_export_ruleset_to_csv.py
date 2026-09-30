@@ -267,9 +267,19 @@ class TestStatuteTemplate:
         assert {r["rule_id"]: r["question"] for r in rows} == expected
 
     def test_answer_starts_from_the_public_summary(self):
+        """条文を書き足した行でも、`answer` は要旨で始まる（検索スコアを保つため）。"""
         rows = {r["rule_id"]: r for r in self._rows()}
         for rule in EC_AD.rules:
-            assert rows[rule.rule_id]["answer"] == rule.public_description()
+            answer = rows[rule.rule_id]["answer"]
+            assert answer.startswith(rule.public_description()), rule.rule_id
+            rest = answer[len(rule.public_description()):]
+            # 書き足すなら「【条文】」の見出しで始める（監修時に追記部分を見分けるため）
+            assert rest == "" or rest.startswith("\n\n【条文】"), rule.rule_id
+
+    def test_no_llm_directive_even_after_appending_statutes(self):
+        for row in self._rows():
+            assert "violates=true" not in row["answer"], row["rule_id"]
+            assert "指摘しない" not in row["answer"], row["rule_id"]
 
     def test_registration_columns_come_first(self):
         header = list(self._rows()[0])
