@@ -192,7 +192,12 @@ class TestCommittedCsvIsCurrent:
         path = Path(__file__).resolve().parents[2] / "qa_output" / "ec_ad_rules.csv"
         with path.open(encoding="utf-8", newline="") as f:
             committed = list(csv.DictReader(f))
-        assert committed == exporter.build_rows(EC_AD), (
+        # ⚠️ 比較するのは登録に必須の question / answer だけ。`topic` は payload の
+        #    来歴（任意）なので、手で外してあっても古いとは見なさない。
+        def core(rows):
+            return [(r["question"], r["answer"]) for r in rows]
+
+        assert core(committed) == core(exporter.build_rows(EC_AD)), (
             "qa_output/ec_ad_rules.csv が古い。"
             "PYTHONPATH=. python scripts/export_ruleset_to_csv.py で作り直すこと"
         )
