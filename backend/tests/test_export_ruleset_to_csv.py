@@ -170,3 +170,42 @@ class TestErrors:
         exporter.main(["--ruleset", "ec_ad", "--output", str(output)])
 
         assert output.exists()
+
+
+# =============================================================================
+# ⑤ リポジトリに置いてある CSV が最新の書き出しと一致する
+# =============================================================================
+
+class TestCommittedCsvIsCurrent:
+    """`qa_output/ec_ad_rules.csv`（登録の入力としてそのまま使われる）の鮮度。
+
+    ⚠️ この CSV は `description` 全文を `answer` へ書いていた時期の出力が
+    残っていた（3 行に ③ Detect への指示文が入っていた）。そのまま登録すると、
+    LLM 向けの指示文が「規程の内容」として画面へ出る。`rulesets.py` の
+    要旨を変えたのに CSV を作り直し忘れる事故もここで検知する。
+    """
+
+    def test_matches_a_fresh_export(self, exporter):
+        import csv
+        from pathlib import Path
+
+        path = Path(__file__).resolve().parents[2] / "qa_output" / "ec_ad_rules.csv"
+        with path.open(encoding="utf-8", newline="") as f:
+            committed = list(csv.DictReader(f))
+        # ⚠️ 比較するのは登録に必須の question / answer だけ。`topic` は payload の
+        #    来歴（任意）なので、手で外してあっても古いとは見なさない。
+        def core(rows):
+            return [(r["question"], r["answer"]) for r in rows]
+
+        assert core(committed) == core(exporter.build_rows(EC_AD)), (
+            "qa_output/ec_ad_rules.csv が古い。"
+            "PYTHONPATH=. python scripts/export_ruleset_to_csv.py で作り直すこと"
+        )
+
+    def test_has_no_llm_directive(self):
+        from pathlib import Path
+
+        path = Path(__file__).resolve().parents[2] / "qa_output" / "ec_ad_rules.csv"
+        text = path.read_text(encoding="utf-8")
+        assert "violates=true" not in text
+        assert "指摘しない" not in text
