@@ -94,6 +94,7 @@ uv run --no-sync pytest backend/tests -q -rs
 | `test_review_api.py` | submit / stream / confirm / result の応答、422 ガード |
 | `test_rulesets.py` | `RuleSet` / `RuleItem` の整合（`always_check` と `keywords` の排他ほか） |
 | `test_review_evidence_threshold.py` / `test_review_evidence_top_ratio.py` | ② Retrieve の根拠採用しきい値 |
+| `test_review_rule_query_retrieve.py` | ② Retrieve をセグメント本文ではなくルール自身で検索する（条文が ③④ に届く・別ルールの行を根拠にしない・ルールごとに 1 回） |
 | `test_review_document_scope.py` / `test_review_document_excerpt.py` / `test_review_absence_excerpt.py` | 文書全体スコープ（`always_check`）の扱い |
 | `test_review_detect_criteria_in_prompt.py` / `test_review_detect_failure_status.py` | ③ Detect のプロンプトと判定失敗時の安全側 |
 | `test_review_ground_sources.py` / `test_review_undecided_groundedness.py` | ④ Ground の出典と「判定できていない」の扱い |

@@ -1,6 +1,6 @@
 # GRACE-Review 処理フローと設計 ドキュメント
 
-**Version 2.7** | 最終更新: 2026-09-30
+**Version 2.8** | 最終更新: 2026-09-30
 
 > **本書の位置づけ**: GRACE-Review（文書 → 指摘）の**処理フロー（HOW）と設計判断（WHY）を
 > 1 本にまとめた正本**。v2.0 で `review_spec.md`（1,080 行）を統合した。
@@ -89,7 +89,7 @@ Support（`support_agent.py`）が「問い合わせ → 回答」なのに対�
 |------|------|
 | `run_review_agent_core()` | コアパイプライン本体（イベント発行型） |
 | `split_segments()` | ① 文書を検査単位へ分割（原文オフセット保持） |
-| `_retrieve_evidence()` | ② セグメントに関連する規程を RAG 検索 |
+| `_retrieve_evidence()` | ② ルールの根拠となる規程を RAG 検索（クエリはルール自身） |
 | `_web_crosscheck()` | ⑥ 法改正の裏取り（**判定は変えない**） |
 | `_summarize()` | 重大度・状態別の集計（`FindingSummary`） |
 | `_decide_review_action()` | ⑦ 指摘内容からアクション種別を決定 |
@@ -274,7 +274,7 @@ flowchart TB
     KEY -- "未設定" --> ERR["error イベント → 終了"]
     KEY -- "OK" --> S0["S1 RuleSet 適用<br>規程コレクション・しきい値・重大リスク語を切替<br>config.qdrant.allowed_collections へ注入"]
     S0 --> S1["① Segment<br>文書を検査単位に分割 (段落・箇条書き・見出し)<br>各セグメントに文字オフセットを付与"]
-    S1 --> S2["② Retrieve<br>判定単位ごとに規程を RAG 検索<br>rag_search (allowed_collections で範囲限定)"]
+    S1 --> S2["② Retrieve<br>ルールごとに規程を RAG 検索<br>rag_search (allowed_collections で範囲限定)"]
     S2 --> S3A{"③-1 候補検出<br>RuleItem.keywords の<br>キーワード一致？"}
     S3A -- "不一致" --> SKIP["このルールはスキップ<br>(LLM 呼び出しなし = 低コスト)"]
     S3A -- "一致" --> S3B["③-2 LLM 判定<br>実際に抵触するか + 指摘文 + 修正案を生成"]
@@ -427,18 +427,21 @@ segments, truncated = split_segments(document)
 
 ### 4.3 （②）Retrieve — 規程を RAG 検索
 
-**概要**: セグメント本文をクエリに、RuleSet のコレクションから規程を検索する。
+**概要**: ルール自身の文（`RuleItem.retrieval_query()` = 題名＋要旨）をクエリに、
+RuleSet のコレクションから規程を検索する。**ルールごとに 1 回**（同じルールが複数の
+セグメントで候補になっても 1 回）。
 `rag_search` ツールを**無改造**で使う。
 
 ```python
 def _retrieve_evidence(
-    tool_registry, query: str, ruleset: Optional[RuleSet]
+    tool_registry, query: str, ruleset: Optional[RuleSet],
+    on_drop=None, collections=None, tag: str = "",
 ) -> Tuple[List[str], List[str]]
 ```
 
 | 項目 | 内容 |
 |------|------|
-| **Input** | `tool_registry`, `query`（セグメント本文）, `ruleset` |
+| **Input** | `tool_registry`, `query`（`rule.retrieval_query()`）, `ruleset`, `collections`（`rule.evidence_collections` の上書き）, `tag`（ログ見出し = ルール ID） |
 | **Process** | 1. RuleSet 未解決・コレクション未設定なら `([], [])`<br>2. `rag_search`（`limit=RETRIEVE_LIMIT=5`・`allowed_collections` 指定）を実行<br>3. 例外・失敗・空出力はすべて `([], [])`（**握りつぶして継続**）<br>4. payload から `title`/`question` → ラベル、`answer`/`text` → 本文を抽出 |
 | **Output** | `(citations, source_texts)` — `citations` は UI 表示用ラベル（`[規程] …`）、`source_texts` は ④ の検証に渡す**本文** |
 
@@ -446,19 +449,31 @@ def _retrieve_evidence(
 > どの主張も裏付けられず全 neutral になるため、本文を別に集める
 > （[`core_gates.md`](./reference/core_gates.md) §4.3 `_collect_source_texts` の議論と同じ）。
 
-**フォールバック**: `source_texts` が空なら `RuleItem.description`、
+**フォールバック**: `source_texts` が空なら `RuleItem.public_description()`（要旨）、
 `citations` が空なら `rule.citation()` を使う。
 
 ```python
-evidence_texts = source_texts or [rule.description]
+evidence_texts = source_texts or [rule.public_description()]
 rule_citations = citations or [rule.citation()]
 ```
 
 #### 設計仕様（なぜこの判定か）
 
-判定単位ごとに規程コレクションを検索する。**既存の `rag_search` ツールを無改造で使う**。
-クエリは、セグメントスコープではセグメント本文、文書全体スコープでは
-ルール本文（`title` + `description`）を使う。
+ルールごとに規程コレクションを検索する。**既存の `rag_search` ツールを無改造で使う**。
+クエリは、文書全体スコープでもセグメントスコープでも**ルール自身**
+（`RuleItem.retrieval_query()` = `title` + 要旨。`evidence_query` があればそれ）を使う。
+検索結果はルールで決まるので、同じルールが複数のセグメントに出ても検索は 1 回である。
+
+> ⚠️ **セグメント本文をクエリにしない**（Version 2.8 で変更）。以前はセグメントスコープだけ
+> 広告の文をクエリにしていたが、規程コレクション `ec_ad_rules_anthropic` は
+> 「1 ルール = 1 行（要旨＋条文）」なので、広告の文とはスコアが下限 0.70 に届かない。
+> 実測 2026-09-30（「シミが治る」LP・yakki-02 / yakki-04 の行に第 66 条を登録後）:
+> s001 最上位 0.6690・s002 最上位 0.6784 で**両方とも条文フォールバック**になり、
+> 登録した条文が ③ Detect にも ④ Ground にも渡らなかった（ルール自身で引く
+> 文書全体スコープは 0.85 前後で効いていた）。
+> しかも本文クエリの結果は**セグメント内の全候補ルールで共用**されていたため、
+> 閾値を越えた場合は別ルールの行（例: yakki-02 の条文）が yakki-04 の根拠になりえた。
+> 回帰テストは `backend/tests/test_review_rule_query_retrieve.py`。
 
 > ⚠️ **関連度の低い規程は根拠として採用しない**（`RuleSet.evidence_min_score`、既定 0.70）。
 > これは `agent_tools.COSINE_SIMILARITY_THRESHOLD`（RAG の一次閾値）と同じ値で、
@@ -475,14 +490,15 @@ rule_citations = citations or [rule.citation()]
 ```python
 res = tool_registry.execute(
     "rag_search",
-    query=segment.text,
+    query=rule.retrieval_query(),
     limit=RETRIEVE_LIMIT,           # 既定 5
-    allowed_collections=list(ruleset.collections),
+    allowed_collections=list(rule.evidence_collections or ruleset.collections),
 )
 ```
 
-コスト対策として、**同一文書内の検索結果はセグメント単位でキャッシュしない**（各セグメントが
-異なる文言のため）。ただし規程コレクションが未登録の場合は `rag_search` の
+検索の回数は「異なるルールの数」（`(retrieval_query, evidence_collections)` で重複を除く）で、
+スレッドプール（`GRACE_REVIEW_WORKERS`）で並列に走らせる。落とした規程のログは
+`[retrieve] <rule_id>: …` の形で、主スレッドが入力順に流す。ただし規程コレクションが未登録の場合は `rag_search` の
 自動フォールバックにより制限なし検索になるため、**RuleSet の `rules` に埋め込んだ条文テキストを
 フォールバック根拠として使う**（[`verticals_and_rulesets.md` §2.3](./verticals_and_rulesets.md#23-ルール一覧23-件) 参照）。
 
@@ -1049,6 +1065,7 @@ _emit(SupportEvent(
 
 | Version | 変更内容 |
 |---|---|
+| 2.8 | ② Retrieve のクエリを、セグメントスコープでも**ルール自身**（`retrieval_query()`）に変更し、検索をルールごとに 1 回へ（同じルールが複数セグメントに出ても 1 回）。実測: 本文クエリは 0.67〜0.68 で下限 0.70 を割り、登録した条文（yakki-02 / yakki-04 の第 66 条）が ③④ に渡っていなかった。本文クエリの結果をセグメント内の全候補ルールで共用していたための越境も解消。落とした規程のログにルール ID を付けた |
 | 2.7 | ⑥ Web 裏取りをルールごとに並列化し、全体の待ちを `GRACE_REVIEW_WEB_TIMEOUT`（既定 10 秒）で打ち切る（実測: 2 回目の検索が 23 秒で全体 44 秒の半分を占めた）。`web_checked` は検索が結果を返したルールの指摘にだけ付ける（以前は失敗・タイムアウトでも付いた）。遅延生成クライアント（Qdrant / Embedding / Sparse）の重複作成を `qdrant_client_wrapper` のロックで防止 |
 | 2.6 | ② Retrieve も判定単位ごとに並列化（ログは入力順のまま主スレッドが流す）。指摘の確信度に Support と同じ判定率の減衰（`grace.confidence.damp_support_rate`）を掛け、neutral が混ざる指摘が 1.00 にならないようにした（neutral が無ければ不変）。`RuleItem.retrieval_query()` と規程 CSV の書き出し（`scripts/export_ruleset_to_csv.py`）は `description` 全文ではなく要旨（`public_description()`）を使う |
 | 2.5 | ③ Detect + ④ Ground を判定単位ごとにスレッドプールで並列化（既定 4・環境変数 `GRACE_REVIEW_WORKERS`、1 で直列。結果の並び・ID は入力順で不変。② Retrieve は従来どおり直列）。規程未登録時の根拠フォールバックと条文引用を `RuleItem.public_description()`（`description` の第 1 段落）に限定し、LLM 向け指示文が画面へ漏れるのを止めた（③ Detect の判定基準は全文のまま）。`GroundednessVerifier` のメモ更新を排他化 |

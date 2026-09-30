@@ -381,8 +381,9 @@ def _retrieve_evidence(
     ruleset: Optional[RuleSet],
     on_drop: Optional[Callable[[str], None]] = None,
     collections: Optional[List[str]] = None,
+    tag: str = "",
 ) -> Tuple[List[str], List[str]]:
-    """判定単位に関連する規程を検索する。
+    """ルールの根拠となる規程を検索する。
 
     ⚠️ **関連度の低い規程は根拠として採用しない**（`RuleSet.evidence_min_score`）。
 
@@ -418,6 +419,8 @@ def _retrieve_evidence(
             ⚠️ **ルール自身が根拠として引かれてしまうルールのための逃げ道。**
             `policy-01` が引きたいのは自社の実際の規程であって、条文コレクションに
             入っている policy-01 自身の行ではない。理由は `RuleItem` の宣言箇所。
+        tag: `on_drop` のメッセージに付ける見出し（例: ルール ID）。検索は
+            ルールごとなので、どのルールの根拠が落ちたのかを画面から追えるようにする。
 
     Returns:
         (citations, source_texts) — citations は UI 表示用ラベル、
@@ -479,12 +482,13 @@ def _retrieve_evidence(
             source_texts.append(body)
 
     if on_drop is not None:
+        head = f"  [retrieve] {tag}: " if tag else "  [retrieve] "
         if dropped:
             tail = "→ 条文フォールバックを使います" if not citations else ""
-            on_drop(f"  [retrieve] 関連度が低い規程を根拠にしません"
+            on_drop(f"{head}関連度が低い規程を根拠にしません"
                     f"（< {min_score:.2f}）: {', '.join(dropped[:5])} {tail}".rstrip())
         if far:
-            on_drop(f"  [retrieve] 最上位より離れた規程を根拠にしません"
+            on_drop(f"{head}最上位より離れた規程を根拠にしません"
                     f"（< {cutoff:.4f}）: {', '.join(far[:5])}")
     return citations, source_texts
 
@@ -814,17 +818,15 @@ def run_review_agent_core(
         log(f"  [{rule.rule_id}] {finding.message}", step="ground",
             finding=asdict(finding))
 
-    # ② Retrieve は判定単位ごとに 1 回。検索は互いに独立なので、③④ と同じく
-    # スレッドプールで重ねる（実測 2026-09-30: 直列で約 5 秒 / 8 検索）。
+    # ② Retrieve は**ルールごとに 1 回**（判定単位ごとではない）。検索は互いに
+    # 独立なので、③④ と同じくスレッドプールで重ねる（実測 2026-09-30: 直列で約 5 秒 / 8 検索）。
     # ⚠️ 検索スレッドからは**ログを出さない**。落とした規程のメッセージは戻り値で
     #    受け取り、主スレッドが入力順に流す（SSE の並びを逐次実行と同じにする）。
     @dataclass
     class _Unit:
         segment: Any            # 判定単位（文書全体 or セグメント）
         rules: List[Any]        # この単位で判定するルール
-        query: str
-        collections: Optional[List[str]]
-        label: str              # verbose ログの見出し
+        scope: str              # verbose ログの見出し（「文書全体で判定」等）
 
     units: List[_Unit] = []
     planned = 0
@@ -838,16 +840,7 @@ def run_review_agent_core(
         rule = rs.rule_by_id(candidate.rule_id)
         if rule is None:
             continue
-        # ⚠️ 検索クエリは**ルール自身**（文書全体ではない）。
-        #    文書をそのままクエリにすると、長文では埋め込みが薄まって
-        #    関連する規程を引けない。探したいのは「このルールの根拠条文」である。
-        #    ただし policy-01 のように「引きたいのは条文ではなく自社の規程」という
-        #    ルールは `RuleItem.evidence_query` / `evidence_collections` で上書きする。
-        units.append(_Unit(
-            whole, [rule], rule.retrieval_query(),
-            rule.evidence_collections or None,
-            f"{DOCUMENT_SEGMENT_ID}/{rule.rule_id}: 文書全体で判定",
-        ))
+        units.append(_Unit(whole, [rule], "文書全体で判定"))
         planned += 1
 
     # --- 判定単位 2: セグメント（キーワード型） -----------------------------
@@ -866,44 +859,74 @@ def run_review_agent_core(
             rules.append(rule)
             planned += 1
         if rules:
-            units.append(_Unit(
-                segment, rules, segment.text, None,
-                f"{segment.segment_id}: 候補 {len(candidates)} ルール",
-            ))
+            units.append(_Unit(segment, rules, f"候補 {len(candidates)} ルール"))
         if planned >= MAX_LLM_CALLS:
             log(f"  ⚠️ LLM 呼び出しが上限（{MAX_LLM_CALLS}）に達したため打ち切りました",
                 step="detect")
             break
 
-    def _retrieve(unit: _Unit):
+    # ⚠️ 検索クエリは、文書全体スコープでもセグメントスコープでも**ルール自身**
+    #    （`RuleItem.retrieval_query()`）。探したいのは「このルールの根拠条文」である。
+    #
+    #    以前はセグメントスコープだけ**セグメント本文**（広告の文）をクエリにしていた。
+    #    規程コレクション `ec_ad_rules_anthropic` は「1 ルール = 1 行（要旨＋条文）」
+    #    なので、広告の文と規程の行は書き方がまるで違い、スコアが下限 0.70 に届かない。
+    #    実測 2026-09-30（「シミが治る」LP・yakki-02 / yakki-04 の行に第 66 条を登録後）:
+    #
+    #        s001 最上位 0.6690 < 0.70 → 条文フォールバックを使います
+    #        s002 最上位 0.6784 < 0.70 → 条文フォールバックを使います
+    #
+    #    登録した条文が ④ Ground に一度も渡らず、根拠は要旨（`public_description`）の
+    #    ままだった。ルール自身で引く文書全体スコープ（tokusho-*）は 0.85 前後で効いていた。
+    #    しかも本文クエリで閾値を越えても、その結果は**セグメント内の全候補ルールで共用**
+    #    されるので、yakki-02 の判定に keihyo-01 の行が根拠として渡りうる（指摘文の越境）。
+    #
+    #    クエリがルールだけで決まるので、同じルールが複数のセグメントに出ても検索は 1 回
+    #    （`retrieval_key`）。検索回数は「判定単位の数」から「異なるルールの数」になる。
+    #    policy-01 のように検索先・クエリを上書きするルールは `evidence_query` /
+    #    `evidence_collections`（`RuleItem` の宣言箇所）。
+    def retrieval_key(rule) -> Tuple[str, Tuple[str, ...]]:
+        return rule.retrieval_query(), tuple(rule.evidence_collections)
+
+    searches: Dict[Tuple[str, Tuple[str, ...]], Any] = {}
+    for unit in units:
+        for rule in unit.rules:
+            searches.setdefault(retrieval_key(rule), rule)
+
+    def _retrieve(key):
+        query, collections = key
         drops: List[str] = []
         citations, source_texts = _retrieve_evidence(
-            tool_registry, unit.query, rs,
-            on_drop=drops.append, collections=unit.collections,
+            tool_registry, query, rs,
+            on_drop=drops.append, collections=list(collections) or None,
+            tag=searches[key].rule_id,
         )
         return citations, source_texts, drops
 
     workers = _judge_workers()
-    jobs: List[_Job] = []
-
-    def _collect(unit: _Unit, retrieved) -> None:
-        citations, source_texts, drops = retrieved
-        for msg in drops:
-            log(msg, step="retrieve")
-        if verbose:
-            log(f"  {unit.label} / 規程 {len(citations)} 件", step="retrieve")
-        for rule in unit.rules:
-            jobs.append(_Job(rule, unit.segment, citations, source_texts))
-
-    if workers <= 1 or len(units) <= 1:
-        for unit in units:
-            _collect(unit, _retrieve(unit))
+    keys = list(searches)
+    if workers <= 1 or len(keys) <= 1:
+        retrieved = {key: _retrieve(key) for key in keys}
     else:
         with ThreadPoolExecutor(
-            max_workers=min(workers, len(units)), thread_name_prefix="grace-review-rag"
+            max_workers=min(workers, len(keys)), thread_name_prefix="grace-review-rag"
         ) as pool:
-            for unit, retrieved in zip(units, pool.map(_retrieve, units)):
-                _collect(unit, retrieved)
+            retrieved = dict(zip(keys, pool.map(_retrieve, keys)))
+
+    jobs: List[_Job] = []
+    logged: set = set()
+    for unit in units:
+        for rule in unit.rules:
+            key = retrieval_key(rule)
+            citations, source_texts, drops = retrieved[key]
+            if key not in logged:
+                logged.add(key)
+                for msg in drops:
+                    log(msg, step="retrieve")
+            if verbose:
+                log(f"  {unit.segment.segment_id}/{rule.rule_id}: {unit.scope}"
+                    f" / 規程 {len(citations)} 件", step="retrieve")
+            jobs.append(_Job(rule, unit.segment, citations, source_texts))
 
     # --- ③ Detect + ④ Ground を並列実行し、結果は入力順に確定する ----------
     #
