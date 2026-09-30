@@ -1,6 +1,6 @@
 # データ準備パイプライン（チャンキング / Q/A 生成 / 登録 / 削除） ドキュメント
 
-**Version 1.6** | 最終更新: 2026-09-26
+**Version 1.7** | 最終更新: 2026-09-30
 
 ---
 
@@ -521,6 +521,7 @@ CHUNKING_STEP_LABELS, QA_STEP_LABELS, REGISTER_STEP_LABELS, DELETE_STEP_LABELS
 | 1.4 | 2026-09-24 | 概要の「各責務対応のモジュール」を主な責務と 1:1（7 行）に揃えた（8 行で、1 つの責務が複数行に割れていた。基本フォーマット §2.4。2026-09-24） |
 | 1.5 | 2026-09-26 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
 | 1.6 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
+| 1.7 | 2026-09-30 | 付録 A の登録コマンドに `--no-create-ui-csv` を追加し、理由（登録スクリプトが既定で UI 用 CSV = `question` / `answer` の 2 列を `qa_output/<入力と同じファイル名>` へ書き、入力 CSV 自身を上書きして `topic` 列が消える）を明記 |
 
 ---
 
@@ -684,7 +685,8 @@ question,answer,topic
 ```bash
 python qa_qdrant/register_to_qdrant.py \
   --input-file qa_output/ec_policy_terms.csv \
-  --collection ec_policy_anthropic
+  --collection ec_policy_anthropic \
+  --no-create-ui-csv
 ```
 
 ⚠️ **`--recreate` を付けないこと。** 既存の返品・返金 FAQ を消してしまう。
@@ -695,7 +697,7 @@ python qa_qdrant/register_to_qdrant.py \
 python qa_qdrant/register_to_qdrant.py \
   --input-file qa_output/ec_ad_rules.csv \
   --collection ec_ad_rules_anthropic \
-  --recreate
+  --recreate --no-create-ui-csv
 ```
 
 | オプション | 意味 |
@@ -707,6 +709,12 @@ python qa_qdrant/register_to_qdrant.py \
 
 ⚠️ **`--provider` は既定（gemini）のまま使う。** `openai` にすると次元が変わり、
 `RAGSearchTool` の「次元不一致」フィルタで**検索対象から静かに外れる**。
+
+⚠️ **`--no-create-ui-csv` を付ける。** 登録スクリプトは既定で「UI 用 CSV」
+（`question` / `answer` の 2 列だけ）を `qa_output/<入力と同じファイル名>` へ書き出す
+（`--ui-output-dir` の既定が `qa_output`）。入力 CSV が `qa_output/` にあると
+**入力 CSV 自身が 2 列版で上書きされ、`topic` 列が消える**（実測 2026-09-30）。
+登録済みの payload には影響しない（`topic` は上書きの前に読み込まれている）。
 
 登録は**冪等**である（ポイント ID が `question + answer` の内容ハッシュ）。同じ CSV を
 再登録しても重複しない。

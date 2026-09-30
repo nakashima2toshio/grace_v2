@@ -55,7 +55,12 @@ Review 側は `_retrieve_evidence` でこう読む。
     python qa_qdrant/register_to_qdrant.py \\
       --input-file qa_output/ec_ad_rules.csv \\
       --collection ec_ad_rules_anthropic \\
-      --recreate
+      --recreate --no-create-ui-csv
+
+⚠️ `--no-create-ui-csv` を付ける。登録スクリプトは既定で「UI 用 CSV」
+（`question` / `answer` の 2 列だけ）を `qa_output/<入力と同じファイル名>` へ
+書き出すので、入力が `qa_output/` にあると**入力 CSV 自身が 2 列版で上書き**される
+（`topic` 列が消える。登録済みの payload には影響しない）。
 
 ⚠️ 本スクリプトは読み取りのみ。Qdrant には触れない。
 """
@@ -132,7 +137,11 @@ def main(argv: Optional[List[str]] = None) -> int:
     print("    python qa_qdrant/register_to_qdrant.py \\")
     print(f"      --input-file {args.output} \\")
     print(f"      --collection {args.ruleset}_rules_anthropic \\")
-    print("      --recreate")
+    print("      --recreate --no-create-ui-csv")
+    print()
+    print("⚠️ --no-create-ui-csv を付けてください。登録スクリプトは既定で question / answer の")
+    print("   2 列だけの「UI 用 CSV」を qa_output/<入力と同じファイル名> へ書き出すため、")
+    print("   入力 CSV 自身が 2 列版で上書きされます（topic 列が消える）。")
     print()
     print("⚠️ answer は RuleItem.public_description()（description の第 1 段落。")
     print("   このリポジトリ自身の要約で、LLM 向けの指示文は含まない）です。")

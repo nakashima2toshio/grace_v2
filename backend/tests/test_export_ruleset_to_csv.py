@@ -209,3 +209,31 @@ class TestCommittedCsvIsCurrent:
         text = path.read_text(encoding="utf-8")
         assert "violates=true" not in text
         assert "指摘しない" not in text
+
+
+# =============================================================================
+# ⑥ 案内文（登録コマンドの提示）
+# =============================================================================
+
+class TestRegistrationGuidance:
+    """書き出し後に画面へ出す登録コマンドの案内。
+
+    ⚠️ 登録スクリプトは既定で UI 用 CSV（question / answer の 2 列）を
+    `qa_output/<入力と同じファイル名>` へ書く。案内どおりに実行すると入力 CSV 自身が
+    上書きされ `topic` 列が消える（実測 2026-09-30）。案内に
+    `--no-create-ui-csv` を含めておく。
+    """
+
+    def _run(self, exporter, tmp_path, capsys):
+        out = tmp_path / "ec_ad_rules.csv"
+        assert exporter.main(["--ruleset", "ec_ad", "--output", str(out)]) == 0
+        return capsys.readouterr().out
+
+    def test_command_disables_the_ui_csv_overwrite(self, exporter, tmp_path, capsys):
+        printed = self._run(exporter, tmp_path, capsys)
+        assert "--recreate --no-create-ui-csv" in printed
+
+    def test_answer_wording_matches_the_export(self, exporter, tmp_path, capsys):
+        printed = self._run(exporter, tmp_path, capsys)
+        assert "public_description" in printed
+        assert "answer は RuleItem.description（" not in printed
