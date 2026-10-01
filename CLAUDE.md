@@ -391,6 +391,15 @@ cd frontend && npm run lint && npm test && npm run build   # frontend
 >
 > 片側にしかないフロント資産を足したら、**この表にも 1 行足す**こと。
 
+### 共用している Qdrant と規程の雛形（2026-10-01）
+
+両リポジトリは**同じ Qdrant** を使う（Embedding も同じ Gemini 3072 次元）。とくに規程コレクション
+`ec_ad_rules_anthropic` は 1 個を両方の GRACE-Review が読む。
+**その元データ `qa_output/ec_ad_rules_statutes_template.csv` はこちらにだけ置き、local へコピーしない**
+（2 か所にあると片方だけに条文を足す食い違いが起き、登録するともう片方の Review も黙って変わる）。
+local から登録し直すときも `--input-file ../grace_v2/qa_output/ec_ad_rules_statutes_template.csv` を指す。
+理由と手順は [`docs/review_rag_rules_todo.md`](docs/review_rag_rules_todo.md) §1.1。
+
 **実例（2026-08-25）**: 基本版タブの複数行入力を local から移植する際、
 `QueryForm.tsx` を丸ごとコピーしていれば `formMemory`（外した dry-run が
 タブ切替で ON へ復帰する不具合の修正・v1.1）が消えていた。
