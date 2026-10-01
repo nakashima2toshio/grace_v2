@@ -1,6 +1,6 @@
 # GRACE-Review 処理フローと設計 ドキュメント
 
-**Version 2.8** | 最終更新: 2026-09-30
+**Version 2.9** | 最終更新: 2026-10-01
 
 > **本書の位置づけ**: GRACE-Review（文書 → 指摘）の**処理フロー（HOW）と設計判断（WHY）を
 > 1 本にまとめた正本**。v2.0 で `review_spec.md`（1,080 行）を統合した。
@@ -1065,6 +1065,7 @@ _emit(SupportEvent(
 
 | Version | 変更内容 |
 |---|---|
+| 2.9 | ⑥ Web 裏取りの待ち時間の既定を 10 秒から 5 秒へ（`GRACE_REVIEW_WEB_TIMEOUT` で上書き可）。実測で、返る検索は 0.16〜1.7 秒、遅い検索は 14.8 秒以上で中間が無く、10 秒では遅いときに全体が 10 秒待つだけだった |
 | 2.8 | ② Retrieve のクエリを、セグメントスコープでも**ルール自身**（`retrieval_query()`）に変更し、検索をルールごとに 1 回へ（同じルールが複数セグメントに出ても 1 回）。実測: 本文クエリは 0.67〜0.68 で下限 0.70 を割り、登録した条文（yakki-02 / yakki-04 の第 66 条）が ③④ に渡っていなかった。本文クエリの結果をセグメント内の全候補ルールで共用していたための越境も解消。落とした規程のログにルール ID を付けた |
 | 2.7 | ⑥ Web 裏取りをルールごとに並列化し、全体の待ちを `GRACE_REVIEW_WEB_TIMEOUT`（既定 10 秒）で打ち切る（実測: 2 回目の検索が 23 秒で全体 44 秒の半分を占めた）。`web_checked` は検索が結果を返したルールの指摘にだけ付ける（以前は失敗・タイムアウトでも付いた）。遅延生成クライアント（Qdrant / Embedding / Sparse）の重複作成を `qdrant_client_wrapper` のロックで防止 |
 | 2.6 | ② Retrieve も判定単位ごとに並列化（ログは入力順のまま主スレッドが流す）。指摘の確信度に Support と同じ判定率の減衰（`grace.confidence.damp_support_rate`）を掛け、neutral が混ざる指摘が 1.00 にならないようにした（neutral が無ければ不変）。`RuleItem.retrieval_query()` と規程 CSV の書き出し（`scripts/export_ruleset_to_csv.py`）は `description` 全文ではなく要旨（`public_description()`）を使う |
