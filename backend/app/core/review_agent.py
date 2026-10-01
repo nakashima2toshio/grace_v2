@@ -101,7 +101,10 @@ DEFAULT_JUDGE_WORKERS = 4
 
 # ⑥ Web 裏取りの待ち時間の上限（秒。環境変数 GRACE_REVIEW_WEB_TIMEOUT で上書き）。
 # 裏取りは判定を変えない補助なので、遅い検索のために全体を待たせない。
-DEFAULT_WEB_TIMEOUT = 10.0
+# ⚠️ 5 秒は実測から決めた（2026-09-30〜10-01・「シミが治る」LP 4 回）。SerpAPI が
+#    返った検索は 0.16〜1.7 秒、遅い検索は 14.8 秒・23 秒・ReadTimeout（再試行後 34 秒）で、
+#    中間が無い。10 秒では返る検索は増えず、遅いときに 10 秒待つだけだった（33 秒中 10 秒）。
+DEFAULT_WEB_TIMEOUT = 5.0
 
 
 def _judge_workers() -> int:

@@ -5,7 +5,7 @@
 
 2 回の検索を直列で待ち、2 回目の SerpAPI が 23 秒かかって Review 全体 44 秒の
 半分を占めた。裏取りは判定を変えない補助なので、**並列**に走らせ、全体で
-`GRACE_REVIEW_WEB_TIMEOUT` 秒（既定 10）しか待たない。
+`GRACE_REVIEW_WEB_TIMEOUT` 秒（既定 5）しか待たない。
 あわせて、`web_checked` は**検索が結果を返したルールにだけ**付ける
 （以前は失敗・タイムアウトでも付き、「裏取り済み」と出るのに確認できていなかった）。
 
@@ -109,6 +109,17 @@ class TestWebCrosscheck:
 
         monkeypatch.setenv("GRACE_REVIEW_WEB_TIMEOUT", raw)
         assert _web_timeout() == DEFAULT_WEB_TIMEOUT
+
+    def test_default_timeout_is_five_seconds(self, monkeypatch):
+        """既定は 5 秒（実測: 返る検索は 1.7 秒以内、遅い検索は 14.8 秒以上で中間が無い）。
+
+        10 秒のときは、遅い検索のたびに Review 全体が 10 秒待たされた
+        （2026-10-01: 33 秒中 10 秒）。理由は `DEFAULT_WEB_TIMEOUT` の宣言箇所。
+        """
+        from backend.app.core.review_agent import _web_timeout
+
+        monkeypatch.delenv("GRACE_REVIEW_WEB_TIMEOUT", raising=False)
+        assert _web_timeout() == 5.0
 
 
 class TestLazyClientsAreCreatedOnce:
