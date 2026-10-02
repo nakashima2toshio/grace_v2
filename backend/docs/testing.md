@@ -1,6 +1,6 @@
 # backend テストの地図 ドキュメント
 
-**Version 1.2** | 最終更新: 2026-09-26
+**Version 1.3** | 最終更新: 2026-10-02
 
 ---
 
@@ -95,6 +95,7 @@ uv run --no-sync pytest backend/tests -q -rs
 | `test_rulesets.py` | `RuleSet` / `RuleItem` の整合（`always_check` と `keywords` の排他ほか） |
 | `test_review_evidence_threshold.py` / `test_review_evidence_top_ratio.py` | ② Retrieve の根拠採用しきい値 |
 | `test_review_rule_query_retrieve.py` | ② Retrieve をセグメント本文ではなくルール自身で検索する（条文が ③④ に届く・別ルールの行を根拠にしない・ルールごとに 1 回） |
+| `test_review_cosmetic_lp_expected.py` | 画面のサンプル「化粧品LP案」の期待値（確実な 5 件が判定に回り残る・強制 high 3 件）、keihyo-07 を確定にしない、keihyo-08 の判定基準、修正案と文面の指示 |
 | `test_review_document_scope.py` / `test_review_document_excerpt.py` / `test_review_absence_excerpt.py` | 文書全体スコープ（`always_check`）の扱い |
 | `test_review_detect_criteria_in_prompt.py` / `test_review_detect_failure_status.py` | ③ Detect のプロンプトと判定失敗時の安全側 |
 | `test_review_ground_sources.py` / `test_review_undecided_groundedness.py` | ④ Ground の出典と「判定できていない」の扱い |
@@ -190,4 +191,5 @@ uv run --no-sync pytest backend/tests -q -rs
 |---|---|---|
 | 1.0 | 2026-09-16 | 新規作成。`review_spec.md` §9（テスト方針）を取り込み、`backend/tests` の実測（58 ファイル / 867 関数 / 978 passed・1 skipped）から地図を書き起こした |
 | 1.1 | 2026-09-24 | `a_cross_doc_md_format.md` v1.1（種別 B）に準拠（2026-09-24）。概要（結論・対象モジュール）を追加し、冒頭の説明文を概要へ移した。本文の章番号は変えていない |
+| 1.3 | 2026-10-02 | テストの地図に `test_review_cosmetic_lp_expected.py` を追加（化粧品LP案の期待値・確定の上限・判定基準と修正案の指示） |
 | 1.2 | 2026-09-26 | §1 に「`GOOGLE_API_KEY` があっても結果が変わらないこと」の注意を追記。`RAGSearchTool.execute` を回す 3 ファイルがキーのある環境で実 Embedding API を呼び、8 件落ちていたのを是正したのに合わせた |
