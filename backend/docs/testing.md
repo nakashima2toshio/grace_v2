@@ -1,6 +1,6 @@
 # backend テストの地図 ドキュメント
 
-**Version 1.8** | 最終更新: 2026-10-03
+**Version 1.9** | 最終更新: 2026-10-03
 
 ---
 
@@ -9,6 +9,7 @@
 - [概要](#概要)
 - [1. 実行方法](#1-実行方法)
   - [1.1 結合テスト（実 Qdrant / Redis）](#11-結合テスト実-qdrant--redis)
+  - [1.2 E2E（実 LLM・実 Embedding・実データ）](#12-e2e実-llm実-embedding実データ)
 - [2. テストの地図](#2-テストの地図)
 - [3. どこを触ったらどれを流すか](#3-どこを触ったらどれを流すか)
 - [4. 設計方針](#4-設計方針)
@@ -32,6 +33,7 @@
 
 - 実行は `uv run --no-sync pytest backend/tests -q -rs`（§1）。実 API キー・Qdrant は不要
 - **例外は `backend/tests/integration/`（§1.1）**。実 Qdrant / Redis に接続し、未起動なら skip する。クラウド VM では SessionStart hook が両方を起動するので走る
+- **E2E は `backend/tests/e2e/`（§1.2）**。実 API を呼んで課金されるので `GRACE_E2E=1` のときだけ走る。実データは Mac の Qdrant からスナップショットで VM へ運ぶ（`scripts/qdrant_snapshot.py`）
 - **どこを触ったらどれを流すか**は §3。共有基盤（`jobs.py` ほか）と共用部品を触ったら全体を流す
 - CI の必須ゲートは 4 つ（§5）
 
@@ -43,7 +45,9 @@
 | 2 | `requirements-test.txt` | テスト用依存の正本（CI と共有） |
 | 3 | `.github/workflows/ci.yml` | 4 ゲートの定義 |
 | 4 | `backend/tests/integration/` | 結合テスト（§1.1） |
-| 5 | `.claude/hooks/session-start.sh` | クラウド VM でテスト依存を入れ、Qdrant / Redis を起動する |
+| 5 | `.claude/hooks/session-start.sh` | クラウド VM でテスト依存を入れ、Qdrant / Redis を起動する。`GRACE_E2E_SNAPSHOT_URL` があれば実データも復元する |
+| 6 | `backend/tests/e2e/` / `requirements-e2e.txt` | E2E（§1.2）とその追加依存 |
+| 7 | `scripts/qdrant_snapshot.py` | E2E 用の実データを Qdrant スナップショットで書き出す / 復元する（§1.2） |
 
 ---
 
@@ -112,6 +116,7 @@ uv run --no-sync pytest backend/tests/integration -q -rs
 |---|---|
 | `test_qdrant_live.py`（12 件） | `create_or_recreate_collection` の設定（sparse・`domain` 索引・recreate）、`stable_point_id` による再登録の冪等性、`search_collection` の経路選択（dense / sparse 未設定なら hybrid を投げない / hybrid で sparse が順位を変える / 無いコレクションは `[]`）、`get_all_collections` / `QdrantDataFetcher` |
 | `test_register_to_qdrant_live.py`（4 件） | `register_to_qdrant` の CSV → Qdrant 登録（重複行は **Embedding 前に**落とす・Embedding メタデータ・ファイル名の日時サフィックス除去・再登録の冪等性・batch_size=1 の先読みパイプライン・登録ベクトルで自分が 1 位） |
+| `test_qdrant_snapshot_live.py`（7 件） | `scripts/qdrant_snapshot.py` の export → restore 往復（点数・ペイロードの再現、HTTP 経由、既存を上書きしない / `--force`、Embedding モデル違いと sha256 不一致の拒否、Qdrant にスナップショットを残さない） |
 | `test_celery_redis_live.py`（2 件） | テスト内で本物の Celery ワーカー（solo）を立て、`submit_unified_qa_generation` → Redis → タスク → Redis → `collect_results` を往復（JSON を経た戻り値の形・usage 合算・空チャンク・完了通知・result backend への保存） |
 
 **実効性の確認（2026-10-03）**: 本番コードを次のように壊すと、それぞれ落ちることを確かめた。
@@ -122,12 +127,81 @@ uv run --no-sync pytest backend/tests/integration -q -rs
 | `_get_vector_config` の `has_sparse` を常に False | `test_hybrid_search_lets_sparse_change_ranking` |
 | `register_to_qdrant` の重複テキスト除去を外す | `test_registers_unique_rows_with_embedding_metadata`（※ 件数だけでは検出できない。内容ベース ID で同じ点に上書きされるため。Embedding に渡った件数で見る） |
 | ワーカーの usage を捨てる | `test_qa_generation_roundtrip_through_redis` |
+| restore の「既存を上書きしない」/ モデル照合 / sha256 照合を外す | それぞれ `test_existing_collection_is_not_overwritten_without_force` / `test_refuses_snapshot_from_another_embedding_model` / `test_refuses_tampered_snapshot` |
+| tar の名前チェックを外す | `test_qdrant_snapshot.py::TestSafeExtract::test_rejects_unexpected_members`（4 件） |
 
 > 📝 Celery のテストは本番の `rate_limit`（`generate_qa_for_chunk` は 60/m）を**テスト中だけ**外す。
 > 効いたままだと solo ワーカーで 3 タスクに約 10 秒かかる（実測）。終了時に元へ戻す。
 
-**実測（2026-10-03・クラウド VM・サービス起動中）**: `1320 passed, 1 skipped`（うち結合 18 件）。
-サービス停止中は `1302 passed, 19 skipped`（結合 18 件が skip）。
+**実測（2026-10-03・クラウド VM・サービス起動中）**: `1342 passed, 7 skipped`（うち結合 25 件。skip は
+`logs/` の 1 件と E2E の 6 件）。サービス停止中は `1317 passed, 32 skipped`（結合 25 件も skip）。
+
+### 1.2 E2E（実 LLM・実 Embedding・実データ）
+
+`backend/tests/e2e/` は、**本物の API と実データ**で `run_support_agent_core` /
+`run_review_agent_core` を丸ごと流す。スタブを一切使わない。**課金される**ので
+`GRACE_E2E=1` を付けたときだけ走り、それ以外（CI を含む）は skip する。
+
+| ケース | 入力（画面の例文ボタンから読む） | 期待 |
+|---|---|---|
+| Support / gov | 住民票の写しの取り方は？ | `answer`・社内ナレッジの出典あり・根拠検証で判定できた主張 > 0・情報なし検知なし |
+| Support / saas | サービスが落ちています | エスカレーション語「落ち」で強制エスカレ → `escalate_to_human` |
+| Support / ec | 返品したい | アクションあり・社内ナレッジの出典あり・判定とアクションが一致（answer → `create_ticket` / escalate → `escalate_to_human`）・本人確認を通る |
+| Review / 化粧品LP案 | NG 例（優良誤認・薬機法） | 指摘 ≥ 1・high ≥ 1 |
+| Review / 表記漏れLP案 | NG 例（表記漏れ） | `tokusho-01`（送料の欠落）が出る |
+| Review / 適正LP案 | OK 例 | **指摘 0 件**（過検知の回帰） |
+
+- **文面は書き写さない。** `cases.py` が `QueryForm.tsx` / `ReviewForm.tsx` の例文を読む。
+  例文が増えたり名前が変わったりして期待値とずれると、`test_e2e_cases.py`（API を呼ばないので CI で走る）が落ちる。
+- アクションは必ず**ドライラン**。Web 検索は既定で使わない（`GRACE_E2E_USE_WEB=1` で使う）。
+- 結果（回答・出典・判定・指摘・所要時間・sparse の有無）は `logs/e2e/e2e_<日時>.json` に書き出す。
+  **合否だけでなく回答の中身を人が読む**ためのもの。
+
+> ⚠️ **API が失敗してもパイプラインは例外を出さず、安全側の結果を返す**（Support はエスカレ、
+> Review は全ルールを「自動判定に失敗したため要確認」で残す）。そのため素朴な期待値だと
+> **キーが無効でも合格する**（2026-10-03 にダミーキーで実測: 6 件中 4 件が passed）。対策は 2 段:
+>
+> 1. `e2e_ready` が最初に Anthropic（`models.list`・課金なし）と Gemini Embedding を 1 回ずつ呼ぶ。
+>    失敗したら全件 ERROR（実測: 6 errors・理由「Anthropic API を呼べない」）
+> 2. `api_errors` が実行中の API エラーのログ（`Error code: 4xx/5xx`・`INVALID_ARGUMENT`・
+>    `RAGツールエラー` など）を拾い、各テストは 1 件でもあれば fail。Review は「自動判定に失敗」の
+>    指摘も fail にする（実測: 1 を外しても 6 failed）
+
+#### 走らせ方
+
+```bash
+# Mac（.env にキー・Qdrant に実データ・E2E 用の追加依存）
+uv pip install -r requirements-e2e.txt
+GRACE_E2E=1 uv run --no-sync pytest backend/tests/e2e -m e2e -rs
+
+# クラウド VM: 下の準備をしたうえで新しいセッションを開くと、hook が依存と実データを用意する
+GRACE_E2E=1 uv run --no-sync pytest backend/tests/e2e -m e2e -rs
+```
+
+#### クラウド VM で走らせる準備（初回だけ）
+
+1. **Mac で実データを書き出す**（アプリが検索するコレクションを `verticals.py` / `rulesets.py` から集める）:
+   ```bash
+   python scripts/qdrant_snapshot.py list     # 何があるか
+   python scripts/qdrant_snapshot.py export   # → grace_e2e_snapshot.tar.gz（.gitignore 済み）
+   ```
+2. **非公開の保存先に置き、署名付き URL を発行する**（例: Google Cloud Storage の
+   `gcloud storage sign-url`。VM から `storage.googleapis.com` へは届くことを確認済み）。
+   ⚠️ 署名付き URL には**期限がある**。切れると hook のサマリが `e2e-data:FAILED` になり、
+   ログに「期限切れの可能性」と出るので発行し直す。
+3. **クラウド環境の設定**（セッション画面のクラウド環境メニュー → Edit）で環境変数を追加する:
+   `ANTHROPIC_API_KEY` / `GOOGLE_API_KEY` / `GRACE_E2E_SNAPSHOT_URL`。
+   キーは E2E 専用の、上限額を低くしたものを推奨。
+4. 新しいセッションを開く。hook のサマリに `e2e-data:N restored` と出れば準備完了。
+
+> ⚠️ **既定のネットワーク設定では `huggingface.co` と `duckduckgo.com` に届かない**（2026-10-03 実測）。
+> - `huggingface.co`（と `cdn-lfs.huggingface.co`）: hybrid 検索の sparse モデル（SPLADE）を取得できず、
+>   **dense だけで検索する**（アプリはそう倒れる作り）。Mac と結果を揃えたいなら許可ドメインに足す。
+>   使えたかどうかはレポートの `sparse` に残る
+> - `duckduckgo.com` ほか: Web 検索が失敗する。E2E は既定で Web を使わないので影響しない
+>
+> `restore` は**点が入っている既存コレクションを上書きしない**（`--force` で上書き）。
+> Embedding モデルが違うスナップショットは拒否する（CLAUDE.md §3: エラーにならず検索結果だけが壊れるため）。
 
 ---
 
@@ -193,7 +267,9 @@ uv run --no-sync pytest backend/tests/integration -q -rs
 | `test_data_jobs.py` / `test_data_pipeline.py` / `test_chunking_abort.py` / `test_collection_selection.py` | データ準備 4 ジョブ |
 | `test_config_isolation.py` / `test_config_file_and_memory.py` / `test_scope_and_models.py` / `test_model_table_coverage.py` | 設定・モデル解決 |
 | `test_celery_worker_init.py` | Celery ワーカー起動時の初期化（`configure_worker_process`）が ERROR を出さず、タスクが実際に使う `qa_generation.smart_qa_generator` を確かめる（削除済みの `qa_generation.generation` を見ていた回帰） |
-| `integration/test_*_live.py`（3 ファイル） | **実 Qdrant / Redis の結合テスト**（§1.1。未起動なら skip） |
+| `integration/test_*_live.py`（4 ファイル） | **実 Qdrant / Redis の結合テスト**（§1.1。未起動なら skip） |
+| `test_qdrant_snapshot.py` | `scripts/qdrant_snapshot.py` の Qdrant を使わない部分（対象コレクションの集め方・tar の検査・CLI） |
+| `e2e/test_*_e2e.py`（2 ファイル） / `e2e/test_e2e_cases.py` | **E2E**（§1.2。`GRACE_E2E=1` のときだけ）／ そのケース定義（CI で走る） |
 
 ---
 
@@ -208,6 +284,8 @@ uv run --no-sync pytest backend/tests/integration -q -rs
 | `schemas.py` / `api/*.py` | `test_api.py` `test_review_api.py` ＋ **frontend ゲート**（`types.ts` の追随） |
 | `core/data_jobs.py` | `test_data_jobs.py` `test_data_pipeline.py` |
 | `qdrant_client_wrapper.py` / `services/qdrant_service.py` / `qa_qdrant/register_to_qdrant.py` / `celery_*.py` | 上の単体テストに加えて `backend/tests/integration/`（Qdrant / Redis を起動して。§1.1） |
+| 判定・閾値・プロンプト・モデル既定（`gates.py` / `review_gates.py` / `rulesets.py` / `config/grace_config.yml`） | 単体テストに加えて、できれば E2E（§1.2）。とくに「適正LP案 → 0 件」 |
+| `frontend/src/components/QueryForm.tsx` / `ReviewForm.tsx` の例文 | `e2e/test_e2e_cases.py`（期待値とずれていないか） |
 
 ---
 
@@ -251,6 +329,7 @@ uv run --no-sync pytest backend/tests/integration -q -rs
 |---|---|---|
 | 1.0 | 2026-09-16 | 新規作成。`review_spec.md` §9（テスト方針）を取り込み、`backend/tests` の実測（58 ファイル / 867 関数 / 978 passed・1 skipped）から地図を書き起こした |
 | 1.1 | 2026-09-24 | `a_cross_doc_md_format.md` v1.1（種別 B）に準拠（2026-09-24）。概要（結論・対象モジュール）を追加し、冒頭の説明文を概要へ移した。本文の章番号は変えていない |
+| 1.9 | 2026-10-03 | §1.2 E2E（`backend/tests/e2e/`・`GRACE_E2E=1`・画面の例文を実データで流す）と、実データを VM へ運ぶ `scripts/qdrant_snapshot.py` を追加。API 失敗時に安全側の結果で合格してしまう問題への 2 段の対策を記載。結合テストを 25 件に更新 |
 | 1.8 | 2026-10-03 | テストの地図に `test_celery_worker_init.py` を追加 |
 | 1.7 | 2026-10-03 | §1.1 結合テスト（`backend/tests/integration/`・実 Qdrant / Redis・未起動なら skip）を追加。地図・§3・§4・§5 に反映。クラウド VM では SessionStart hook が両サービスを起動する |
 | 1.6 | 2026-10-03 | テストの地図に `test_review_facts.py` を追加。スタブの `purchase_shipping_shown`（既定 True・None で実物）を conftest に追加 |
