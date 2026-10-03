@@ -1,6 +1,6 @@
 # backend テストの地図 ドキュメント
 
-**Version 1.7** | 最終更新: 2026-10-03
+**Version 1.8** | 最終更新: 2026-10-03
 
 ---
 
@@ -192,6 +192,7 @@ uv run --no-sync pytest backend/tests/integration -q -rs
 | `test_api.py` | Support API の応答 |
 | `test_data_jobs.py` / `test_data_pipeline.py` / `test_chunking_abort.py` / `test_collection_selection.py` | データ準備 4 ジョブ |
 | `test_config_isolation.py` / `test_config_file_and_memory.py` / `test_scope_and_models.py` / `test_model_table_coverage.py` | 設定・モデル解決 |
+| `test_celery_worker_init.py` | Celery ワーカー起動時の初期化（`configure_worker_process`）が ERROR を出さず、タスクが実際に使う `qa_generation.smart_qa_generator` を確かめる（削除済みの `qa_generation.generation` を見ていた回帰） |
 | `integration/test_*_live.py`（3 ファイル） | **実 Qdrant / Redis の結合テスト**（§1.1。未起動なら skip） |
 
 ---
@@ -250,6 +251,7 @@ uv run --no-sync pytest backend/tests/integration -q -rs
 |---|---|---|
 | 1.0 | 2026-09-16 | 新規作成。`review_spec.md` §9（テスト方針）を取り込み、`backend/tests` の実測（58 ファイル / 867 関数 / 978 passed・1 skipped）から地図を書き起こした |
 | 1.1 | 2026-09-24 | `a_cross_doc_md_format.md` v1.1（種別 B）に準拠（2026-09-24）。概要（結論・対象モジュール）を追加し、冒頭の説明文を概要へ移した。本文の章番号は変えていない |
+| 1.8 | 2026-10-03 | テストの地図に `test_celery_worker_init.py` を追加 |
 | 1.7 | 2026-10-03 | §1.1 結合テスト（`backend/tests/integration/`・実 Qdrant / Redis・未起動なら skip）を追加。地図・§3・§4・§5 に反映。クラウド VM では SessionStart hook が両サービスを起動する |
 | 1.6 | 2026-10-03 | テストの地図に `test_review_facts.py` を追加。スタブの `purchase_shipping_shown`（既定 True・None で実物）を conftest に追加 |
 | 1.5 | 2026-10-03 | テストの地図に `test_review_keyword_excludes.py` を追加 |
