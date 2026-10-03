@@ -461,6 +461,7 @@ React の型（`KeyboardEvent` 等）に直接依存させず、必要なフィ�
 | `state/timelineAnnounce.ts` | 支援技術へ読み上げる 1 行の決定 |
 | `state/focusTrap.ts` | `ConfirmModal` 内の Tab 移動先（端で巻き戻す。**Escape では閉じない**） |
 | `state/selectionKeys.ts` | 指摘の選択キー（Enter / Space・IME 変換中は発火しない）と選択トグル |
+| `state/staleResult.ts` | GRACE-Review の結果が入力欄の文書のものか（例文ボタンで差し替えて未実行なら「古い」と表示） |
 | `state/citations.ts` / `highlight.ts` / `elapsed.ts` / `activeJobs.ts` | 表示用の派生値 |
 | `state/jobReducer.ts` / `dataReducer.ts` / `reviewReducer.ts` | ジョブ状態の遷移 |
 

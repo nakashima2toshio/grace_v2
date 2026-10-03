@@ -1,6 +1,6 @@
 # ReviewPanel.tsx - 文書 → 指摘 パネル ドキュメント
 
-**Version 1.5** | 最終更新: 2026-09-24
+**Version 1.6** | 最終更新: 2026-10-03
 
 ---
 
@@ -451,6 +451,7 @@ sequenceDiagram
 | `ReviewTimeline` | 常時 |
 | 結果ブロック（`FindingSummaryBar` / `review-panes` / KPI / `JobFinishLine`） | `result` が非 null |
 | `div.warn-banner`（打ち切り） | `result.truncated` |
+| `div.warn-banner`（結果が古い・`role="status"`）＋結果ブロックを薄く（`.review-result-stale`） | `isResultStale(state.document, draftDocument, running)`。入力欄の文書がチェックした文書と違うとき（例文ボタンで差し替えて未実行など） |
 | `p.review-action-result` | `result.action_result` が非 null |
 | `JobFinishLine`（単独） | `result` が **null**（＝失敗時） |
 | `ConfirmModal` | `state.intervention` が非 null |
@@ -523,7 +524,7 @@ class S,V,R,Go,Err,Fail,Stream,I,M,D,Sel default
 | 項目 | 内容 |
 |---|---|
 | スタイル方式 | プレーン CSS（`src/styles.css`） |
-| 主要クラス | `.panel-lead`, `.error-banner`, `.warn-banner`, `.running-banner`, `.review-panes`, `.review-action-result`, `.review-kpi` |
+| 主要クラス | `.panel-lead`, `.error-banner`, `.warn-banner`, `.running-banner`, `.review-result` / `.review-result-stale`, `.review-panes`, `.review-action-result`, `.review-kpi` |
 | ダークモード | 未対応 |
 
 ### アクセシビリティ・チェック
@@ -546,6 +547,7 @@ class S,V,R,Go,Err,Fail,Stream,I,M,D,Sel default
 | テストファイル | 対象 | 件数 |
 |---|---|---:|
 | `src/state/reviewReducer.test.ts` | reducer の畳み込み・指摘の選択 | 13 |
+| `src/state/staleResult.test.ts` | 結果が入力欄の文書のものか（2026-10-03 追加） | 6 |
 | `src/components/ReviewForm.examples.test.ts` | 例文チップの中身 | 17 |
 | `src/state/metaFetch.test.ts` | メタ取得失敗の文言 | 10 |
 | `src/state/highlight.test.ts` | 原文ハイライトの算出 | 13 |
@@ -572,6 +574,7 @@ class S,V,R,Go,Err,Fail,Stream,I,M,D,Sel default
 
 | 版 | 日付 | 変更内容 |
 |---|---|---|
+| 1.6 | 2026-10-03 | **結果が古いことを表示する。** `ReviewForm` の `onDocumentChange` で入力欄の文書を `draftDocument` に持ち、チェックした文書（`state.document`）と違えば警告（`role="status"`）を出して結果ブロックを薄くする（判定は `state/staleResult.ts`・vitest 6 件）。実測 2026-10-03: 例文ボタンで「OK 例」へ切り替えただけで実行せず、前回（表記漏れLP案）の結果を「OK 例が NG」と読み違えた |
 | 1.5 | 2026-09-24 | `a_react_page_md_format.md` v1.1 に追随（2026-09-24）。概要に「各責務対応のモジュール」（主な責務と 1:1）を追加し、`## 1.` を「アーキテクチャ構成図」として **1.1 システム全体での位置づけ（3 層）** と 1.2 コンポーネントツリー図の 2 枚構成にした。Mermaid の `classDef subgraphStyle` の欠落を補った |
 | 1.4 | 2026-09-23 | **モデル選択をヘッダー（`App`）へ移した。** `models` / `modelInfo` の state と取得を削除し、`model` prop を受け取って `ReviewForm` へ渡すだけにした（Props なし → `model` 1 つ） |
 | 1.3 | 2026-09-16 | **モデルセレクタに追随。** `models` / `modelInfo` の取得を副作用へ追加し、`ReviewForm` へ `models` / `defaultModel` を渡すようにした |
