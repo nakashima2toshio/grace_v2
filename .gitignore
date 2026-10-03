@@ -247,3 +247,6 @@ logs/grace_memory.jsonl
 # チャンク化の再開用チェックポイント（成果物）
 checkpoints/
 output_chunked/
+
+# E2E 用 Qdrant スナップショット（scripts/qdrant_snapshot.py export の生成物）。実データなので git に入れない
+grace_e2e_snapshot*.tar.gz

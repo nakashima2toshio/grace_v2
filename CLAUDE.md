@@ -200,11 +200,30 @@ uv run --no-sync pytest backend/tests/integration -q -rs
   （SessionStart hook）がセッション開始時に テスト依存の導入 → `dockerd` 起動 → `docker compose up -d`
   を行う。結果は 1 行（`[grace session-start] ... qdrant:localhost:6333 redis:localhost:6379`）で出る。
   ローカル（Mac）では何もしない（`CLAUDE_CODE_REMOTE` が無いため）。
-- VM の Qdrant は**空**で、API キーも無い。実データ・実 LLM を使う E2E は Mac で行う。
+- VM の Qdrant は既定では**空**で、API キーも無い。実データ・実 LLM を使う E2E は次の節。
 - 結合テストは共用 Qdrant を壊さないよう `grace_it_<乱数>` のコレクションだけを作って消し、
   Redis は **db 15** を使う（Mac の常駐ワーカーは db 0）。詳細は `backend/docs/testing.md` §1.1。
 - ⚠️ **`dockerd` をバックグラウンドで起こすときは `setsid nohup` で切り離す。** ツール呼び出しの
   終了で子プロセスごと落ちる（2026-10-03 実測）。
+
+### E2E（実 LLM・実 Embedding・実データ）
+
+`backend/tests/e2e/` は画面の例文（Support 3 業界・Review 3 例文）を**本物の API と実データ**で流す。
+**課金される**ので `GRACE_E2E=1` のときだけ走る（CI は skip）。詳細は `backend/docs/testing.md` §1.2。
+
+```bash
+uv pip install -r requirements-e2e.txt          # 初回（fastembed / ddgs）
+GRACE_E2E=1 uv run --no-sync pytest backend/tests/e2e -m e2e -rs   # 結果は logs/e2e/*.json
+```
+
+- **実データは Mac の Qdrant からスナップショットで運ぶ**: Mac で `python scripts/qdrant_snapshot.py export`
+  → 非公開の保存先に置いて署名付き URL → クラウド環境の設定で `GRACE_E2E_SNAPSHOT_URL`・
+  `ANTHROPIC_API_KEY`・`GOOGLE_API_KEY` を環境変数に入れる → 新しいセッションで hook が復元する。
+  `restore` は既存コレクションを上書きせず、Embedding モデルが違うものは拒否する。
+- ⚠️ **API が失敗してもパイプラインは安全側の結果を返して例外を出さない。** 素朴な期待値だと
+  キーが無効でも合格する（実測: 6 件中 4 件）。E2E は事前の疎通確認と API エラーのログ監視で
+  これを防いでいる。**E2E に期待値を足すときも `api_errors` の確認を外さないこと。**
+- ⚠️ 既定のネットワーク設定では `huggingface.co`（sparse モデル）に届かず、VM では dense 検索だけになる。
 
 > `pyproject.toml` に `pythonpath` 指定は無い。CI は素の `pytest` を使うので
 > `PYTHONPATH=.` を env で与えている（`uv run` 経由ならプロジェクトルートが通るので不要）。

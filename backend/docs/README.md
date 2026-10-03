@@ -142,7 +142,7 @@ reference/*.md             引く（通読しない）
 | 文書 | 種別 | 内容 |
 |---|:--:|---|
 | [`install_and_setup.md`](./install_and_setup.md) | B | 環境構築・**起動手順の正本** |
-| [`testing.md`](./testing.md) | B | `backend/tests` の地図・どこを触ったらどれを流すか・CI の 4 ゲート |
+| [`testing.md`](./testing.md) | B | `backend/tests` の地図・結合テスト（実 Qdrant / Redis）・E2E（実 API・実データ）・どこを触ったらどれを流すか・CI の 4 ゲート |
 | [`migration_plan.md`](./migration_plan.md) | C | 文書再編の計画（Phase 1 完了 / Phase 2・3 の予定） |
 | [`docs_audit.md`](./docs_audit.md) | C | 棚卸し・実装追随の照合結果・検証スクリプト・残タスク |
 | [`archive/`](./archive/) | — | 記録としては残すが実装の正ではない文書 |
@@ -160,7 +160,7 @@ reference/*.md             引く（通読しない）
 | 回答が escalate に倒れる理由を追う | `support_flow.md` → `reference/core_gates.md` |
 | 指摘が出ない / 誤検知する理由を追う | `review_flow.md` → `reference/core_review_gates.md` |
 | 業界プロファイル / ルールセットを増やす | `verticals_and_rulesets.md` §3 |
-| テストを足す・どれを流すか調べる | `testing.md` |
+| テストを足す・どれを流すか調べる・E2E を走らせる | `testing.md` |
 | 既定モデルを変える | `config_and_providers.md` §6 |
 | 起動できない・キーが無い | `install_and_setup.md` → `config_and_providers.md` §4 |
 | 触る前に地雷を確認する | `pitfalls.md` |
