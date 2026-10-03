@@ -1,6 +1,6 @@
 # backend テストの地図 ドキュメント
 
-**Version 1.6** | 最終更新: 2026-10-03
+**Version 1.7** | 最終更新: 2026-10-03
 
 ---
 
@@ -8,6 +8,7 @@
 
 - [概要](#概要)
 - [1. 実行方法](#1-実行方法)
+  - [1.1 結合テスト（実 Qdrant / Redis）](#11-結合テスト実-qdrant--redis)
 - [2. テストの地図](#2-テストの地図)
 - [3. どこを触ったらどれを流すか](#3-どこを触ったらどれを流すか)
 - [4. 設計方針](#4-設計方針)
@@ -30,6 +31,7 @@
 ### 結論
 
 - 実行は `uv run --no-sync pytest backend/tests -q -rs`（§1）。実 API キー・Qdrant は不要
+- **例外は `backend/tests/integration/`（§1.1）**。実 Qdrant / Redis に接続し、未起動なら skip する。クラウド VM では SessionStart hook が両方を起動するので走る
 - **どこを触ったらどれを流すか**は §3。共有基盤（`jobs.py` ほか）と共用部品を触ったら全体を流す
 - CI の必須ゲートは 4 つ（§5）
 
@@ -40,6 +42,8 @@
 | 1 | `backend/tests/` | テスト本体（§2 の地図） |
 | 2 | `requirements-test.txt` | テスト用依存の正本（CI と共有） |
 | 3 | `.github/workflows/ci.yml` | 4 ゲートの定義 |
+| 4 | `backend/tests/integration/` | 結合テスト（§1.1） |
+| 5 | `.claude/hooks/session-start.sh` | クラウド VM でテスト依存を入れ、Qdrant / Redis を起動する |
 
 ---
 
@@ -75,6 +79,55 @@ uv run --no-sync pytest backend/tests -q -rs
 
 **実測（2026-09-16）**: `978 passed, 1 skipped, 3 warnings in 9.51s`。
 スキップ 1 件は `test_config_file_and_memory.py`（`logs/` が無い環境では対象外）。
+
+### 1.1 結合テスト（実 Qdrant / Redis）
+
+`backend/tests/integration/` だけは**スタブを使わず**、`docker-compose/docker-compose.yml` の
+Qdrant（:6333）と Redis（:6379）に実際に接続する。API キーは使わない
+（Embedding は固定ベクトル、LLM は固定応答の生成器へ差し替える）。
+
+| 状況 | 挙動 |
+|---|---|
+| Qdrant / Redis が起動している | 走る（18 件・約 5 秒） |
+| 起動していない（CI・Docker を止めた Mac） | **skip**（理由に起動コマンドを出す） |
+| `GRACE_SKIP_INTEGRATION=1` | 起動していても skip |
+| `-m "not integration"` | 収集から外す（`deselected`） |
+
+```bash
+# Mac: Docker Desktop で起動してから
+docker compose -f docker-compose/docker-compose.yml up -d
+uv run --no-sync pytest backend/tests/integration -q -rs
+
+# クラウド VM（Claude Code on the web）: セッション開始時に
+# .claude/hooks/session-start.sh が dockerd と compose を起動済み。そのまま流す
+```
+
+> ⚠️ **共用 Qdrant（grace_v2_local と同じもの）を壊さない。** 作るコレクションは
+> `grace_it_<乱数>` だけで、テストごとに削除する。既存コレクションには触れない。
+> Redis は **db 15** を使う（Celery の既定は db 0）。Mac で常駐している本物のワーカーに
+> テストのタスクを拾わせないためで、Celery アプリのキャッシュ済み接続を捨てて
+> **db 15 を向いたことを assert してから**投入する。
+
+| テスト | 見ていること（スタブでは分からない点） |
+|---|---|
+| `test_qdrant_live.py`（12 件） | `create_or_recreate_collection` の設定（sparse・`domain` 索引・recreate）、`stable_point_id` による再登録の冪等性、`search_collection` の経路選択（dense / sparse 未設定なら hybrid を投げない / hybrid で sparse が順位を変える / 無いコレクションは `[]`）、`get_all_collections` / `QdrantDataFetcher` |
+| `test_register_to_qdrant_live.py`（4 件） | `register_to_qdrant` の CSV → Qdrant 登録（重複行は **Embedding 前に**落とす・Embedding メタデータ・ファイル名の日時サフィックス除去・再登録の冪等性・batch_size=1 の先読みパイプライン・登録ベクトルで自分が 1 位） |
+| `test_celery_redis_live.py`（2 件） | テスト内で本物の Celery ワーカー（solo）を立て、`submit_unified_qa_generation` → Redis → タスク → Redis → `collect_results` を往復（JSON を経た戻り値の形・usage 合算・空チャンク・完了通知・result backend への保存） |
+
+**実効性の確認（2026-10-03）**: 本番コードを次のように壊すと、それぞれ落ちることを確かめた。
+
+| 壊し方 | 落ちたテスト |
+|---|---|
+| `stable_point_id` を乱数にする | `test_upsert_twice_does_not_duplicate` / `test_reregistering_without_recreate_is_idempotent` |
+| `_get_vector_config` の `has_sparse` を常に False | `test_hybrid_search_lets_sparse_change_ranking` |
+| `register_to_qdrant` の重複テキスト除去を外す | `test_registers_unique_rows_with_embedding_metadata`（※ 件数だけでは検出できない。内容ベース ID で同じ点に上書きされるため。Embedding に渡った件数で見る） |
+| ワーカーの usage を捨てる | `test_qa_generation_roundtrip_through_redis` |
+
+> 📝 Celery のテストは本番の `rate_limit`（`generate_qa_for_chunk` は 60/m）を**テスト中だけ**外す。
+> 効いたままだと solo ワーカーで 3 タスクに約 10 秒かかる（実測）。終了時に元へ戻す。
+
+**実測（2026-10-03・クラウド VM・サービス起動中）**: `1320 passed, 1 skipped`（うち結合 18 件）。
+サービス停止中は `1302 passed, 19 skipped`（結合 18 件が skip）。
 
 ---
 
@@ -139,6 +192,7 @@ uv run --no-sync pytest backend/tests -q -rs
 | `test_api.py` | Support API の応答 |
 | `test_data_jobs.py` / `test_data_pipeline.py` / `test_chunking_abort.py` / `test_collection_selection.py` | データ準備 4 ジョブ |
 | `test_config_isolation.py` / `test_config_file_and_memory.py` / `test_scope_and_models.py` / `test_model_table_coverage.py` | 設定・モデル解決 |
+| `integration/test_*_live.py`（3 ファイル） | **実 Qdrant / Redis の結合テスト**（§1.1。未起動なら skip） |
 
 ---
 
@@ -152,6 +206,7 @@ uv run --no-sync pytest backend/tests -q -rs
 | `grace.confidence` / `support_actions.py`（**Support / Review 共用**） | 全体 |
 | `schemas.py` / `api/*.py` | `test_api.py` `test_review_api.py` ＋ **frontend ゲート**（`types.ts` の追随） |
 | `core/data_jobs.py` | `test_data_jobs.py` `test_data_pipeline.py` |
+| `qdrant_client_wrapper.py` / `services/qdrant_service.py` / `qa_qdrant/register_to_qdrant.py` / `celery_*.py` | 上の単体テストに加えて `backend/tests/integration/`（Qdrant / Redis を起動して。§1.1） |
 
 ---
 
@@ -160,6 +215,7 @@ uv run --no-sync pytest backend/tests -q -rs
 1. **外部依存はスタブで差し替える。** `conftest.py` が planner / executor / verifier /
    tools / LLM 分類器を置き換えるため、API キー・Qdrant・実 LLM なしで
    「イベント・HITL・判定の流れ（配線）」を検証できる。
+   **Qdrant / Redis との実際のやり取り**だけは `integration/` が実物で確かめる（§1.1）。
 2. **判定は純関数として固定する。** `gates.py` / `review_gates.py` の純関数は
    スタブなしで直接テストできる。判断ロジックをコアへ埋め込まない理由でもある。
 3. **回帰は「修正前のコードで fail すること」を確認してから入れる。**
@@ -180,7 +236,7 @@ uv run --no-sync pytest backend/tests -q -rs
 |---|---|
 | `compile (syntax gate)` | `python -m compileall` |
 | `ruff` | `ruff check .`（`ruff==0.12.11` 固定。再現は `uvx ruff@0.12.11 check . --no-cache`） |
-| `pytest (backend)` | `pytest backend/tests -q -rs` |
+| `pytest (backend)` | `pytest backend/tests -q -rs`（CI に Qdrant / Redis は無いので `integration/` は skip） |
 | `frontend (tsc + vitest + build)` | `npm run lint` → `npm test` → `npm run build` |
 
 > ⚠️ **frontend ゲートを忘れない。** Python 側が全部緑でも `frontend/src/types.ts` の
@@ -194,6 +250,7 @@ uv run --no-sync pytest backend/tests -q -rs
 |---|---|---|
 | 1.0 | 2026-09-16 | 新規作成。`review_spec.md` §9（テスト方針）を取り込み、`backend/tests` の実測（58 ファイル / 867 関数 / 978 passed・1 skipped）から地図を書き起こした |
 | 1.1 | 2026-09-24 | `a_cross_doc_md_format.md` v1.1（種別 B）に準拠（2026-09-24）。概要（結論・対象モジュール）を追加し、冒頭の説明文を概要へ移した。本文の章番号は変えていない |
+| 1.7 | 2026-10-03 | §1.1 結合テスト（`backend/tests/integration/`・実 Qdrant / Redis・未起動なら skip）を追加。地図・§3・§4・§5 に反映。クラウド VM では SessionStart hook が両サービスを起動する |
 | 1.6 | 2026-10-03 | テストの地図に `test_review_facts.py` を追加。スタブの `purchase_shipping_shown`（既定 True・None で実物）を conftest に追加 |
 | 1.5 | 2026-10-03 | テストの地図に `test_review_keyword_excludes.py` を追加 |
 | 1.4 | 2026-10-02 | テストの地図に `test_review_document_context.py` を追加 |

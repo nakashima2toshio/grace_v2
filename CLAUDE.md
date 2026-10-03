@@ -186,6 +186,26 @@ cd frontend && npm run lint && npm test && npm run build   # frontend
 > CI（`.github/workflows/ci.yml`）はこのファイルを読むので、YAML 側を直す必要は無い。
 > 理由と過去の事故例（`openai` が `tqdm` を落として無関係な PR が落ちた）は同ファイルの冒頭に書いてある。
 
+### 結合テスト（実 Qdrant / Redis）とクラウド VM
+
+`backend/tests/integration/` は**スタブを使わず** docker-compose の Qdrant / Redis に接続する
+（API キーは不要。Embedding は固定ベクトル、LLM は固定応答で代用）。**未起動なら skip** するので
+CI とは無関係。除外は `-m "not integration"`、強制 skip は `GRACE_SKIP_INTEGRATION=1`。
+
+```bash
+uv run --no-sync pytest backend/tests/integration -q -rs
+```
+
+- **クラウド VM（Claude Code on the web）でも Docker は動く。** `.claude/hooks/session-start.sh`
+  （SessionStart hook）がセッション開始時に テスト依存の導入 → `dockerd` 起動 → `docker compose up -d`
+  を行う。結果は 1 行（`[grace session-start] ... qdrant:localhost:6333 redis:localhost:6379`）で出る。
+  ローカル（Mac）では何もしない（`CLAUDE_CODE_REMOTE` が無いため）。
+- VM の Qdrant は**空**で、API キーも無い。実データ・実 LLM を使う E2E は Mac で行う。
+- 結合テストは共用 Qdrant を壊さないよう `grace_it_<乱数>` のコレクションだけを作って消し、
+  Redis は **db 15** を使う（Mac の常駐ワーカーは db 0）。詳細は `backend/docs/testing.md` §1.1。
+- ⚠️ **`dockerd` をバックグラウンドで起こすときは `setsid nohup` で切り離す。** ツール呼び出しの
+  終了で子プロセスごと落ちる（2026-10-03 実測）。
+
 > `pyproject.toml` に `pythonpath` 指定は無い。CI は素の `pytest` を使うので
 > `PYTHONPATH=.` を env で与えている（`uv run` 経由ならプロジェクトルートが通るので不要）。
 > `python backend/tests/x.py` を直接叩くと `ModuleNotFoundError: No module named 'backend'`
