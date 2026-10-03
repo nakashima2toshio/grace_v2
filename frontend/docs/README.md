@@ -1,6 +1,6 @@
 # frontend — 責務・構成・モジュール構造
 
-**Version 2.9** | 最終更新: 2026-10-02
+**Version 3.0** | 最終更新: 2026-10-03
 
 `frontend/`（Vite + React 18 + TypeScript）の**入口文書**である。
 前半（§1〜§7）で frontend の責務・構成・モジュール構造・データの流れを説明し、
@@ -470,7 +470,7 @@ result の型が違うため**無理にジェネリック化しない**方針で
 |---|---|---:|---|:--:|
 | `App.md` | `App.tsx` — タブ切替・パネルの振り分け・ヘッダーのモデル選択 | 174 | 1.7 | ★★ |
 | `SupportPanel.md` | `components/SupportPanel.tsx` — 基本版 / GRACE-Support 共用 | 192 | 1.7 | ★★★ |
-| `ReviewPanel.md` | `components/ReviewPanel.tsx` — GRACE-Review 本体 | 208 | 1.5 | ★★★ |
+| `ReviewPanel.md` | `components/ReviewPanel.tsx` — GRACE-Review 本体 | 219 | 1.6 | ★★★ |
 | `DataPanel.md` | `components/DataPanel.tsx` — データ管理タブの枠（サブタブ） | 111 | 1.5 | ★★ |
 | `DataJobPanel.md` | `components/DataJobPanel.tsx` — チャンキング / Q/A 作成 / 登録ジョブ | 751 | 1.8 | ★★★ |
 | `CollectionPanel.md` | `components/CollectionPanel.tsx` — コレクション管理 | 413 | 1.4 | ★★ |
@@ -480,7 +480,7 @@ result の型が違うため**無理にジェネリック化しない**方針で
 | 文書 | 対象 | 実装行数 | 版 | 重要度 |
 |---|---|---:|---|:--:|
 | `QueryForm.md` | `components/QueryForm.tsx` | 272 | 1.8 | ★★★ |
-| `ReviewForm.md` | `components/ReviewForm.tsx` | 254 | 1.7 | ★★ |
+| `ReviewForm.md` | `components/ReviewForm.tsx` | 264 | 1.9 | ★★ |
 | `ConfirmModal.md` | `components/ConfirmModal.tsx` — HITL アクション承認 | 142 | 1.3 | ★★ |
 | `QuestionSelectModal.md` | `components/QuestionSelectModal.tsx` — 0-(A) 主質問の選択 | 76 | 1.1 | ★★ |
 
@@ -543,6 +543,7 @@ result の型が違うため**無理にジェネリック化しない**方針で
 | | `activeJobs.ts` | 45 | 実行中データジョブの `job_id` 保持（再マウント時の再購読） |
 | **表示用の派生値** | `citations.ts` | 76 | 出典文字列（`[社内]` / `[Web]`）の解析 |
 | | `highlight.ts` | 117 | 原文を非該当テキストと指摘スパンへ分割（XSS 回避のためデータだけ作る）。原文ペインの見出し（`documentViewHeading`） |
+| | `staleResult.ts` | 28 | GRACE-Review の結果が入力欄の文書のものか（例文ボタンで差し替えて未実行なら古い） |
 | | `elapsed.ts` | 179 | 所要時間の整形・サーバ権威タイムスタンプの採否 |
 | | `documentLimit.ts` | 52 | 文字数上限の判定・表示文言・アナウンス文言 |
 | | `metaFetch.ts` | 53 | メタ取得失敗 → 対処可能な文言 |
@@ -567,8 +568,8 @@ result の型が違うため**無理にジェネリック化しない**方針で
 **2026-09-26 に `cd frontend && npx vitest run` を実行した実測値。記憶で書かないこと。**
 
 ```
-Test Files  23 passed (23)
-     Tests  326 passed (326)
+Test Files  24 passed (24)
+     Tests  332 passed (332)
 ```
 
 | テストファイル | 件数 |
@@ -584,6 +585,7 @@ Test Files  23 passed (23)
 | `state/reviewReducer.test.ts` | 13 |
 | `state/formMemory.test.ts` | 13 |
 | `state/highlight.test.ts` | 18 |
+| `state/staleResult.test.ts` | 6 |
 | `state/citations.test.ts` | 13 |
 | `state/tabKeys.test.ts` | 12 |
 | `state/focusTrap.test.ts` | 12 |
@@ -656,6 +658,7 @@ npm run build    # 本番ビルド
 
 | 版 | 日付 | 変更内容 |
 |---|---|---|
+| 3.0 | 2026-10-03 | GRACE-Review の結果が古いことを表示する `state/staleResult.ts`（6 件）を追加したのに追随。§8 の `ReviewPanel.md` 1.6 / 219 行・`ReviewForm.md` 1.9 / 264 行、§10 に `staleResult.ts`、§11 のテスト件数を **24 ファイル / 332 件**（実測）へ更新 |
 | 2.9 | 2026-10-02 | 原文ペインの見出しを `state/highlight.ts::documentViewHeading` へ切り出したのに追随。§8 の `DocumentView.md` を 1.4、§10 の `highlight.ts` を 117 行、§11 のテスト件数を **23 ファイル / 326 件**（実測・`highlight.test.ts` 13 → 18）へ更新 |
 | 2.8 | 2026-09-27 | §1 の冒頭に frontend / backend の役割分担の要約（全体像の図・frontend の役割表・持たないもの・1 回の問い合わせの流れ・分担のルール）を追加した。§1.1 / §1.2 の詳細表と章番号は変えていない |
 | 2.7 | 2026-09-26 | §8.2 の `QueryForm.md` の版を 1.8 へ更新（dry-run の既定が OFF になった現状に合わせて、formMemory の説明の言い回しを直した） |

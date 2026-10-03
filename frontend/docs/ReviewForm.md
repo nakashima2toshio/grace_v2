@@ -1,6 +1,6 @@
 # ReviewForm.tsx - 文書レビュー入力フォーム ドキュメント
 
-**Version 1.8** | 最終更新: 2026-10-01
+**Version 1.9** | 最終更新: 2026-10-03
 
 ---
 
@@ -143,6 +143,12 @@ interface Props {
   model: string;
   running: boolean;
   onSubmit: (params: ReviewParams) => void;
+  /**
+   * 入力欄の文書が変わるたびに呼ぶ（初回マウント時も呼ぶ）。
+   * 親（ReviewPanel）が「結果が入力欄の文書のものか」を判定するのに使う
+   * （`state/staleResult.ts`）。
+   */
+  onDocumentChange?: (document: string) => void;
 }
 ```
 
@@ -152,12 +158,14 @@ interface Props {
 | `model` | `string` | ✅ | — | ヘッダー（`App`）で選んだモデル。空文字は「サーバーの既定値」で、送信時に `null` へ倒す |
 | `running` | `boolean` | ✅ | — | 実行中フラグ。`true` の間は全入力を `disabled` |
 | `onSubmit` | `(params: ReviewParams) => void` | ✅ | — | 送信時に `ReviewParams` を親へ返す |
+| `onDocumentChange` | `(document: string) => void` | — | なし | 入力欄の文書が変わるたび（初回マウント時も）に呼ぶ。親が結果の古さを判定する（`state/staleResult.ts`） |
 
 ### コールバックの契約
 
 | コールバック | 呼ばれる条件 | 親側の責務 |
 |---|---|---|
 | `onSubmit` | form submit かつ `canSubmit`（文書が空白でなく、50,000 字以下、`running === false`） | 前回購読の解除 → ジョブ起動 → SSE 購読開始 |
+| `onDocumentChange` | `document` が変わったとき（`useEffect`。例文ボタンで差し替えたときも含む） | 入力欄の文書を覚え、結果が古ければ知らせる |
 
 > 📝 **取得に失敗して `rulesets` が空でもフォームは動く。** セレクタが空になるだけで、
 > `ruleset` は `null` として送られる。失敗の理由は親が `MetaErrorBanner` で出す。
@@ -401,6 +409,7 @@ onSubmit({
 
 | 版 | 日付 | 変更内容 |
 |---|---|---|
+| 1.9 | 2026-10-03 | **`onDocumentChange` prop を追加**（任意）。入力欄の文書が変わるたびに親へ知らせ、`ReviewPanel` が「結果が前の文書のものか」を判定できるようにした（例文ボタンは入力欄を差し替えるだけで実行しないため、前回の結果を今の文書の結果と読み違えた。実測 2026-10-03） |
 | 1.8 | 2026-10-01 | **Web 裏取りの既定を OFF へ変更**（`DEFAULT_REVIEW_FORM.useWeb` とチェックボックスの表示「既定 OFF」）。API の既定（`ReviewRequest.use_web=False`）とフォームの既定が食い違っていたのも解消 |
 | 1.7 | 2026-09-24 | `a_react_page_md_format.md` v1.1 に追随（2026-09-24）。概要に「各責務対応のモジュール」（主な責務と 1:1）を追加し、`## 1.` を「アーキテクチャ構成図」として **1.1 システム全体での位置づけ（3 層）** と 1.2 コンポーネントツリー図の 2 枚構成にした。Mermaid の `classDef subgraphStyle` の欠落を補った |
 | 1.6 | 2026-09-24 | **文書 textarea に Ctrl+Enter / ⌘+Enter の送信を追加**（grace_v2_local から移植）。判定は `QueryForm` と同じ `state/submitKey.ts::isSubmitKey`（IME 変換中は送らない）。送信処理を `submitIfReady()` へ切り出して form submit とキー操作で共用し、placeholder に操作を明記した。grace_v2 にだけある `.sr-only` のタイトルラベルは温存。§8 の `headerModel.test.ts` の件数を実測（16）へ訂正 |

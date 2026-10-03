@@ -1,6 +1,6 @@
 # backend テストの地図 ドキュメント
 
-**Version 1.5** | 最終更新: 2026-10-03
+**Version 1.6** | 最終更新: 2026-10-03
 
 ---
 
@@ -98,6 +98,7 @@ uv run --no-sync pytest backend/tests -q -rs
 | `test_review_cosmetic_lp_expected.py` | 画面のサンプル「化粧品LP案」の期待値（確実な 5 件が判定に回り残る・強制 high 3 件）、keihyo-07 を確定にしない、keihyo-08 の判定基準、修正案と文面の指示 |
 | `test_review_document_context.py` | 段落単位の ③ Detect に文書の文脈（題名＋冒頭）を渡す（yakki-01 が商品の種類を判断できる）・文書全体のルールには渡さない・tokusho-01 の税込表記の判定基準 |
 | `test_review_keyword_excludes.py` | 第1段の候補検出で `keyword_excludes` の一部としてだけ現れた keyword を数えない（keihyo-09 が「期間限定」に反応しない・数量限定は引き続き拾う） |
+| `test_review_facts.py` | 文字列で決まる事実（`review_facts`）: 購入時の送料の有無（返品の行は数えない）・返品条件の比較（期限・条件語・返送料）と、③ の取りこぼし補完／④' の抑止の配線 |
 | `test_review_document_scope.py` / `test_review_document_excerpt.py` / `test_review_absence_excerpt.py` | 文書全体スコープ（`always_check`）の扱い |
 | `test_review_detect_criteria_in_prompt.py` / `test_review_detect_failure_status.py` | ③ Detect のプロンプトと判定失敗時の安全側 |
 | `test_review_ground_sources.py` / `test_review_undecided_groundedness.py` | ④ Ground の出典と「判定できていない」の扱い |
@@ -193,6 +194,7 @@ uv run --no-sync pytest backend/tests -q -rs
 |---|---|---|
 | 1.0 | 2026-09-16 | 新規作成。`review_spec.md` §9（テスト方針）を取り込み、`backend/tests` の実測（58 ファイル / 867 関数 / 978 passed・1 skipped）から地図を書き起こした |
 | 1.1 | 2026-09-24 | `a_cross_doc_md_format.md` v1.1（種別 B）に準拠（2026-09-24）。概要（結論・対象モジュール）を追加し、冒頭の説明文を概要へ移した。本文の章番号は変えていない |
+| 1.6 | 2026-10-03 | テストの地図に `test_review_facts.py` を追加。スタブの `purchase_shipping_shown`（既定 True・None で実物）を conftest に追加 |
 | 1.5 | 2026-10-03 | テストの地図に `test_review_keyword_excludes.py` を追加 |
 | 1.4 | 2026-10-02 | テストの地図に `test_review_document_context.py` を追加 |
 | 1.3 | 2026-10-02 | テストの地図に `test_review_cosmetic_lp_expected.py` を追加（化粧品LP案の期待値・確定の上限・判定基準と修正案の指示） |
