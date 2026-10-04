@@ -81,15 +81,30 @@ def _preflight() -> None:
     except Exception as e:
         pytest.fail(f"Anthropic API を呼べない（キーが無効か、ネットワークで拒否）: "
                     f"{type(e).__name__}: {str(e)[:200]}", pytrace=False)
-    try:
-        from config import ModelConfig
-        from qdrant_client_wrapper import embed_query
+    # 呼び出しの失敗と次元違いを分けて判定する（次元違いを「キーが無効」と表示しない）
+    from config import ModelConfig
+    from qdrant_client_wrapper import embed_query
 
+    try:
         vector = embed_query("疎通確認")
-        assert len(vector) == ModelConfig.EMBEDDING_DIMS, f"次元が {len(vector)}"
     except Exception as e:
         pytest.fail(f"Gemini Embedding を呼べない（キーが無効か、ネットワークで拒否）: "
                     f"{type(e).__name__}: {str(e)[:200]}", pytrace=False)
+    if len(vector) != ModelConfig.EMBEDDING_DIMS:
+        pytest.fail(f"Gemini Embedding の次元が {len(vector)}（期待 {ModelConfig.EMBEDDING_DIMS}）。"
+                    "Qdrant のコレクションと合わない", pytrace=False)
+
+
+def _resolved_models(run_options) -> Dict[str, str]:
+    """このセッションで実際に使う LLM（レポートに残す。モデルを替えた結果を比べるため）。
+
+    `model` はリクエスト単位の上書き（GRACE_E2E_MODEL）か config の llm.model。
+    `light_model`（判定系）は上書きされない（CLAUDE.md §3.1 経路 4）。
+    """
+    from grace.config import get_config
+
+    llm = get_config().llm
+    return {"model": run_options["model"] or llm.model, "light_model": llm.light_model}
 
 
 # API 失敗を表すログ。パイプラインはこれを握って安全側へ倒すので、ログで拾う
@@ -166,12 +181,13 @@ def sparse_available(e2e_ready) -> bool:
 def record(request, run_options, sparse_available):
     """`record(**data)` — このケースの結果をレポートへ積む。"""
     started = time.monotonic()
+    models = _resolved_models(run_options)
 
     def _record(**data):
         _records.append({
             "test": request.node.nodeid,
             "elapsed_sec": round(time.monotonic() - started, 1),
-            "model": run_options["model"] or "(config llm.model)",
+            **models,
             "use_web": run_options["use_web"],
             "sparse": sparse_available,
             **data,
