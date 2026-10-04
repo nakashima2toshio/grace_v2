@@ -1,6 +1,6 @@
 # backend テストの地図 ドキュメント
 
-**Version 2.0** | 最終更新: 2026-10-04
+**Version 2.1** | 最終更新: 2026-10-04
 
 ---
 
@@ -175,6 +175,15 @@ uv run --no-sync pytest backend/tests/integration -q -rs
 妥当だった（gov は `gov_faq.csv` を出典に groundedness 1.00、表記漏れLP案は 4 件、適正LP案は 0 件）。
 ただし saas の出典に無関係な Web の URL が 9 件混ざっており、これが上の `use_web` の不具合の発見につながった。
 
+**修正後の実測（2026-10-04・Mac）**: `6 passed`（80 秒）。saas の出典は `[社内] saas_docs.csv` だけになり、
+Support 3 件とも `used_web=false`。Web を検索しなくなった分だけ短くなった。
+
+- レポートの `model` / `light_model` は**実際に使ったモデル名**を記録する（以前は `(config llm.model)` としか残らず、
+  モデルを替えた結果を比べられなかった）。
+- 事前確認（`_preflight`）は `GRACE_E2E=1` とキーが揃ったときしか動かないので、`test_e2e_preflight.py`
+  （API を呼ばないので CI で走る）がスタブで通しておく。grace_v2_local では事前確認が存在しない設定値を読み、
+  Mac で 6 件すべてが ERROR になった（2026-10-04）。Embedding の次元違いを「キーが無効」と表示しないよう判定も分けた。
+
 #### 走らせ方
 
 ```bash
@@ -279,7 +288,7 @@ GRACE_E2E=1 uv run --no-sync pytest backend/tests/e2e -m e2e -rs
 | `test_celery_worker_init.py` | Celery ワーカー起動時の初期化（`configure_worker_process`）が ERROR を出さず、タスクが実際に使う `qa_generation.smart_qa_generator` を確かめる（削除済みの `qa_generation.generation` を見ていた回帰） |
 | `integration/test_*_live.py`（4 ファイル） | **実 Qdrant / Redis の結合テスト**（§1.1。未起動なら skip） |
 | `test_qdrant_snapshot.py` | `scripts/qdrant_snapshot.py` の Qdrant を使わない部分（対象コレクションの集め方・tar の検査・CLI） |
-| `e2e/test_*_e2e.py`（2 ファイル） / `e2e/test_e2e_cases.py` | **E2E**（§1.2。`GRACE_E2E=1` のときだけ）／ そのケース定義（CI で走る） |
+| `e2e/test_*_e2e.py`（2 ファイル） / `e2e/test_e2e_cases.py` / `e2e/test_e2e_preflight.py` | **E2E**（§1.2。`GRACE_E2E=1` のときだけ）／ そのケース定義・事前確認（CI で走る） |
 
 ---
 
@@ -339,6 +348,7 @@ GRACE_E2E=1 uv run --no-sync pytest backend/tests/e2e -m e2e -rs
 |---|---|---|
 | 1.0 | 2026-09-16 | 新規作成。`review_spec.md` §9（テスト方針）を取り込み、`backend/tests` の実測（58 ファイル / 867 関数 / 978 passed・1 skipped）から地図を書き起こした |
 | 1.1 | 2026-09-24 | `a_cross_doc_md_format.md` v1.1（種別 B）に準拠（2026-09-24）。概要（結論・対象モジュール）を追加し、冒頭の説明文を概要へ移した。本文の章番号は変えていない |
+| 2.1 | 2026-10-04 | §1.2 に修正後の実測（6 passed・80 秒・saas は社内の出典のみ）を記録。E2E レポートに実際のモデル名（`model` / `light_model`）を残すようにし、事前確認を CI で通す `test_e2e_preflight.py` を追加 |
 | 2.0 | 2026-10-04 | E2E の初回実測（Mac・6 passed）を記録。`use_web=False` で executor が Web を検索していた不具合（§1.2 の注記）を直したのに合わせ、Support の E2E に「Web を検索していない・Web の出典が無い」確認を追加。地図に `test_web_search_toggle.py` / `test_uncited_web_citations.py` を追加 |
 | 1.9 | 2026-10-03 | §1.2 E2E（`backend/tests/e2e/`・`GRACE_E2E=1`・画面の例文を実データで流す）と、実データを VM へ運ぶ `scripts/qdrant_snapshot.py` を追加。API 失敗時に安全側の結果で合格してしまう問題への 2 段の対策を記載。結合テストを 25 件に更新 |
 | 1.8 | 2026-10-03 | テストの地図に `test_celery_worker_init.py` を追加 |
