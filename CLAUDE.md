@@ -214,6 +214,7 @@ uv run --no-sync pytest backend/tests/integration -q -rs
 ```bash
 uv pip install -r requirements-e2e.txt          # 初回（fastembed / ddgs）
 GRACE_E2E=1 uv run --no-sync pytest backend/tests/e2e -m e2e -rs   # 結果は logs/e2e/*.json
+GRACE_E2E=1 GRACE_E2E_REPEAT=3 uv run --no-sync pytest backend/tests/e2e -m e2e -rs   # LLM の揺れを測る（合格率・出現率が summary に出る。課金 3 倍）
 ```
 
 - **実データは Mac の Qdrant からスナップショットで運ぶ**: Mac で `python scripts/qdrant_snapshot.py export`
