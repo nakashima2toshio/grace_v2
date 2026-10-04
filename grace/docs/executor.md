@@ -1,6 +1,6 @@
 # executor.py - GRACE計画実行エージェント ドキュメント
 
-**Version 4.10** | 最終更新: 2026-09-29
+**Version 4.11** | 最終更新: 2026-10-04
 
 ---
 
@@ -164,7 +164,7 @@ style EXTERNAL fill:#1a1a1a,stroke:#fff,color:#fff
 3. 未完了ステップを順次実行（キャンセル／SKIP／依存関係を確認）
 4. 検索系ステップは依存関係のない後続検索を並列プリフェッチ
 5. ツールを呼び出し（timeout制御）、中間結果をyieldでUI通知
-6. `rag_search`成功時はスコアとLLMの意味的適合性判定に基づき、必要なら`web_search`→`ask_user`を動的挿入
+6. `rag_search`成功時はスコアとLLMの意味的適合性判定に基づき、必要なら`web_search`→`ask_user`を動的挿入（`config.tools.disabled` に `web_search` があれば挿入しない。下の付録の注記）
 7. LLM版信頼度を計算（低スコア検索ステップはHeuristicと比較して高い方を採用）、必要に応じて介入を処理
 8. ステップ失敗または検索ステップの低信頼度でリプランを実行（最大`replan.max_replans`回）
 9. 全体信頼度を計算（groundedness を主成分にブレンド→温度較正）
@@ -2060,6 +2060,7 @@ __all__ = [
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 4.11 | Web 検索の無効化（`config.tools.disabled` に `web_search`）を 5 経路すべてで尊重するようにした（2026-10-04）。`_web_search_allowed()` / `_react_prompt_template()` を追加。無効時は `ask_user` も挿入しない（付録の注記） |
 | 4.10 | 最終評価と Groundedness 検証の先行実行を追加（2026-09-29）。回答生成の直後に両方を先に走らせ、ステップ確信度の評価（haiku）と重ねる。3 つとも回答本文と出典だけに依存し互いに独立なのに順番に待っており、実測（住民票）で全体 17 秒のうち約 10 秒を占めていた。消費側は入力が完全一致したときだけ先行結果を使う。`executor.prefetch_final_evaluation` で無効化可 |
 | 4.9 | 一時停止（介入）時の結果を返す `_result_on_pause` を追加（2026-09-29）。一時停止の分岐が全体信頼度の計算より前に `return` していたため、回答が生成済み・支持率 1.00 でも全体信頼度が 0.00 で返っていた不具合の修正。ReAct 経路の一時停止も同じ関数を使う |
 | 4.8 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
@@ -2144,6 +2145,15 @@ style LEGACY fill:#1a1a1a,stroke:#fff,color:#fff
 ## 付録: 動的フォールバック連鎖
 
 `rag_search`成功後の分岐ロジック（`execute_plan_generator`内）。
+
+> ⚠️ **Web 検索が無効なとき（`config.tools.disabled` に `web_search`）は、下図の「web_search 動的実行」へ進まない。**
+> `ask_user` も挿入せず、内部 RAG の結果のまま進む。判定は `Executor._web_search_allowed()` の 1 か所で、
+> Web 検索へ入る **5 経路すべて**がこれを見る: ① 下図の動的挿入 ② 計画済みの `web_search` ステップ（SKIPPED）
+> ③ 並列プリフェッチ（バッチに入れない）④ ステップ失敗時の `fallback="web_search"` ⑤ ReAct（実行せず
+> 「無効」を観測に残す。プロンプトの選択肢からも外す＝`_react_prompt_template()`）。
+> Support コアは `use_web=False`（画面の「Web フォールバック OFF＝内部RAGのみ」）のとき、リクエスト単位の
+> 設定コピーにこれを入れる。2026-10-04 までは ⑤ Web フォールバックしか止まらず、OFF でも executor が Web を
+> 検索して無関係な URL が出典に並んでいた。テストは `backend/tests/test_web_search_toggle.py`（経路ごとに 1 件）。
 
 ```mermaid
 flowchart TB

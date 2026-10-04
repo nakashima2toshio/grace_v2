@@ -224,6 +224,10 @@ GRACE_E2E=1 uv run --no-sync pytest backend/tests/e2e -m e2e -rs   # 結果は l
   キーが無効でも合格する（実測: 6 件中 4 件）。E2E は事前の疎通確認と API エラーのログ監視で
   これを防いでいる。**E2E に期待値を足すときも `api_errors` の確認を外さないこと。**
 - ⚠️ 既定のネットワーク設定では `huggingface.co`（sparse モデル）に届かず、VM では dense 検索だけになる。
+- ⚠️ **`use_web=False`（Web フォールバック OFF）は「内部 RAG のみ」**。⑤ だけでなく executor の Web 検索
+  （動的挿入・計画済みステップ・並列プリフェッチ・fallback・ReAct の 5 経路）も `Executor._web_search_allowed`
+  で止める。2026-10-04 までは ⑤ しか止まらず、OFF でも無関係な URL が出典に並んだ。
+  executor に Web 検索の経路を足すときは、必ずこの判定を通すこと（`test_web_search_toggle.py`）。
 
 > `pyproject.toml` に `pythonpath` 指定は無い。CI は素の `pytest` を使うので
 > `PYTHONPATH=.` を env で与えている（`uv run` 経由ならプロジェクトルートが通るので不要）。

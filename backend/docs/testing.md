@@ -1,6 +1,6 @@
 # backend テストの地図 ドキュメント
 
-**Version 1.9** | 最終更新: 2026-10-03
+**Version 2.0** | 最終更新: 2026-10-04
 
 ---
 
@@ -145,7 +145,7 @@ uv run --no-sync pytest backend/tests/integration -q -rs
 | ケース | 入力（画面の例文ボタンから読む） | 期待 |
 |---|---|---|
 | Support / gov | 住民票の写しの取り方は？ | `answer`・社内ナレッジの出典あり・根拠検証で判定できた主張 > 0・情報なし検知なし |
-| Support / saas | サービスが落ちています | エスカレーション語「落ち」で強制エスカレ → `escalate_to_human` |
+| Support / saas | サービスが落ちています | エスカレーション語「落ち」で強制エスカレ → `escalate_to_human`。Web の出典が混ざらない |
 | Support / ec | 返品したい | アクションあり・社内ナレッジの出典あり・判定とアクションが一致（answer → `create_ticket` / escalate → `escalate_to_human`）・本人確認を通る |
 | Review / 化粧品LP案 | NG 例（優良誤認・薬機法） | 指摘 ≥ 1・high ≥ 1 |
 | Review / 表記漏れLP案 | NG 例（表記漏れ） | `tokusho-01`（送料の欠落）が出る |
@@ -154,6 +154,10 @@ uv run --no-sync pytest backend/tests/integration -q -rs
 - **文面は書き写さない。** `cases.py` が `QueryForm.tsx` / `ReviewForm.tsx` の例文を読む。
   例文が増えたり名前が変わったりして期待値とずれると、`test_e2e_cases.py`（API を呼ばないので CI で走る）が落ちる。
 - アクションは必ず**ドライラン**。Web 検索は既定で使わない（`GRACE_E2E_USE_WEB=1` で使う）。
+  Support の各テストは、このとき **Web を検索していない（`used_web=False`）・Web の出典が無い**ことも確かめる。
+  ⚠️ 2026-10-04 の初回実行（Mac）までは、`use_web=False` が止めていたのは ⑤ Web フォールバックだけで、
+  executor は RAG スコア不足時に自分で Web を検索していた（saas で無関係な URL が出典に 9 件）。
+  §1.2 初版のこの一文は当時は誤りだった。同日に executor の全経路で止めるよう直した（`support_flow.md` v3.4）
 - 結果（回答・出典・判定・指摘・所要時間・sparse の有無）は `logs/e2e/e2e_<日時>.json` に書き出す。
   **合否だけでなく回答の中身を人が読む**ためのもの。
 
@@ -166,6 +170,10 @@ uv run --no-sync pytest backend/tests/integration -q -rs
 > 2. `api_errors` が実行中の API エラーのログ（`Error code: 4xx/5xx`・`INVALID_ARGUMENT`・
 >    `RAGツールエラー` など）を拾い、各テストは 1 件でもあれば fail。Review は「自動判定に失敗」の
 >    指摘も fail にする（実測: 1 を外しても 6 failed）
+
+**初回の実測（2026-10-04・Mac・実データ各 10 点前後）**: `6 passed`（87 秒）。回答・指摘の中身も
+妥当だった（gov は `gov_faq.csv` を出典に groundedness 1.00、表記漏れLP案は 4 件、適正LP案は 0 件）。
+ただし saas の出典に無関係な Web の URL が 9 件混ざっており、これが上の `use_web` の不具合の発見につながった。
 
 #### 走らせ方
 
@@ -254,6 +262,8 @@ GRACE_E2E=1 uv run --no-sync pytest backend/tests/e2e -m e2e -rs
 | `test_no_info_judge.py` / `test_no_info_prediction.py` | ④' 情報なし回答検知 |
 | `test_vertical_scope.py` | 業界プロファイルによる検索スコープ限定 |
 | `test_policy_claims.py` / `test_source_attribution.py` / `test_rag_adoption.py` | 出典・根拠の扱い |
+| `test_web_search_toggle.py` | `use_web=False`（内部 RAG のみ）で executor の 5 経路（動的挿入・計画済み・並列プリフェッチ・fallback・ReAct）すべてが Web を検索しない。`ask_user` も差し込まない |
+| `test_uncited_web_citations.py` | 回答本文で引用していない Web 出典を表示から外す（社内だけ引用 → Web を外す／URL を引用 → それだけ残す／どちらも引用なし → 外さない） |
 
 ### 2.3 共有基盤・API・データ準備
 
@@ -329,6 +339,7 @@ GRACE_E2E=1 uv run --no-sync pytest backend/tests/e2e -m e2e -rs
 |---|---|---|
 | 1.0 | 2026-09-16 | 新規作成。`review_spec.md` §9（テスト方針）を取り込み、`backend/tests` の実測（58 ファイル / 867 関数 / 978 passed・1 skipped）から地図を書き起こした |
 | 1.1 | 2026-09-24 | `a_cross_doc_md_format.md` v1.1（種別 B）に準拠（2026-09-24）。概要（結論・対象モジュール）を追加し、冒頭の説明文を概要へ移した。本文の章番号は変えていない |
+| 2.0 | 2026-10-04 | E2E の初回実測（Mac・6 passed）を記録。`use_web=False` で executor が Web を検索していた不具合（§1.2 の注記）を直したのに合わせ、Support の E2E に「Web を検索していない・Web の出典が無い」確認を追加。地図に `test_web_search_toggle.py` / `test_uncited_web_citations.py` を追加 |
 | 1.9 | 2026-10-03 | §1.2 E2E（`backend/tests/e2e/`・`GRACE_E2E=1`・画面の例文を実データで流す）と、実データを VM へ運ぶ `scripts/qdrant_snapshot.py` を追加。API 失敗時に安全側の結果で合格してしまう問題への 2 段の対策を記載。結合テストを 25 件に更新 |
 | 1.8 | 2026-10-03 | テストの地図に `test_celery_worker_init.py` を追加 |
 | 1.7 | 2026-10-03 | §1.1 結合テスト（`backend/tests/integration/`・実 Qdrant / Redis・未起動なら skip）を追加。地図・§3・§4・§5 に反映。クラウド VM では SessionStart hook が両サービスを起動する |
