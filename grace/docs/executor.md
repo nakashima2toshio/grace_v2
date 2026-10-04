@@ -1,6 +1,6 @@
 # executor.py - GRACE計画実行エージェント ドキュメント
 
-**Version 4.11** | 最終更新: 2026-10-04
+**Version 4.12** | 最終更新: 2026-10-04
 
 ---
 
@@ -2028,7 +2028,7 @@ LEGACY_AGENT_AVAILABLE: bool  # import 成功時 True
 | `executor.parallel_search` | bool | True | 検索ステップの並列プリフェッチ有効化 |
 | `executor.max_parallel_steps` | int | 4 | 並列プリフェッチの最大ステップ数 |
 | `qdrant.search_priority` | list | `["wikipedia_ja", "livedoor", "cc_news", "japanese_text"]` | コレクション取得失敗時のフォールバック |
-| `qdrant.rag_sufficient_score` | float | 0.7 | RAG結果が十分と判断するスコア閾値（未満でweb_search動的実行） |
+| `qdrant.rag_sufficient_score` | float | 0.64 | RAG結果が十分と判断するスコア閾値（未満でweb_search動的実行・以上は LLM の適合性チェック）。`executor.reasoning_min_rag_score` 以下にする（下図の注記） |
 | `web_search.num_results` | int | 5 | Web検索の取得件数（`_prepare_tool_kwargs`で使用） |
 | `web_search.language` | str | `"ja"` | Web検索の言語（`_prepare_tool_kwargs`で使用） |
 | `replan.confidence_threshold` | float | 0.4 | 検索ステップのリプラン発火閾値（`_should_trigger_replan`） |
@@ -2060,6 +2060,7 @@ __all__ = [
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 4.12 | `qdrant.rag_sufficient_score` の既定を 0.7 → 0.64（`executor.reasoning_min_rag_score` と同じ）にした（2026-10-04）。採用した社内ナレッジがあるのに無条件で Web も検索していた帯（0.64〜0.7）をなくす |
 | 4.11 | Web 検索の無効化（`config.tools.disabled` に `web_search`）を 5 経路すべてで尊重するようにした（2026-10-04）。`_web_search_allowed()` / `_react_prompt_template()` を追加。無効時は `ask_user` も挿入しない（付録の注記） |
 | 4.10 | 最終評価と Groundedness 検証の先行実行を追加（2026-09-29）。回答生成の直後に両方を先に走らせ、ステップ確信度の評価（haiku）と重ねる。3 つとも回答本文と出典だけに依存し互いに独立なのに順番に待っており、実測（住民票）で全体 17 秒のうち約 10 秒を占めていた。消費側は入力が完全一致したときだけ先行結果を使う。`executor.prefetch_final_evaluation` で無効化可 |
 | 4.9 | 一時停止（介入）時の結果を返す `_result_on_pause` を追加（2026-09-29）。一時停止の分岐が全体信頼度の計算より前に `return` していたため、回答が生成済み・支持率 1.00 でも全体信頼度が 0.00 で返っていた不具合の修正。ReAct 経路の一時停止も同じ関数を使う |
@@ -2154,6 +2155,13 @@ style LEGACY fill:#1a1a1a,stroke:#fff,color:#fff
 > Support コアは `use_web=False`（画面の「Web フォールバック OFF＝内部RAGのみ」）のとき、リクエスト単位の
 > 設定コピーにこれを入れる。2026-10-04 までは ⑤ Web フォールバックしか止まらず、OFF でも executor が Web を
 > 検索して無関係な URL が出典に並んでいた。テストは `backend/tests/test_web_search_toggle.py`（経路ごとに 1 件）。
+>
+> ⚠️ **`rag_sufficient_score` は `executor.reasoning_min_rag_score`（採用の下限・0.64）以下にする。** RAG ツールは
+> 0.64 以上の結果を推論に使い出典にも載せるので、しきい値が上にあると、その間の結果は「社内ナレッジとして使うのに
+> 無条件で Web も検索する」。2026-10-04 まで 0.7 で、範囲内の質問の実測最小 0.665 を下回る質問で Web 検索が走っていた
+> （Web ON の saas で無関係な URL）。今は 0.64 にそろえ、採用した結果は LLM の適合性チェックが Web の要否を決める。
+> 実データでのスコアの分布は `scripts/measure_rag_scores.py`（LLM を呼ばない）で測れる。
+> テストは `backend/tests/test_web_search_toggle.py`。
 
 ```mermaid
 flowchart TB

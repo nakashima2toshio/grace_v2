@@ -1,6 +1,6 @@
 # grace_core.md - GRACE コアモジュール群（Planner 系）アーキテクチャ ドキュメント
 
-**Version 3.3** | 最終更新: 2026-09-26
+**Version 3.4** | 最終更新: 2026-10-04
 
 > **参考ドキュメント**
 > - [`grace/docs/grace.md`](./grace.md) — 設計思想（**なぜ**この形か。ReAct → Reflection → GRACE 5 段階の経緯）
@@ -383,7 +383,7 @@ style MEMORY fill:#1a1a1a,stroke:#fff,color:#fff
 | `ExecutionState` | 実行状態（計画・ステップ結果・信頼度・制御フラグ） |
 | `create_executor(config, tool_registry, ...)` | `Executor` ファクトリ |
 
-**主な設定**: `parallel_search`, `max_parallel_steps=3`, `react_enabled`, `rag_sufficient_score=0.7`, `max_replans=3`, `calibration_path`。`_SEARCH_ACTIONS = ("rag_search", "web_search")`。
+**主な設定**: `parallel_search`, `max_parallel_steps=3`, `react_enabled`, `rag_sufficient_score=0.64`, `max_replans=3`, `calibration_path`。`_SEARCH_ACTIONS = ("rag_search", "web_search")`。
 
 ### 3.3 confidence.py — 信頼度計算
 
@@ -833,7 +833,7 @@ sequenceDiagram
 | `planner.llm_plan_complexity_threshold` | `0.7` | planner | ルールベース計画採用の上限複雑度 |
 | `confidence.thresholds` | `silent=0.9 / notify=0.7 / confirm=0.4` | confidence / intervention | 介入レベル判定閾値 |
 | `confidence.calibration_path` | `config/calibration.json` | executor / calibration | 較正パラメータの保存先 |
-| `executor.rag_sufficient_score` | `0.7` | executor | RAG スコア十分判定の閾値 |
+| `qdrant.rag_sufficient_score` | `0.64` | executor | RAG スコア十分判定の閾値（`executor.reasoning_min_rag_score` 以下にする。2026-10-04 に 0.7 から変更） |
 | `executor.max_parallel_steps` | `3` | executor | 並列実行の最大ステップ数 |
 | `replan.max_replans` | `3` | executor / replan | 最大リプラン回数 |
 | `replan.confidence_threshold` | `0.4` | replan | 低信頼度トリガー閾値 |
@@ -1038,6 +1038,7 @@ __all__ = [
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 3.4 | `rag_sufficient_score` の既定を 0.7 → 0.64 に追随（2026-10-04。`executor.md` v4.12）。設定表のセクション名を実体（`qdrant.`）に直した |
 | 3.3 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
 | 3.2 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
 | 3.1 | 現在の既定モデルの記載 `claude-sonnet-4-6` を実装（`grace/config.py` の `LLMConfig.model` = `claude-sonnet-5`）に合わせて是正した（CLAUDE.md §9.3。旧既定は履歴の記述にだけ残す）（2026-09-24） |

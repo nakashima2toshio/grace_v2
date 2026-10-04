@@ -1,6 +1,6 @@
 # backend テストの地図 ドキュメント
 
-**Version 2.3** | 最終更新: 2026-10-04
+**Version 2.4** | 最終更新: 2026-10-04
 
 ---
 
@@ -307,7 +307,7 @@ GRACE_E2E=1 uv run --no-sync pytest backend/tests/e2e -m e2e -rs
 | `test_no_info_judge.py` / `test_no_info_prediction.py` | ④' 情報なし回答検知 |
 | `test_vertical_scope.py` | 業界プロファイルによる検索スコープ限定 |
 | `test_policy_claims.py` / `test_source_attribution.py` / `test_rag_adoption.py` | 出典・根拠の扱い |
-| `test_web_search_toggle.py` | `use_web=False`（内部 RAG のみ）で executor の 5 経路（動的挿入・計画済み・並列プリフェッチ・fallback・ReAct）すべてが Web を検索しない。`ask_user` も差し込まない |
+| `test_web_search_toggle.py` | `use_web=False`（内部 RAG のみ）で executor の 5 経路（動的挿入・計画済み・並列プリフェッチ・fallback・ReAct）すべてが Web を検索しない。`ask_user` も差し込まない。Web 許可時も、採用した RAG 結果（0.64 以上）では無条件に Web を検索しない（`rag_sufficient_score` ≤ `reasoning_min_rag_score` の不変条件） |
 | `test_uncited_web_citations.py` | 回答本文で引用していない Web 出典を表示から外す（社内だけ引用 → Web を外す／URL を引用 → それだけ残す／どちらも引用なし → 外さない） |
 
 ### 2.3 共有基盤・API・データ準備
@@ -324,6 +324,7 @@ GRACE_E2E=1 uv run --no-sync pytest backend/tests/e2e -m e2e -rs
 | `test_celery_worker_init.py` | Celery ワーカー起動時の初期化（`configure_worker_process`）が ERROR を出さず、タスクが実際に使う `qa_generation.smart_qa_generator` を確かめる（削除済みの `qa_generation.generation` を見ていた回帰） |
 | `integration/test_*_live.py`（4 ファイル） | **実 Qdrant / Redis の結合テスト**（§1.1。未起動なら skip） |
 | `test_qdrant_snapshot.py` | `scripts/qdrant_snapshot.py` の Qdrant を使わない部分（対象コレクションの集め方・tar の検査・CLI） |
+| `test_measure_rag_scores.py` / `integration/test_measure_rag_scores_live.py` | `scripts/measure_rag_scores.py`（RAG スコアの実測・LLM 不使用）の帯の判定と集計／実 Qdrant で許可コレクション中の最高スコアを拾えるか |
 | `e2e/test_*_e2e.py`（2 ファイル） / `e2e/test_e2e_cases.py` / `e2e/test_e2e_preflight.py` | **E2E**（§1.2。`GRACE_E2E=1` のときだけ）／ そのケース定義・事前確認（CI で走る） |
 
 ---
@@ -384,6 +385,7 @@ GRACE_E2E=1 uv run --no-sync pytest backend/tests/e2e -m e2e -rs
 |---|---|---|
 | 1.0 | 2026-09-16 | 新規作成。`review_spec.md` §9（テスト方針）を取り込み、`backend/tests` の実測（58 ファイル / 867 関数 / 978 passed・1 skipped）から地図を書き起こした |
 | 1.1 | 2026-09-24 | `a_cross_doc_md_format.md` v1.1（種別 B）に準拠（2026-09-24）。概要（結論・対象モジュール）を追加し、冒頭の説明文を概要へ移した。本文の章番号は変えていない |
+| 2.4 | 2026-10-04 | 地図に `test_measure_rag_scores.py`（と結合テスト）を追加。`test_web_search_toggle.py` に Web 許可時のしきい値（`rag_sufficient_score` を 0.7 → 0.64）のテストを追記 |
 | 2.3 | 2026-10-04 | §1.2 E2E の網羅性: Support の回答に社内ナレッジの事実が入っているか（`SUPPORT_FACTS`）、範囲外の質問でエスカレするか（`OUT_OF_SCOPE`）、Review の記録だけの期待値（`REVIEW_WATCH`）、`GRACE_E2E_REPEAT` による揺れの計測（合格率・出現率）を追加。レポートを `{repeat, summary, records}` の形にした |
 | 2.2 | 2026-10-04 | §1.2 クラウド VM の準備に、VM から届く保存先（GCS / S3。Google ドライブ・Dropbox は不可）と署名付き URL の作り方、hook の通し確認（初回・再開・404・キー未設定）、sparse モデルの取得元と許可ドメインを追記 |
 | 2.1 | 2026-10-04 | §1.2 に修正後の実測（6 passed・80 秒・saas は社内の出典のみ）を記録。E2E レポートに実際のモデル名（`model` / `light_model`）を残すようにし、事前確認を CI で通す `test_e2e_preflight.py` を追加 |
