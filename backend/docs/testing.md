@@ -1,6 +1,6 @@
 # backend テストの地図 ドキュメント
 
-**Version 2.1** | 最終更新: 2026-10-04
+**Version 2.2** | 最終更新: 2026-10-04
 
 ---
 
@@ -202,19 +202,43 @@ GRACE_E2E=1 uv run --no-sync pytest backend/tests/e2e -m e2e -rs
    python scripts/qdrant_snapshot.py list     # 何があるか
    python scripts/qdrant_snapshot.py export   # → grace_e2e_snapshot.tar.gz（.gitignore 済み）
    ```
-2. **非公開の保存先に置き、署名付き URL を発行する**（例: Google Cloud Storage の
-   `gcloud storage sign-url`。VM から `storage.googleapis.com` へは届くことを確認済み）。
+2. **非公開の保存先に置き、署名付き URL を発行する。** ⚠️ **GitHub には置かない**
+   （本リポジトリは public。`gov_faq.csv` などの元データはリポジトリに入っていない）。
+   VM の既定のネットワーク設定から届くことを確認した保存先（2026-10-04 実測）:
+
+   | 保存先 | VM から | 署名付き URL の作り方（例） |
+   |---|---|---|
+   | Google Cloud Storage | ✅ `storage.googleapis.com` | `gcloud storage cp grace_e2e_snapshot.tar.gz gs://<バケット>/` → `gcloud storage sign-url gs://<バケット>/grace_e2e_snapshot.tar.gz --duration=7d --impersonate-service-account=<SA>`（V4 署名は最長 7 日。サービスアカウントが要る） |
+   | Amazon S3 | ✅ `s3.amazonaws.com` | `aws s3 cp grace_e2e_snapshot.tar.gz s3://<バケット>/` → `aws s3 presign s3://<バケット>/grace_e2e_snapshot.tar.gz --expires-in 604800`（最長 7 日） |
+   | Google ドライブ / Dropbox | ❌ 届かない（`drive.google.com` / `dl.dropboxusercontent.com` が拒否される） | — |
+
    ⚠️ 署名付き URL には**期限がある**。切れると hook のサマリが `e2e-data:FAILED` になり、
-   ログに「期限切れの可能性」と出るので発行し直す。
+   ログ（`/tmp/grace-session-start/restore.log`）に「期限切れの可能性」と出るので発行し直す。
 3. **クラウド環境の設定**（セッション画面のクラウド環境メニュー → Edit）で環境変数を追加する:
    `ANTHROPIC_API_KEY` / `GOOGLE_API_KEY` / `GRACE_E2E_SNAPSHOT_URL`。
    キーは E2E 専用の、上限額を低くしたものを推奨。
 4. 新しいセッションを開く。hook のサマリに `e2e-data:N restored` と出れば準備完了。
 
+**VM での通し確認（2026-10-04）**: 保存先の代わりに VM 内の HTTP サーバから署名付き URL 風の URL
+（`...?X-Goog-Signature=...`）で配り、hook を流した。
+
+| 状況 | hook のサマリ |
+|---|---|
+| 初回（コレクション無し） | `e2e-data:2 restored,0 skipped`（点も復元された） |
+| 同じコンテナで再開 | `e2e-data:restored(earlier)`（ダウンロードし直さない） |
+| URL が無効（404） | `e2e-data:FAILED(...)`、ログに「ダウンロードに失敗しました（HTTP 404）。署名付き URL なら期限切れの可能性」 |
+| キー未設定 | `e2e:ANTHROPIC_API_KEY-missing e2e:GOOGLE_API_KEY-missing`（E2E は理由つきで skip） |
+
+`storage.googleapis.com` へは、VM の httpx（エージェントプロキシ経由）で公開オブジェクトを
+取得できることも確かめた（206）。**実際の保存先・実キーでの通しはまだ**（キーと保存先は利用者の設定が要る）。
+
 > ⚠️ **既定のネットワーク設定では `huggingface.co` と `duckduckgo.com` に届かない**（2026-10-03 実測）。
 > - `huggingface.co`（と `cdn-lfs.huggingface.co`）: hybrid 検索の sparse モデル（SPLADE）を取得できず、
->   **dense だけで検索する**（アプリはそう倒れる作り）。Mac と結果を揃えたいなら許可ドメインに足す。
->   使えたかどうかはレポートの `sparse` に残る
+>   **dense だけで検索する**（アプリはそう倒れる作り）。Mac と結果を揃えたいなら、環境の設定の
+>   Network access を Custom にして `huggingface.co` と、モデル本体の配信元（`cdn-lfs.huggingface.co` / `*.hf.co`）を
+>   Allowed domains に足す（パッケージマネージャの既定リストは残す）。
+>   fastembed 0.7.4 の `prithivida/Splade_PP_en_v1` は Hugging Face（`Qdrant/Splade_PP_en_v1`）からしか取得しない
+>   （GCS のミラーは無い）。使えたかどうかはレポートの `sparse` に残る
 > - `duckduckgo.com` ほか: Web 検索が失敗する。E2E は既定で Web を使わないので影響しない
 >
 > `restore` は**点が入っている既存コレクションを上書きしない**（`--force` で上書き）。
@@ -348,6 +372,7 @@ GRACE_E2E=1 uv run --no-sync pytest backend/tests/e2e -m e2e -rs
 |---|---|---|
 | 1.0 | 2026-09-16 | 新規作成。`review_spec.md` §9（テスト方針）を取り込み、`backend/tests` の実測（58 ファイル / 867 関数 / 978 passed・1 skipped）から地図を書き起こした |
 | 1.1 | 2026-09-24 | `a_cross_doc_md_format.md` v1.1（種別 B）に準拠（2026-09-24）。概要（結論・対象モジュール）を追加し、冒頭の説明文を概要へ移した。本文の章番号は変えていない |
+| 2.2 | 2026-10-04 | §1.2 クラウド VM の準備に、VM から届く保存先（GCS / S3。Google ドライブ・Dropbox は不可）と署名付き URL の作り方、hook の通し確認（初回・再開・404・キー未設定）、sparse モデルの取得元と許可ドメインを追記 |
 | 2.1 | 2026-10-04 | §1.2 に修正後の実測（6 passed・80 秒・saas は社内の出典のみ）を記録。E2E レポートに実際のモデル名（`model` / `light_model`）を残すようにし、事前確認を CI で通す `test_e2e_preflight.py` を追加 |
 | 2.0 | 2026-10-04 | E2E の初回実測（Mac・6 passed）を記録。`use_web=False` で executor が Web を検索していた不具合（§1.2 の注記）を直したのに合わせ、Support の E2E に「Web を検索していない・Web の出典が無い」確認を追加。地図に `test_web_search_toggle.py` / `test_uncited_web_citations.py` を追加 |
 | 1.9 | 2026-10-03 | §1.2 E2E（`backend/tests/e2e/`・`GRACE_E2E=1`・画面の例文を実データで流す）と、実データを VM へ運ぶ `scripts/qdrant_snapshot.py` を追加。API 失敗時に安全側の結果で合格してしまう問題への 2 段の対策を記載。結合テストを 25 件に更新 |
