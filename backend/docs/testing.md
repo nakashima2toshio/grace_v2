@@ -1,6 +1,6 @@
 # backend テストの地図 ドキュメント
 
-**Version 2.2** | 最終更新: 2026-10-04
+**Version 2.3** | 最終更新: 2026-10-04
 
 ---
 
@@ -144,11 +144,12 @@ uv run --no-sync pytest backend/tests/integration -q -rs
 
 | ケース | 入力（画面の例文ボタンから読む） | 期待 |
 |---|---|---|
-| Support / gov | 住民票の写しの取り方は？ | `answer`・社内ナレッジの出典あり・根拠検証で判定できた主張 > 0・情報なし検知なし |
-| Support / saas | サービスが落ちています | エスカレーション語「落ち」で強制エスカレ → `escalate_to_human`。Web の出典が混ざらない |
-| Support / ec | 返品したい | アクションあり・社内ナレッジの出典あり・判定とアクションが一致（answer → `create_ticket` / escalate → `escalate_to_human`）・本人確認を通る |
-| Review / 化粧品LP案 | NG 例（優良誤認・薬機法） | 指摘 ≥ 1・high ≥ 1 |
-| Review / 表記漏れLP案 | NG 例（表記漏れ） | `tokusho-01`（送料の欠落）が出る |
+| Support / gov | 住民票の写しの取り方は？ | `answer`・社内ナレッジの出典あり・根拠検証で判定できた主張 > 0・情報なし検知なし・回答に「300円」 |
+| Support / saas | サービスが落ちています | エスカレーション語「落ち」で強制エスカレ → `escalate_to_human`。Web の出典が混ざらない・回答に「status.example.jp」 |
+| Support / ec | 返品したい | アクションあり・社内ナレッジの出典あり・判定とアクションが一致（answer → `create_ticket` / escalate → `escalate_to_human`）・本人確認を通る・回答に「14日」 |
+| Support / gov（範囲外） | 明日の東京の天気を教えてください（**画面に無い**） | `escalate`（社内ナレッジに無い答えをでっち上げない） |
+| Review / 化粧品LP案 | NG 例（優良誤認・薬機法） | 指摘 ≥ 1・high ≥ 1（記録のみ: `keihyo-03` / `keihyo-04` / `yakki-02` / `yakki-04`） |
+| Review / 表記漏れLP案 | NG 例（表記漏れ） | `tokusho-01`（送料の欠落）が出る（記録のみ: `policy-01`） |
 | Review / 適正LP案 | OK 例 | **指摘 0 件**（過検知の回帰） |
 
 - **文面は書き写さない。** `cases.py` が `QueryForm.tsx` / `ReviewForm.tsx` の例文を読む。
@@ -158,8 +159,18 @@ uv run --no-sync pytest backend/tests/integration -q -rs
   ⚠️ 2026-10-04 の初回実行（Mac）までは、`use_web=False` が止めていたのは ⑤ Web フォールバックだけで、
   executor は RAG スコア不足時に自分で Web を検索していた（saas で無関係な URL が出典に 9 件）。
   §1.2 初版のこの一文は当時は誤りだった。同日に executor の全経路で止めるよう直した（`support_flow.md` v3.4）
-- 結果（回答・出典・判定・指摘・所要時間・sparse の有無）は `logs/e2e/e2e_<日時>.json` に書き出す。
-  **合否だけでなく回答の中身を人が読む**ためのもの。
+- **回答の事実チェック**（`cases.SUPPORT_FACTS`）: 判定と出典だけだと、出典を付けたまま中身の薄い回答
+  （「担当窓口へお問い合わせください」だけ等）を見逃す。社内ナレッジにある具体値（数値・固有名）が回答に入っているかを見る。
+  全角/半角・空白・桁区切りの違いは無視する（`contains_fact`）。値は Mac の実測 2 回で 2 回とも回答に入っていたもの。
+- **範囲外の質問**（`cases.OUT_OF_SCOPE`）: 画面の例文は「答えがある」質問だけなので、答えが無い質問で
+  でっち上げないことを 1 件だけ見る。
+- **記録だけの期待値**（`cases.REVIEW_WATCH`）: Review の指摘は ③ Detect（LLM）に依るので、1 回で fail にすると揺れで赤くなる。
+  出なかったものはレポートの `missing_expected` に残し、下の繰り返し実行で出現率を見る。
+- 結果（回答・出典・判定・指摘・所要時間・sparse の有無・**実際のモデル名**・合否）は `logs/e2e/e2e_<日時>.json` に書き出す。
+  **合否だけでなく回答の中身を人が読む**ためのもの。形は `{"repeat": N, "summary": {ケース: 集計}, "records": [1 回ごとの結果]}`。
+- **揺れの計測**（`GRACE_E2E_REPEAT=N`）: 各ケースを N 回流し、`summary` にケースごとの合格率（`pass_rate`）・
+  指摘の出現率（`rule_id_rate`）・事実や期待した指摘が欠けた率（`missing_rate`）・平均所要時間・失敗理由を出す。
+  `record` まで届かずに例外で落ちた回も失敗 1 回として数える。課金は N 倍（まず 3 程度で）。
 
 > ⚠️ **API が失敗してもパイプラインは例外を出さず、安全側の結果を返す**（Support はエスカレ、
 > Review は全ルールを「自動判定に失敗したため要確認」で残す）。そのため素朴な期待値だと
@@ -190,6 +201,7 @@ Support 3 件とも `used_web=false`。Web を検索しなくなった分だけ�
 # Mac（.env にキー・Qdrant に実データ・E2E 用の追加依存）
 uv pip install -r requirements-e2e.txt
 GRACE_E2E=1 uv run --no-sync pytest backend/tests/e2e -m e2e -rs
+GRACE_E2E=1 GRACE_E2E_REPEAT=3 uv run --no-sync pytest backend/tests/e2e -m e2e -rs   # 揺れを測る（課金 3 倍）
 
 # クラウド VM: 下の準備をしたうえで新しいセッションを開くと、hook が依存と実データを用意する
 GRACE_E2E=1 uv run --no-sync pytest backend/tests/e2e -m e2e -rs
@@ -372,6 +384,7 @@ GRACE_E2E=1 uv run --no-sync pytest backend/tests/e2e -m e2e -rs
 |---|---|---|
 | 1.0 | 2026-09-16 | 新規作成。`review_spec.md` §9（テスト方針）を取り込み、`backend/tests` の実測（58 ファイル / 867 関数 / 978 passed・1 skipped）から地図を書き起こした |
 | 1.1 | 2026-09-24 | `a_cross_doc_md_format.md` v1.1（種別 B）に準拠（2026-09-24）。概要（結論・対象モジュール）を追加し、冒頭の説明文を概要へ移した。本文の章番号は変えていない |
+| 2.3 | 2026-10-04 | §1.2 E2E の網羅性: Support の回答に社内ナレッジの事実が入っているか（`SUPPORT_FACTS`）、範囲外の質問でエスカレするか（`OUT_OF_SCOPE`）、Review の記録だけの期待値（`REVIEW_WATCH`）、`GRACE_E2E_REPEAT` による揺れの計測（合格率・出現率）を追加。レポートを `{repeat, summary, records}` の形にした |
 | 2.2 | 2026-10-04 | §1.2 クラウド VM の準備に、VM から届く保存先（GCS / S3。Google ドライブ・Dropbox は不可）と署名付き URL の作り方、hook の通し確認（初回・再開・404・キー未設定）、sparse モデルの取得元と許可ドメインを追記 |
 | 2.1 | 2026-10-04 | §1.2 に修正後の実測（6 passed・80 秒・saas は社内の出典のみ）を記録。E2E レポートに実際のモデル名（`model` / `light_model`）を残すようにし、事前確認を CI で通す `test_e2e_preflight.py` を追加 |
 | 2.0 | 2026-10-04 | E2E の初回実測（Mac・6 passed）を記録。`use_web=False` で executor が Web を検索していた不具合（§1.2 の注記）を直したのに合わせ、Support の E2E に「Web を検索していない・Web の出典が無い」確認を追加。地図に `test_web_search_toggle.py` / `test_uncited_web_citations.py` を追加 |
