@@ -256,7 +256,7 @@ def test_support_core_disables_web_search_for_executor(monkeypatch, use_web, dis
 # - 0.64 は実測値（`config/grace_config.yml` のコメント: 範囲内の質問 n=12 の最小 0.6650・
 #   範囲外 n=5 の最大 0.6190）。**範囲内の質問でも 0.665 まで下がる**ので、0.7 では
 #   社内ナレッジで答えられる質問でも Web 検索が走る
-# - 再測定 2026-10-05（`scripts/measure_rag_scores.py`・n=14 / 18）でも範囲内の最小は 0.7062 と 0.7 に近く、
+# - 再測定 2026-10-05（`scripts/measure_rag_threshold.py --vertical each` の前身・n=14 / 18）でも範囲内の最小は 0.7062 と 0.7 に近く、
 #   範囲内と範囲外は重なる（`config/grace_config.yml` のコメント）。しきい値 1 本では分けられないので、
 #   採用後の判断は LLM の適合性チェックに任せる
 # - ⚠️ E2E の saas で無関係な URL が並んだ件（2026-10-04・Web OFF の修正前）の原因がこの帯だったとは

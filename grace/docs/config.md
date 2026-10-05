@@ -1,6 +1,6 @@
 # config.py - GRACE 設定管理 ドキュメント
 
-**Version 1.8** | 最終更新: 2026-10-04
+**Version 1.9** | 最終更新: 2026-10-05
 
 > 📌 **`config.GeminiConfig` の LLM モデル一覧は後方互換である。**
 > `config.py:411` のコメントにあるとおり、`GeminiConfig` は
@@ -823,7 +823,7 @@ Embedding（Gemini）の設定。
 | `collection_name` | str | `"customer_support_faq"` | デフォルトコレクション名 |
 | `search_limit` | int | `5` | 検索結果の取得件数 |
 | `score_threshold` | float | `0.35` | 検索スコア下限 |
-| `rag_sufficient_score` | float | `0.64` | RAG結果が十分と判断するスコア（未満ならweb_search動的実行・以上は LLM の適合性チェック）。**`executor.reasoning_min_rag_score` 以下にする**（2026-10-04 まで 0.7 で、採用した社内ナレッジがあるのに 0.64〜0.7 で無条件に Web も検索していた。`backend/tests/test_web_search_toggle.py`）。実データでの分布は `scripts/measure_rag_scores.py` で測る |
+| `rag_sufficient_score` | float | `0.64` | RAG結果が十分と判断するスコア（未満ならweb_search動的実行・以上は LLM の適合性チェック）。**`executor.reasoning_min_rag_score` 以下にする**（2026-10-04 まで 0.7 で、採用した社内ナレッジがあるのに 0.64〜0.7 で無条件に Web も検索していた。`backend/tests/test_web_search_toggle.py`）。実データでの分布は `scripts/measure_rag_threshold.py` で測る |
 | `search_priority` | list | `["wikipedia_ja", "livedoor", "cc_news", "japanese_text"]` | 検索優先コレクション順 |
 
 ### 5.12 WebSearchConfig
@@ -930,6 +930,7 @@ __all__ = [
 
 | バージョン | 日付 | 変更内容 |
 |-----------|------|---------|
+| 1.9 | 2026-10-05 | 計測スクリプトを `scripts/measure_rag_threshold.py` に一本化したのに追随 |
 | 1.8 | 2026-10-04 | `qdrant.rag_sufficient_score` の既定を 0.7 → 0.64（`executor.reasoning_min_rag_score` と同じ）にした |
 | 1.7 | 2026-09-29 | 設定を 2 つ追加。`executor.prefetch_final_evaluation`（既定 true。回答生成の直後に最終評価と Groundedness 検証を先行実行する）、`confidence.groundedness_exclude_absence_claims`（既定 true。「記載がない」型の主張を Groundedness の母数から外す） |
 | 1.0 | 2026-06-16 | 初版作成（`config.py` の実装に基づく全設定モデル・ローダー・シングルトン関数を文書化） |

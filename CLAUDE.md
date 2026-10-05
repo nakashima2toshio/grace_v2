@@ -254,7 +254,7 @@ GRACE_E2E=1 GRACE_E2E_REPEAT=3 uv run --no-sync pytest backend/tests/e2e -m e2e 
   モデル名を書かない**（`backend/tests/test_embedding_model_single_source.py` が検査する）。
 - ⚠️ **Embedding モデルを変えると既存 Qdrant コレクションは使えない。** 次元が同じでもベクトルの
   意味が合わず、**エラーにならずに検索結果だけが壊れる**。全コレクションを再登録し、RAG スコアの
-  しきい値（`reasoning_min_rag_score` / `rag_sufficient_score`。後者は前者以下にする）も測り直すこと（`python scripts/measure_rag_scores.py` が LLM を呼ばずに範囲内・範囲外の質問のスコア分布を出す）。2026-09-26 に一度 `gemini-embedding-2` へ
+  しきい値（`reasoning_min_rag_score` / `rag_sufficient_score`。後者は前者以下にする）も測り直すこと（`python scripts/measure_rag_threshold.py --vertical each` が LLM を呼ばずに範囲内・範囲外の質問のスコア分布と、今のしきい値での振る舞いを出す。grace_v2_local にも同じものがある）。2026-09-26 に一度 `gemini-embedding-2` へ
   変えたが、同日 `gemini-embedding-001` に戻した（既存コレクションと、同じ Qdrant を共用する
   grace_v2_local をそのまま使うため。しきい値 0.64 は 001 での実測値なので有効）。
 - ⚠️ **`embed_content` に文字列のリストをそのまま渡さない。** `gemini-embedding-2` は
