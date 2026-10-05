@@ -1,6 +1,6 @@
 # backend テストの地図 ドキュメント
 
-**Version 2.4** | 最終更新: 2026-10-04
+**Version 2.5** | 最終更新: 2026-10-05
 
 ---
 
@@ -188,6 +188,11 @@ uv run --no-sync pytest backend/tests/integration -q -rs
 
 **修正後の実測（2026-10-04・Mac）**: `6 passed`（80 秒）。saas の出典は `[社内] saas_docs.csv` だけになり、
 Support 3 件とも `used_web=false`。Web を検索しなくなった分だけ短くなった。
+
+**2026-10-05 の実測（Mac）**: 7 件（範囲外の質問を追加）すべて passed。grace_v2 は 81 秒、grace_v2_local は 718 秒。
+事実チェック（`missing_facts`）・記録だけの期待値（`missing_expected`）とも欠けなし。範囲外の質問（天気）は
+回答を作らずに `escalate`（社内ナレッジに該当なし）。同日の `scripts/measure_rag_scores.py` の結果は
+`config/grace_config.yml` の `reasoning_min_rag_score` のコメントに残した（しきい値 0.64 は据え置き）。
 
 - レポートの `model` / `light_model` は**実際に使ったモデル名**を記録する（以前は `(config llm.model)` としか残らず、
   モデルを替えた結果を比べられなかった）。
@@ -385,6 +390,7 @@ GRACE_E2E=1 uv run --no-sync pytest backend/tests/e2e -m e2e -rs
 |---|---|---|
 | 1.0 | 2026-09-16 | 新規作成。`review_spec.md` §9（テスト方針）を取り込み、`backend/tests` の実測（58 ファイル / 867 関数 / 978 passed・1 skipped）から地図を書き起こした |
 | 1.1 | 2026-09-24 | `a_cross_doc_md_format.md` v1.1（種別 B）に準拠（2026-09-24）。概要（結論・対象モジュール）を追加し、冒頭の説明文を概要へ移した。本文の章番号は変えていない |
+| 2.5 | 2026-10-05 | §1.2 に 7 件での実測（grace_v2 81 秒・grace_v2_local 718 秒・全件 passed）を記録 |
 | 2.4 | 2026-10-04 | 地図に `test_measure_rag_scores.py`（と結合テスト）を追加。`test_web_search_toggle.py` に Web 許可時のしきい値（`rag_sufficient_score` を 0.7 → 0.64）のテストを追記 |
 | 2.3 | 2026-10-04 | §1.2 E2E の網羅性: Support の回答に社内ナレッジの事実が入っているか（`SUPPORT_FACTS`）、範囲外の質問でエスカレするか（`OUT_OF_SCOPE`）、Review の記録だけの期待値（`REVIEW_WATCH`）、`GRACE_E2E_REPEAT` による揺れの計測（合格率・出現率）を追加。レポートを `{repeat, summary, records}` の形にした |
 | 2.2 | 2026-10-04 | §1.2 クラウド VM の準備に、VM から届く保存先（GCS / S3。Google ドライブ・Dropbox は不可）と署名付き URL の作り方、hook の通し確認（初回・再開・404・キー未設定）、sparse モデルの取得元と許可ドメインを追記 |
