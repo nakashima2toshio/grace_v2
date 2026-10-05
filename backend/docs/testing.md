@@ -1,6 +1,6 @@
 # backend テストの地図 ドキュメント
 
-**Version 2.5** | 最終更新: 2026-10-05
+**Version 2.6** | 最終更新: 2026-10-05
 
 ---
 
@@ -191,7 +191,7 @@ Support 3 件とも `used_web=false`。Web を検索しなくなった分だけ�
 
 **2026-10-05 の実測（Mac）**: 7 件（範囲外の質問を追加）すべて passed。grace_v2 は 81 秒、grace_v2_local は 718 秒。
 事実チェック（`missing_facts`）・記録だけの期待値（`missing_expected`）とも欠けなし。範囲外の質問（天気）は
-回答を作らずに `escalate`（社内ナレッジに該当なし）。同日の `scripts/measure_rag_scores.py` の結果は
+回答を作らずに `escalate`（社内ナレッジに該当なし）。同日の `scripts/measure_rag_scores.py`（現在は `scripts/measure_rag_threshold.py` に統合）の結果は
 `config/grace_config.yml` の `reasoning_min_rag_score` のコメントに残した（しきい値 0.64 は据え置き）。
 
 - レポートの `model` / `light_model` は**実際に使ったモデル名**を記録する（以前は `(config llm.model)` としか残らず、
@@ -329,7 +329,7 @@ GRACE_E2E=1 uv run --no-sync pytest backend/tests/e2e -m e2e -rs
 | `test_celery_worker_init.py` | Celery ワーカー起動時の初期化（`configure_worker_process`）が ERROR を出さず、タスクが実際に使う `qa_generation.smart_qa_generator` を確かめる（削除済みの `qa_generation.generation` を見ていた回帰） |
 | `integration/test_*_live.py`（4 ファイル） | **実 Qdrant / Redis の結合テスト**（§1.1。未起動なら skip） |
 | `test_qdrant_snapshot.py` | `scripts/qdrant_snapshot.py` の Qdrant を使わない部分（対象コレクションの集め方・tar の検査・CLI） |
-| `test_measure_rag_scores.py` / `integration/test_measure_rag_scores_live.py` | `scripts/measure_rag_scores.py`（RAG スコアの実測・LLM 不使用）の帯の判定と集計／実 Qdrant で許可コレクション中の最高スコアを拾えるか |
+| `test_measure_rag_threshold.py` / `integration/test_measure_rag_threshold_live.py` | `scripts/measure_rag_threshold.py`（RAG のしきい値の実測・LLM 不使用）の判定（分離可否・推奨値・今のしきい値での帯）と業界ごとの集計・質問の組み立て／実 Qdrant で全コレクション中の最良スコアを拾えるか。grace_v2_local と同じ内容 |
 | `e2e/test_*_e2e.py`（2 ファイル） / `e2e/test_e2e_cases.py` / `e2e/test_e2e_preflight.py` | **E2E**（§1.2。`GRACE_E2E=1` のときだけ）／ そのケース定義・事前確認（CI で走る） |
 
 ---
@@ -390,6 +390,7 @@ GRACE_E2E=1 uv run --no-sync pytest backend/tests/e2e -m e2e -rs
 |---|---|---|
 | 1.0 | 2026-09-16 | 新規作成。`review_spec.md` §9（テスト方針）を取り込み、`backend/tests` の実測（58 ファイル / 867 関数 / 978 passed・1 skipped）から地図を書き起こした |
 | 1.1 | 2026-09-24 | `a_cross_doc_md_format.md` v1.1（種別 B）に準拠（2026-09-24）。概要（結論・対象モジュール）を追加し、冒頭の説明文を概要へ移した。本文の章番号は変えていない |
+| 2.6 | 2026-10-05 | 計測スクリプトを grace_v2_local の `scripts/measure_rag_threshold.py` に一本化（`measure_rag_scores.py` とそのテストを統合して削除）。地図の行を差し替え |
 | 2.5 | 2026-10-05 | §1.2 に 7 件での実測（grace_v2 81 秒・grace_v2_local 718 秒・全件 passed）を記録 |
 | 2.4 | 2026-10-04 | 地図に `test_measure_rag_scores.py`（と結合テスト）を追加。`test_web_search_toggle.py` に Web 許可時のしきい値（`rag_sufficient_score` を 0.7 → 0.64）のテストを追記 |
 | 2.3 | 2026-10-04 | §1.2 E2E の網羅性: Support の回答に社内ナレッジの事実が入っているか（`SUPPORT_FACTS`）、範囲外の質問でエスカレするか（`OUT_OF_SCOPE`）、Review の記録だけの期待値（`REVIEW_WATCH`）、`GRACE_E2E_REPEAT` による揺れの計測（合格率・出現率）を追加。レポートを `{repeat, summary, records}` の形にした |

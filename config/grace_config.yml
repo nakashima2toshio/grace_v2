@@ -285,7 +285,8 @@ executor:
   #
   # ⚠️ マージンは 0.046。サンプルが少なく暫定値。運用の質問ログで測り直すこと。
   #
-  # 再測定 2026-10-05（grace_v2・Mac・hybrid・scripts/measure_rag_scores.py・LLM なし）:
+  # 再測定 2026-10-05（grace_v2・Mac・hybrid・LLM なし。当時の scripts/measure_rag_scores.py＝現在は
+  #   scripts/measure_rag_threshold.py --vertical each に統合。既定の質問セットは統合で増えた）:
   #   in_scope  n=14  最小 0.7062（saas「サービスが落ちています」）
   #   out_scope n=18  最大 0.6707（saas で「返品したい」）。天気・株価など無関係な質問は最大 0.6046
   #   → 0.64 で範囲内は全件採用・強制 Web 0 件。範囲外は 2 件（他業界の例文）が採用される
