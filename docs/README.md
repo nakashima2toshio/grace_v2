@@ -1,6 +1,6 @@
 # docs 棚卸し（リポジトリ直下 `docs/`）
 
-**Version 3.2** | 最終更新: 2026-10-03
+**Version 3.3** | 最終更新: 2026-10-06
 
 リポジトリ直下 `docs/` の一覧と、**どのディレクトリに何を置くかの境界**をまとめる。
 各領域の棚卸しは [`backend/docs/README.md`](../backend/docs/README.md) /
@@ -104,6 +104,7 @@ CLAUDE.md §9.1 の表を、判断に使える形へ具体化したもの。
 | `reasoning_flow.md` | A | 生成の 2 ステップ（Support の `reasoning` / Review の `detect`） | grace + backend | 389 | 2.3 |
 | `performance_levers.md` | A | 回答品質・レイテンシ・コストを決めている箇所と未実装レバー | 全域 | 566 | 2.3 |
 | `agent_layers.md` | A | **一般エージェント用語 → 実装の対応表**（L0〜L4）。実装を読む前の見取り図 | 全域 | 415 | 1.1 |
+| `app_tabs_overview.md` | A | **処理 3 タブの入口**。基本版 / GRACE-Support / GRACE-Review を「業界特化・処理フロー・回答」の 3 点で、画面の実行例つきでまとめる。ステップ対照表は `pipelines.md` へリンク | backend + frontend + grace | 355 | 1.0 |
 
 ### 3.2 モジュール IPO（トップレベル `.py`）
 
@@ -216,6 +217,7 @@ EOF
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 3.3 | §3.1 に `app_tabs_overview.md`（処理 3 タブの概要・種別 A）を追加（2026-10-06） |
 | 3.2 | §3.3 の `review_rag_rules_todo.md` を v3.8 へ（2.17・2.18 の後の実測・3.3 の更新。2026-10-03） |
 | 3.1 | §3.3 の `review_rag_rules_todo.md` を v3.7 へ（2.1 の監修を完了に。2026-10-03） |
 | 3.0 | §3.3 の `review_rag_rules_todo.md` を v3.6 へ（2.1 の原文照合を済に。2026-10-03） |
