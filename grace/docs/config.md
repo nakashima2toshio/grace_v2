@@ -1,9 +1,9 @@
 # config.py - GRACE 設定管理 ドキュメント
 
-**Version 1.11** | 最終更新: 2026-10-06
+**Version 1.12** | 最終更新: 2026-10-06
 
 > 📌 **`config.GeminiConfig` の LLM モデル一覧は後方互換である。**
-> `config.py:411` のコメントにあるとおり、`GeminiConfig` は
+> `config.py::GeminiConfig` の docstring にあるとおり、`GeminiConfig` は
 > **Embedding 用途（`EMBEDDING_MODEL` / `EMBEDDING_DIMS`）に限って参照してよい**。
 > 同クラスが持つ `DEFAULT_MODEL = "gemini-2.5-flash"` などの **LLM** 既定は
 > 後方互換のために残っているだけで、**現行の LLM 既定は
@@ -933,6 +933,7 @@ __all__ = [
 
 | バージョン | 日付 | 変更内容 |
 |-----------|------|---------|
+| 1.12 | 2026-10-06 | 冒頭の注記にあった行番号参照 `config.py:411` を、シンボル参照 `config.py::GeminiConfig` の docstring へ改めた。行 411 は現在 `get_dataset_dict` の位置で、参照先とずれていた（行番号は書かない規則。grace_v2_local の `backend/docs/docs_audit.md` §5.2 の再測定で発見） |
 | 1.11 | 2026-10-06 | 設定一覧の表に、v1.7 で追加した 2 設定（`executor.prefetch_final_evaluation` / `confidence.groundedness_exclude_absence_claims`）が載っていなかったのを補った（変更履歴にだけ書かれていた）。§5.5 の網羅度減衰の実装の所在を `executor.py::_damp_support_rate` から `confidence.py::damp_support_rate`（Support / Review 共通。executor 側は委譲するだけ）へ是正。v1.10 の行に日付列が抜けて表が崩れていたのを直した |
 | 1.10 | 2026-10-06 | 現在の既定モデルの記載 `claude-sonnet-5` を実装（`grace/config.py` の `LLMConfig.model` / `grace/llm_compat.py` の `DEFAULT_ANTHROPIC_MODEL` = `claude-sonnet-5-5`）に合わせて是正（2026-10-06。CLAUDE.md §9.3。旧既定は履歴の記述にだけ残す） |
 | 1.9 | 2026-10-05 | 計測スクリプトを `scripts/measure_rag_threshold.py` に一本化したのに追随 |
