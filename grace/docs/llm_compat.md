@@ -1,6 +1,6 @@
 # llm_compat.py - GRACE LLM 互換クライアント ドキュメント
 
-**Version 1.8** | 最終更新: 2026-10-06
+**Version 1.9** | 最終更新: 2026-10-06
 
 ---
 
@@ -64,10 +64,12 @@ Embedding（`client.models.embed_content`）は Gemini（`gemini-embedding-001`�
 | `_AnthropicModels.generate_content()` | genai 互換シグネチャで Anthropic `messages.create` を呼ぶ |
 | `_GenaiCompatResponse` | genai レスポンス互換オブジェクト（`.text` / `.parsed` / `.usage_metadata`） |
 | `_UsageMetadata` | genai usage_metadata 互換オブジェクト |
+| `LLMRefusalError` / `LLMTruncatedError` | 拒否（`stop_reason=="refusal"`）／JSON 応答の `max_tokens` 打ち切りを表す例外 |
 | `create_chat_client()` | config に応じて Gemini / Anthropic 互換クライアントを返すファクトリ |
 | `_extract_config()` | GenerateContentConfig から設定を抽出 |
 | `_schema_hint()` | response_schema から JSON Schema ヒントを生成 |
 | `_strip_to_json()` | Markdown フェンス等を除去し JSON 本体を抽出 |
+| `_stop_category()` | 拒否応答の `stop_details.category` を取り出す（`LLMRefusalError` に載せる） |
 
 ---
 
@@ -227,6 +229,13 @@ style RESPONSE fill:#1a1a1a,stroke:#fff,color:#fff
 |---------|------|
 | `__init__(prompt_token_count=0, candidates_token_count=0)` | トークン使用量を保持 |
 
+#### LLMRefusalError / LLMTruncatedError（例外）
+
+| クラス | 概要 |
+|---------|------|
+| `LLMRefusalError(category=None)` | `RuntimeError` の派生。安全性分類器による拒否（`stop_reason == "refusal"`）。`category` 属性に `_stop_category()` の値を持つ。握りつぶすと「本文が空の成功」に見えるため例外にする |
+| `LLMTruncatedError` | `RuntimeError` の派生。JSON 応答が `max_tokens` で打ち切られ、1 回の再試行でもなお打ち切られた |
+
 ### 3.2 関数一覧（カテゴリ別）
 
 #### ファクトリ関数
@@ -243,6 +252,7 @@ style RESPONSE fill:#1a1a1a,stroke:#fff,color:#fff
 | `_thinking_budget(requested, max_tokens)` | **拡張思考の budget を正規化**（0 / None / 不正値は無効。有効時は API 下限まで引き上げ） |
 | `_schema_hint(response_schema)` | response_schema から JSON Schema ヒント文字列を生成 |
 | `_strip_to_json(text)` | Markdown フェンス・散文を除去し JSON 本体を抽出 |
+| `_stop_category(message)` | 応答の `stop_details.category` を返す（無い・文字列でなければ `None`） |
 
 ---
 
@@ -661,6 +671,33 @@ body = _strip_to_json(raw)
 
 ---
 
+#### `_stop_category`
+
+**概要**: 拒否応答（`stop_reason == "refusal"`）から、拒否の分類（`stop_details.category`）を取り出します。
+`generate_content` が `LLMRefusalError(_stop_category(message))` として例外に載せ、ログで拒否の理由を追えるようにします。
+
+```python
+def _stop_category(message: Any) -> Optional[str]
+```
+
+| パラメータ | 型 | デフォルト | 説明 |
+|------------|------|-----------|------|
+| `message` | Any | - | `messages.create` の戻り値（Anthropic SDK の `Message`） |
+
+| 項目 | 内容 |
+|------|------|
+| **Input** | `message` |
+| **Process** | `message.stop_details.category` を `getattr` で辿る（途中が無くても例外にしない）。値が `str` のときだけ返す |
+| **Output** | `Optional[str]`: 分類名。`stop_details` が無い・`category` が無い・文字列でないときは `None` |
+
+**戻り値例**:
+```python
+_stop_category(message)   # "cyber" など（stop_details.category が文字列のとき）
+_stop_category(object())  # None（stop_details が無い）
+```
+
+---
+
 ## 5. 設定・定数
 
 ### 5.1 _GEMINI_PROVIDERS
@@ -721,6 +758,23 @@ _MIN_THINKING_BUDGET = 1024  # Anthropic が要求する thinking budget の下�
 > `config.heavy_thinking_budget()` が 0 を返すためです
 > （[`config.md`](./config.md) §4.6）。
 
+### 5.3.1 思考を無効化できないモデルの下限（`_ALWAYS_THINKING_MIN_TOKENS`）
+
+```python
+_ALWAYS_THINKING_MIN_TOKENS = 4096
+```
+
+| 定数名 | 値 | 説明 |
+|-------|-----|------|
+| `_ALWAYS_THINKING_MIN_TOKENS` | `4096` | 思考を無効化できないモデル（`config.py::ModelConfig.ALWAYS_THINKING_MODELS`）で確保する `max_tokens` の下限 |
+
+これらのモデルは `{"type": "disabled"}` を送ると 400 になるため、`generate_content` は「思考なし」の代わりに
+`output_config={"effort": "low"}` を送り、`max_tokens = max(要求値, _ALWAYS_THINKING_MIN_TOKENS)` に広げます。
+
+> ⚠️ **なぜ下限が要るか。** これらのモデルでは `max_tokens` が「思考 + 本文」の**合計**上限になる。
+> `max_output_tokens: 10` のような短い呼び出し（YES / NO 判定など）をそのまま渡すと、
+> **思考だけで使い切って本文が空になる**。
+
 ### 5.4 関連環境変数
 
 | 環境変数 | 用途 |
@@ -762,6 +816,7 @@ from .llm_compat import create_chat_client
 | 1.6 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
 | 1.7 | `stop_reason` の扱いを追加（2026-09-29）。拒否（`refusal`）は `LLMRefusalError`、JSON 応答の `max_tokens` 打ち切りは 1 回再試行のうち `LLMTruncatedError`。従来は `stop_reason` を見ず、拒否は「本文が空の成功」、打ち切りは「途中で切れた JSON」として下流へ流れていた（Sonnet 5.5 のプロンプトガイドの推奨に対応） |
 | 1.8 | 現在の既定モデルの記載 `claude-sonnet-5` を実装（`grace/config.py` の `LLMConfig.model` / `grace/llm_compat.py` の `DEFAULT_ANTHROPIC_MODEL` = `claude-sonnet-5-5`）に合わせて是正（2026-10-06。CLAUDE.md §9.3。旧既定は履歴の記述にだけ残す） |
+| 1.9 | 未記載だった 2 シンボルを実装から書き起こして追加（2026-10-06）。§4.7 に `_stop_category`（拒否の分類を取り出す）、§5.3.1 に `_ALWAYS_THINKING_MIN_TOKENS`（思考を無効化できないモデルで本文が空にならないための `max_tokens` 下限）。あわせて v1.7 で追加された例外 `LLMRefusalError` / `LLMTruncatedError` を §3.1・主要機能一覧に載せた（それまで Process の文中にしか無かった） |
 
 ---
 
