@@ -1,6 +1,6 @@
 # GRACE アプリ（`./run_dev.sh`）- 画面・操作・プログラム対応 ドキュメント
 
-**Version 3.6** | 最終更新: 2026-09-26
+**Version 3.7** | 最終更新: 2026-10-06
 
 ![B-01 起動直後（基本版）](docs/images/b-01-basic-initial.png)
 
@@ -40,13 +40,16 @@
 
 ---
 ## grace_v2 で実装した機構
-設計の詳細は 3 つの文書が分担している。**どれのどこを読めばよいか**を「詳細」列に示す。
+まず入口の [`docs/app_tabs_overview.md`](docs/app_tabs_overview.md) で 3 タブの全体像をつかみ、設計の詳細は下の 3 つの文書と grace の対応表で読む。
+**どれのどこを読めばよいか**を下の表の「詳細」列に示す。
 
 | 文書 | 担当している側面 |
 |---|---|
+| [`docs/app_tabs_overview.md`](docs/app_tabs_overview.md) | **入口**。処理 3 タブ（基本版 / GRACE-Support / GRACE-Review）を「業界特化・処理フロー・回答」の 3 点で、画面の実行例つきでまとめたもの |
 | [`docs/pipelines.md`](docs/pipelines.md) | **3 モードの対照**（基本版 / GRACE-Support / GRACE-Review）。ステップの対応、モード別に効くもの |
 | [`docs/guardrails.md`](docs/guardrails.md) | **判定（ガードレール）**。GA〜G9 の中身、失敗時にどちらへ倒すか、閾値 |
 | [`docs/reasoning_flow.md`](docs/reasoning_flow.md) | **生成**。Support の `reasoning` と Review の `detect`、プロンプト構造 |
+| [`grace/docs/README.md`「概要」](grace/docs/README.md#概要) | **grace 基盤の使われ方**。Support / Review の各ステップで grace のどのモジュールが効くか、両者の比較（Review は `planner` / `executor` を通らない） |
 
 > 📌 直下 `docs/` の全体像と**どこに何を置くかの境界**は [`docs/README.md`](docs/README.md)。
 > 領域別の棚卸しは [`backend/docs/README.md`](backend/docs/README.md) /
@@ -54,14 +57,14 @@
 
 | 軸 | 実装 | 状態 | 詳細 |
 |---|---|---|---|
-| 計画→実行→検証→ゲート | planner / executor / confidence / gates | ✅ | [pipelines](docs/pipelines.md) §2 ステップ対照表／[guardrails](docs/guardrails.md) §1 全体図／[reasoning_flow](docs/reasoning_flow.md) §1 ② の中身 |
+| 計画→実行→検証→ゲート | planner / executor / confidence / gates | ✅ | [pipelines](docs/pipelines.md) §2 ステップ対照表／[guardrails](docs/guardrails.md) §1 全体図／[reasoning_flow](docs/reasoning_flow.md) §1 ② の中身／[grace/docs/README](grace/docs/README.md#grace-support基本版も同じの流れと-grace-モジュール) Support の各ステップと grace モジュール |
 | 根拠検証 | support_rate（neutral 除外）、GroundednessVerifier | ✅ | [guardrails](docs/guardrails.md) §2 **G1 / G1A / G1A' / G1B / G1C / G1D** |
 | HITL 介入 | （Human-In-The-Loop）intervention.py（CONFIRM・タイムアウトで安全側） | ✅ | [guardrails](docs/guardrails.md) §2 **G9**（本人確認は **G8**、起票の可否は **G7**） |
 | RAG + Web 裏取り | Qdrant / grace/tools.py（優先順に直列検索・一次閾値0.70で打ち切り） | ✅ | [guardrails](docs/guardrails.md) §2 **G0 / G5 / G5A / G5B** |
 | 動的リプラン | replan.py（失敗・低信頼・フィードバックの 3 トリガー） | ✅ | [guardrails](docs/guardrails.md) §3.1 モジュール一覧／[reasoning_flow](docs/reasoning_flow.md) §1.2（リプラン後の結果も観測に拾う理由） |
-| 実行メモリ | memory.py（JSONL、コレクション優先度の事前分布） | ✅ | — （3 文書とも未記載） |
+| 実行メモリ | memory.py（JSONL、コレクション優先度の事前分布） | ✅ | [grace/docs/README](grace/docs/README.md#grace-support基本版も同じの流れと-grace-モジュール)（① Plan で読み、② Execute で書く。Support のみ）／[grace/docs/memory.md](grace/docs/memory.md) |
 | 信頼度較正 | calibration.py（温度スケーリング、ECE） | ✅ | [guardrails](docs/guardrails.md) §3.1 モジュール一覧／§4 閾値・設定値（重み） |
-| タスク型の抽象化 | Support（問い→答え）／ Review（文書→指摘）の同型 | | [pipelines](docs/pipelines.md) §1・§2（別コアであること）／[guardrails](docs/guardrails.md) §3.2（判定の対応表）／[reasoning_flow](docs/reasoning_flow.md) §4（生成の対比） |
+| タスク型の抽象化 | Support（問い→答え）／ Review（文書→指摘）の同型 | | [app_tabs_overview](docs/app_tabs_overview.md) §1（3 タブをひと目で）／[grace/docs/README](grace/docs/README.md#grace-support-と-grace-review-の比較)（grace モジュールの使い方の比較）／[pipelines](docs/pipelines.md) §1・§2（別コアであること）／[guardrails](docs/guardrails.md) §3.2（判定の対応表）／[reasoning_flow](docs/reasoning_flow.md) §4（生成の対比） |
 | 複数質問の対話選定 | 0-(A) `analyze` ステップ。主質問を利用者に選ばせて再構成し、保留分を明示 | ✅ | [guardrails](docs/guardrails.md) §2 **GA**／[pipelines](docs/pipelines.md) §4 モード別の有効・無効／[backend/docs/support_flow.md](backend/docs/support_flow.md) |
 | 担当範囲の判定 | 業界プロファイルの `scope_description` / `out_of_scope_links` で断り＋窓口案内 | ✅ | [guardrails](docs/guardrails.md) §2 **GA'**／[reasoning_flow](docs/reasoning_flow.md) §2 ブロック 8（`prompt_closing` の位置が結果を変える） |
 
@@ -1576,6 +1579,7 @@ from backend.app.core.jobs import job_manager, JobParams
 | 3.4 | **画面ショット `D-05`〜`D-08` を撮影して掲載**（2026-09-26）。Qdrant を起動し、`qa_output/ec_ad_rules.csv` をアプリの「③ Qdrant 登録」から実際に登録（23 件・3072 次元）した状態で撮った。D-05 / D-08 の CONFIRM は「拒否」で閉じたのでデータは消していない。撮影済み 17 → 21 枚、未撮影 14 → 10 枚（残りはすべて `ANTHROPIC_API_KEY` が要る画面） |
 | 3.5 | **残りの画面ショット 10 枚（`S-03`〜`S-05` / `R-03`〜`R-06` / `C-01` / `D-03` / `T-01`）を撮影して掲載**（2026-09-26）。アプリ用の API キーをバックエンドにだけ渡して LLM を実行し、架空の EC ストア規程をデータ管理タブでチャンク化 → Q/A 生成 → `ec_policy_anthropic` へ登録した状態で Support を、`ec_ad_rules_anthropic` を登録した状態で Review を撮った。`C-01` は「拒否」で閉じ、Support / Review とも dry-run ON で実行した。撮影済み 21 → 31 枚（全スロット完了）。あわせて §4.3.1 の Review フォームの既定値を実装（`formMemory.ts::DEFAULT_REVIEW_FORM`）に合わせて訂正した — Web 裏取りは **既定 ON**、dry-run は **既定 OFF**（従来は逆に書かれていた） |
 | 3.6 | **基本版 / GRACE-Support の dry-run の既定値を実装に合わせて訂正した**（2026-09-26）。概要の主要機能一覧・§4.2.1 の UI 要素表・§6.2 の手順 8 が「既定 ON」のままだったが、実装（`formMemory.ts::DEFAULT_QUERY_FORM` の `dryRun: false`、フォームのラベル「既定 OFF」）は **OFF**。とくに手順 8 はそのまま進めると本人確認が通らず CONFIRM が出ないため、「ON にする」手順へ改め理由を添えた。§4.1 の formMemory の説明（「外した dry-run が ON へ復帰する」）も既定値に依存しない言い方へ直した（Review 側は v3.5 で訂正済み） |
+| 3.7 | 「grace_v2 で実装した機構」の表に、入口の `docs/app_tabs_overview.md`（処理 3 タブの概要）と、`grace/docs/README.md`「概要」（Support / Review が使う grace モジュールの対応表と比較）へのリンクを追加（2026-10-06）。「実行メモリ」行の「3 文書とも未記載」を、上記の対応表と `grace/docs/memory.md` へのリンクに置き換えた |
 
 ---
 
