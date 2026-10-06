@@ -1,6 +1,6 @@
 # grace_runtime.md - GRACE 実行時に発行される API とプロンプト
 
-**Version 3.4** | 最終更新: 2026-09-26
+**Version 3.5** | 最終更新: 2026-10-06
 
 > **参考ドキュメント**
 > - [`grace/docs/grace.md`](./grace.md) — 設計思想（**なぜ**この形か。ReAct → Reflection → GRACE 5 段階の経緯）
@@ -30,7 +30,7 @@
 
 GRACE 本体は google-genai 形式の `client.models.generate_content(...)` のまま書かれており、`grace/llm_compat.py` がそれを Anthropic の `messages.create(...)` に変換している点が要となる。
 
-> 📝 **技術スタック**: LLM 用途はすべて **Anthropic Claude**（既定 `claude-sonnet-5`、軽量 `claude-haiku-4-5-20251001`、鍵 `ANTHROPIC_API_KEY`）。検索の Embedding のみ **Gemini** `gemini-embedding-001`（3072 次元、鍵 `GOOGLE_API_KEY`）を継続利用する。
+> 📝 **技術スタック**: LLM 用途はすべて **Anthropic Claude**（既定 `claude-sonnet-5-5`、軽量 `claude-haiku-4-5-20251001`、鍵 `ANTHROPIC_API_KEY`）。検索の Embedding のみ **Gemini** `gemini-embedding-001`（3072 次元、鍵 `GOOGLE_API_KEY`）を継続利用する。
 
 実行の入口は Web API（`uvicorn backend.app.main:app` → `run_support_agent_core`）。CLI（`agent_support_example.py`）と S0〜S9 のステップ別トレース（`grace/step_trace/s*.py`）は 2026-09-19 に削除した。最小実行サンプルとその解説は [`grace_core.md` §7](./grace_core.md#7-使用例最小実行サンプル) にある。
 
@@ -133,7 +133,7 @@ def generate_content(self, model=None, contents=None, config=None, **_kwargs):
 
     max_tokens = cfg.get("max_output_tokens") or 2048     # Anthropic は max_tokens 必須
     kwargs = {
-        "model": model_name,                              # 既定 claude-sonnet-5
+        "model": model_name,                              # 既定 claude-sonnet-5-5
         "max_tokens": int(max_tokens),
         "messages": [{"role": "user", "content": prompt}],
     }
@@ -472,6 +472,7 @@ class Q,PLAN,EMB,QD,REA,CONF,OUT default
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 3.5 | 現在の既定モデルの記載 `claude-sonnet-5` を実装（`grace/config.py` の `LLMConfig.model` / `grace/llm_compat.py` の `DEFAULT_ANTHROPIC_MODEL` = `claude-sonnet-5-5`）に合わせて是正（2026-10-06。CLAUDE.md §9.3。旧既定は履歴の記述にだけ残す） |
 | 3.4 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
 | 3.3 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
 | 3.2 | 目次の §4.1 / §4.3 / §4.4 へのリンクが見出しのアンカー（①〜③ を含む）と一致せず切れていたのを修正（2026-09-24） |

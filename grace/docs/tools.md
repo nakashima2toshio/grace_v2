@@ -1,6 +1,6 @@
 # tools.py - ツール定義モジュール ドキュメント
 
-**Version 3.6** | 最終更新: 2026-09-29
+**Version 3.7** | 最終更新: 2026-10-06
 
 ---
 
@@ -46,7 +46,7 @@
 
 `tools.py` は、GRACE エージェントが実行計画の各ステップで呼び出す **ツール群** を定義するモジュールです。RAG 検索・Web 検索・LLM 推論・ユーザーへの問い合わせ（HITL）という4種のツールを統一インターフェース（`BaseTool` / `ToolResult`）の下に実装し、`ToolRegistry` を通じて名前ベースで呼び出せるようにします。
 
-LLM 推論は Anthropic Claude（既定 `claude-sonnet-5`）を使用しますが、GRACE 本体は当初 google-genai 形式（`client.models.generate_content(...)`）で実装されているため、`grace/llm_compat.py` の互換アダプター（`create_chat_client`）を介して Anthropic API を呼び出します。Embedding（Qdrant 検索）は Gemini `gemini-embedding-001`（3072次元）を継続利用します。
+LLM 推論は Anthropic Claude（既定 `claude-sonnet-5-5`）を使用しますが、GRACE 本体は当初 google-genai 形式（`client.models.generate_content(...)`）で実装されているため、`grace/llm_compat.py` の互換アダプター（`create_chat_client`）を介して Anthropic API を呼び出します。Embedding（Qdrant 検索）は Gemini `gemini-embedding-001`（3072次元）を継続利用します。
 
 ### 主な責務
 
@@ -776,7 +776,7 @@ def _apply_allowed_collections(candidates: List[str], allowed: List[str]) -> Lis
 
 ### 4.5 ReasoningTool クラス
 
-収集した情報を統合して回答を生成する LLM 推論ツール。`grace/llm_compat.create_chat_client` 経由で Anthropic Claude（既定 `claude-sonnet-5`）を genai 互換インターフェースで呼び出します。
+収集した情報を統合して回答を生成する LLM 推論ツール。`grace/llm_compat.create_chat_client` 経由で Anthropic Claude（既定 `claude-sonnet-5-5`）を genai 互換インターフェースで呼び出します。
 
 #### コンストラクタ: `__init__`
 
@@ -803,14 +803,14 @@ def __init__(
 
 **戻り値例**:
 ```python
-ReasoningTool(config=<GraceConfig>, model_name=None)  # None → resolve_heavy_model(config)（heavy_model 未設定なら llm.model＝既定 claude-sonnet-5）
+ReasoningTool(config=<GraceConfig>, model_name=None)  # None → resolve_heavy_model(config)（heavy_model 未設定なら llm.model＝既定 claude-sonnet-5-5）
 ```
 
 ```python
 # 使用例
 tool = ReasoningTool()
 print(tool.model_name)
-# claude-sonnet-5
+# claude-sonnet-5-5
 ```
 
 #### メソッド: `execute`
@@ -1514,7 +1514,7 @@ result = registry.execute("reasoning", query="...", sources=[...])
 | `tools.enabled` | `["rag_search", "web_search", "reasoning", "ask_user"]` | レジストリが自動登録するツール。**`code_execute` は既定に含まれない**（opt-in） |
 | `tools.disabled` | `[]` | 恒久的に禁止するツール |
 | `llm.provider` | `"anthropic"` | LLM プロバイダー |
-| `llm.model` | `"claude-sonnet-5"` | ReasoningTool が使用するモデル |
+| `llm.model` | `"claude-sonnet-5-5"` | ReasoningTool が使用するモデル |
 | `llm.temperature` | `0.7` | 生成温度 |
 | `llm.max_tokens` | `4096` | 最大出力トークン |
 | `qdrant.url` | `"http://localhost:6333"` | Qdrant 接続先 |
@@ -1630,6 +1630,7 @@ __all__ = [
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 3.7 | 現在の既定モデルの記載 `claude-sonnet-5` を実装（`grace/config.py` の `LLMConfig.model` / `grace/llm_compat.py` の `DEFAULT_ANTHROPIC_MODEL` = `claude-sonnet-5-5`）に合わせて是正（2026-10-06。CLAUDE.md §9.3。旧既定は履歴の記述にだけ残す） |
 | 3.6 | Qdrant 到達不能なら RAG 検索を**即失敗**にした（2026-09-29）。`RAGSearchTool._get_all_collections_dynamic` は接続エラーのとき `None` を返し、`execute` は Embedding・Sparse モデル読み込み・全コレクション検索をせず失敗の `ToolResult`（起動コマンドの案内つき）を返す。従来は既定の候補へ倒れ、約 4 秒の無駄（Gemini 埋め込み・500MB 超の Sparse モデル読み込み・接続エラー ×N）を払っていた。接続エラー以外は従来どおり既定の候補へ倒れる。あわせて緩和閾値の下限を首位スコアからの相対マージンにした（`agent_tools.select_by_similarity`、`docs/performance_levers.md` P-04） |
 | 1.0 | 初版作成 |
 | 2.0 | WebSearchTool 追加、動的コレクションフォールバック・動的閾値の反映 |

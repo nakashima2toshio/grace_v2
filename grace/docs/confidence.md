@@ -1,6 +1,6 @@
 # confidence.py - 信頼度計算システム ドキュメント
 
-**Version 2.8** | 最終更新: 2026-09-29
+**Version 2.9** | 最終更新: 2026-10-06
 
 ---
 
@@ -22,7 +22,7 @@
 
 `confidence.py` は、GRACE（Guided Reasoning with Adaptive Confidence Execution）における信頼度計算システムを実装するモジュールです。ハイブリッド方式（重み付き平均 + LLM 自己評価 + 根拠妥当性検証）による多軸の信頼度算出と、その結果に基づく介入レベル（自動進行〜ユーザー入力要求）の判定を担います。
 
-LLM 呼び出しは `llm_compat.create_chat_client()` が返す genai 互換クライアント経由で行われ、本プロジェクトでは Anthropic Claude（既定 `claude-sonnet-5`）が実体となります。一方、ソース一致度計算の Embedding は Gemini（`gemini-embedding-001`、3072次元。定義は `config.py::ModelConfig.EMBEDDING_MODEL`）を利用します。
+LLM 呼び出しは `llm_compat.create_chat_client()` が返す genai 互換クライアント経由で行われ、本プロジェクトでは Anthropic Claude（既定 `claude-sonnet-5-5`）が実体となります。一方、ソース一致度計算の Embedding は Gemini（`gemini-embedding-001`、3072次元。定義は `config.py::ModelConfig.EMBEDDING_MODEL`）を利用します。
 
 ### 主な責務
 
@@ -794,12 +794,12 @@ def __init__(
 | 項目 | 内容 |
 |------|------|
 | **Input** | `config`, `model_name` |
-| **Process** | 1. config 解決<br>2. model_name 解決（既定 `claude-sonnet-5`）<br>3. `create_chat_client(config)` でクライアント生成 |
+| **Process** | 1. config 解決<br>2. model_name 解決（既定 `claude-sonnet-5-5`）<br>3. `create_chat_client(config)` でクライアント生成 |
 | **Output** | `LLMSelfEvaluator` インスタンス |
 
 **戻り値例**:
 ```python
-LLMSelfEvaluator(config=None, model_name=None)  # None → config.llm.model（既定 claude-sonnet-5）
+LLMSelfEvaluator(config=None, model_name=None)  # None → config.llm.model（既定 claude-sonnet-5-5）
 ```
 
 ```python
@@ -1019,7 +1019,7 @@ def __init__(
 
 **戻り値例**:
 ```python
-QueryCoverageCalculator(config=None, model_name=None)  # None → config.llm.model（既定 claude-sonnet-5）
+QueryCoverageCalculator(config=None, model_name=None)  # None → config.llm.model（既定 claude-sonnet-5-5）
 ```
 
 ```python
@@ -1094,7 +1094,7 @@ def __init__(
 
 **戻り値例**:
 ```python
-GroundednessVerifier(config=None, model_name=None)  # None → resolve_heavy_model(config)（heavy_model 未設定なら llm.model＝既定 claude-sonnet-5）
+GroundednessVerifier(config=None, model_name=None)  # None → resolve_heavy_model(config)（heavy_model 未設定なら llm.model＝既定 claude-sonnet-5-5）
 ```
 
 ```python
@@ -1638,7 +1638,7 @@ class ConfidenceThresholds(BaseModel):
 | 設定 | 既定値 | 説明 |
 |-----|-------|------|
 | `LLMConfig.provider` | `"anthropic"` | LLM プロバイダー |
-| `LLMConfig.model` | `"claude-sonnet-5"` | 既定 LLM モデル |
+| `LLMConfig.model` | `"claude-sonnet-5-5"` | 既定 LLM モデル |
 | `EmbeddingConfig.model` | `ModelConfig.EMBEDDING_MODEL`（= `"gemini-embedding-001"`） | Embedding モデル（3072次元） |
 
 > 📝 **注意**: LLM 用 API キーは `ANTHROPIC_API_KEY`、設定クラスは `ModelConfig`/`LLMConfig` 系で管理されます。LLM 呼び出しは `llm_compat.create_chat_client()` の genai 互換アダプター経由で Anthropic を呼び出します。Embedding のみ Gemini を継続利用します。
@@ -1685,6 +1685,7 @@ __all__ = [
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 2.9 | 現在の既定モデルの記載 `claude-sonnet-5` を実装（`grace/config.py` の `LLMConfig.model` = `claude-sonnet-5-5`）に合わせて是正（2026-10-06。CLAUDE.md §9.3。旧既定は履歴の記述にだけ残す） |
 | 2.8 | (1) `is_absence_claim` を追加し、Groundedness の集計で「〜は情報源に記載がない」型の主張（答えられない部分を断る文）を母数から外した（2026-09-29）。断り文が supported と数えられ、判定率（M-6）と、事実に誤りが混ざったときの支持率が水増しされていた。情報源を指す語と不在を述べる語の**両方**を要求し、contradicted は外さない。全件が該当するときは従来どおり全件を集計。`confidence.groundedness_exclude_absence_claims`（既定 true）で無効化可。(2) 評価 LLM の `reason` を 1 文・80 字以内にさせる指示を追加（JSON はスコアが先なのでスコアは変わらず、出力トークン＝待ち時間が減る） |
 | 2.5 | 概要の「各責務対応のモジュール」を主な責務と 1:1 に揃えた（基本フォーマット §2.4。2026-09-24）（8 行 → 6 行。LLM クライアントと設定の行は説明列へ畳んだ）。現在の既定モデルの記載 `claude-sonnet-4-6` を実装（`grace/config.py` の `LLMConfig.model` = `claude-sonnet-5`）に合わせて是正した（CLAUDE.md §9.3。旧既定は履歴の記述にだけ残す） |
 | 2.4 | 使用例を「## 6. 使用例」から IPO 詳細セクション冒頭の `4.1 使用例` へ移動（フォーマット仕様 v1.6 §6.1）。これに伴い既存の `### 4.N` を 1 つずつ繰り下げ、章番号を エクスポート → `## 6.` / 変更履歴 → `## 7.` へ繰り上げ（2026-09-14）。過去の変更履歴行に書かれた旧節番号（§4.x / §6.x）は当時の記録としてそのまま残している |

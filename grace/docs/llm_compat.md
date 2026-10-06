@@ -1,6 +1,6 @@
 # llm_compat.py - GRACE LLM 互換クライアント ドキュメント
 
-**Version 1.7** | 最終更新: 2026-09-29
+**Version 1.8** | 最終更新: 2026-10-06
 
 ---
 
@@ -260,7 +260,7 @@ client = create_chat_client(config)
 
 # 2. genai 互換インターフェースで生成
 response = client.models.generate_content(
-    model="claude-sonnet-5",
+    model="claude-sonnet-5-5",
     contents="次の文章を1行で要約してください: ...",
 )
 
@@ -289,7 +289,7 @@ config = types.GenerateContentConfig(
 
 client = create_chat_client(grace_config)
 response = client.models.generate_content(
-    model="claude-sonnet-5",
+    model="claude-sonnet-5-5",
     contents="日本の首都を JSON で答えてください。",
     config=config,
 )
@@ -332,7 +332,7 @@ client.models  # -> _AnthropicModels
 # 使用例
 from grace.llm_compat import AnthropicGenaiClient
 
-client = AnthropicGenaiClient(default_model="claude-sonnet-5")
+client = AnthropicGenaiClient(default_model="claude-sonnet-5-5")
 # 構築時点では anthropic SDK は import されない
 ```
 
@@ -363,7 +363,7 @@ def _ensure_client(self) -> Any
 ```python
 # 使用例（内部呼び出し）
 anthropic_client = client._ensure_client()
-message = anthropic_client.messages.create(model="claude-sonnet-5", max_tokens=1024, messages=[...])
+message = anthropic_client.messages.create(model="claude-sonnet-5-5", max_tokens=1024, messages=[...])
 ```
 
 ### 4.3 _AnthropicModels クラス
@@ -396,7 +396,7 @@ _AnthropicModels(client_getter: Any, default_model: str)
 
 ```python
 # 使用例（AnthropicGenaiClient 内部で生成される）
-models = _AnthropicModels(client._ensure_client, "claude-sonnet-5")
+models = _AnthropicModels(client._ensure_client, "claude-sonnet-5-5")
 ```
 
 #### メソッド: `generate_content`
@@ -438,7 +438,7 @@ response.usage_metadata.candidates_token_count  # 340
 ```python
 # 使用例
 response = client.models.generate_content(
-    model="claude-sonnet-5",
+    model="claude-sonnet-5-5",
     contents="日本の首都はどこですか？",
     config=None,
 )
@@ -545,7 +545,7 @@ def create_chat_client(config: Any = None) -> Any
 **戻り値例**:
 ```python
 # provider="anthropic"（既定）の場合
-# -> AnthropicGenaiClient(default_model="claude-sonnet-5")
+# -> AnthropicGenaiClient(default_model="claude-sonnet-5-5")
 
 # provider="gemini" の場合
 # -> genai.Client()
@@ -557,7 +557,7 @@ from grace.llm_compat import create_chat_client
 
 client = create_chat_client(config)  # config.llm.provider に従う
 response = client.models.generate_content(
-    model="claude-sonnet-5",
+    model="claude-sonnet-5-5",
     contents="要約してください: ...",
 )
 print(response.text)
@@ -683,12 +683,12 @@ _GEMINI_PROVIDERS = {"gemini", "google", "google-genai", "genai"}
 config 未指定時にフォールバックする Anthropic デフォルトモデル名。
 
 ```python
-DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-5"
+DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-5-5"
 ```
 
 | 定数名 | 値 | 説明 |
 |-------|-----|------|
-| `DEFAULT_ANTHROPIC_MODEL` | `"claude-sonnet-5"` | provider=anthropic かつ model 未指定時の既定モデル |
+| `DEFAULT_ANTHROPIC_MODEL` | `"claude-sonnet-5-5"` | provider=anthropic かつ model 未指定時の既定モデル |
 
 ### 5.3 拡張思考の下限（M-1）
 
@@ -761,6 +761,7 @@ from .llm_compat import create_chat_client
 | 1.5 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
 | 1.6 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
 | 1.7 | `stop_reason` の扱いを追加（2026-09-29）。拒否（`refusal`）は `LLMRefusalError`、JSON 応答の `max_tokens` 打ち切りは 1 回再試行のうち `LLMTruncatedError`。従来は `stop_reason` を見ず、拒否は「本文が空の成功」、打ち切りは「途中で切れた JSON」として下流へ流れていた（Sonnet 5.5 のプロンプトガイドの推奨に対応） |
+| 1.8 | 現在の既定モデルの記載 `claude-sonnet-5` を実装（`grace/config.py` の `LLMConfig.model` / `grace/llm_compat.py` の `DEFAULT_ANTHROPIC_MODEL` = `claude-sonnet-5-5`）に合わせて是正（2026-10-06。CLAUDE.md §9.3。旧既定は履歴の記述にだけ残す） |
 
 ---
 

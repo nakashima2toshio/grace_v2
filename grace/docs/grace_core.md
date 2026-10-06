@@ -1,6 +1,6 @@
 # grace_core.md - GRACE コアモジュール群（Planner 系）アーキテクチャ ドキュメント
 
-**Version 3.4** | 最終更新: 2026-10-04
+**Version 3.5** | 最終更新: 2026-10-06
 
 > **参考ドキュメント**
 > - [`grace/docs/grace.md`](./grace.md) — 設計思想（**なぜ**この形か。ReAct → Reflection → GRACE 5 段階の経緯）
@@ -56,7 +56,7 @@
 
 各モジュールの IPO 詳細（シグネチャ・戻り値例・使用例）は個別ドキュメントに委ね、本書は **全体アーキテクチャ・データフロー・モジュール間連携・リンク集**に徹する。
 
-> 📝 **技術スタック**: LLM 用途はすべて **Anthropic Claude**（既定 `claude-sonnet-5`、軽量 `claude-haiku-4-5-20251001`、鍵 `ANTHROPIC_API_KEY`）。検索の Embedding のみ **Gemini** `gemini-embedding-001`（3072 次元、鍵 `GOOGLE_API_KEY`）を継続利用。LLM クライアントは `grace.llm_compat.create_chat_client()` を経由する。
+> 📝 **技術スタック**: LLM 用途はすべて **Anthropic Claude**（既定 `claude-sonnet-5-5`、軽量 `claude-haiku-4-5-20251001`、鍵 `ANTHROPIC_API_KEY`）。検索の Embedding のみ **Gemini** `gemini-embedding-001`（3072 次元、鍵 `GOOGLE_API_KEY`）を継続利用。LLM クライアントは `grace.llm_compat.create_chat_client()` を経由する。
 
 ### 主な責務
 
@@ -173,7 +173,7 @@ flowchart TB
     end
 
     subgraph EXTERNAL["外部サービス層"]
-        ANTHROPIC["Anthropic Claude<br>(claude-sonnet-5)"]
+        ANTHROPIC["Anthropic Claude<br>(claude-sonnet-5-5)"]
         GEMINI["Gemini Embedding<br>(gemini-embedding-001)"]
         QDRANT["Qdrant Vector DB"]
         WEB["Web Search<br>(SerpAPI/DDG/CSE)"]
@@ -494,7 +494,7 @@ GRACE エージェントの統一ツールシステム。RAG 検索（Gemini Emb
 | `ToolResult` | 成功・出力・信頼度・エラー・実行時間の統一結果 | — |
 | `create_tool_registry(config)` | `ToolRegistry` ファクトリ |  — |
 
-**主な定数**: 推論 LLM `claude-sonnet-5`、Embedding `gemini-embedding-001`（3072 次元）、Qdrant `http://localhost:6333`、有効ツール `["rag_search","web_search","reasoning","ask_user"]`。
+**主な定数**: 推論 LLM `claude-sonnet-5-5`、Embedding `gemini-embedding-001`（3072 次元）、Qdrant `http://localhost:6333`、有効ツール `["rag_search","web_search","reasoning","ask_user"]`。
 
 ---
 
@@ -829,7 +829,7 @@ sequenceDiagram
 | 設定キー | 既定値 | 参照モジュール | 説明 |
 |---------|-------|--------------|------|
 | `llm.provider` | `"anthropic"` | 全 LLM 用途 | LLM プロバイダ |
-| `llm.model` | `claude-sonnet-5` | planner / executor / confidence / tools | 既定 LLM モデル |
+| `llm.model` | `claude-sonnet-5-5` | planner / executor / confidence / tools | 既定 LLM モデル |
 | `planner.llm_plan_complexity_threshold` | `0.7` | planner | ルールベース計画採用の上限複雑度 |
 | `confidence.thresholds` | `silent=0.9 / notify=0.7 / confirm=0.4` | confidence / intervention | 介入レベル判定閾値 |
 | `confidence.calibration_path` | `config/calibration.json` | executor / calibration | 較正パラメータの保存先 |
@@ -1038,6 +1038,7 @@ __all__ = [
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 3.5 | 現在の既定モデルの記載 `claude-sonnet-5` を実装（`grace/config.py` の `LLMConfig.model` / `grace/llm_compat.py` の `DEFAULT_ANTHROPIC_MODEL` = `claude-sonnet-5-5`）に合わせて是正（2026-10-06。CLAUDE.md §9.3。旧既定は履歴の記述にだけ残す） |
 | 3.4 | `rag_sufficient_score` の既定を 0.7 → 0.64 に追随（2026-10-04。`executor.md` v4.12）。設定表のセクション名を実体（`qdrant.`）に直した |
 | 3.3 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
 | 3.2 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |

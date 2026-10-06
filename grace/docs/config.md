@@ -1,13 +1,13 @@
 # config.py - GRACE 設定管理 ドキュメント
 
-**Version 1.9** | 最終更新: 2026-10-05
+**Version 1.10** | 最終更新: 2026-10-06
 
 > 📌 **`config.GeminiConfig` の LLM モデル一覧は後方互換である。**
 > `config.py:411` のコメントにあるとおり、`GeminiConfig` は
 > **Embedding 用途（`EMBEDDING_MODEL` / `EMBEDDING_DIMS`）に限って参照してよい**。
 > 同クラスが持つ `DEFAULT_MODEL = "gemini-2.5-flash"` などの **LLM** 既定は
 > 後方互換のために残っているだけで、**現行の LLM 既定は
-> `config.ModelConfig.DEFAULT_MODEL`（`claude-sonnet-5`）**である（CLAUDE.md §3）。
+> `config.ModelConfig.DEFAULT_MODEL`（`claude-sonnet-5-5`）**である（CLAUDE.md §3）。
 
 ---
 
@@ -263,7 +263,7 @@ from grace.config import get_config
 config = get_config()
 
 # 2. LLM/Embedding 設定の参照
-print(config.llm.model)          # claude-sonnet-5
+print(config.llm.model)          # claude-sonnet-5-5
 print(config.embedding.model)    # gemini-embedding-001（config.py::ModelConfig.EMBEDDING_MODEL）
 
 # 3. Qdrant設定の参照
@@ -326,7 +326,7 @@ GRACE Agent の全設定を統合するトップレベルの Pydantic モデル�
 ```python
 {
     "version": "1.0",
-    "llm": {"provider": "anthropic", "model": "claude-sonnet-5", "temperature": 0.7, "max_tokens": 4096, "timeout": 30},
+    "llm": {"provider": "anthropic", "model": "claude-sonnet-5-5", "temperature": 0.7, "max_tokens": 4096, "timeout": 30},
     "embedding": {"provider": "gemini", "model": "gemini-embedding-001", "dimensions": 3072},
     "qdrant": {"url": "http://localhost:6333", "collection_name": "customer_support_faq"}
 }
@@ -338,7 +338,7 @@ from grace.config import GraceConfig
 
 config = GraceConfig()
 print(config.llm.model)
-# claude-sonnet-5
+# claude-sonnet-5-5
 ```
 
 #### `CodeExecuteConfig`
@@ -409,7 +409,7 @@ def load(self) -> GraceConfig
 
 **戻り値例**:
 ```python
-GraceConfig(version="1.0", llm=LLMConfig(model="claude-sonnet-5"), ...)
+GraceConfig(version="1.0", llm=LLMConfig(model="claude-sonnet-5-5"), ...)
 ```
 
 ```python
@@ -559,7 +559,7 @@ def get_config(config_path: Optional[str] = None) -> GraceConfig
 
 **戻り値例**:
 ```python
-GraceConfig(version="1.0", llm=LLMConfig(model="claude-sonnet-5"), ...)
+GraceConfig(version="1.0", llm=LLMConfig(model="claude-sonnet-5-5"), ...)
 ```
 
 ```python
@@ -647,7 +647,7 @@ def resolve_heavy_model(config: Any) -> str
 
 **戻り値例**:
 ```python
-"claude-sonnet-5"   # heavy_model 未設定 → llm.model と同じ
+"claude-sonnet-5-5"   # heavy_model 未設定 → llm.model と同じ
 ```
 
 ```python
@@ -697,7 +697,7 @@ LLM（本プロジェクトは Anthropic Claude を使用）の設定。
 | キー | 型 | デフォルト値 | 説明 |
 |-----|------|-------------|------|
 | `provider` | str | `"anthropic"` | LLMプロバイダー |
-| `model` | str | `"claude-sonnet-5"` | 既定の LLM モデル |
+| `model` | str | `"claude-sonnet-5-5"` | 既定の LLM モデル |
 | `temperature` | float | `0.7` | 生成温度 |
 | `max_tokens` | int | `4096` | 最大出力トークン数 |
 | `timeout` | int | `30` | タイムアウト秒数 |
@@ -705,7 +705,7 @@ LLM（本プロジェクトは Anthropic Claude を使用）の設定。
 | `heavy_model` | str | `""` | **論理層モデル**（M-1）。計画生成・claim 分解・支持判定に使う。空なら `model` と同じ |
 | `heavy_thinking_budget_tokens` | int | `0` | 論理層の**拡張思考**トークン予算。0=無効 |
 
-> 📝 **注意**: 既定 LLM は `claude-sonnet-5`。軽量用途では `claude-haiku-4-5-20251001` を環境変数 `GRACE_LLM_MODEL` で指定できます。APIキーは `ANTHROPIC_API_KEY`。
+> 📝 **注意**: 既定 LLM は `claude-sonnet-5-5`。軽量用途では `claude-haiku-4-5-20251001` を環境変数 `GRACE_LLM_MODEL` で指定できます。APIキーは `ANTHROPIC_API_KEY`。
 
 > ⚠️ **`heavy_thinking_budget_tokens` は `heavy_model` を設定していない間は効きません。**
 > `heavy_thinking_budget()` が `heavy_model` 未設定時に 0 を返すためです
@@ -930,6 +930,7 @@ __all__ = [
 
 | バージョン | 日付 | 変更内容 |
 |-----------|------|---------|
+| 1.10 | 現在の既定モデルの記載 `claude-sonnet-5` を実装（`grace/config.py` の `LLMConfig.model` / `grace/llm_compat.py` の `DEFAULT_ANTHROPIC_MODEL` = `claude-sonnet-5-5`）に合わせて是正（2026-10-06。CLAUDE.md §9.3。旧既定は履歴の記述にだけ残す） |
 | 1.9 | 2026-10-05 | 計測スクリプトを `scripts/measure_rag_threshold.py` に一本化したのに追随 |
 | 1.8 | 2026-10-04 | `qdrant.rag_sufficient_score` の既定を 0.7 → 0.64（`executor.reasoning_min_rag_score` と同じ）にした |
 | 1.7 | 2026-09-29 | 設定を 2 つ追加。`executor.prefetch_final_evaluation`（既定 true。回答生成の直後に最終評価と Groundedness 検証を先行実行する）、`confidence.groundedness_exclude_absence_claims`（既定 true。「記載がない」型の主張を Groundedness の母数から外す） |
