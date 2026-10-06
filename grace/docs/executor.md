@@ -1,6 +1,6 @@
 # executor.py - GRACE計画実行エージェント ドキュメント
 
-**Version 4.15** | 最終更新: 2026-10-06
+**Version 4.16** | 最終更新: 2026-10-06
 
 ---
 
@@ -316,6 +316,7 @@ style FACTORY_GRP fill:#1a1a1a,stroke:#fff,color:#fff
 | `_handle_intervention_escalate(request)` | ESCALATEレベルの介入処理 |
 | `_should_pause_for_intervention(level)` | 介入で一時停止すべきか。**ESCALATE は常に停止／CONFIRM は対話モードかつ非ブロッキング時のみ** |
 | `_prefetch_final_evaluation(state, answer)` | **回答生成（reasoning）の直後**に、最終評価（自己評価・網羅度）と Groundedness 検証をバックグラウンドで先に走らせる。ステップ確信度の評価（LLM）と重なり、待ち時間が最長の 1 つ分になる。`executor.prefetch_final_evaluation`（既定 true）で無効化できる |
+| `_prefetch_enabled()` | 先行実行（`_prefetch_final_evaluation`）を行うか。`config.executor.prefetch_final_evaluation` が**`True` のときだけ** `True`（属性が無ければ既定 `True`。`"false"` のような文字列は `True` と見なさない） |
 | `_evaluate_final_answer(query, answer, sources)` | 最終評価を返す。先行実行済みで**質問・回答・出典が完全一致**なら、その結果を待って使う。一致しなければ自分で呼ぶ |
 | `_await_prefetched_verify(query, answer, sources)` | 先行実行中の Groundedness 検証があれば完了を待つ（結果は検証器のキャッシュに載る）。待たずに `verify()` を呼ぶと同じ検証を 2 回走らせる |
 | `_spawn(fn, *args)` | `fn` を daemon スレッドで実行し `Future` を返す（例外は `result()` で従来どおり送出） |
@@ -1536,6 +1537,7 @@ def _extract_source_texts(self, tool_result: ToolResult) -> List[str]
 #### 静的メソッド: `_damp_support_rate`（M-6）
 
 **概要**: 判定できた claim の割合で支持率を割り引きます。
+**実体は `confidence.py::damp_support_rate` で、本メソッドはそれへ委譲するだけ**です（GRACE-Review の ④ Ground も同じ関数を直接呼ぶため、計算式は 1 箇所にまとめてある。[`confidence.md`](./confidence.md) §4.15）。
 
 ```python
 @staticmethod
@@ -2060,6 +2062,7 @@ __all__ = [
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 4.16 | 未記載だった `_prefetch_enabled()`（最終評価の先行実行を行うかの判定）を §3.1 に追加（2026-10-06）。`_damp_support_rate` が `confidence.py::damp_support_rate` へ委譲するだけであること（Review と共用）を明記 |
 | 4.15 | 現在の既定モデルの記載 `claude-sonnet-5` を実装（`grace/config.py` の `LLMConfig.model` / `grace/llm_compat.py` の `DEFAULT_ANTHROPIC_MODEL` = `claude-sonnet-5-5`）に合わせて是正（2026-10-06。CLAUDE.md §9.3。旧既定は履歴の記述にだけ残す） |
 | 4.14 | 計測スクリプトを `scripts/measure_rag_threshold.py` に一本化したのに追随（2026-10-05） |
 | 4.13 | 付録の注記を訂正（2026-10-05）。E2E の saas の件の原因が 0.64〜0.7 の帯だったとは確かめていない（素の質問の最高スコアは 0.7062）。再測定の結果（範囲内と範囲外が重なり、しきい値 1 本では分けられない）への参照を追加 |

@@ -1,6 +1,6 @@
 # config.py - GRACE 設定管理 ドキュメント
 
-**Version 1.10** | 最終更新: 2026-10-06
+**Version 1.11** | 最終更新: 2026-10-06
 
 > 📌 **`config.GeminiConfig` の LLM モデル一覧は後方互換である。**
 > `config.py:411` のコメントにあるとおり、`GeminiConfig` は
@@ -763,12 +763,14 @@ Embedding（Gemini）の設定。
 | `calibration_path` | str | `"config/calibration.json"` | 較正パラメータの保存先 |
 | `groundedness_coverage_strength` | float | `0.3` | **支持率の網羅度減衰**の強さ（0=減衰なし） |
 | `groundedness_coverage_target` | float | `0.8` | 減衰をかけ始める網羅度の目標値 |
+| `groundedness_exclude_absence_claims` | bool | `True` | 「〜は情報源に記載がない」型の主張（答えられない部分を断る文）を、支持率・判定率の母数から外す（`confidence.py::is_absence_claim`） |
 
 > 📝 **支持率の網羅度減衰**: `support_rate` は
 > `supported / (supported + contradicted)` で neutral を分母から外すため、
 > **判定できた主張が少ないほど値が楽観的に振れます**（1 主張だけ supported なら 1.00）。
 > 網羅度が `groundedness_coverage_target` に届かない場合に支持率を減衰させて
-> この偏りを補正します。実装は `executor.py::_damp_support_rate`。
+> この偏りを補正します。実装は `confidence.py::damp_support_rate`（Support の `executor.py::_damp_support_rate` と
+> Review の ④ Ground の両方がこれを呼ぶ）。
 
 ### 5.6 InterventionConfig
 
@@ -866,6 +868,7 @@ Embedding（Gemini）の設定。
 | `fallback_chain` | Dict[str, str] | `{"rag_search": "web_search", "web_search": "ask_user"}` | フォールバック連鎖 |
 | `parallel_search` | bool | `True` | 依存なし検索ステップを並列実行するか |
 | `max_parallel_steps` | int | `4` | 並列実行ステップ数の上限 |
+| `prefetch_final_evaluation` | bool | `True` | 回答生成（reasoning）の直後に、最終評価（自己評価・網羅度）と Groundedness 検証を**バックグラウンドで先行実行**する。`False` で従来どおり順番に実行（問題の切り分け用）。判定は `executor.py::_prefetch_enabled` |
 | `relevance_check_model` | str | `""` | **RAG 適合性チェックのモデルを明示指定**（M-3・A/B や巻き戻し用）。空なら `llm.light_model` → `llm.model` の順にフォールバック |
 
 > 📝 **RAG 適合性チェックを軽量モデルへ（M-3）**: 検索結果が問いに答えているかの判定は
@@ -930,7 +933,8 @@ __all__ = [
 
 | バージョン | 日付 | 変更内容 |
 |-----------|------|---------|
-| 1.10 | 現在の既定モデルの記載 `claude-sonnet-5` を実装（`grace/config.py` の `LLMConfig.model` / `grace/llm_compat.py` の `DEFAULT_ANTHROPIC_MODEL` = `claude-sonnet-5-5`）に合わせて是正（2026-10-06。CLAUDE.md §9.3。旧既定は履歴の記述にだけ残す） |
+| 1.11 | 2026-10-06 | 設定一覧の表に、v1.7 で追加した 2 設定（`executor.prefetch_final_evaluation` / `confidence.groundedness_exclude_absence_claims`）が載っていなかったのを補った（変更履歴にだけ書かれていた）。§5.5 の網羅度減衰の実装の所在を `executor.py::_damp_support_rate` から `confidence.py::damp_support_rate`（Support / Review 共通。executor 側は委譲するだけ）へ是正。v1.10 の行に日付列が抜けて表が崩れていたのを直した |
+| 1.10 | 2026-10-06 | 現在の既定モデルの記載 `claude-sonnet-5` を実装（`grace/config.py` の `LLMConfig.model` / `grace/llm_compat.py` の `DEFAULT_ANTHROPIC_MODEL` = `claude-sonnet-5-5`）に合わせて是正（2026-10-06。CLAUDE.md §9.3。旧既定は履歴の記述にだけ残す） |
 | 1.9 | 2026-10-05 | 計測スクリプトを `scripts/measure_rag_threshold.py` に一本化したのに追随 |
 | 1.8 | 2026-10-04 | `qdrant.rag_sufficient_score` の既定を 0.7 → 0.64（`executor.reasoning_min_rag_score` と同じ）にした |
 | 1.7 | 2026-09-29 | 設定を 2 つ追加。`executor.prefetch_final_evaluation`（既定 true。回答生成の直後に最終評価と Groundedness 検証を先行実行する）、`confidence.groundedness_exclude_absence_claims`（既定 true。「記載がない」型の主張を Groundedness の母数から外す） |

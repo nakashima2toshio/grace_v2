@@ -1,6 +1,6 @@
 # GRACE アプリ（`./run_dev.sh`）- 画面・操作・プログラム対応 ドキュメント
 
-**Version 3.7** | 最終更新: 2026-10-06
+**Version 3.8** | 最終更新: 2026-10-06
 
 ![B-01 起動直後（基本版）](docs/images/b-01-basic-initial.png)
 
@@ -1159,9 +1159,14 @@ sequenceDiagram
 （`./start_celery.sh restart -c 8`。手順は `qa_qdrant/docs/celery_quick_start.md`）。
 
 > 📷 **[D-09] Q/A 作成 フォーム** — 入力ディレクトリ（`output_chunked`）とファイル
-> セレクタ、モデル・Q/A 件数・カバレージ分析のトグルが入るように撮影。
-> **モデルのセレクタ**（未選択は「（既定値: claude-sonnet-5）」）と、
-> Celery 並列のトグルが見えること。
+> セレクタ、Q/A 件数・カバレージ分析のトグルが入るように撮影。
+> Celery 並列のトグルが見えること。**モデルはフォーム内ではなくヘッダーの「② Q/A 作成：」セレクタで選ぶ**
+> （2026-09-23 から。`state/headerModel.ts`）。未選択のときはサーバーの既定モデル名
+> （`QaGenerationRequest.model`＝`claude-sonnet-5-5`）がそのまま表示されるので、ヘッダーも画角に入れる。
+>
+> ⚠️ **掲載中の画像は旧 UI**（2026-09-12 の撮影。`docs/doc_modernization_todo.md` ④）で、フォーム内に
+> 「モデル」入力欄があり、旧々既定の `claude-sonnet-4-6` が入っている。現在の画面にこの欄は無い。
+> 撮り直すまでは本文の説明を正とする。
 
 ![D-09 Q/A 作成 フォーム](docs/images/d-09-qa-form.png)
 
@@ -1580,6 +1585,7 @@ from backend.app.core.jobs import job_manager, JobParams
 | 3.5 | **残りの画面ショット 10 枚（`S-03`〜`S-05` / `R-03`〜`R-06` / `C-01` / `D-03` / `T-01`）を撮影して掲載**（2026-09-26）。アプリ用の API キーをバックエンドにだけ渡して LLM を実行し、架空の EC ストア規程をデータ管理タブでチャンク化 → Q/A 生成 → `ec_policy_anthropic` へ登録した状態で Support を、`ec_ad_rules_anthropic` を登録した状態で Review を撮った。`C-01` は「拒否」で閉じ、Support / Review とも dry-run ON で実行した。撮影済み 21 → 31 枚（全スロット完了）。あわせて §4.3.1 の Review フォームの既定値を実装（`formMemory.ts::DEFAULT_REVIEW_FORM`）に合わせて訂正した — Web 裏取りは **既定 ON**、dry-run は **既定 OFF**（従来は逆に書かれていた） |
 | 3.6 | **基本版 / GRACE-Support の dry-run の既定値を実装に合わせて訂正した**（2026-09-26）。概要の主要機能一覧・§4.2.1 の UI 要素表・§6.2 の手順 8 が「既定 ON」のままだったが、実装（`formMemory.ts::DEFAULT_QUERY_FORM` の `dryRun: false`、フォームのラベル「既定 OFF」）は **OFF**。とくに手順 8 はそのまま進めると本人確認が通らず CONFIRM が出ないため、「ON にする」手順へ改め理由を添えた。§4.1 の formMemory の説明（「外した dry-run が ON へ復帰する」）も既定値に依存しない言い方へ直した（Review 側は v3.5 で訂正済み） |
 | 3.7 | 「grace_v2 で実装した機構」の表に、入口の `docs/app_tabs_overview.md`（処理 3 タブの概要）と、`grace/docs/README.md`「概要」（Support / Review が使う grace モジュールの対応表と比較）へのリンクを追加（2026-10-06）。「実行メモリ」行の「3 文書とも未記載」を、上記の対応表と `grace/docs/memory.md` へのリンクに置き換えた |
+| 3.8 | §4.5.3 の [D-09] の説明を現在の UI に合わせた（2026-10-06）。モデルのセレクタはフォーム内ではなくヘッダーの「② Q/A 作成：」にあり（2026-09-23 から）、未選択時はサーバーの既定モデル名がそのまま出る。「（既定値: …）」の表記と、そこに書かれていた旧既定モデル名は現在の画面に無い。掲載中の画像はフォーム内に「モデル」入力欄（`claude-sonnet-4-6`）がある旧 UI のものであることを注記した |
 
 ---
 

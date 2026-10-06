@@ -1,6 +1,6 @@
 # grace/docs 棚卸し
 
-**Version 1.12** | 最終更新: 2026-10-06
+**Version 1.13** | 最終更新: 2026-10-06
 
 `grace/` パッケージのドキュメント一覧と、実装への追随状況・残タスク・検証手順をまとめる。
 新しく文書を書く／直す前に、まずここを見る。
@@ -212,7 +212,7 @@ style BASE fill:#1a1a1a,stroke:#fff,color:#fff
 | 13 | 横断文書 4 本のうち `grace.md` / `grace_core.md` / `grace_core_flow.md` が**同じ表・同じ図を重複して持っていた**（モジュール構成図 Mermaid 68 行と依存関係テーブルは `grace_core.md` と `grace_core_flow.md` で**バイト単位で一致**。11 行役割サマリー表は `grace.md` と `grace_core_flow.md` で一致。5 段階設計の ASCII 図・使用例コードも重複） | ✅ 解消（2026-09-14 に WHY/WHAT/HOW の 3 本へ統合。`grace_core_flow.md` → `grace_runtime.md` へ改称。§2.3・§2.6） |
 | 14 | §2.1〜§2.3 の「行数」「Ver」列が実測から乖離していた（例: `planner.md` が 1139 行と記載、実測 1183 行） | ✅ 解消（2026-09-14 に `wc -l` と各文書の Version ヘッダーで全件を実測し直した） |
 | 15 | 目次の見出しアンカーが 9 件解決しなくなっていた（節番号の繰り下げ・見出しの言い換えに目次が追随していない）。§4.3 のリンク存在チェックでは**ファイルが実在するため検出できない** | ✅ 解消（2026-09-14。`executor.md` 6 件・`backend/docs` 2 件・`docs/support_spec.md` 1 件を是正し、検査を §4.5 として追加） |
-| 16 | §3.1 の「全 11 モジュールで AST 網羅 100%」が崩れていた（2026-10-06 実測で `confidence.md` 3 件・`executor.md` 1 件・`llm_compat.md` 2 件が未記載）。あわせて 11 文書が**現在の既定モデル**を `claude-sonnet-5` のまま記載していた（実装は `claude-sonnet-5-5`） | 既定モデルは ✅ 解消（2026-10-06）。未記載 6 件は ⏳ §5 タスク 5 |
+| 16 | §3.1 の「全 11 モジュールで AST 網羅 100%」が崩れていた（2026-10-06 実測で `confidence.md` 3 件・`executor.md` 1 件・`llm_compat.md` 2 件が未記載）。あわせて 11 文書が**現在の既定モデル**を `claude-sonnet-5` のまま記載していた（実装は `claude-sonnet-5-5`） | ✅ 解消（2026-10-06。既定モデルは v1.12、未記載 6 件は v1.13 で書き足した） |
 | 17 | 本書が **GRACE-Support の流れしか前提にしておらず**、GRACE-Review が grace のどの部品を使うか・両者の違いがどこにも書かれていなかった | ✅ 解消（2026-10-06。冒頭の[概要](#概要)を新設） |
 
 ---
@@ -233,9 +233,9 @@ A と B の線引きは思いつきではなく、**実測した依存の向き*
 | 役割 | 文書 | 対象 | 行数 | Ver | 重要度 |
 |---|---|---|---:|---|---|
 | 計画 | `planner.md` | `grace/planner.py` | 1187 | 3.12 | ★★★ |
-| 実行 | `executor.md` | `grace/executor.py` | 2216 | 4.15 | ★★★ |
+| 実行 | `executor.md` | `grace/executor.py` | 2219 | 4.16 | ★★★ |
 | 実行 | `tools.md` | `grace/tools.py`（`WebSearchTool` を含む全ツール） | 1687 | 3.7 | ★★★ |
-| 評価 | `confidence.md` | `grace/confidence.py` | 1743 | 2.9 | ★★★ |
+| 評価 | `confidence.md` | `grace/confidence.py` | 1862 | 2.10 | ★★★ |
 | 評価 | `calibration.md` | `grace/calibration.py` | 763 | 1.1 | ★★ |
 | 制御 | `intervention.md` | `grace/intervention.py` | 1615 | 1.9 | ★★ |
 | 制御 | `replan.md` | `grace/replan.py` | 1133 | 2.4 | ★★ |
@@ -249,9 +249,9 @@ A と B の線引きは思いつきではなく、**実測した依存の向き*
 
 | 文書 | 対象 | 行数 | Ver | 重要度 |
 |---|---|---:|---|---|
-| `config.md` | `grace/config.py` | 981 | 1.10 | ★★★ |
+| `config.md` | `grace/config.py` | 985 | 1.11 | ★★★ |
 | `schemas.md` | `grace/schemas.py` | 1326 | 2.2 | ★★★ |
-| `llm_compat.md` | `grace/llm_compat.py` | 811 | 1.8 | ★★★ |
+| `llm_compat.md` | `grace/llm_compat.py` | 866 | 1.9 | ★★★ |
 
 ### 2.3 C. 横断・アーキテクチャ文書（4）
 
@@ -355,25 +355,26 @@ EOF
 
 ### 3.1 公開シンボルの網羅（AST 照合・2026-10-06 再実測）
 
-**11 モジュール中 8 つで 100%。3 モジュールに計 6 件の未記載がある**（§1 問題 #16・§5 タスク 5）。
-2026-09-04 の時点では全 11 モジュールで 100% だったが、その後の実装追加に文書が追随していない。
+**全 11 モジュールで 100%。**
+2026-10-06 の再実測で 3 モジュールに計 6 件の未記載が見つかり（2026-09-04 以降の実装追加に文書が追随していなかった。§1 問題 #16）、
+同日すべて実装から書き起こして追加した（§5 タスク 5）。
 
 | 文書 | 公開シンボル | 未記載 |
 |---|---:|---:|
 | `calibration.md` | 15 | 0 |
-| `confidence.md` | 57 | **3**（`ABSENCE_CLAIM_SOURCE_WORDS` / `ABSENCE_CLAIM_MARKERS` / `damp_support_rate`） |
+| `confidence.md` | 57 | 0（2026-10-06 に 3 件を追加: `ABSENCE_CLAIM_SOURCE_WORDS` / `ABSENCE_CLAIM_MARKERS` / `damp_support_rate`） |
 | `config.md` | 30 | 0 |
-| `executor.md` | 58 | **1**（`_prefetch_enabled`） |
+| `executor.md` | 58 | 0（2026-10-06 に `_prefetch_enabled` を追加） |
 | `intervention.md` | 39 | 0 |
-| `llm_compat.md` | 25 | **2**（`_ALWAYS_THINKING_MIN_TOKENS` / `_stop_category`） |
+| `llm_compat.md` | 25 | 0（2026-10-06 に `_ALWAYS_THINKING_MIN_TOKENS` / `_stop_category` を追加） |
 | `memory.md` | 17 | 0 |
 | `planner.md` | 25 | 0 |
 | `replan.md` | 31 | 0 |
 | `schemas.md` | 17 | 0 |
 | `tools.md` | 49 | 0 |
 
-> ⚠️ **`damp_support_rate` は GRACE-Review の ④ Ground が直接呼ぶ関数**である（[概要](#grace-review-の流れと-grace-モジュール)）。
-> 未記載のままだと、Review の支持率がどう減衰されるかを `confidence.md` から辿れない。
+> 📝 **`damp_support_rate` は GRACE-Review の ④ Ground が直接呼ぶ関数**である（[概要](#grace-review-の流れと-grace-モジュール)）。
+> IPO は `confidence.md` §4.15。Support 側の `executor.py::_damp_support_rate` はこれへ委譲するだけ。
 
 2026-09-04 の点検で **31 件の未記載**が見つかり、すべて実装から書き起こして追加した。
 内訳は `executor.md` 7（S3 ReAct 経路まるごと）/ `confidence.md` 6 / `intervention.md` 5 /
@@ -537,7 +538,7 @@ PY
 | 2 | ~~`tools.md` の未記載シンボル 10 件~~ | **完了**（2026-09-04）。`CodeExecuteTool` を §4.7 として新設し、37/37 を確認 | ✅ |
 | 3 | ~~`grace.md` のバージョン欄~~ | **完了**（2026-09-14）。`**Version 1.0** \| 最終更新: 2026-09-14` を追加し、`grace/docs/` の全 15 文書でヘッダーが揃った | ✅ |
 | 4 | ~~GRACE-Support 3 点の所在~~ | **完了**（2026-09-04）。`backend/docs/` へ `git mv` し相対リンクを張り替えた。以後 `grace/docs/` は `grace/` パッケージの文書だけを持つ | ✅ |
-| 5 | 未記載シンボル 6 件 | `confidence.md`（`ABSENCE_CLAIM_SOURCE_WORDS` / `ABSENCE_CLAIM_MARKERS` / `damp_support_rate`）・`executor.md`（`_prefetch_enabled`）・`llm_compat.md`（`_ALWAYS_THINKING_MIN_TOKENS` / `_stop_category`）を**実装から書き起こして**追加する（§3.1・§4.1） | ⏳ |
+| 5 | ~~未記載シンボル 6 件~~ | `confidence.md`（`ABSENCE_CLAIM_SOURCE_WORDS` / `ABSENCE_CLAIM_MARKERS` / `damp_support_rate`）・`executor.md`（`_prefetch_enabled`）・`llm_compat.md`（`_ALWAYS_THINKING_MIN_TOKENS` / `_stop_category`）を**実装から書き起こして**追加する（§3.1・§4.1）。**完了**（2026-10-06）。あわせて `config.md` の設定一覧に抜けていた 2 設定と、`llm_compat.md` §3.1 に抜けていた例外 2 クラスも補った | ✅ |
 
 > ⚠️ **統合時の落とし穴（実例・2026-09-04）。** `web_search.md` は
 > `_calculate_confidence_factors` を**修正前の姿**（`top_score` / `score_spread` のみ。現行は
@@ -559,7 +560,7 @@ PY
 | **Mermaid grep のスペース** | `classDef default fill: #000`（コロンの後にスペース）は **Mermaid としては正しい**が §7.6 の grep に引っかからない。検証スクリプトは `fill: ?#000` で書く（§4.2 はそうしてある） |
 | **`grace/doc/` の誤検出** | 「`grace/doc/` → `grace/docs/` に訂正」という**変更履歴の記述**が 2 件ある。これは違反ではない |
 | **行番号参照は必ず腐る** | `grace_core.md` の 13 件はほぼ全部ズレていた。シンボル名で参照する |
-| **本 README 自体が Mermaid チェックで NG になる** | §4.2 の検証スクリプトが**自分のコードブロックの中の文字列**を拾うため、`classDef default fill:#000` が 1 つ多く数えられる。図は[概要](#アーキテクチャ構成図)の 1 枚だけなので、`fc=1 / cd=2` と出れば正常（v1.11 までは図が無く `fc=0 / cd=1`） |
+| **本 README 自体が Mermaid チェックで NG になる** | §4.2 の検証スクリプトが**自分のコードブロックの中の文字列**を拾うため、黒背景の `classDef` 指定が 1 つ多く数えられる（この注記自身にその文字列を書くとさらに増えるので書かない）。図は[概要](#アーキテクチャ構成図)の 1 枚だけなので、`fc=1 / cd=2` と出れば正常（v1.11 までは図が無く `fc=0 / cd=1`） |
 | **grep で見つかる誤りは軽い方** | 深刻なのは**実装を読まないと気づかない**もの: 修正前のコードのままの記述、存在しない実行基盤の「実測値」、丸ごと抜けたパイプライン段。日付やリンクが揃っていても中身が嘘なことがある |
 | **姉妹リポジトリからのコピー** | CLAUDE.md §5。`memory.py` は `best_collection(exclude=...)` が grace_v2 にだけある。文書も丸ごとコピーできない |
 
@@ -569,6 +570,7 @@ PY
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 1.13 | §5 タスク 5 を完了（2026-10-06）。未記載だった 6 シンボルを実装から書き起こし、`confidence.md`（§4.14 断り文の除外・§4.15 `damp_support_rate`）/ `executor.md`（`_prefetch_enabled`）/ `llm_compat.md`（§4.7 `_stop_category`・§5.3.1 `_ALWAYS_THINKING_MIN_TOKENS`）へ追加し、§3.1 の AST 網羅が全 11 モジュールで 100% に戻った。`config.md` の設定一覧の抜け 2 件と、v1.12 で同書の変更履歴に足した行の日付列の抜けも直した。§2 の行数・Ver を再実測 |
 | 1.12 | **冒頭に[概要](#概要)を新設し、GRACE-Review を取り込んだ**（2026-10-06・問題 #17）。それまで本書は GRACE-Support（基本版）の流れだけを前提にしていた。両エージェントのステップごとに grace のどのモジュール（シンボル）が効くかの表と、モジュール単位・観点単位の比較表、3 層の構成図を置いた（Review は `planner` / `executor` を通らず、`tools` / `confidence` / `intervention` / `llm_compat` を直接呼ぶ）。章番号は変えていない。あわせて (1) §2 の行数・Ver を実測し直した（7 文書が古いままだった）、(2) §3.1 の AST 網羅を再実測し、未記載 6 件を §5 タスク 5 として登録（問題 #16）、(3) 冒頭と 11 文書の**現在の既定モデル**の記載を `claude-sonnet-5` から `claude-sonnet-5-5` へ是正 |
 | 1.11 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`）。同じ改訂の 10 文書の行数・Ver を再実測 |
 | 1.10 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所）。あわせて同じ改訂の 8 文書の行数・Ver を再実測（`grace_runtime.md` は改訂前から v3.1 のまま取り残されていた → v3.3） |

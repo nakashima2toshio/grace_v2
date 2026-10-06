@@ -1,6 +1,6 @@
 # confidence.py - 信頼度計算システム ドキュメント
 
-**Version 2.9** | 最終更新: 2026-10-06
+**Version 2.10** | 最終更新: 2026-10-06
 
 ---
 
@@ -76,6 +76,9 @@ LLM 呼び出しは `llm_compat.create_chat_client()` が返す genai 互換ク�
 | `create_query_coverage_calculator()` | `QueryCoverageCalculator` のファクトリ関数 |
 | `create_confidence_aggregator()` | `ConfidenceAggregator` のファクトリ関数 |
 | `create_groundedness_verifier()` | `GroundednessVerifier` のファクトリ関数 |
+| `is_absence_claim()` | 「情報源に記載がない」型の主張（断り文）か。支持率・判定率の母数から外す対象を見分ける |
+| `ABSENCE_CLAIM_SOURCE_WORDS` / `ABSENCE_CLAIM_MARKERS` | `is_absence_claim` が使う 2 つの語群（情報源を指す語・不在を述べる語） |
+| `damp_support_rate()` | 判定できた主張の割合で支持率を割り引く（M-6）。**Support（`executor`）と Review（④ Ground）の共通関数** |
 
 ---
 
@@ -319,6 +322,15 @@ style FACT fill:#1a1a1a,stroke:#fff,color:#fff
 |---|---|
 | `POLICY_CLAIM_MARKERS` | 方針文（担当範囲外の断り・窓口案内）に現れる語のタプル |
 | `is_unsupportable_policy_claim(claim)` | 「正しく断っただけ」の主張か。**`verdict == "neutral"` のものだけ**が対象 |
+
+#### モジュール関数・定数（断り文の除外・支持率の減衰）
+
+| 名前 | 概要 |
+|---|---|
+| `ABSENCE_CLAIM_SOURCE_WORDS` | 情報源を指す語（「情報源」「抜粋」「検索結果」「出典」など）のタプル |
+| `ABSENCE_CLAIM_MARKERS` | 不在を述べる語（「見当たらな」「記載がな」「確認できな」など）のタプル |
+| `is_absence_claim(claim)` | 「情報源に○○は記載がない」型の主張か。**2 語群の両方**を含み、`verdict` が supported / neutral のものだけが対象（§4.14） |
+| `damp_support_rate(gres, cc)` | 判定できた主張の割合で支持率を割り引く。Support / Review 共通（§4.15） |
 
 #### ConfidenceAggregator
 
@@ -1584,6 +1596,109 @@ verifier = create_groundedness_verifier()
 
 ---
 
+### 4.14 断り文の除外（`ABSENCE_CLAIM_SOURCE_WORDS` / `ABSENCE_CLAIM_MARKERS` / `is_absence_claim`）
+
+§4.11（方針文の除外）と同じく、**支持率・判定率の母数から外す主張**を見分ける。
+対象は「参照情報には降水確率が見当たりませんでした」のように、回答が**答えられない部分を正直に断る文**である。
+`GroundednessVerifier.verify` が、方針文（§4.11）を除いた残りに対して適用する。
+
+#### 定数: `ABSENCE_CLAIM_SOURCE_WORDS` / `ABSENCE_CLAIM_MARKERS`
+
+```python
+ABSENCE_CLAIM_SOURCE_WORDS = (   # 情報源を指す語
+    "情報源", "参照情報", "提供された", "抜粋", "スニペット", "検索結果", "出典", "ソース",
+    "ページ", "記述",
+)
+ABSENCE_CLAIM_MARKERS = (        # 不在を述べる語（活用形の揺れを吸収するため語幹で持つ）
+    "見当たらな", "見当たりませ", "含まれていな", "記載がな", "記載されていな", "明示されていな",
+    "示されていな", "書かれていな", "載っていな", "確認できな", "確認できませ",
+    "分かりません", "分からない", "判断できな", "断定できな",
+)
+```
+
+> ⚠️ **2 つの語群が両方そろったときだけ該当とする。** 「記載」「確認」だけでは
+> 「申請書に記載してください」「本人確認ができない場合は…」のような**手続きの事実**まで
+> 落としてしまう。**情報源を指す語**と**不在を述べる語**の組み合わせに限っている。
+
+#### 関数: `is_absence_claim`
+
+```python
+def is_absence_claim(claim) -> bool
+```
+
+| 項目 | 内容 |
+|------|------|
+| **Input** | `claim`（`verdict` と `claim` を持つオブジェクト。通常は `ClaimVerdict`） |
+| **Process** | 1. `verdict` が `supported` / `neutral` 以外（＝`contradicted`）なら即 `False`<br>2. 本文に `ABSENCE_CLAIM_SOURCE_WORDS` のいずれか**かつ** `ABSENCE_CLAIM_MARKERS` のいずれかが含まれれば `True` |
+| **Output** | `bool`: 母数から外すべき断り文なら `True` |
+
+**戻り値例**:
+```python
+is_absence_claim(ClaimVerdict(claim="参照情報には降水確率が見当たりません", verdict="supported"))  # True
+is_absence_claim(ClaimVerdict(claim="申請書に氏名を記載してください", verdict="supported"))       # False（情報源を指す語が無い）
+is_absence_claim(ClaimVerdict(claim="情報源に記載がない", verdict="contradicted"))              # False（矛盾は外さない）
+```
+
+> ⚠️ **なぜ外すのか — 断りが正しいほど支持済みの件数が増えていた。**
+> 断り文は claim として抽出され、検証器は「情報源に確かに無い」と確認できるので **supported** にする。
+> 実測 2026-09-29（「明日の東京の天気は？」）では supported 7 / neutral 2 のうち、
+> 天気の事実は 2 件だけで、残り 5 件は「〜は記載がない」型だった。次の 2 つが水増しされる。
+>
+> - **判定率**（§4.15 の減衰 `decided / total`）: 確かめたい事実が neutral でも、断り文の supported が分子に積み上がり、減衰が働かない
+> - **事実に誤りが混ざったときの支持率**: 誤り 1 件＋事実 1 件＋断り 5 件なら、支持率は 0.5 ではなく 0.86 に見える
+
+> 📝 **contradicted は外さない。** 回答が「情報源に無い」と言っているのに情報源に載っていた、という**本物の矛盾**だから。
+> 設定 `confidence.groundedness_exclude_absence_claims`（既定 `True`）で無効化できる（[`config.md`](./config.md) §5.5）。
+> 語による照合なので、言い回しによっては拾えない（取りこぼしは従来どおり数える）。
+
+---
+
+### 4.15 支持率の減衰（`damp_support_rate`）
+
+```python
+def damp_support_rate(gres: Any, cc: Any) -> float
+```
+
+**概要**: 判定できた主張（supported + contradicted）の割合で支持率を割り引く（M-6）。
+**GRACE-Support と GRACE-Review の共通関数**で、Support は `executor.py::Executor._damp_support_rate`（本関数へ委譲するだけ）から、
+Review は `backend/app/core/review_agent.py` の ④ Ground から直接呼ばれる。
+
+| パラメータ | 型 | デフォルト | 説明 |
+|------------|------|-----------|------|
+| `gres` | Any | - | 検証結果（`GroundednessResult`。`support_rate` / `supported` / `contradicted` / `total` を読む） |
+| `cc` | Any | - | `ConfidenceConfig`（`groundedness_coverage_strength` / `groundedness_coverage_target` を読む）。`None` 可 |
+
+```
+damping   = min(1.0, (decided / total) / coverage_target)
+effective = support_rate * (1 - strength + strength * damping)
+```
+
+| 項目 | 内容 |
+|------|------|
+| **Input** | `gres` の 4 値、`cc` の 2 設定（無ければ strength=0.0 / target=0.8 として読む） |
+| **Process** | 1. `decided = supported + contradicted`<br>2. `strength <= 0` / `target <= 0` / `total <= 0` / `decided <= 0` のいずれかなら**素の `support_rate` を返す**<br>3. 上式で減衰後の値を返す |
+| **Output** | `float`: 減衰後の支持率 |
+
+**戻り値例**:
+```python
+# support_rate=1.0, decided=7, total=11, strength=0.3, target=0.8
+# damping = min(1.0, (7/11)/0.8) = 0.795...  → 1.0 * (0.7 + 0.3*0.795) = 0.938...
+damp_support_rate(gres, config.confidence)  # 0.9386...
+```
+
+> ⚠️ **なぜ減衰が要るか。** `support_rate` は `supported / (supported + contradicted)` で
+> **neutral を分母から外している**。「3 主張中 2 しか判定できず、その 2 が全部 supported」でも
+> 1.0 になり、**判定できなかった主張がスコアに出ない**。
+> 全損させないよう `strength` は既定 0.3 と控えめにし、**判定率が target 以上なら減衰しない**。`strength=0` で従来どおり。
+
+> 📝 **Review でも同じ減衰を掛ける理由。** Review の ④ Ground は指摘ごとに `GroundednessVerifier.verify` を呼び、
+> その支持率で確定 / 要確認 / 抑止を決める（`review_gates.py::decide_finding_status`）。
+> 減衰を掛けないと、規程で判定できた主張が 1 件だけでも 1.0 となり、指摘が自動確定してしまう。
+
+> 📝 `__all__` には含まれない。呼び出し側は `from grace.confidence import damp_support_rate` で直接 import する（§6）。
+
+---
+
 ## 5. 設定・定数
 
 ### 5.1 ConfidenceWeights（`config.py`）
@@ -1678,6 +1793,9 @@ __all__ = [
 ```
 
 > 📝 **注意**: `EvaluationResult` と `FinalEvaluationResult` は内部スキーマであり `__all__` には含まれません。
+>
+> 📝 **`__all__` に無いが直接 import されるもの**: `damp_support_rate`（`grace/executor.py` と `backend/app/core/review_agent.py`）。
+> `is_absence_claim` / `is_unsupportable_policy_claim` と `ABSENCE_CLAIM_*` / `POLICY_CLAIM_MARKERS` は `GroundednessVerifier.verify` の内部でだけ使う。
 
 ---
 
@@ -1685,6 +1803,7 @@ __all__ = [
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 2.10 | 未記載だった 3 シンボルを実装から書き起こして追加（2026-10-06）。§4.14 に断り文の除外（`ABSENCE_CLAIM_SOURCE_WORDS` / `ABSENCE_CLAIM_MARKERS` / `is_absence_claim`。v2.8 で変更履歴にだけ書かれていた）、§4.15 に支持率の減衰 `damp_support_rate`（**Support の executor と Review の ④ Ground が共用**）。主要機能一覧・§3.1・§6 にも反映 |
 | 2.9 | 現在の既定モデルの記載 `claude-sonnet-5` を実装（`grace/config.py` の `LLMConfig.model` = `claude-sonnet-5-5`）に合わせて是正（2026-10-06。CLAUDE.md §9.3。旧既定は履歴の記述にだけ残す） |
 | 2.8 | (1) `is_absence_claim` を追加し、Groundedness の集計で「〜は情報源に記載がない」型の主張（答えられない部分を断る文）を母数から外した（2026-09-29）。断り文が supported と数えられ、判定率（M-6）と、事実に誤りが混ざったときの支持率が水増しされていた。情報源を指す語と不在を述べる語の**両方**を要求し、contradicted は外さない。全件が該当するときは従来どおり全件を集計。`confidence.groundedness_exclude_absence_claims`（既定 true）で無効化可。(2) 評価 LLM の `reason` を 1 文・80 字以内にさせる指示を追加（JSON はスコアが先なのでスコアは変わらず、出力トークン＝待ち時間が減る） |
 | 2.5 | 概要の「各責務対応のモジュール」を主な責務と 1:1 に揃えた（基本フォーマット §2.4。2026-09-24）（8 行 → 6 行。LLM クライアントと設定の行は説明列へ畳んだ）。現在の既定モデルの記載 `claude-sonnet-4-6` を実装（`grace/config.py` の `LLMConfig.model` = `claude-sonnet-5`）に合わせて是正した（CLAUDE.md §9.3。旧既定は履歴の記述にだけ残す） |
