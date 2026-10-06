@@ -1,6 +1,6 @@
 # app_tabs_overview.md - 処理 3 タブ（基本版 / GRACE-Support / GRACE-Review）の概要
 
-**Version 1.0** | 最終更新: 2026-10-06
+**Version 1.1** | 最終更新: 2026-10-06
 
 ---
 
@@ -286,27 +286,24 @@ Retrieve・Ground・誤検知抑止・Action は Support と同じ機構を再�
 - 指摘がある場合は、原文の該当箇所がハイライトされ、指摘カードに**条文・重大度（重大 / 中 / 軽微）・状態**が付く
 - 状態は支持率で決まる：0.85 以上 = **確定**、0.60 以上 = **要確認**、それ未満 = **抑止**（誤検知として除外）。
   未検証・根拠 0 件の指摘は消さずに**要確認**にする（Support が escalate に倒すのとは逆）
-- 指摘があれば ⑦ でレポートを作り、HITL 承認のあとに起票する
+- 指摘があれば ⑦ でレポートを作る。重大（high）の指摘があれば承認なしで有人対応へ引き継ぎ（`escalate_to_human`）、なければ HITL 承認のあとに起票する（`create_ticket`）
 
 ---
 
 ## 5. 3 タブを支える grace のコアモジュール
 
-3 タブはいずれも `grace/`（自律エージェント基盤）の部品で動く。
-コアモジュールは **8 つ**（下表の 1〜8）で、基本版・Support では `executor.py` が全体を統括する。
-各モジュールの説明の正本は [`grace/docs/grace_core.md`](../grace/docs/grace_core.md)「各責務対応のモジュール」・§3.0 にあるので、
-ここでは**タブのどのステップで効くか**だけを示す。
+3 タブはいずれも `grace/`（自律エージェント基盤）の部品で動く。コアモジュールは **8 つ**
+（`planner` / `executor` / `confidence` / `calibration` / `memory` / `intervention` / `replan` / `tools`）。
 
-| # | モジュール | 責務 | 基本版・Support で効くステップ | Review で効くステップ |
-|---|---|---|---|---|
-| 1 | `planner.py` | 実行計画の生成 | ① Plan | — |
-| 2 | `executor.py` | 計画の順次実行・統括 | ② Execute | —（Review は executor を通さず `tools.py` を直接呼ぶ） |
-| 3 | `confidence.py` | 多軸信頼度・根拠検証（`GroundednessVerifier`） | ③ Groundedness | ④ Ground |
-| 4 | `calibration.py` | 信頼度の較正（温度スケーリング） | ② の全体信頼度（`config/calibration.json` があるときだけ。既定は無変換） | — |
-| 5 | `memory.py` | 実行メモリの蓄積（コレクション優先度の学習） | ① Plan へ還元 | — |
-| 6 | `intervention.py` | 人間介入（HITL） | 0-(A) 主質問の選択 / ⑥ CONFIRM | ⑦ CONFIRM |
-| 7 | `replan.py` | 動的リプラン | ② Execute 内（失敗・低信頼時） | — |
-| 8 | `tools.py` | RAG 検索・Web 検索・推論のツール群 | ② Execute / ⑤ Web | ② Retrieve / ⑥ Web |
+使い方は 2 つのエージェントで大きく違う。
+
+- **基本版・GRACE-Support** は grace の計画→実行ループ（`planner` → `executor`）をまるごと使い、
+  `tools` / `replan` / `memory` / `calibration` は `executor` の内側で動く
+- **GRACE-Review** は `planner` / `executor` を通らず、`tools`（検索）・`confidence`（根拠検証）・
+  `intervention`（承認）・`llm_compat`（LLM 判定）を**直接**呼ぶ
+
+**ステップごとにどのモジュール（シンボル）が効くかの表と、Support / Review の比較表の正本は
+[`grace/docs/README.md`「概要」](../grace/docs/README.md#概要) にある**（本書には同じ表を置かない）。
 
 基盤モジュールは `config.py`（設定）/ `schemas.py`（データ契約）/ `llm_compat.py`（Anthropic 呼び出しの薄いアダプタ）。
 
@@ -314,7 +311,7 @@ grace 全体を読むときの入口は次の 4 本（索引は [`grace/docs/REA
 
 | 文書 | 何が書いてあるか |
 |---|---|
-| [`grace/docs/README.md`](../grace/docs/README.md) | grace/docs の索引。「横断・アーキテクチャ概説ドキュメント」の一覧 |
+| [`grace/docs/README.md`](../grace/docs/README.md) | grace/docs の索引。冒頭の「概要」に **Support / Review が使う grace モジュールの対応表と比較**、§2.3 に「横断・アーキテクチャ文書」の一覧 |
 | [`grace/docs/grace.md`](../grace/docs/grace.md) | **WHY** — 設計思想と 5 段階設計（Plan / Execute / Confidence / Intervention / Replan） |
 | [`grace/docs/grace_core.md`](../grace/docs/grace_core.md) | **WHAT** — 構成図・依存関係・モジュール役割サマリー |
 | [`grace/docs/grace_runtime.md`](../grace/docs/grace_runtime.md) | **HOW** — 実行時に発行される API とプロンプト全文（旧 `grace_core_flow.md`） |
@@ -353,3 +350,4 @@ grace 全体を読むときの入口は次の 4 本（索引は [`grace/docs/REA
 | バージョン | 変更内容 |
 |---|---|
 | 1.0 | 初版作成（2026-10-06）。処理 3 タブ（基本版 / GRACE-Support / GRACE-Review）を「業界特化・処理フロー・回答」の 3 点で、画面の実行例つきでまとめた。ステップ対照表などの正本は `pipelines.md` に残し、本書は入口として各タブの見え方とそれを支える grace コアモジュールの対応を持つ |
+| 1.1 | §5 のステップ × モジュール表を `grace/docs/README.md`「概要」へ移して正本をそちらに一本化し、本書はリンクと要点だけにした（2026-10-06。同じ表を 2 箇所に置かないため）。§4.3 の ⑦ Action の説明を実装に合わせて是正（high の指摘は承認なしで `escalate_to_human`、それ以外は承認後に `create_ticket`） |

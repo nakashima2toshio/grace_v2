@@ -1,6 +1,6 @@
 # パイプライン 3 モード対照（基本版 / GRACE-Support / GRACE-Review）
 
-**Version 1.3** | 最終更新: 2026-09-26
+**Version 1.4** | 最終更新: 2026-10-06
 
 ---
 
@@ -217,7 +217,7 @@ style REV fill:#1a1a1a,stroke:#fff,color:#fff
 | G4 | 未肯定の救済 | ✅ | ✅ | ✅（`should_rescue_finding`） |
 | G5 | Web フォールバック | ✅ | ✅ | ✅（⑥ 裏取り・信頼度を下げる方向のみ） |
 | G6 | 情報なし／実質性なしの検知 | ✅ | ✅ | ✅（`detect_vacuous_finding`） |
-| G7 | アクション判定 | ✅ | ✅ | ✅（常に `escalate_to_human`） |
+| G7 | アクション判定 | ✅ | ✅ | ✅（`_decide_review_action`：high があれば `escalate_to_human`、なければ `create_ticket`） |
 | G8 | 本人確認 | — | ✅（`ec`） | — |
 | G9 | HITL 承認 | ✅ | ✅ | ✅ |
 
@@ -246,3 +246,4 @@ style REV fill:#1a1a1a,stroke:#fff,color:#fff
 | 1.1 | `a_cross_doc_md_format.md`（横断文書・種別 A）に準拠（2026-09-24）。Version ヘッダー・目次・概要（主な責務／各責務対応のモジュール／3 層のアーキテクチャ構成図）を追加。本文の章番号は変えていない |
 | 1.2 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
 | 1.3 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
+| 1.4 | §4 の G7（Review）を実装に合わせて是正（2026-10-06）。「常に `escalate_to_human`」と書いていたが、`review_agent.py::_decide_review_action` は high の指摘があれば `escalate_to_human`（承認不要）、なければ `create_ticket`（要承認）を返す |

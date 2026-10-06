@@ -1,6 +1,6 @@
 # executor.py - GRACE計画実行エージェント ドキュメント
 
-**Version 4.14** | 最終更新: 2026-10-05
+**Version 4.15** | 最終更新: 2026-10-06
 
 ---
 
@@ -41,7 +41,7 @@
 
 ## 概要
 
-`executor.py`は、GRACE（Guided Reasoning with Adaptive Confidence Execution）エージェントの計画実行コンポーネントです。Plannerが生成した`ExecutionPlan`を受け取り、各ステップを順次実行して結果を管理します。LLM呼び出しは`grace/llm_compat.py`の互換クライアント（`create_chat_client`）経由で Anthropic Claude（デフォルト `claude-sonnet-5`）に委譲され、Embedding は Gemini（`gemini-embedding-001`、3072次元）を継続利用します。
+`executor.py`は、GRACE（Guided Reasoning with Adaptive Confidence Execution）エージェントの計画実行コンポーネントです。Plannerが生成した`ExecutionPlan`を受け取り、各ステップを順次実行して結果を管理します。LLM呼び出しは`grace/llm_compat.py`の互換クライアント（`create_chat_client`）経由で Anthropic Claude（デフォルト `claude-sonnet-5-5`）に委譲され、Embedding は Gemini（`gemini-embedding-001`、3072次元）を継続利用します。
 
 ### 主な責務
 
@@ -2024,7 +2024,7 @@ LEGACY_AGENT_AVAILABLE: bool  # import 成功時 True
 | 設定パス | 型 | デフォルト | 説明 |
 |---------|-----|----------|------|
 | `llm.provider` | str | `"anthropic"` | LLMプロバイダー（llm_compatのクライアント分岐に使用） |
-| `llm.model` | str | `"claude-sonnet-5"` | LLMモデル名（Legacy Agent初期化・各LLM呼び出しで使用） |
+| `llm.model` | str | `"claude-sonnet-5-5"` | LLMモデル名（Legacy Agent初期化・各LLM呼び出しで使用） |
 | `executor.parallel_search` | bool | True | 検索ステップの並列プリフェッチ有効化 |
 | `executor.max_parallel_steps` | int | 4 | 並列プリフェッチの最大ステップ数 |
 | `qdrant.search_priority` | list | `["wikipedia_ja", "livedoor", "cc_news", "japanese_text"]` | コレクション取得失敗時のフォールバック |
@@ -2060,6 +2060,7 @@ __all__ = [
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 4.15 | 現在の既定モデルの記載 `claude-sonnet-5` を実装（`grace/config.py` の `LLMConfig.model` / `grace/llm_compat.py` の `DEFAULT_ANTHROPIC_MODEL` = `claude-sonnet-5-5`）に合わせて是正（2026-10-06。CLAUDE.md §9.3。旧既定は履歴の記述にだけ残す） |
 | 4.14 | 計測スクリプトを `scripts/measure_rag_threshold.py` に一本化したのに追随（2026-10-05） |
 | 4.13 | 付録の注記を訂正（2026-10-05）。E2E の saas の件の原因が 0.64〜0.7 の帯だったとは確かめていない（素の質問の最高スコアは 0.7062）。再測定の結果（範囲内と範囲外が重なり、しきい値 1 本では分けられない）への参照を追加 |
 | 4.12 | `qdrant.rag_sufficient_score` の既定を 0.7 → 0.64（`executor.reasoning_min_rag_score` と同じ）にした（2026-10-04）。採用した社内ナレッジがあるのに無条件で Web も検索していた帯（0.64〜0.7）をなくす |
