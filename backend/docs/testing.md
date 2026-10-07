@@ -1,6 +1,6 @@
 # backend テストの地図 ドキュメント
 
-**Version 2.7** | 最終更新: 2026-10-06
+**Version 2.8** | 最終更新: 2026-10-07
 
 ---
 
@@ -193,6 +193,11 @@ Support 3 件とも `used_web=false`。Web を検索しなくなった分だけ�
 事実チェック（`missing_facts`）・記録だけの期待値（`missing_expected`）とも欠けなし。範囲外の質問（天気）は
 回答を作らずに `escalate`（社内ナレッジに該当なし）。同日の `scripts/measure_rag_scores.py`（現在は `scripts/measure_rag_threshold.py` に統合）の結果は
 `config/grace_config.yml` の `reasoning_min_rag_score` のコメントに残した（しきい値 0.64 は据え置き）。
+
+**2026-10-07 の揺れの計測（Mac・`GRACE_E2E_REPEAT=3`）**: 7 ケース × 3 回 = 21 件すべて passed（242 秒）。
+records を突き合わせると、Review は 3 例文とも当たったルール・重大度・状態が 3 回同じ（変わったのは指摘文の言い回しと
+一部の該当箇所）、Support は 4 ケースとも判定・出典・支持率・アクションが 3 回同じ（変わったのは回答の文面）。
+中身は `backend/docs/GRACE-Review_例文3件.txt` / `GRACE-Support_例文4件.txt`（grace_v2_local の同名ファイルは Ollama での結果）。
 
 - レポートの `model` / `light_model` は**実際に使ったモデル名**を記録する（以前は `(config llm.model)` としか残らず、
   モデルを替えた結果を比べられなかった）。
@@ -390,6 +395,7 @@ GRACE_E2E=1 uv run --no-sync pytest backend/tests/e2e -m e2e -rs
 |---|---|---|
 | 1.0 | 2026-09-16 | 新規作成。`review_spec.md` §9（テスト方針）を取り込み、`backend/tests` の実測（58 ファイル / 867 関数 / 978 passed・1 skipped）から地図を書き起こした |
 | 1.1 | 2026-09-24 | `a_cross_doc_md_format.md` v1.1（種別 B）に準拠（2026-09-24）。概要（結論・対象モジュール）を追加し、冒頭の説明文を概要へ移した。本文の章番号は変えていない |
+| 2.8 | 2026-10-07 | §1.2 に `GRACE_E2E_REPEAT=3` の実測（21 件 passed・242 秒・3 回の結果の比較）を追記 |
 | 2.7 | 2026-10-06 | 計測スクリプトの判定で、他業界の質問を範囲外（無関係）から分けたのに追随（混ぜると別の業界にも答えがある質問で「分離できない」と誤判定した） |
 | 2.6 | 2026-10-05 | 計測スクリプトを grace_v2_local の `scripts/measure_rag_threshold.py` に一本化（`measure_rag_scores.py` とそのテストを統合して削除）。地図の行を差し替え |
 | 2.5 | 2026-10-05 | §1.2 に 7 件での実測（grace_v2 81 秒・grace_v2_local 718 秒・全件 passed）を記録 |
