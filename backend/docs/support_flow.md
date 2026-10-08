@@ -48,7 +48,7 @@
 本ドキュメントは、GRACE-Support パイプライン（`backend/app/core/support_agent.py` の
 `run_support_agent_core()`）が実行する **処理フローの各ステップ（`STEP_IDS` の 9 ステップ）** を、
 実装関数・シグネチャ・IPO（Input-Process-Output）・戻り値例・使用例つきで記述する。
-全体像（アーキテクチャ・データフロー）はリポジトリルートの [`README.md`](../../README.md) §1〜§2 を参照。
+全体像（アーキテクチャ・データフロー）はリポジトリルートの [`README.md`](../../README.md) の「概要」（アーキテクチャ構成図）と §6（処理概要）を参照。
 
 > 📝 **注意（実行順）**: 番号は `CLAUDE.md` §1 の呼称であり、**実行順とは一致しない**。
 > 実際の実行順は `STEP_IDS` の並び
@@ -1715,7 +1715,7 @@ InterventionBridge
 > `run_support_agent_core()` を呼ぶ 231 行のラッパーで、機能確認用だったため。
 > 実装は git 履歴に残る（`git log --follow -- agent_support_example.py`）。
 > **現在の操作はすべて Web UI（:5173）か API から行う。**
-> 旧 CLI 引数と画面操作の対応表は `README.md` §3.1 にある。
+> 旧 CLI 引数と画面操作の対応は `README.md` §2.4 にある。
 
 旧 CLI が受け取っていた引数（当時の仕様。リクエストの各フィールドがどこから来るかの
 参考として残す）:
