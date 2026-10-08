@@ -1,6 +1,6 @@
 # qa_service.py - Q/A生成サービス ドキュメント
 
-**Version 1.2** | 最終更新: 2026-09-24
+**Version 1.3** | 最終更新: 2026-10-08
 
 ---
 
@@ -20,7 +20,7 @@
 
 ## 概要
 
-`qa_service.py` は、Q/Aペアの生成と保存に関するビジネスロジックを提供するサービスモジュールです。LLM には **Anthropic Claude**（既定モデル `claude-sonnet-5`）を使用し、`create_llm_client(provider="anthropic")` 経由でクライアントを生成します。構造化出力 API でテキストからQ/Aペアを生成し、CSV/JSON 形式でファイルに保存します。
+`qa_service.py` は、Q/Aペアの生成と保存に関するビジネスロジックを提供するサービスモジュールです。LLM には **Anthropic Claude**（既定モデル `claude-sonnet-5-5` = `config.py::ModelConfig.DEFAULT_MODEL`）を使用し、`create_llm_client(provider="anthropic")` 経由でクライアントを生成します。構造化出力 API でテキストからQ/Aペアを生成し、CSV/JSON 形式でファイルに保存します。
 
 > ⚠️ **Q/A 生成パイプライン（`QAPipeline`）の実行口は本モジュールではない。**
 > CLI は `qa_qdrant/make_qa_register_qdrant.py`、Web（データ管理タブ「② Q/A 作成」）は
@@ -72,7 +72,7 @@ flowchart TB
     end
 
     subgraph EXTERNAL["外部サービス層"]
-        CLAUDE["Anthropic Claude (claude-sonnet-5)"]
+        CLAUDE["Anthropic Claude (claude-sonnet-5-5)"]
         FS["ファイルシステム (qa_output/)"]
         MODELS["models.py (QAPair / QAPairsResponse)"]
     end
@@ -207,7 +207,7 @@ pairs = generate_qa_pairs(
     text="RAGは検索拡張生成の略で、外部知識を検索して生成します。",
     dataset_type="faq",
     chunk_id="chunk_001",
-    model="claude-sonnet-5",
+    model="claude-sonnet-5-5",
     qa_per_chunk=3,
     log_callback=print,
 )
@@ -237,7 +237,7 @@ from services.data_pipeline_service import run_qa_generation_sync
 
 result = run_qa_generation_sync(
     "output_chunked/cc_news_chunks.csv",
-    model="claude-sonnet-5",
+    model="claude-sonnet-5-5",
     output_dir="qa_output",
     max_docs=100,
     analyze_coverage=True,
@@ -354,7 +354,7 @@ def generate_qa_pairs(
     text: str,
     dataset_type: str,
     chunk_id: str,
-    model: str = "claude-sonnet-5",
+    model: str = ModelConfig.DEFAULT_MODEL,  # = "claude-sonnet-5-5"
     qa_per_chunk: int = 3,
     log_callback=None,
 ) -> List[QAPair]
@@ -365,13 +365,13 @@ def generate_qa_pairs(
 | `text` | str | - | 対象テキスト |
 | `dataset_type` | str | - | データセットタイプ |
 | `chunk_id` | str | - | チャンクID |
-| `model` | str | "claude-sonnet-5" | 使用するモデル（Anthropic Claude） |
+| `model` | str | `ModelConfig.DEFAULT_MODEL`（`claude-sonnet-5-5`） | 使用するモデル（Anthropic Claude） |
 | `qa_per_chunk` | int | 3 | チャンクあたりのQ/A数 |
 | `log_callback` | Optional[Callable] | None | ログコールバック関数 |
 
 | 項目 | 内容 |
 |------|------|
-| **Input** | `text: str`, `dataset_type: str`, `chunk_id: str`, `model: str = "claude-sonnet-5"`, `qa_per_chunk: int = 3`, `log_callback=None` |
+| **Input** | `text: str`, `dataset_type: str`, `chunk_id: str`, `model: str = ModelConfig.DEFAULT_MODEL`, `qa_per_chunk: int = 3`, `log_callback=None` |
 | **Process** | 1. `create_llm_client(provider="anthropic")` でクライアント生成<br>2. Q/A生成プロンプトを構築<br>3. `client.generate_structured()` で構造化出力（`QAPairsResponse`）を取得<br>4. 各Q/Aに `chunk_id`・`dataset_type`・`auto_generated=True` を付与<br>5. 例外時は空リストを返却 |
 | **Output** | `List[QAPair]`: 生成されたQ/Aペアのリスト（エラー時は `[]`） |
 
@@ -395,7 +395,7 @@ pairs = generate_qa_pairs(
     text="RAGは検索拡張生成の略で...",
     dataset_type="faq",
     chunk_id="chunk_001",
-    model="claude-sonnet-5",
+    model="claude-sonnet-5-5",
     qa_per_chunk=3,
     log_callback=print,
 )
@@ -458,7 +458,7 @@ print(saved["csv"])
 
 | 項目 | 値 | 説明 |
 |------|------|------|
-| 既定モデル | `claude-sonnet-5` | `generate_qa_pairs()` の `model` デフォルト（Anthropic Claude） |
+| 既定モデル | `ModelConfig.DEFAULT_MODEL`（`claude-sonnet-5-5`） | `generate_qa_pairs()` の `model` デフォルト（Anthropic Claude） |
 | LLM プロバイダ | `anthropic` | `create_llm_client(provider="anthropic")` |
 | 出力ディレクトリ | `qa_output/` | CSV・JSON保存先 |
 | 既定Q/A数 | `3` | `qa_per_chunk` のデフォルト |
@@ -491,6 +491,7 @@ QAPairsResponse              # Q/Aペア生成レスポンスモデル
 | 1.0 | 初版作成（2026-06-17） |
 | 1.1 | `run_advanced_qa_generation()` の削除に追随（存在しない `qa_generator_runner` を import する死にコードだった）。Streamlit UI の記述を削除し、Q/A 生成パイプラインの実際の実行口（CLI / `run_qa_generation_sync()`）を明記（2026-09-12） |
 | 1.2 | 使用例を IPO 詳細の冒頭（`### 4.1 使用例`）へ移し、末尾の「## 6. 使用例」章を削除（基本フォーマット `a_class_method_md_format.md` v1.6〜 §6.1 に準拠。2026-09-24）。IPO の小節を 4.2 以降へ繰り下げ、後続の章番号を 1 つ繰り上げた。文書内の `§4.x` 参照も追随。あわせて`generate_qa_pairs()` の `model` 既定値を実装（`claude-sonnet-5`）に合わせた |
+| 1.3 | Q/A 生成の既定モデルがコード側で `config.py::ModelConfig.DEFAULT_MODEL` 参照になったのに追随し、既定の記述を `claude-sonnet-5` → `claude-sonnet-5-5` へ是正（概要・構成図・`generate_qa_pairs()` のシグネチャ・引数表・IPO・使用例・設定表）（2026-10-08） |
 
 ---
 

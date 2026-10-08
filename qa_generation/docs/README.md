@@ -151,7 +151,7 @@
 
 | Version | 日付 | 変更 |
 |---|---|---|
-| 1.14 | 2026-10-08 | 冒頭の注記の既定 LLM を `claude-sonnet-5` → 現在の既定 `claude-sonnet-5-5`（`config.py::ModelConfig.DEFAULT_MODEL`）へ是正（`QAPipeline` / `SmartQAGenerator` の引数既定は実装どおり `claude-sonnet-5` のまま） |
+| 1.14 | 2026-10-08 | 冒頭の注記の既定 LLM を `claude-sonnet-5` → 現在の既定 `claude-sonnet-5-5`（`config.py::ModelConfig.DEFAULT_MODEL`）へ是正 |
 | 1.13 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`）。同じ改訂の 2 文書の行数・Ver を再実測 |
 | 1.12 | 2026-09-26 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所）。あわせて `semantic.md` v1.2 / `evaluation.md` v1.2 の行数・Ver と、PR #216 で変わった `semantic.py` の実装行数（543）を再実測 |
 | 1.11 | 2026-09-26 | `pipeline.md` v1.5（`--dataset` の種別の補完）に追随して §2 の行数・Ver を更新 |

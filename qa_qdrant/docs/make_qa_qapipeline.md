@@ -1,6 +1,6 @@
 # QAPipeline & SmartQAGenerator - Q/Aペア生成システム ドキュメント
 
-**Version 1.4** | 最終更新: 2026-09-26
+**Version 1.5** | 最終更新: 2026-10-08
 
 ---
 
@@ -88,7 +88,7 @@ flowchart TB
     end
 
     subgraph EXTERNAL["外部サービス層"]
-        LLMAPI["Anthropic Claude API<br>claude-sonnet-5"]
+        LLMAPI["Anthropic Claude API<br>claude-sonnet-5-5"]
     end
 
     subgraph STORAGE["ストレージ層"]
@@ -237,7 +237,7 @@ style COMBINED fill:#1a1a1a,stroke:#fff,color:#fff
 
 | ライブラリ | バージョン | 用途 |
 |-----------|-----------|------|
-| `anthropic` | 最新 | **Q/A 生成の LLM**（`claude-sonnet-5`・鍵 `ANTHROPIC_API_KEY`） |
+| `anthropic` | 最新 | **Q/A 生成の LLM**（`claude-sonnet-5-5`・鍵 `ANTHROPIC_API_KEY`） |
 | `google-genai` | 最新 | **Embedding 専用**（`gemini-embedding-001`・3072 次元・鍵 `GOOGLE_API_KEY`） |
 | `pandas` | - | DataFrame処理 |
 | `pathlib` | 標準 | パス操作 |
@@ -301,7 +301,7 @@ style COMBINED fill:#1a1a1a,stroke:#fff,color:#fff
 from qa_generation.smart_qa_generator import SmartQAGenerator
 
 # 初期化
-generator = SmartQAGenerator(model="claude-sonnet-5")
+generator = SmartQAGenerator(model="claude-sonnet-5-5")
 
 # チャンクテキスト
 chunk_text = """
@@ -328,7 +328,7 @@ from qa_generation.pipeline import QAPipeline
 # パイプライン初期化
 pipeline = QAPipeline(
     input_file="output_chunked/data_chunks.csv",
-    model="claude-sonnet-5",
+    model="claude-sonnet-5-5",
     output_dir="qa_output/pipeline",
     max_docs=10  # テスト用に制限
 )
@@ -401,7 +401,7 @@ Q/A生成パイプライン全体を制御するクラス。チャンク済みCS
 QAPipeline(
     dataset_name: Optional[str] = None,
     input_file: Optional[str] = None,
-    model: str = "claude-sonnet-5",
+    model: str = ModelConfig.DEFAULT_MODEL,  # = "claude-sonnet-5-5"
     output_dir: str = "qa_output/pipeline",
     max_docs: Optional[int] = None,
     client: Optional[LLMClient] = None
@@ -412,7 +412,7 @@ QAPipeline(
 |------------|------|-----------|------|
 | `dataset_name` | Optional[str] | None | 事前定義データセット名（cc_news, wikipedia_ja等） |
 | `input_file` | Optional[str] | None | チャンク済みCSVファイルのパス |
-| `model` | str | "claude-sonnet-5" | 使用する LLM モデル（Anthropic Claude） |
+| `model` | str | `ModelConfig.DEFAULT_MODEL`（`claude-sonnet-5-5`） | 使用する LLM モデル（Anthropic Claude） |
 | `output_dir` | str | "qa_output/pipeline" | 出力ディレクトリ |
 | `max_docs` | Optional[int] | None | 処理する最大チャンク数 |
 | `client` | Optional[LLMClient] | None | LLMクライアント（DI用） |
@@ -593,14 +593,14 @@ def run(
 
 ```python
 SmartQAGenerator(
-    model: str = "claude-sonnet-5",
+    model: str = ModelConfig.DEFAULT_MODEL,  # = "claude-sonnet-5-5"
     api_key: Optional[str] = None
 )
 ```
 
 | パラメータ | 型 | デフォルト | 説明 |
 |------------|------|-----------|------|
-| `model` | str | `"claude-sonnet-5"` | 使用する LLM モデル（Anthropic Claude） |
+| `model` | str | `ModelConfig.DEFAULT_MODEL`（`claude-sonnet-5-5`） | 使用する LLM モデル（Anthropic Claude） |
 | `api_key` | Optional[str] | None | 未使用（統一クライアントが環境変数からキーを解決する） |
 
 | 項目 | 内容 |
@@ -696,7 +696,7 @@ def process_chunk(self, chunk_text: str) -> Dict
 
 ```python
 # 使用例
-generator = SmartQAGenerator(model="claude-sonnet-5")
+generator = SmartQAGenerator(model="claude-sonnet-5-5")
 result = generator.process_chunk("チャンクテキスト...")
 
 if result['success']:
@@ -781,7 +781,7 @@ def analyze_qa_statistics(results: List[Dict]) -> Dict
 
 | 設定項目 | 値 | 説明 |
 |---------|-----|------|
-| デフォルトモデル | `claude-sonnet-5` | 使用する LLM モデル（Anthropic Claude） |
+| デフォルトモデル | `ModelConfig.DEFAULT_MODEL`（`claude-sonnet-5-5`） | 使用する LLM モデル（Anthropic Claude） |
 | temperature | 0.2 | 分析＋生成（構造化出力 1 回）の温度 |
 | max_output_tokens | 4096 | 構造化出力の上限トークン数 |
 | Q/A数範囲 | 0-5 | 1チャンクあたりの生成Q/A数 |
@@ -798,6 +798,7 @@ def analyze_qa_statistics(results: List[Dict]) -> Dict
 | 1.2 | `QAPipeline` の引数の記述を実装に合わせた（2026-09-24）。削除済みの `use_smart_generation` を `generate_qa()` / `run()` / `_generate_sync()` のシグネチャ・引数表・使用例から外した |
 | 1.3 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
 | 1.4 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
+| 1.5 | Q/A 生成の既定モデルがコード側で `config.py::ModelConfig.DEFAULT_MODEL` 参照になったのに追随し、既定の記述を `claude-sonnet-5` → `claude-sonnet-5-5` へ是正（構成図・依存表・`QAPipeline` / `SmartQAGenerator` のシグネチャ・引数表・使用例・§5.2）（2026-10-08） |
 
 ---
 

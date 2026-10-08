@@ -496,7 +496,7 @@ register_runner(DeleteParams,   _delete_runner,   "delete")
 
 | バージョン | 変更内容 |
 |-----------|---------|
-| 1.8 | `QaGenerationParams.model` の既定を実装どおり `claude-sonnet-5` → `claude-sonnet-5-5` へ是正し、注記の理由を「アプリ全体の既定に合わせる」へ直した（CLI と `QAPipeline` の既定はまだ `claude-sonnet-5`）（2026-10-08） |
+| 1.8 | `QaGenerationParams.model` の既定を実装どおり `claude-sonnet-5` → `claude-sonnet-5-5` へ是正し、注記の理由を「アプリ全体の既定に合わせる」へ直した（2026-10-08） |
 | 1.7 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
 | 1.6 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
 | 1.5 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |

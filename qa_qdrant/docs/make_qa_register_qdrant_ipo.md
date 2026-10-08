@@ -1,6 +1,6 @@
 # make_qa_register_qdrant.py - Q/A 生成 → Qdrant 登録 統合 CLI ドキュメント
 
-**Version 1.8** | 最終更新: 2026-10-08
+**Version 1.9** | 最終更新: 2026-10-08
 
 ---
 
@@ -23,7 +23,7 @@
 
 `qa_qdrant/make_qa_register_qdrant.py` は、チャンク済み CSV・テキストファイル（`.txt`・先にチャンク化する）・
 事前定義データセットのいずれかから Q/A ペアを生成し（Phase 1）、その Q/A を Embedding して Qdrant コレクションへ登録する（Phase 2）
-**統合 CLI** です。Q/A 生成は `qa_generation.pipeline.QAPipeline`（Anthropic Claude・既定 `claude-sonnet-5`）に、
+**統合 CLI** です。Q/A 生成は `qa_generation.pipeline.QAPipeline`（Anthropic Claude・既定 `claude-sonnet-5-5` = `config.py::ModelConfig.DEFAULT_MODEL`）に、
 Embedding と Qdrant 操作は `services/qdrant_service.py`（Gemini `gemini-embedding-001`・3072 次元）に委譲し、
 本モジュールは**入力の振り分け・`.txt` のチャンク化の呼び出し・2 フェーズの順序制御・登録ループ・UI 用 CSV の出力**を受け持ちます。
 
@@ -573,7 +573,7 @@ print(normalize_source_filename("qa_pairs_livedoor.csv"))
 | CSV 処理 | `--text-column` | `text` | 本文列の列名。判定に使い、`QAPipeline(text_column=...)` へ渡す（この列が無く `Combined_Text` があればそちら・§3.3 の 4） |
 | チャンク化（`.txt` のみ） | `--chunk-output` | `output_chunked` | チャンク CSV の出力先 |
 | | `--chunk-model` | `claude-haiku-5-5` | チャンク化に使う LLM（チャンク化 CLI・データ管理タブの既定と同じ） |
-| Q/A 生成 | `--model` | `claude-sonnet-5` | `QAPipeline` に渡す LLM モデル（Anthropic Claude） |
+| Q/A 生成 | `--model` | `ModelConfig.DEFAULT_MODEL`（`claude-sonnet-5-5`） | `QAPipeline` に渡す LLM モデル（Anthropic Claude） |
 | | `--max-docs` | `None` | 処理する最大チャンク数 |
 | | `--use-celery` | off | Celery 並列で生成する |
 | | `-c`, `--concurrency` | `8` | 並列タスク数。`start_celery.sh -c` と同じ値を推奨 |
@@ -641,6 +641,7 @@ normalize_source_filename   # 日時サフィックスの除去
 | 1.6 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
 | 1.7 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
 | 1.8 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
+| 1.9 | Q/A 生成の既定モデルがコード側で `config.py::ModelConfig.DEFAULT_MODEL` 参照になったのに追随し、既定の記述を `claude-sonnet-5` → `claude-sonnet-5-5` へ是正（概要・引数表）（2026-10-08） |
 
 ---
 

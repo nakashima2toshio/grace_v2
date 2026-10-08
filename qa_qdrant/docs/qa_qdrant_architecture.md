@@ -1,6 +1,6 @@
 # Q/A生成 & Qdrant登録システム 完全設計書（v3.0）
 
-**Version 3.4** | 最終更新: 2026-09-26
+**Version 3.5** | 最終更新: 2026-10-08
 
 ---
 
@@ -266,7 +266,7 @@ class QAPipeline:
     def __init__(self,
                  dataset_name: str = None,
                  input_file: str = None,      # チャンク済みCSV
-                 model: str = "claude-sonnet-5",
+                 model: str = ModelConfig.DEFAULT_MODEL,  # = "claude-sonnet-5-5"
                  output_dir: str = "qa_output/pipeline",
                  max_docs: int = None):
         """
@@ -329,7 +329,7 @@ def _load_chunks_from_csv(self, csv_path: str) -> List[Dict]:
 class SmartQAGenerator:
     """コンテンツを考慮したインテリジェントQ/A生成（v2.5）"""
 
-    def __init__(self, model: str = "claude-sonnet-5", api_key: str = None):
+    def __init__(self, model: str = ModelConfig.DEFAULT_MODEL, api_key: str = None):
         """
         初期化
 
@@ -503,7 +503,7 @@ python qa_qdrant/make_qa.py [OPTIONS]
 --input-file PATH        # チャンク済みCSVファイルパス
 
 # === 共通パラメータ ===
---model NAME             # LLMモデル (default: claude-sonnet-5 / Anthropic Claude)
+--model NAME             # LLMモデル (default: claude-sonnet-5-5 / Anthropic Claude)
 --output DIR             # 出力ディレクトリ (default: qa_output/pipeline)
 --max-docs N             # 処理する最大チャンク数
 
@@ -544,7 +544,7 @@ python qa_qdrant/make_qa_register_qdrant.py [OPTIONS]
 --block-size N           # 結合する行数 (default: 400)
 
 # === Q/A生成オプション ===
---model NAME             # LLMモデル (default: claude-sonnet-5 / Anthropic Claude)
+--model NAME             # LLMモデル (default: claude-sonnet-5-5 / Anthropic Claude)
 --use-smart-generation   # スマート生成有効 (default: True)
 --no-smart-generation    # 従来方式
 --batch-chunks N         # バッチあたりのチャンク数 (default: 3)
@@ -791,6 +791,7 @@ REDIS_URL=redis://localhost:6379/0
 
 | バージョン | 変更内容 |
 |---|---|
+| 3.5 | Q/A 生成の既定モデルがコード側で `config.py::ModelConfig.DEFAULT_MODEL` 参照になったのに追随し、既定の記述を `claude-sonnet-5` → `claude-sonnet-5-5` へ是正（`QAPipeline` / `SmartQAGenerator` のシグネチャ・CLI 引数の 4 箇所）（2026-10-08） |
 | 3.4 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
 | 3.3 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
 | 3.2 | `QAPipeline` / `SmartQAGenerator` のシグネチャと CLI 引数の既定モデル（4 箇所）を実装（`qa_generation/pipeline.py` / `smart_qa_generator.py` / `make_qa*.py`）に合わせて `claude-sonnet-5` へ是正。§9 の環境変数を実装が読むものへ書き直した（2026-09-25） |

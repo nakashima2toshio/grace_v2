@@ -261,7 +261,7 @@ tm = TokenManager()
 # 3. Qdrant ヘルスチェック
 checker = QdrantHealthChecker()
 
-# 4. Q/A生成（Anthropic Claude: claude-sonnet-5）
+# 4. Q/A生成（Anthropic Claude: claude-sonnet-5-5）
 # qa = generate_qa_pairs(...)
 print(f"設定値: {value}")
 ```
@@ -428,7 +428,7 @@ __all__ = [
 
 | バージョン | 変更内容 |
 |-----------|---------|
-| 1.7 | 概要の技術スタックの既定 LLM を `claude-sonnet-5` → 現在の既定 `claude-sonnet-5-5`（`config.py::ModelConfig.DEFAULT_MODEL`）へ是正（2026-10-08） |
+| 1.7 | 概要の技術スタックと使用例のコメントの既定 LLM を `claude-sonnet-5` → 現在の既定 `claude-sonnet-5-5`（`config.py::ModelConfig.DEFAULT_MODEL`）へ是正（2026-10-08） |
 | 1.6 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
 | 1.5 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
 | 1.4 | 使用例を IPO 詳細の冒頭（`### 4.1 使用例`）へ移し、末尾の「## 6. 使用例」章を削除（基本フォーマット `a_class_method_md_format.md` v1.6〜 §6.1 に準拠。2026-09-24）。IPO の小節を 4.2 以降へ繰り下げ、後続の章番号を 1 つ繰り上げた。文書内の `§4.x` 参照も追随。あわせて概要の「各責務対応のモジュール」を主な責務と 1:1 に作り直し（従来のサブモジュール表は「サブモジュール一覧」として残し、再エクスポート対象外の 3 件を明記）。主な責務の削除済みサービス（データセット・ファイル）を外し、既定モデルの記述を `claude-sonnet-5` へ是正 |
