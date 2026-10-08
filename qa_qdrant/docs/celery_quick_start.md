@@ -1,6 +1,6 @@
 # Celery + スマート生成 クイックスタートガイド
 
-**Version 2.3** | 最終更新: 2026-09-25
+**Version 2.4** | 最終更新: 2026-10-08
 
 ---
 
@@ -224,7 +224,7 @@ config = {'type': 'test', 'qa_per_chunk': 3}
 tasks = submit_unified_qa_generation(
     chunks=[chunk],
     config=config,
-    model="claude-sonnet-5",
+    model="claude-sonnet-5-5",
 )
 
 # 結果収集
@@ -518,6 +518,7 @@ python -c "from celery_tasks import purge_queue; purge_queue()"
 
 | バージョン | 変更内容 |
 |---|---|
+| 2.4 | テスト2 の呼び出し例のモデルを現在の既定 `claude-sonnet-5-5` へ（2026-10-08） |
 | 2.3 | テスト2（手動テスト）の `submit_unified_qa_generation()` 呼び出し例を実装に合わせた（存在しない `use_smart_generation` 引数を外し、モデルを Gemini から Anthropic の既定へ）（2026-09-25） |
 | 2.2 | `a_cross_doc_md_format.md` の種別 B の骨格へ揃えた（2026-09-24）。H1＋Version ヘッダー、番号なしの「概要」（状態・結論・対象モジュール）、目次の作り直し（装飾絵文字付き見出しのアンカー切れを解消）、本文 H2 の番号付けを行った。本文は当時の記録として変えていない |
 | 2.1 | 本文記載の版（改修日 2025-01-20）。本リポジトリへの取り込みは 2026-09-05 |

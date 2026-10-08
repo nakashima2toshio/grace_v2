@@ -1,6 +1,6 @@
 # qa_generation/docs/ 棚卸し
 
-**Version 1.13** | 最終更新: 2026-09-26
+**Version 1.14** | 最終更新: 2026-10-08
 
 > 📎 **姉妹版**: [`docs/README.md`](../../docs/README.md)（直下・配置の境界） /
 > [`grace/docs/README.md`](../../grace/docs/README.md) /
@@ -16,7 +16,7 @@
 > ① チャンク化は [`chunking/`](../../chunking/docs/README.md)、③ Qdrant 登録は [`qa_qdrant/`](../../qa_qdrant/docs/README.md)。
 > 運用手順の入口は [`README_DATA.md`](../../README_DATA.md)。
 
-> ⚠️ **本リポジトリは Anthropic 版。** LLM は `claude-sonnet-5`（`create_llm_client("anthropic")`）、
+> ⚠️ **本リポジトリは Anthropic 版。** LLM は `claude-sonnet-5-5`（`create_llm_client("anthropic")`）、
 > Embedding のみ Gemini `gemini-embedding-001`（3072 次元）。
 > 姉妹リポジトリ `grace_v2_local` は Ollama 版で、**プロバイダ表記はあちらと逆**である。
 > 「Anthropic と書いてあるから誤記」ではない（CLAUDE.md §3）。
@@ -151,6 +151,7 @@
 
 | Version | 日付 | 変更 |
 |---|---|---|
+| 1.14 | 2026-10-08 | 冒頭の注記の既定 LLM を `claude-sonnet-5` → 現在の既定 `claude-sonnet-5-5`（`config.py::ModelConfig.DEFAULT_MODEL`）へ是正（`QAPipeline` / `SmartQAGenerator` の引数既定は実装どおり `claude-sonnet-5` のまま） |
 | 1.13 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`）。同じ改訂の 2 文書の行数・Ver を再実測 |
 | 1.12 | 2026-09-26 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所）。あわせて `semantic.md` v1.2 / `evaluation.md` v1.2 の行数・Ver と、PR #216 で変わった `semantic.py` の実装行数（543）を再実測 |
 | 1.11 | 2026-09-26 | `pipeline.md` v1.5（`--dataset` の種別の補完）に追随して §2 の行数・Ver を更新 |

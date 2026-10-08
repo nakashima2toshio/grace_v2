@@ -1,6 +1,6 @@
 # GRACE-Support 処理フローと設計 ドキュメント
 
-**Version 3.5** | 最終更新: 2026-10-08
+**Version 3.6** | 最終更新: 2026-10-08
 
 > **本書の位置づけ**: GRACE-Support（問い合わせ → 回答）の**処理フロー（HOW）と
 > 設計判断（WHY）を 1 本にまとめた正本**。v3.0 で `support_spec.md` を統合した。
@@ -247,7 +247,7 @@ style BRIDGE fill:#1a1a1a,stroke:#fff,color:#fff
 |-----------|-----------|------|
 | `grace`（リポジトリ内） | - | planner / executor + tools / GroundednessVerifier / SourceAgreementCalculator / InterventionHandler |
 | `support_actions`（リポジトリ内） | - | ActionBackend（dry-run / webhook / pseudo）・IdentityVerifier |
-| Anthropic Claude API | `claude-sonnet-5`（既定）/ `claude-haiku-5-5`（軽量判定） | Plan / reasoning / 検証・分類・判定 |
+| Anthropic Claude API | `claude-sonnet-5-5`（既定）/ `claude-haiku-5-5`（軽量判定） | Plan / reasoning / 検証・分類・判定 |
 | Gemini Embedding API | `gemini-embedding-001`（3072次元） | RAG 検索の埋め込み |
 | Qdrant | - | 内部ナレッジのベクトル検索（コレクション `*_anthropic`） |
 
@@ -1578,7 +1578,7 @@ groundedness 検証・⑤ 再検証・haiku 判定 2 種）。
 
 - 最大費目はステップ毎の確信度評価 `evaluate_with_factors`（およそ 1/3）。
   `claude-haiku-5-5`（`config.llm.light_model`）で実行され、`reasoning` /
-  groundedness / `evaluate_final` は `claude-sonnet-5` を使う。
+  groundedness / `evaluate_final` は `claude-sonnet-5-5` を使う。
 - 費用を抑えたいときは、⑤ Web フォールバックと外部検索を止めるのが最も効く。
 
 > 📝 **金額の実測値は本書に載せない。** 旧版は「1 ケース ≈ 9 円 / 1 run ≈ 80 円」と
@@ -1693,6 +1693,7 @@ InterventionBridge
 
 | Version | 変更内容 |
 |---|---|
+| 3.6 | 現在の既定 LLM の記述を `claude-sonnet-5` から実装（`config.py::ModelConfig.DEFAULT_MODEL` / `config/grace_config.yml` の `llm.model`）どおり `claude-sonnet-5-5` へ是正（依存表・§9.2 実行コストの目安。「指示に従うかはモデル次第」の 2026-08-29 実測表は当時の記録なので変えていない）（2026-10-08） |
 | 3.5 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
 | 3.4 | `use_web=False` を「内部 RAG のみ」に揃えた（2026-10-04）。⑤ に加えて executor の Web 検索（動的挿入・計画済みステップ・並列プリフェッチ・fallback・ReAct）も止める。あわせて、回答本文で引用していない Web 出典を表示から外す（`gates.drop_uncited_web_citations`。社内の出典だけを引用し URL を 1 つも書いていない回答に限る。ゲートの後・表示用の出典だけ） |
 | 3.3 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |

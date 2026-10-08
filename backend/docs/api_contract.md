@@ -1,6 +1,6 @@
 # API 契約（エンドポイント・SSE・ステータス） ドキュメント
 
-**Version 1.5** | 最終更新: 2026-10-08
+**Version 1.6** | 最終更新: 2026-10-08
 
 ---
 
@@ -152,7 +152,7 @@ style EXTERNAL fill:#1a1a1a,stroke:#fff,color:#fff
 #### モデル選択の契約
 
 - 選択肢は `config.py::get_selectable_models()` の 1 箇所で決まる
-  （`claude-fable-5-1` / `claude-opus-5-5` / `claude-sonnet-5` / `claude-haiku-5-5`）
+  （`claude-fable-5-1` / `claude-opus-5-5` / `claude-sonnet-5-5` / `claude-haiku-5-5`）
 - `QueryRequest.model` / `ReviewRequest.model` は**省略可**。`null` / 省略 =
   「サーバーの既定値を使う」
 - `ChunkingRequest.model` / `QaGenerationRequest.model` は**必須（既定値つき）**。
@@ -292,6 +292,7 @@ Qdrant が落ちていても 200 を返し、本文の `available: false` と理
 
 | Version | 日付 | 変更内容 |
 |---|---|---|
+| 1.6 | 2026-10-08 | モデル選択の契約の選択肢を実装（`ModelConfig.SELECTABLE_MODELS`）どおり `claude-sonnet-5` → `claude-sonnet-5-5` へ是正 |
 | 1.5 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随 |
 | 1.4 | 2026-10-08 | §3 の keepalive をコメント行から名前付きイベント（`event: keepalive`）へ変更したのに追随。フロントの張り直しと `seq` による読み飛ばしを追記（姉妹リポジトリ grace_v2_local で、長い処理中に画面への配信が黙って止まった件の移植） |
 | 1.3 | 2026-09-24 | `a_cross_doc_md_format.md` v1.1（種別 A）に準拠（2026-09-24）。概要（主な責務／各責務対応のモジュール／3 層のアーキテクチャ構成図）を追加し、冒頭の説明文を概要へ移した。本文の章番号は変えていない。ヘッダーの Version と変更履歴の最新版の食い違いも解消した |

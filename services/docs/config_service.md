@@ -1,6 +1,6 @@
 # config_service.py - 設定管理サービス ドキュメント
 
-**Version 1.6** | 最終更新: 2026-10-08
+**Version 1.7** | 最終更新: 2026-10-08
 
 ---
 
@@ -235,7 +235,7 @@ from services.config_service import (
 # 1. 設定値の取得
 default_model = get_config("models.default")
 logger.info(f"既定モデル: {default_model}")
-# 既定モデル: claude-sonnet-5
+# 既定モデル: claude-sonnet-5-5
 
 # 2. 設定値の更新
 set_config("api.timeout", 60)
@@ -420,7 +420,7 @@ None
 # 使用例
 config.reload()
 print(config.get("models.default"))
-# claude-sonnet-5
+# claude-sonnet-5-5
 ```
 
 #### メソッド: `save`
@@ -470,7 +470,7 @@ def get_all(self) -> Dict[str, Any]
 **戻り値例**:
 ```python
 {
-    "models": {"default": "claude-sonnet-5", "available": [...]},
+    "models": {"default": "claude-sonnet-5-5", "available": [...]},
     "api": {"timeout": 30, "max_retries": 3},
     "llm": {"provider": "anthropic"}
 }
@@ -557,7 +557,7 @@ def _load_config(self) -> Dict[str, Any]
 **戻り値例**:
 ```python
 {
-    "models": {"default": "claude-sonnet-5", ...},
+    "models": {"default": "claude-sonnet-5-5", ...},
     "llm": {"provider": "anthropic"}
 }
 ```
@@ -566,7 +566,7 @@ def _load_config(self) -> Dict[str, Any]
 # 使用例
 conf = config._load_config()
 print(conf["models"]["default"])
-# claude-sonnet-5
+# claude-sonnet-5-5
 ```
 
 #### メソッド: `_apply_env_overrides`
@@ -619,7 +619,7 @@ def _get_default_config(self) -> Dict[str, Any]
 **戻り値例**:
 ```python
 {
-    "models": {"default": "claude-sonnet-5", "available": ["claude-fable-5-1", "claude-opus-5-5", "claude-sonnet-5", "claude-haiku-5-5"]},
+    "models": {"default": "claude-sonnet-5-5", "available": ["claude-fable-5-1", "claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5"]},
     "llm": {"provider": "anthropic"}
 }
 ```
@@ -628,7 +628,7 @@ def _get_default_config(self) -> Dict[str, Any]
 # 使用例
 defaults = config._get_default_config()
 print(defaults["models"]["default"])
-# claude-sonnet-5
+# claude-sonnet-5-5
 ```
 
 ### 4.3 ショートカット関数
@@ -733,8 +733,8 @@ reload_config()
 ```python
 {
     "models": {
-        "default": "claude-sonnet-5",
-        "available": ["claude-fable-5-1", "claude-opus-5-5", "claude-sonnet-5", "claude-haiku-5-5"]
+        "default": "claude-sonnet-5-5",
+        "available": ["claude-fable-5-1", "claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5"]
     },
     "api": {
         "timeout": 30,
@@ -776,8 +776,8 @@ reload_config()
 
 | キー | デフォルト値 | 説明 |
 |-----|-------------|------|
-| `models.default` | "claude-sonnet-5" | 既定のLLMモデル（Anthropic Claude） |
-| `models.available` | ["claude-fable-5-1", "claude-opus-5-5", "claude-sonnet-5", "claude-haiku-5-5"] | 利用可能なモデル一覧 |
+| `models.default` | "claude-sonnet-5-5" | 既定のLLMモデル（Anthropic Claude） |
+| `models.available` | ["claude-fable-5-1", "claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5"] | 利用可能なモデル一覧 |
 | `api.timeout` | 30 | APIタイムアウト（秒） |
 | `api.max_retries` | 3 | 最大リトライ回数 |
 | `api.openai_api_key` | None | OpenAI APIキー（既定では未設定） |
@@ -813,7 +813,7 @@ reload_config()
 | `config` | ConfigManager | `ConfigManager("config.yml")` のシングルトン |
 | `logger` | logging.Logger | `config.logger`（`Gemini_helper` ロガー） |
 
-> 📝 **注意**: LLMはAnthropic Claude（既定 `claude-sonnet-5`。`config.yml` の `models.default` がコード側より優先されるため、両者の一致を `backend/tests/test_model_selection.py` で検査している、鍵 `ANTHROPIC_API_KEY`）、EmbeddingはGemini（`gemini-embedding-001`、鍵 `GOOGLE_API_KEY`）を用います。
+> 📝 **注意**: LLMはAnthropic Claude（既定 `claude-sonnet-5-5`。`config.yml` の `models.default` がコード側より優先されるため、両者の一致を `backend/tests/test_model_selection.py` で検査している、鍵 `ANTHROPIC_API_KEY`）、EmbeddingはGemini（`gemini-embedding-001`、鍵 `GOOGLE_API_KEY`）を用います。
 
 
 ---
@@ -842,6 +842,7 @@ __all__ = [
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 1.7 | 出力例・戻り値例・既定値表・注記の既定モデルを、実装（`_get_default_config()` / 直下 `config.yml` の `models.default`）どおり `claude-sonnet-5-5` へ是正（選択肢も同様）（2026-10-08） |
 | 1.6 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
 | 1.5 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
 | 1.4 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |

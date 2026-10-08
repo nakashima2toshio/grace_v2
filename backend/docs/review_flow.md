@@ -1,6 +1,6 @@
 # GRACE-Review 処理フローと設計 ドキュメント
 
-**Version 3.4** | 最終更新: 2026-10-08
+**Version 3.5** | 最終更新: 2026-10-08
 
 > **本書の位置づけ**: GRACE-Review（文書 → 指摘）の**処理フロー（HOW）と設計判断（WHY）を
 > 1 本にまとめた正本**。v2.0 で `review_spec.md`（1,080 行）を統合した。
@@ -140,7 +140,7 @@ GRACE-Review は、**文書（EC の LP・商品説明文など）を規程（�
 
 | 用途 | 実体 |
 |---|---|
-| LLM（検出・判定・要約） | Anthropic Claude `claude-sonnet-5` |
+| LLM（検出・判定・要約） | Anthropic Claude `claude-sonnet-5-5` |
 | LLM（軽量二段判定） | Anthropic Claude `claude-haiku-5-5` |
 | Embedding（規程検索） | Gemini `gemini-embedding-001`（3072次元） |
 | ベクトル DB | Qdrant（コレクション `*_anthropic`） |
@@ -1065,6 +1065,7 @@ _emit(SupportEvent(
 
 | Version | 変更内容 |
 |---|---|
+| 3.5 | 現在の既定 LLM の記述を `claude-sonnet-5` から実装（`config.py::ModelConfig.DEFAULT_MODEL` / `config/grace_config.yml` の `llm.model`）どおり `claude-sonnet-5-5` へ是正（技術スタック表）（2026-10-08） |
 | 3.4 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
 | 3.3 | 文字列だけで決まる事実で LLM の判定を補う `backend/app/core/review_facts.py` を追加。(1) tokusho-01（`RuleItem.missing_fact_check="purchase_shipping"`）: 返品の行を除いて広告文に購入時の送料の語が無いのに ③ が「違反なし」と答えたら、違反として扱う（判定失敗のときは補わない）。(2) policy-01（`RuleItem.counter_check="return_terms"`）: 指摘文が返品の話で、広告と規程の返品条件（期限・条件語・返送料の負担）を読み取れ、広告が規程より不利でないと言い切れるときは ④' で抑止する。実測 2026-10-03（ローカル LLM・各 2 回再現）: 表記漏れLP案で送料の取りこぼし、OK 例で「未開封」と「未使用・未開封」の比較を逆に判定 |
 | 3.2 | ③-1 候補検出に `RuleItem.keyword_excludes` を追加（除外語の一部としてだけ現れた keyword は一致と数えない）。keihyo-09（数量限定）の「限定」が「期間限定」の中で一致し、期間の表示を数量限定の候補にしていた（実測 2026-10-02 / 10-03・ローカル LLM で誤検知が出たり出なかったり）。keihyo-09 の判定基準にも「期間を限る表示は指摘しない」を追加（要旨は不変・再登録不要） |
