@@ -1,6 +1,6 @@
 # make_qa.py - Q/Aペア生成 CLIエントリーポイント ドキュメント
 
-**Version 3.5** | 最終更新: 2026-09-26
+**Version 3.6** | 最終更新: 2026-10-08
 
 ---
 
@@ -59,9 +59,9 @@
 
 | 役割 | プロバイダー / モデル |
 |------|----------------------|
-| LLM（Q/A生成・Agent応答） | Anthropic Claude（`claude-sonnet-5`） — APIキー `ANTHROPIC_API_KEY` |
+| LLM（Q/A生成・Agent応答） | Anthropic Claude（`claude-sonnet-5-5`） — APIキー `ANTHROPIC_API_KEY` |
 | Embedding（Qdrant登録・検索） | Gemini `gemini-embedding-001`（3072次元）— APIキー `GOOGLE_API_KEY` |
-| 本モジュールで使う `--model` 既定値 | **`claude-sonnet-5`**（`make_qa.py:108` の実装値。`QAPipeline` 経由の LLM 呼び出しに渡される） |
+| 本モジュールで使う `--model` 既定値 | **`claude-sonnet-5-5`**（`make_qa.py:108` の `default=ModelConfig.DEFAULT_MODEL`。`QAPipeline` 経由の LLM 呼び出しに渡される） |
 
 ---
 
@@ -349,7 +349,7 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 | 引数 | デフォルト値 | 説明 |
 |------|-------------|------|
-| `--model` | `claude-sonnet-5` | 使用する LLM モデル名（Anthropic Claude・`QAPipeline` に渡される） |
+| `--model` | `ModelConfig.DEFAULT_MODEL`（`claude-sonnet-5-5`） | 使用する LLM モデル名（Anthropic Claude・`QAPipeline` に渡される） |
 | `--output` | `{PROJECT_ROOT}/qa_output/pipeline` | 出力ディレクトリ |
 | `--max-docs` | `None` | 処理する最大チャンク数（無制限） |
 | `--analyze-coverage` | `False` | カバレージ分析を実行するフラグ |
@@ -407,6 +407,7 @@ if __name__ == "__main__":
 | 3.3 | 2026-09-25 | `--model` 既定値の記述（3 箇所）を実装（`make_qa.py:108`）に合わせて旧既定 `claude-sonnet-4-6` → `claude-sonnet-5` へ是正 |
 | 3.4 | 2026-09-26 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
 | 3.5 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
+| 3.6 | 2026-10-08 | 技術スタック表の LLM と `--model` の既定（2 箇所）を、実装（`make_qa.py:108` が `ModelConfig.DEFAULT_MODEL` を参照するようになった）どおり `claude-sonnet-5` → `claude-sonnet-5-5` へ是正 |
 
 ---
 

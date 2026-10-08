@@ -75,7 +75,7 @@ def submit_unified_qa_generation(
     Args:
         chunks: チャンクのリスト
         config: データセット設定
-        model: 使用するモデル（例: "claude-sonnet-5"）
+        model: 使用するモデル（例: "claude-sonnet-5-5"）
 
     Returns:
         Celeryタスクのリスト（AsyncResultオブジェクト）

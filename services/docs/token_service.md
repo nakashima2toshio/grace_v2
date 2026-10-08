@@ -1,6 +1,6 @@
 # token_service.py - トークン管理サービス ドキュメント
 
-**Version 1.5** | 最終更新: 2026-10-08
+**Version 1.6** | 最終更新: 2026-10-08
 
 ---
 
@@ -14,7 +14,7 @@
 >
 > | 用途 | プロバイダ | 既定 |
 > |---|---|---|
-> | LLM 全般 | **Anthropic** | `claude-sonnet-5`（軽量 `claude-haiku-5-5`） |
+> | LLM 全般 | **Anthropic** | `claude-sonnet-5-5`（軽量 `claude-haiku-5-5`） |
 > | Embedding のみ | **Gemini** | `gemini-embedding-001`（3072 次元） |
 >
 > 表に OpenAI / Gemini のモデルが並んでいるのは、**過去に扱ったモデルの
@@ -46,7 +46,7 @@
 
 `token_service.py`は、トークンカウント・コスト推定・テキスト切り詰めを統合的に提供するサービスモジュールです。`tiktoken`を用いたトークン数算出を中核とし、複数モデルのエンコーディング・価格・トークン制限を一元管理します。複数の旧ヘルパー（`helper_api.py::TokenManager`、`helper_rag.py::TokenManager`、`helper_text.py::count_tokens`）を統合した後継実装です。
 
-技術スタックではLLMに **Anthropic Claude**（既定 `claude-sonnet-5` / 軽量 `claude-haiku-5-5`）、Embedding に **Gemini**（`gemini-embedding-001`）を採用します。本モジュールの定数表（`MODEL_ENCODINGS` / `LLM_PRICING` / `EMBEDDING_PRICING` / `MODEL_LIMITS`）には既定 LLM の Claude を先頭に定義し、Gemini / OpenAI 系のエントリは後方互換のため残置しています。
+技術スタックではLLMに **Anthropic Claude**（既定 `claude-sonnet-5-5` / 軽量 `claude-haiku-5-5`）、Embedding に **Gemini**（`gemini-embedding-001`）を採用します。本モジュールの定数表（`MODEL_ENCODINGS` / `LLM_PRICING` / `EMBEDDING_PRICING` / `MODEL_LIMITS`）には既定 LLM の Claude を先頭に定義し、Gemini / OpenAI 系のエントリは後方互換のため残置しています。
 
 ### 主な責務
 
@@ -648,7 +648,7 @@ def get_model_limits(model: str) -> Dict[str, int]
 
 ```python
 # 使用例
-print(get_model_limits("claude-sonnet-5"))
+print(get_model_limits("claude-sonnet-5-5"))
 # 出力: {"max_tokens": 1000000, "max_output": 128000}
 ```
 
@@ -671,6 +671,7 @@ DEFAULT_ENCODING = "cl100k_base"
 ```python
 MODEL_ENCODINGS = {
     # Anthropic Claude（本プロジェクト既定 LLM。tiktokenでは近似）
+    "claude-sonnet-5-5": "cl100k_base",
     "claude-sonnet-5": "cl100k_base",
     "claude-fable-5-1": "cl100k_base",
     "claude-opus-5-5": "cl100k_base",
@@ -709,6 +710,7 @@ LLMモデル価格表（$/1000トークン）。本プロジェクト既定 LLM 
 ```python
 LLM_PRICING = {
     # Anthropic Claude（本プロジェクト既定 LLM）
+    "claude-sonnet-5-5": {"input": 0.002, "output": 0.010},
     "claude-sonnet-5": {"input": 0.002, "output": 0.010},
     "claude-fable-5-1": {"input": 0.010, "output": 0.050},
     "claude-opus-5-5": {"input": 0.004, "output": 0.020},
@@ -730,6 +732,7 @@ LLM_PRICING = {
 
 | モデル | input ($/1K) | output ($/1K) |
 |--------|-------------|---------------|
+| `claude-sonnet-5-5` | 0.002 | 0.010 |
 | `claude-sonnet-5` | 0.002 | 0.010 |
 | `claude-fable-5-1` | 0.010 | 0.050 |
 | `claude-opus-5-5` | 0.004 | 0.020 |
@@ -768,6 +771,7 @@ EMBEDDING_PRICING = ModelConfig.EMBEDDING_PRICING
 ```python
 MODEL_LIMITS = {
     # Anthropic Claude（本プロジェクト既定 LLM）
+    "claude-sonnet-5-5": {"max_tokens": 1000000, "max_output": 128000},
     "claude-sonnet-5": {"max_tokens": 1000000, "max_output": 128000},
     "claude-fable-5-1": {"max_tokens": 1000000, "max_output": 128000},
     "claude-opus-5-5": {"max_tokens": 1000000, "max_output": 128000},
@@ -793,6 +797,7 @@ MODEL_LIMITS = {
 
 | モデル | max_tokens | max_output |
 |--------|-----------|------------|
+| `claude-sonnet-5-5` | 1000000 | 128000 |
 | `claude-sonnet-5` | 1000000 | 128000 |
 | `claude-fable-5-1` | 1000000 | 128000 |
 | `claude-opus-5-5` | 1000000 | 128000 |
@@ -848,6 +853,7 @@ __all__ = [
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 1.6 | 現在の既定 LLM の記述（冒頭の表・概要・`get_model_limits()` の使用例）を `claude-sonnet-5` から実装どおり `claude-sonnet-5-5` へ是正し、§5 の各表に実装にある `claude-sonnet-5-5` の行を追加（`claude-sonnet-5` は旧既定として残す）（2026-10-08） |
 | 1.5 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
 | 1.4 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`）。単価表・使用例を 001（0.0001）へ戻し、`gemini-embedding-2` は切り替え候補として残した（コードの `EMBEDDING_PRICING` と同じ） |
 | 1.3 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所）。§5.4 `EMBEDDING_PRICING` は `ModelConfig.EMBEDDING_PRICING` を参照する形になったので表と単価例（0.0002）を実装に合わせた |

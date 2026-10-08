@@ -85,7 +85,7 @@ from qa_generation.semantic import SemanticCoverage  # noqa: E402
 
 [Q/A生成クラス]
 
-8. LLMBasedQAGenerator - LLM（Anthropic Claude / claude-sonnet-5）を使用したQ/A生成クラス（基本Q/A生成、多様な種類のQ/A生成）
+8. LLMBasedQAGenerator - LLM（Anthropic Claude / 既定は config.py::ModelConfig.DEFAULT_MODEL）を使用したQ/A生成クラス（基本Q/A生成、多様な種類のQ/A生成）
 9. ChainOfThoughtQAGenerator -
 思考の連鎖（Chain-of-Thought）を使った高品質Q/A生成クラス（推論過程付きQ/A生成、信頼度スコア算出）
 10. RuleBasedQAGenerator - ルールベースのQ/A生成クラス（定義文抽出、事実情報抽出、列挙パターン抽出）
@@ -518,7 +518,7 @@ def get_smart_keywords(text: str, mode: str = "auto", prefer_mecab: bool = True)
 class QACountOptimizer:
     """Q/Aペア数の最適化を行うクラス"""
 
-    def __init__(self, llm_model: str = "claude-sonnet-5"):
+    def __init__(self, llm_model: str = ModelConfig.DEFAULT_MODEL):
         self.llm_model_for_token_count = llm_model
         self.unified_client = create_llm_client(provider="anthropic", default_model=self.llm_model_for_token_count)
 
@@ -1596,7 +1596,7 @@ class EnhancedQAPairsList(BaseModel):
 class LLMBasedQAGenerator:
     """LLMを使用したQ/A生成（Anthropic API使用）"""
 
-    def __init__(self, model="claude-sonnet-5"):
+    def __init__(self, model=ModelConfig.DEFAULT_MODEL):
         self.client = create_llm_client(provider="anthropic")
         self.model = model
 
@@ -1693,10 +1693,10 @@ class LLMBasedQAGenerator:
 class ChainOfThoughtQAGenerator:
     """思考の連鎖を使った高品質Q/A生成（Anthropic API使用）"""
 
-    def __init__(self, model: str = "claude-sonnet-5"):
+    def __init__(self, model: str = ModelConfig.DEFAULT_MODEL):
         """
         Args:
-            model: 使用するAnthropicモデル（デフォルト: claude-sonnet-5）
+            model: 使用するAnthropicモデル（デフォルト: config.py::ModelConfig.DEFAULT_MODEL）
         """
         self.model = model
         self.client = create_llm_client(provider="anthropic")
@@ -2273,7 +2273,7 @@ class QAGenerationOptimizer:
             },
             "phase4": {
                 "method"     : "llm_quality",
-                "model"      : "claude-sonnet-5",
+                "model"      : ModelConfig.DEFAULT_MODEL,
                 "target"     : "complex_reasoning",
                 "cost"       : budget * 0.5,
                 "expected_qa": 10
@@ -2368,10 +2368,10 @@ class OptimizedHybridQAGenerator:
     ルールベース抽出 + LLM品質向上 + 埋め込みベースカバレージ計算
     """
 
-    def __init__(self, model: str = "claude-sonnet-5", embedding_model: str = ModelConfig.EMBEDDING_MODEL):
+    def __init__(self, model: str = ModelConfig.DEFAULT_MODEL, embedding_model: str = ModelConfig.EMBEDDING_MODEL):
         """
         Args:
-            model: 使用するLLMモデル（デフォルト: claude-sonnet-5）
+            model: 使用するLLMモデル（デフォルト: config.py::ModelConfig.DEFAULT_MODEL）
             embedding_model: 埋め込みモデル（デフォルト: config.py::ModelConfig.EMBEDDING_MODEL）
         """
         self.client = create_llm_client(provider="anthropic")
@@ -2750,7 +2750,7 @@ class BatchHybridQAGenerator(OptimizedHybridQAGenerator):
     """
 
     def __init__(self,
-                 model: str = "claude-sonnet-5",
+                 model: str = ModelConfig.DEFAULT_MODEL,
                  embedding_model: str = ModelConfig.EMBEDDING_MODEL,
                  batch_size: int = 10,
                  embedding_batch_size: int = 100,
@@ -2758,7 +2758,7 @@ class BatchHybridQAGenerator(OptimizedHybridQAGenerator):
                  target_coverage: float = 0.95):
         """
         Args:
-            model: 使用するLLMモデル（デフォルト: claude-sonnet-5）
+            model: 使用するLLMモデル（デフォルト: config.py::ModelConfig.DEFAULT_MODEL）
             embedding_model: 埋め込みモデル（デフォルト: config.py::ModelConfig.EMBEDDING_MODEL）
             batch_size: LLM処理のバッチサイズ
             embedding_batch_size: 埋め込み処理のバッチサイズ

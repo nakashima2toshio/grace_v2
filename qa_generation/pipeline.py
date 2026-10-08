@@ -21,7 +21,7 @@ qa_generation/pipeline.py - Q/A生成パイプライン制御モジュール（v
   # チャンク済みCSVからQ/A生成
   pipeline = QAPipeline(
       input_file="output_chunked/data_chunks.csv",
-      model="claude-sonnet-5",
+      model="claude-sonnet-5-5",
       output_dir="qa_output/pipeline"
   )
   result = pipeline.run(
@@ -37,7 +37,7 @@ from typing import Any, Dict, List, Optional
 
 import pandas as pd
 
-from config import DATASET_CONFIGS
+from config import DATASET_CONFIGS, ModelConfig
 from helper.helper_llm import LLMClient
 from qa_generation.evaluation import analyze_coverage
 from qa_generation.smart_qa_generator import SmartQAGenerator
@@ -51,7 +51,7 @@ class QAPipeline:
     def __init__(self,
                  dataset_name: Optional[str] = None,
                  input_file: Optional[str] = None,
-                 model: str = "claude-sonnet-5",
+                 model: str = ModelConfig.DEFAULT_MODEL,
                  output_dir: str = "qa_output/pipeline",
                  max_docs: Optional[int] = None,
                  client: Optional[LLMClient] = None,

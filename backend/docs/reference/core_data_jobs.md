@@ -1,6 +1,6 @@
 # core/data_jobs.py - データ準備ジョブ runner ドキュメント
 
-**Version 1.7** | 最終更新: 2026-10-08
+**Version 1.8** | 最終更新: 2026-10-08
 
 > **本書の位置づけ**: `backend/app/core/data_jobs.py`（データ準備 4 ジョブの runner）の **IPO リファレンス**。
 > 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。
@@ -294,7 +294,7 @@ class ChunkingParams:
 class QaGenerationParams:
     input_file: str                      # 'ディレクトリ名/ファイル名' 形式
     output_dir: str = "qa_output"
-    model: str = "claude-sonnet-5"
+    model: str = "claude-sonnet-5-5"
     max_docs: Optional[int] = None
     use_celery: bool = False
     concurrency: int = 8
@@ -311,8 +311,8 @@ class QaGenerationParams:
 > 生成した Q/A CSV が「③ Qdrant 登録」の選択肢に出てこない。
 
 > 📝 **モデルの既定はチャンク化（`claude-haiku-5-5`）と違う。** Q/A 生成は
-> 文章生成の比重が大きいので、CLI（`make_qa_register_qdrant.py --model`）と
-> `QAPipeline` の既定に合わせて `claude-sonnet-5` にしてある。
+> 文章生成の比重が大きいので、アプリ全体の既定（`config.py::ModelConfig.DEFAULT_MODEL`）と
+> 同じ `claude-sonnet-5-5` にしてある。
 
 > ⚠️ **`use_celery=True` にするなら Celery ワーカーが起動していること。**
 > 落ちているとパイプラインが例外を投げ、runner が error イベントへ変換する。
@@ -496,6 +496,7 @@ register_runner(DeleteParams,   _delete_runner,   "delete")
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 1.8 | `QaGenerationParams.model` の既定を実装どおり `claude-sonnet-5` → `claude-sonnet-5-5` へ是正し、注記の理由を「アプリ全体の既定に合わせる」へ直した（2026-10-08） |
 | 1.7 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
 | 1.6 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
 | 1.5 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |

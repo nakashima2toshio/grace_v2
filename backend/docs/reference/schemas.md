@@ -1,6 +1,6 @@
 # schemas.py - API スキーマ（Pydantic）ドキュメント
 
-**Version 1.11** | 最終更新: 2026-10-08
+**Version 1.12** | 最終更新: 2026-10-08
 
 > **本書の位置づけ**: `backend/app/schemas.py`（API のリクエスト / レスポンス / イベントの Pydantic スキーマ）の **IPO リファレンス**。
 > 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。
@@ -895,7 +895,7 @@ class ChunkingRequest(BaseModel):
 class QaGenerationRequest(BaseModel):
     input_file: str            = Field(min_length=1)          # チャンク済み CSV
     output_dir: str            = Field(default="qa_output")
-    model: str                 = Field(default="claude-sonnet-5")  # 選択肢外は 422
+    model: str                 = Field(default="claude-sonnet-5-5")  # 選択肢外は 422
     max_docs: Optional[int]    = Field(default=None, ge=1)
     use_celery: bool           = False   # ⚠️ True なら Celery ワーカーが要る
     concurrency: int           = Field(default=8, ge=1, le=32)
@@ -913,7 +913,7 @@ class QaGenerationRequest(BaseModel):
 > 生成した Q/A CSV が `RegisterRequest.input_file` の選択肢に出てこない。
 
 > 📝 **`model` の既定はチャンク化と違う。** Q/A 生成は文章生成の比重が大きいので、
-> CLI と `QAPipeline` の既定に合わせて `claude-sonnet-5` にしてある。
+> アプリ全体の既定（`config.py::ModelConfig.DEFAULT_MODEL`）と同じ `claude-sonnet-5-5` にしてある。
 
 #### `RegisterRequest`
 
@@ -1092,6 +1092,7 @@ ReviewResultModel, ReviewJobStatusResponse, RuleSetInfo
 | 1.9 | 2026-09-26 | Embedding を `gemini-embedding-2` へ変更し、モデル名の定義を `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所へ集約（2026-09-26）。`ModelInfo` に `embedding_model` / `embedding_dims` を追加 |
 | 1.10 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
 | 1.11 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随 |
+| 1.12 | 2026-10-08 | `QaGenerationRequest.model` の既定を実装どおり `claude-sonnet-5` → `claude-sonnet-5-5` へ是正し、注記の理由を「アプリ全体の既定に合わせる」へ直した |
 
 ---
 

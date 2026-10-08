@@ -106,9 +106,10 @@ description: >-
 - 検証（grep）: 各ファイルで `flowchart|graph` の数 == `classDef default fill:#000` の数、`sequenceDiagram` の数 == `%%{ init` の数。
 
 ## 3. 技術スタック表記の統一（CLAUDE.md §3）
-- LLM = **Anthropic Claude**、既定 `claude-sonnet-5`（最上位 `claude-fable-5-1` / 上位 `claude-opus-5-5` /
-  軽量 `claude-haiku-5-5`・日付指定 `claude-haiku-5-5`）。鍵 `ANTHROPIC_API_KEY`（CLAUDE.md §9.3）。
-  `claude-sonnet-4-6` は**旧既定**。履歴の記述では当時の値として残す。
+- LLM = **Anthropic Claude**、既定 `claude-sonnet-5-5`（最上位 `claude-fable-5-1` / 上位 `claude-opus-5-5` /
+  軽量 `claude-haiku-5-5`）。鍵 `ANTHROPIC_API_KEY`（CLAUDE.md §9.3）。
+  旧軽量 `claude-haiku-4-5`（日付なしエイリアス）・`claude-haiku-4-5-20251001`、旧既定 `claude-sonnet-5` /
+  `claude-sonnet-4-6` は**後方互換の実在モデル名**。履歴の記述では当時の値として残し、日付付きへ「統一」しない。
 - Embedding = **Gemini** `gemini-embedding-001`（3072次元）。鍵 `GOOGLE_API_KEY`。
 - LLM設定クラスは `ModelConfig`（`config.py`）。`text-embedding-3-*` を LLM/本番Embedding用途で書かない。
 - モデル名マッピングを作らない（CRITICAL RULES）。`responses.parse()`/`create()` は両方正。

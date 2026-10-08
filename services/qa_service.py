@@ -24,6 +24,7 @@ from typing import Dict, List
 
 import pandas as pd
 
+from config import ModelConfig
 from helper.helper_llm import create_llm_client
 
 # モデルからインポート
@@ -37,7 +38,7 @@ def generate_qa_pairs(
     text: str,
     dataset_type: str,
     chunk_id: str,
-    model: str = "claude-sonnet-5",
+    model: str = ModelConfig.DEFAULT_MODEL,
     qa_per_chunk: int = 3,
     log_callback=None,
 ) -> List[QAPair]:
@@ -48,7 +49,7 @@ def generate_qa_pairs(
         text: 対象テキスト
         dataset_type: データセットタイプ
         chunk_id: チャンクID
-        model: 使用するモデル（デフォルト: claude-sonnet-5）
+        model: 使用するモデル（デフォルト: config.py::ModelConfig.DEFAULT_MODEL）
         qa_per_chunk: チャンクあたりのQ/A数
         log_callback: ログコールバック関数
 

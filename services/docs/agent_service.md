@@ -1,6 +1,6 @@
 # agent_service.py - ReAct + Reflection エージェント（Anthropic Tool Use ネイティブ）ドキュメント
 
-**Version 2.5** | 最終更新: 2026-09-26
+**Version 2.6** | 最終更新: 2026-10-08
 
 ---
 
@@ -22,7 +22,7 @@
 
 `agent_service.py` は、Anthropic Messages API の **ネイティブ Tool Use**（`generate_with_tools()` / `stop_reason == "tool_use"`）を用いた **ReAct エージェント**（`ReActAgent`）を提供するモジュールです。ユーザーの質問に対し「Thought（思考）→ Action（ツール実行）→ Observation（観察）」のサイクルを回して RAG 検索ツールを呼び出し、回答案を作成したのち **Reflection（自己評価・推敲）** フェーズで最終回答に仕上げます。進捗はジェネレータでイベントとして逐次 `yield` され、**呼び出し元がそれを配信**します。実際の呼び出し元は `grace/executor.py`（ReAct 実行経路）と `grace/step_trace/benchmark.py`（A/B 計測）の 2 つで、Web からは FastAPI（`/api/support/stream/{job_id}`）が SSE として React UI（`frontend/`）へ中継します。
 
-> 📝 **注意（Anthropic ネイティブ）**: 本モジュールの LLM は **Anthropic Claude**（既定 `claude-sonnet-5`、`create_llm_client("anthropic")` 経由）です。Embedding（検索）は **Gemini**（`gemini-embedding-001`）を維持します。会話履歴は Anthropic のステートレス設計に合わせ `self._messages`（dict のリスト）で自前管理し、`execute_turn()` の先頭でリセットします。GRACE 本体（Plan→Execute 型）の現行実装は `grace/executor.py` 側にあり、本 ReAct は `run_legacy_agent` ステップから内部呼び出しされることもあります。
+> 📝 **注意（Anthropic ネイティブ）**: 本モジュールの LLM は **Anthropic Claude**（既定 `claude-sonnet-5-5`、`create_llm_client("anthropic")` 経由）です。Embedding（検索）は **Gemini**（`gemini-embedding-001`）を維持します。会話履歴は Anthropic のステートレス設計に合わせ `self._messages`（dict のリスト）で自前管理し、`execute_turn()` の先頭でリセットします。GRACE 本体（Plan→Execute 型）の現行実装は `grace/executor.py` 側にあり、本 ReAct は `run_legacy_agent` ステップから内部呼び出しされることもあります。
 
 ### 主な責務
 
@@ -237,7 +237,7 @@ for event in agent.execute_turn("Tech Mountain はどんな事業ですか？"):
 # 特定コレクション・Dense のみ検索・セッション固定・モデル明示
 agent = ReActAgent(
     selected_collections=["wikipedia_ja_5per"],
-    model_name="claude-sonnet-5",
+    model_name="claude-sonnet-5-5",
     session_id="user-123",
     use_hybrid_search=False,
 )
@@ -276,21 +276,21 @@ ReActAgent(
 | パラメータ | 型 | デフォルト | 説明 |
 |------------|------|-----------|------|
 | `selected_collections` | List[str] | - | 検索対象とするコレクション名のリスト（system_instruction に埋め込む） |
-| `model_name` | str | None | 使用モデル。未指定時は `get_config("models.default", "claude-sonnet-5")`（`config.yml` の `models.default` が優先。値は `claude-sonnet-5` で、`ModelConfig.DEFAULT_MODEL` との一致をテストで検査している） |
+| `model_name` | str | None | 使用モデル。未指定時は `get_config("models.default", "claude-sonnet-5-5")`（`config.yml` の `models.default` が優先。値は `claude-sonnet-5-5` で、`ModelConfig.DEFAULT_MODEL` との一致をテストで検査している） |
 | `session_id` | Optional[str] | None | セッションID。未指定時は `uuid4()` を自動採番 |
 | `use_hybrid_search` | bool | True | RAG 検索で Sparse+Dense のハイブリッド検索を有効化するか |
 
 | 項目 | 内容 |
 |------|------|
 | **Input** | `selected_collections: List[str]`, `model_name: str = None`, `session_id: Optional[str] = None`, `use_hybrid_search: bool = True` |
-| **Process** | 1. `model_name` を解決（`config.yml` の `models.default`、無ければ `claude-sonnet-5`）<br>2. `session_id` 採番<br>3. `create_llm_client("anthropic", default_model=...)` で `self.llm` を生成<br>4. `self._messages = []` を初期化（履歴自前管理）<br>5. `_build_system_instruction()` / `_build_tools()` を事前構築<br>6. `KeywordExtractor` を初期化（失敗時は None） |
+| **Process** | 1. `model_name` を解決（`config.yml` の `models.default`、無ければ `claude-sonnet-5-5`）<br>2. `session_id` 採番<br>3. `create_llm_client("anthropic", default_model=...)` で `self.llm` を生成<br>4. `self._messages = []` を初期化（履歴自前管理）<br>5. `_build_system_instruction()` / `_build_tools()` を事前構築<br>6. `KeywordExtractor` を初期化（失敗時は None） |
 | **Output** | `ReActAgent` インスタンス |
 
 **戻り値例**:
 ```python
 # インスタンス属性（抜粋）
 {
-    "model_name": "claude-sonnet-5",
+    "model_name": "claude-sonnet-5-5",
     "session_id": "3f0c2b1a-...",
     "use_hybrid_search": True,
     "thought_log": []
@@ -533,7 +533,7 @@ TOOLS_MAP: Dict[str, Any] = {
 
 | 設定キー | 既定 | 説明 |
 |---------|------|------|
-| `models.default` | `config.yml` の値 `claude-sonnet-5`（`ModelConfig.DEFAULT_MODEL` と一致。`backend/tests/test_model_selection.py` が検査）。キーが無ければコード側の既定 `claude-sonnet-5` | 既定モデル（未指定時に使用） |
+| `models.default` | `config.yml` の値 `claude-sonnet-5-5`（`ModelConfig.DEFAULT_MODEL` と一致。`backend/tests/test_model_selection.py` が検査）。キーが無ければコード側の既定 `claude-sonnet-5-5` | 既定モデル（未指定時に使用） |
 | `agent.max_turns` | 10 | ReAct ループの最大反復回数 |
 | `agent.max_tokens` | 4096 | ReAct ループの 1 回の最大出力トークン |
 | `agent.reflection_max_tokens` | 2048 | Reflection フェーズの最大出力トークン |
@@ -565,6 +565,7 @@ REFLECTION_INSTRUCTION
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 2.6 | 既定モデルの記述（注記・使用例・`__init__` の引数表と Process・戻り値例・§5.3 の設定キー表）を、実装（`get_config("models.default", "claude-sonnet-5-5")` と直下 `config.yml`）どおり `claude-sonnet-5` → `claude-sonnet-5-5` へ是正（2026-10-08） |
 | 2.5 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
 | 2.4 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
 | 2.3 | 直下 `config.yml` の `models.default` を `claude-sonnet-4-6` → `claude-sonnet-5` へ是正したのに追随（2026-09-24）。「現状は旧モデル」という注記を外し、戻り値例のモデル名も更新 |

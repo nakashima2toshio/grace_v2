@@ -1,6 +1,6 @@
 # webapp_flow.md - GRACE-Support Web アプリ処理フロー（`run_dev.sh` 起点）ドキュメント
 
-**Version 2.7** | 最終更新: 2026-10-08
+**Version 2.8** | 最終更新: 2026-10-08
 
 > ⚠️ **`React`（フロントエンドのライブラリ）の話であって、`ReAct`（推論と行動を反復する
 > エージェントパターン）の解説書ではない。** 旧ファイル名 `react_processing_flow.md` は
@@ -38,7 +38,7 @@
 
 本ドキュメントは、`run_dev.sh` で起動する **GRACE-Support の React 版（Web UI + FastAPI + 自律エージェント中核）** の処理の流れを、**処理順のステップ・各ステップの概要・担当モジュール**の観点でまとめたものである。コア（`backend/app/core/support_agent.py`）を Web から呼ぶ構成で、フロントエンドは `frontend/`（Vite + React + TypeScript）、バックエンドは `backend/`（FastAPI）、推論・検索の中核は `grace/`（Plan/Execute/Confidence/Replan/Intervention）に置かれる。
 
-LLM は **Anthropic Claude**（既定 `claude-sonnet-5` / 軽量 `claude-haiku-5-5`）、Embedding は **Gemini**（`gemini-embedding-001`・3072次元）、ベクタDBは **Qdrant** を用いる。
+LLM は **Anthropic Claude**（既定 `claude-sonnet-5-5` / 軽量 `claude-haiku-5-5`）、Embedding は **Gemini**（`gemini-embedding-001`・3072次元）、ベクタDBは **Qdrant** を用いる。
 
 ### 主な責務
 
@@ -601,7 +601,7 @@ GRACE-Support は単一パターンではなく、以下を段階的に重ねて
 
 | 構成要素 | 役割 | 本システムでの担当 |
 |---------|------|-------------------|
-| ブレイン | 推論・判断の中核（LLM） | Anthropic Claude（`claude-sonnet-5` / 軽量 `claude-haiku-5-5`） |
+| ブレイン | 推論・判断の中核（LLM） | Anthropic Claude（`claude-sonnet-5-5` / 軽量 `claude-haiku-5-5`） |
 | プランニング | タスク分解・計画策定 | `grace/planner.py`（複雑度推定・計画生成） |
 | メモリ | 短期（コンテキスト）/ 長期（DB） | `grace/memory.py`（`ExecutionMemory`・永続 JSONL）・`Scratchpad`・Qdrant。⚠️ `agent_cache.py` は Legacy ReAct 経路専用で Web 経路では稼働しない |
 | ツール | API・DB・外部サービス連携 | `grace/tools.py`（`ToolRegistry`: rag_search/web_search/reasoning/ask_user） |
@@ -668,6 +668,7 @@ sequenceDiagram
 | 2.5 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
 | 2.6 | SSE の keepalive を名前付きイベントへ変更したのに追随（2026-10-08） |
 | 2.7 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
+| 2.8 | 現在の既定 LLM の記述を `claude-sonnet-5` から実装（`config.py::ModelConfig.DEFAULT_MODEL` / `config/grace_config.yml` の `llm.model`）どおり `claude-sonnet-5-5` へ是正（概要・用語表）（2026-10-08） |
 
 ---
 

@@ -1,6 +1,6 @@
 # docs 棚卸し（リポジトリ直下 `docs/`）
 
-**Version 3.5** | 最終更新: 2026-10-08
+**Version 3.6** | 最終更新: 2026-10-08
 
 リポジトリ直下 `docs/` の一覧と、**どのディレクトリに何を置くかの境界**をまとめる。
 各領域の棚卸しは [`backend/docs/README.md`](../backend/docs/README.md) /
@@ -11,7 +11,7 @@
 [`qa_qdrant/docs/README.md`](../qa_qdrant/docs/README.md) /
 [`services/docs/README.md`](../services/docs/README.md) にある（直下の本書を含め全 8 領域）。
 
-> ⚠️ **本リポジトリは Anthropic 版。** LLM は `claude-sonnet-5`（軽量 `claude-haiku-5-5`）で
+> ⚠️ **本リポジトリは Anthropic 版。** LLM は `claude-sonnet-5-5`（軽量 `claude-haiku-5-5`）で
 > `ANTHROPIC_API_KEY` が必須、Embedding のみ Gemini `gemini-embedding-001`（3072 次元・`GOOGLE_API_KEY`）。
 > 姉妹リポジトリ `grace_v2_local` は Ollama 版で**表記が逆**（CLAUDE.md §3・§5）。
 
@@ -217,6 +217,7 @@ EOF
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 3.6 | 現在の既定 LLM の記述を `claude-sonnet-5` から実装（`config.py::ModelConfig.DEFAULT_MODEL` / `config/grace_config.yml` の `llm.model`）どおり `claude-sonnet-5-5` へ是正（冒頭の注記）（2026-10-08） |
 | 3.5 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
 | 3.4 | §3.1 の `pipelines.md`（v1.4・G7 の Review 列を実装に合わせて是正）と `app_tabs_overview.md`（v1.1・§5 の表を `grace/docs/README.md` 概要へ移した）の行数・Ver を更新（2026-10-06） |
 | 3.3 | §3.1 に `app_tabs_overview.md`（処理 3 タブの概要・種別 A）を追加（2026-10-06） |

@@ -1,6 +1,6 @@
 # インストール・環境構築ガイド（Q/A 生成・Qdrant 登録まわり）
 
-**Version 2.6** | 最終更新: 2026-10-08
+**Version 2.7** | 最終更新: 2026-10-08
 
 ---
 
@@ -77,7 +77,7 @@
 graph TD
     User((ユーザー<br>ブラウザ)) -->|http://localhost:5173| React[React UI<br>Vite + React 18<br>Port: 5173]
     React -->|/api/*| API[FastAPI<br>backend/app/main.py<br>Port: 8000]
-    API -->|Q&A生成・回答生成| Anthropic(Anthropic API<br>claude-sonnet-5)
+    API -->|Q&A生成・回答生成| Anthropic(Anthropic API<br>claude-sonnet-5-5)
     API -->|Embedding| Gemini(Gemini API<br>gemini-embedding-001)
     API -->|ベクトル検索・登録| Qdrant[(Qdrant<br>Port: 6333<br>Docker)]
     API -.->|タスク登録| Redis[(Redis<br>Port: 6379<br>Docker)]
@@ -123,7 +123,7 @@ cd frontend && npm install
 
 | パッケージ | 用途 |
 |---|---|
-| `anthropic` | **Q/A 生成・回答生成の LLM**（`claude-sonnet-5`） |
+| `anthropic` | **Q/A 生成・回答生成の LLM**（`claude-sonnet-5-5`） |
 | `google-genai` | **Embedding 専用**（`gemini-embedding-001`・3072 次元） |
 | `qdrant-client` | Qdrant クライアント |
 | `celery` / `redis` / `kombu` | Q/A 生成の並列処理 |
@@ -187,7 +187,7 @@ touch .env
 
 | 用途 | 変数 | 既定モデル | 取得先 |
 |---|---|---|---|
-| **LLM 全般**（Q/A 生成・回答生成・根拠検証 等） | `ANTHROPIC_API_KEY` | `claude-sonnet-5`（軽量 `claude-haiku-5-5`） | Anthropic Console |
+| **LLM 全般**（Q/A 生成・回答生成・根拠検証 等） | `ANTHROPIC_API_KEY` | `claude-sonnet-5-5`（軽量 `claude-haiku-5-5`） | Anthropic Console |
 | **Embedding のみ**（検索） | `GOOGLE_API_KEY` | `gemini-embedding-001`（3072 次元） | Google AI Studio |
 
 ```bash
@@ -851,6 +851,7 @@ grace_v2/
 
 | バージョン | 変更内容 |
 |---|---|
+| 2.7 | 現在の既定 LLM の記述（構成図・依存表・API キー表の 3 箇所）を `claude-sonnet-5` → 実装（`config.py::ModelConfig.DEFAULT_MODEL`）どおり `claude-sonnet-5-5` へ是正（2026-10-08） |
 | 2.6 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
 | 2.5 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
 | 2.4 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |

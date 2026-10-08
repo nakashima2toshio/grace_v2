@@ -1,6 +1,6 @@
 # 生成（reasoning / detect）フロー ドキュメント
 
-**Version 2.4** | 最終更新: 2026-10-08
+**Version 2.5** | 最終更新: 2026-10-08
 
 ---
 
@@ -30,7 +30,7 @@
 
 判定（ゲート）側は `docs/guardrails.md`、モードの全体像は `docs/pipelines.md` を参照。
 
-技術スタック: LLM = Anthropic Claude（既定 `claude-sonnet-5`）／
+技術スタック: LLM = Anthropic Claude（既定 `claude-sonnet-5-5`）／
 Embedding = Gemini（`gemini-embedding-001`）。
 
 > 📌 **`backend/app/core/` に reasoning の実装は無い。** `support_agent.py` は
@@ -133,7 +133,7 @@ flowchart TB
     end
 
     subgraph EXTERNAL["外部"]
-        LLM["Anthropic Claude（claude-sonnet-5）"]
+        LLM["Anthropic Claude（claude-sonnet-5-5）"]
     end
 
     SA --> EXEC_CALL --> STEP
@@ -285,7 +285,7 @@ reasoning ステップの入力を組み立てる、回答品質を左右する�
 | キー | 既定値 | 説明 |
 |---|---|---|
 | `provider` | `"anthropic"` | チャットクライアントの選択（`create_chat_client`） |
-| `model` | `"claude-sonnet-5"` | reasoning / detect に使うモデル |
+| `model` | `"claude-sonnet-5-5"` | reasoning / detect に使うモデル |
 | `light_model` | `"claude-haiku-5-5"` | 軽量判定用（`judge_model`。生成本体では未使用） |
 | `temperature` | `0.7` | 生成の温度（detect は 0.0 固定） |
 | `max_tokens` | `4096` | `max_output_tokens` として渡る |
@@ -382,6 +382,7 @@ print(result.confidence_factors)   # {'has_sources': True, 'source_count': 1, ..
 
 | バージョン | 変更内容 |
 |---|---|
+| 2.5 | 現在の既定 LLM の記述を `claude-sonnet-5` から実装（`config.py::ModelConfig.DEFAULT_MODEL` / `config/grace_config.yml` の `llm.model`）どおり `claude-sonnet-5-5` へ是正（技術スタック・構成図・§5 の設定表）（2026-10-08） |
 | 2.4 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
 | 2.3 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
 | 2.2 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |

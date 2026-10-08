@@ -1,6 +1,6 @@
 # qa_qdrant/docs/ 棚卸し
 
-**Version 1.10** | 最終更新: 2026-09-26
+**Version 1.11** | 最終更新: 2026-10-08
 
 > 📎 **姉妹版**: [`docs/README.md`](../../docs/README.md)（直下・配置の境界） /
 > [`chunking/docs/README.md`](../../chunking/docs/README.md) /
@@ -17,7 +17,7 @@
 > ② Q/A 生成は [`qa_generation/`](../../qa_generation/docs/README.md)。
 > 運用手順の入口は [`README_DATA.md`](../../README_DATA.md)。
 
-> ⚠️ **本リポジトリは Anthropic 版。** Q/A 生成の LLM は Anthropic Claude（`--model` 既定 `claude-sonnet-5`）、
+> ⚠️ **本リポジトリは Anthropic 版。** Q/A 生成の LLM は Anthropic Claude（`--model` 既定 `claude-sonnet-5-5` = `config.py::ModelConfig.DEFAULT_MODEL`）、
 > Embedding は Gemini `gemini-embedding-001`（3072 次元）。
 > 姉妹リポジトリ `grace_v2_local` は Ollama 版で、同名の文書でも**プロバイダ表記は逆**である。
 
@@ -204,6 +204,7 @@ uv run --no-sync pytest backend/tests/test_qa_qdrant_package_init.py -q
 
 | Version | 日付 | 変更 |
 |---|---|---|
+| 1.11 | 2026-10-08 | Q/A 生成の既定モデルがコード側で `config.py::ModelConfig.DEFAULT_MODEL` 参照になったのに追随し、既定の記述を `claude-sonnet-5` → `claude-sonnet-5-5` へ是正（冒頭の注記） |
 | 1.10 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`）。同じ改訂の 6 文書の行数・Ver を再実測 |
 | 1.9 | 2026-09-26 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所）。あわせて同じ改訂の 6 文書の行数・Ver と、PR #216 で変わった `register_to_qdrant.py` の実装行数（588）を再実測 |
 | 1.8 | 2026-09-26 | `make_qa_register_qdrant_ipo.md` v1.5（`--dataset` の種別が `unknown` になる問題の是正）に追随して §2.2 の行数・Ver を更新 |

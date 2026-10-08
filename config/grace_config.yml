@@ -305,6 +305,6 @@ executor:
   reasoning_min_rag_score: 0.64
   react_max_iterations: 8
   # RAG 適合性チェック（_evaluate_rag_relevance）のモデル。
-  # ""（空）= llm.light_model へ委譲。"claude-sonnet-4-6" と書けば
+  # ""（空）= llm.light_model へ委譲。llm.model と同じ "claude-sonnet-5-5" と書けば
   # 従来どおり主モデル判定へ巻き戻せる（A/B 用）。
   relevance_check_model: ""
