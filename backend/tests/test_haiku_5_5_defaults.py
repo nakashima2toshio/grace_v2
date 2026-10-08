@@ -79,10 +79,16 @@ def test_haiku_5_5_has_rows_in_every_model_table(table_path):
     """表に無いと `.get()` が汎用の既定値へ黙って落ちる（test_model_table_coverage と同じ理由）。"""
     import importlib
 
-    module_name, *attrs = table_path.split(".")
-    obj = importlib.import_module(module_name)
-    for attr in attrs:
-        obj = getattr(obj, attr)
+    # 最後の要素（と ModelConfig のようなクラス名）以外がモジュール。長い方から import を試す
+    parts = table_path.split(".")
+    for cut in range(len(parts) - 1, 0, -1):
+        try:
+            obj = importlib.import_module(".".join(parts[:cut]))
+        except ModuleNotFoundError:
+            continue
+        for attr in parts[cut:]:
+            obj = getattr(obj, attr)
+        break
     assert HAIKU_55 in obj, f"{table_path} に {HAIKU_55} の行が無い"
 
 
