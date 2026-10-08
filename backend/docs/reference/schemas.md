@@ -309,7 +309,7 @@ class QueryRequest(BaseModel):
 > 📝 **`identity` が実際に照合される条件は狭い**: `require_identity` のプロファイル（`ec`）
 > ＋ `dry_run=False` ＋ `SUPPORT_IDENTITY_FILE` 設定。`dry_run=True` ではデモ照合が
 > 値を見ないため、入力しても挙動は変わらない。UI 側はこの状態を明示している
-> （ルート `README.md` §4.2.2）。
+> （ルート `README.md` §3.4）。
 
 **戻り値例**:
 ```python
