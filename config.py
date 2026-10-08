@@ -62,8 +62,9 @@ class ModelConfig:
         "claude-fable-5-1",  # 最上位（難しい推論・長時間のエージェント処理）
         "claude-opus-5-5",  # 上位（下の旧上位の後継。単価も安い）
         "claude-opus-5",  # 旧上位（後方互換。heavy_model 等の既存設定用）
-        "claude-haiku-4-5",  # 軽量。日付なしエイリアス。UI の選択肢
-        "claude-haiku-4-5-20251001",  # 同上の日付指定。light_model の既定値
+        "claude-haiku-5-5",  # 軽量。light_model・チャンキングの既定。UI の選択肢（2026-10-08〜）
+        "claude-haiku-4-5",  # 旧軽量（Haiku 4.5・日付なしエイリアス。後方互換。UI の選択肢からは外した）
+        "claude-haiku-4-5-20251001",  # 同上の日付指定（後方互換。2026-10-08 まで light_model の既定）
         "claude-sonnet-4-6",  # 旧既定（後方互換。既存設定の読み込み用）
     ]
 
@@ -77,7 +78,7 @@ class ModelConfig:
         "claude-fable-5-1",
         "claude-opus-5-5",
         "claude-sonnet-5-5",
-        "claude-haiku-4-5",
+        "claude-haiku-5-5",
     ]
 
     # デフォルトモデル
@@ -127,6 +128,7 @@ class ModelConfig:
         "claude-opus-5",
         "claude-opus-5-5",
         "claude-fable-5-1",
+        "claude-haiku-5-5",  # temperature は 1 以外 400、top_p / top_k も不可
     ]
 
     # 拡張思考の指定方法が「adaptive」のモデル。
@@ -138,6 +140,7 @@ class ModelConfig:
         "claude-opus-5",
         "claude-opus-5-5",
         "claude-fable-5-1",
+        "claude-haiku-5-5",  # budget_tokens は 400。disabled は effort high 以下で可（ALWAYS ではない）
     ]
 
     # 思考を**無効化できない**モデル（`{"type": "disabled"}` を送ると 400）。
@@ -153,7 +156,7 @@ class ModelConfig:
     #
     # ⚠️ **日付サフィックスの有無で 2 行必要。** 参照は `.get(model, <既定>)` なので、
     #    表に無いモデル名を渡しても落ちず、**静かに既定値へフォールバックする**。
-    #    チャンキングの既定は `claude-haiku-4-5`（日付なし。
+    #    チャンキングの既定は 2026-10-08 から `claude-haiku-5-5`（それ以前は `claude-haiku-4-5`・日付なし。
     #    `chunking/csv_text_to_chunks_text_csv.py` / `backend/app/core/data_jobs.py`）で、
     #    以前はこの行が無かったためコストと上限が既定値で計算されていた。
     #    **既定モデル名を変えるときは、この表と MODEL_LIMITS の両方に行を足すこと。**
@@ -163,6 +166,8 @@ class ModelConfig:
         "claude-fable-5-1": {"input": 0.010, "output": 0.050},
         "claude-opus-5-5": {"input": 0.004, "output": 0.020},
         "claude-opus-5": {"input": 0.005, "output": 0.025},
+        # Haiku 5.5 はプロンプト 100K トークン以下で $0.10 / $0.50 per MTok（超えると $0.50 / $2.50）
+        "claude-haiku-5-5": {"input": 0.0001, "output": 0.0005},
         "claude-haiku-4-5": {"input": 0.001, "output": 0.005},
         "claude-haiku-4-5-20251001": {"input": 0.001, "output": 0.005},
         "claude-sonnet-4-6": {"input": 0.003, "output": 0.015},
@@ -182,6 +187,7 @@ class ModelConfig:
         "claude-fable-5-1": {"max_tokens": 1000000, "max_output": 128000},
         "claude-opus-5-5": {"max_tokens": 1000000, "max_output": 128000},
         "claude-opus-5": {"max_tokens": 1000000, "max_output": 128000},
+        "claude-haiku-5-5": {"max_tokens": 1000000, "max_output": 128000},
         "claude-haiku-4-5": {"max_tokens": 200000, "max_output": 64000},
         "claude-haiku-4-5-20251001": {"max_tokens": 200000, "max_output": 64000},
         "claude-sonnet-4-6": {"max_tokens": 200000, "max_output": 8192},

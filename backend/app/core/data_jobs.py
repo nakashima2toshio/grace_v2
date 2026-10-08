@@ -103,7 +103,7 @@ class ChunkingParams:
     # 'ディレクトリ名/ファイル名' 形式（許可ディレクトリ内に限る）
     input_file: str
     output_dir: str = "output_chunked"
-    model: str = "claude-haiku-4-5"
+    model: str = "claude-haiku-5-5"
     workers: int = 8
     block_size: int = 1000
     text_column: Optional[str] = None

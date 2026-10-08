@@ -1,6 +1,6 @@
 # executor.py - GRACE計画実行エージェント ドキュメント
 
-**Version 4.16** | 最終更新: 2026-10-06
+**Version 4.17** | 最終更新: 2026-10-08
 
 ---
 
@@ -1209,7 +1209,7 @@ def _relevance_check_model(self) -> str
 
 **戻り値例**:
 ```python
-"claude-haiku-4-5-20251001"
+"claude-haiku-5-5"
 ```
 
 ---
@@ -2083,6 +2083,7 @@ __all__ = [
 | 4.0 | フォーマット v1.5準拠（黒背景Mermaid必須化）。技術スタック表記を Anthropic Claude（`claude-sonnet-4-6`、`llm_compat`経由）/ Gemini Embedding に統一。新規メソッドを実ソースから追記（`execute`／`_handle_ask_user_response`／`_run_tool_with_timeout`／`_prefetch_parallel_searches`／`_should_trigger_replan`／`_evaluate_rag_relevance`／`_execute_dynamic_web_search`／`_execute_dynamic_ask_user`／`_build_confidence_factors`／`_blend_groundedness_confidence`）。`_calculate_overall_confidence`を groundedness ブレンド＋温度較正に更新。`_SEARCH_ACTIONS`定数とexecutor/groundedness/replan関連の設定を5章に追加。各IPO項目に戻り値例・使用例を補完。 |
 | 4.2 | 2026-09-04: **未記載メソッド 7 件を追加**（AST 照合）。(1) **S3 ハイブリッド ReAct の 3 つ**（`_dispatch_generator` / `execute_react_generator` / `_decide_next_action`）— 複雑度で ReAct と静的パスを振り分ける経路そのものが文書に無かった。LLM 不在時に初期計画を辿るフォールバックへ degrade する仕組みも記載。(2) `_warn_on_missing_score_keys` — 正準キーが欠けると例外にならず既定値へ落ちるのを検知する番人（実測で Web ステップだけが `search_max_score=0.6`／`score_variance=1.0` で評価されていた）。(3) `_final_answer_of`（「答えに辿り着けたか」の唯一の定義）/ `_record_memory`（動的挿入ステップを成否判定から除外する回帰修正）/ `_should_pause_for_intervention`（ESCALATE は常に停止・CONFIRM は対話かつ非ブロッキング時のみ）。§3.1 の一覧表にも 7 行を追記 |
 | 4.1 | 実装（07-26〜27）へ追随（2026-08-01）。P-01b の `get_completed_source_texts()` / `_extract_source_texts()`（識別子ではなく**出典本文**を groundedness へ渡す。識別子だと全 neutral 化して支持率の分母が 0 になる）、M-3 の `_relevance_check_model()`（軽量モデル解決）、M-5 の `_format_rag_snippet()` / `RELEVANCE_SNIPPET_LIMIT`、M-6 の `_damp_support_rate()`（判定できた claim の割合で支持率を減衰）を追加。あわせて `_evaluate_rag_relevance` の記述を実装へ修正 — **「検索結果は先頭500文字」は誤りで、修正前は要素数でスライスしていた**（`ToolResult.output` がリストのため）。担当範囲（`llm.prompt_addendum`）を判定に反映する M-5 の 2 点も追記 |
+| 4.17 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
 
 ---
 

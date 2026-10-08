@@ -1,6 +1,6 @@
 # GRACE-Review 処理フローと設計 ドキュメント
 
-**Version 3.3** | 最終更新: 2026-10-03
+**Version 3.4** | 最終更新: 2026-10-08
 
 > **本書の位置づけ**: GRACE-Review（文書 → 指摘）の**処理フロー（HOW）と設計判断（WHY）を
 > 1 本にまとめた正本**。v2.0 で `review_spec.md`（1,080 行）を統合した。
@@ -141,7 +141,7 @@ GRACE-Review は、**文書（EC の LP・商品説明文など）を規程（�
 | 用途 | 実体 |
 |---|---|
 | LLM（検出・判定・要約） | Anthropic Claude `claude-sonnet-5` |
-| LLM（軽量二段判定） | Anthropic Claude `claude-haiku-4-5-20251001` |
+| LLM（軽量二段判定） | Anthropic Claude `claude-haiku-5-5` |
 | Embedding（規程検索） | Gemini `gemini-embedding-001`（3072次元） |
 | ベクトル DB | Qdrant（コレクション `*_anthropic`） |
 | Web API | FastAPI（`:8000`）・SSE |
@@ -756,7 +756,7 @@ confirm_th <= support_rate <  notify_th  → 1 段下げる (high→medium, medi
 ```
 
 **重大リスク語の二段判定**は Support の `_should_force_escalate` をそのまま踏襲する。
-第1段でキーワード一致、第2段で意図分類（`claude-haiku-4-5-20251001`）を行い、
+第1段でキーワード一致、第2段で意図分類（`claude-haiku-5-5`）を行い、
 「引用・否定文脈での言及」を誤検知として除外する。
 
 例: 「当社は『業界No.1』などの表現は使用しません」という文は `No.1` に一致するが、
@@ -1065,6 +1065,7 @@ _emit(SupportEvent(
 
 | Version | 変更内容 |
 |---|---|
+| 3.4 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
 | 3.3 | 文字列だけで決まる事実で LLM の判定を補う `backend/app/core/review_facts.py` を追加。(1) tokusho-01（`RuleItem.missing_fact_check="purchase_shipping"`）: 返品の行を除いて広告文に購入時の送料の語が無いのに ③ が「違反なし」と答えたら、違反として扱う（判定失敗のときは補わない）。(2) policy-01（`RuleItem.counter_check="return_terms"`）: 指摘文が返品の話で、広告と規程の返品条件（期限・条件語・返送料の負担）を読み取れ、広告が規程より不利でないと言い切れるときは ④' で抑止する。実測 2026-10-03（ローカル LLM・各 2 回再現）: 表記漏れLP案で送料の取りこぼし、OK 例で「未開封」と「未使用・未開封」の比較を逆に判定 |
 | 3.2 | ③-1 候補検出に `RuleItem.keyword_excludes` を追加（除外語の一部としてだけ現れた keyword は一致と数えない）。keihyo-09（数量限定）の「限定」が「期間限定」の中で一致し、期間の表示を数量限定の候補にしていた（実測 2026-10-02 / 10-03・ローカル LLM で誤検知が出たり出なかったり）。keihyo-09 の判定基準にも「期間を限る表示は指摘しない」を追加（要旨は不変・再登録不要） |
 | 3.1 | ③ Detect の段落単位の判定に「文書の文脈」（題名＋冒頭 600 字・`_document_context`）を添える。段落だけでは商品の種類が分からず、gemma4 26b が美容液の「シミが治る」を食品のルール（yakki-01）で指摘していた。文書全体で判定するルールには添えない。tokusho-01 の判定基準に「税込／税別の表記の有無も確認する」を追加（要旨は不変・再登録不要） |

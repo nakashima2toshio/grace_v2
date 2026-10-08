@@ -4,7 +4,7 @@
 ## 何を守るか
 
 既定は `claude-sonnet-5-5`、選択肢は `claude-fable-5-1` / `claude-opus-5-5` /
-`claude-sonnet-5-5` / `claude-haiku-4-5` の 4 つ（上位 → 軽量の順）。選択肢の解決は `config.py::get_selectable_models()`
+`claude-sonnet-5-5` / `claude-haiku-5-5` の 4 つ（上位 → 軽量の順）。選択肢の解決は `config.py::get_selectable_models()`
 の**1 箇所**に寄せてあり、API のバリデータ・`GET /api/models`・エージェント
 コアの上書きがすべてそこを読む。どれか 1 つが独自の一覧を持つと、画面で選べる
 のに 422 になる（またはその逆）といった食い違いが起きる。
@@ -39,7 +39,7 @@ EXPECTED_CHOICES = [
     "claude-fable-5-1",
     "claude-opus-5-5",
     "claude-sonnet-5-5",
-    "claude-haiku-4-5",
+    "claude-haiku-5-5",
 ]
 
 
@@ -112,11 +112,14 @@ def test_config_yml_default_matches_model_config():
     assert get_config().llm.model == ModelConfig.DEFAULT_MODEL
 
 
-def test_light_model_path_is_unchanged():
-    """判定系の軽量モデル（経路 2）は今回の変更で動かしていない。"""
+def test_light_model_paths_agree():
+    """判定系の軽量モデル: 経路 1（yml の light_model）と経路 2（INTENT_MODEL）が同じ値。
+
+    2026-10-08 に両方を Haiku 4.5（`claude-haiku-4-5-20251001`）から Haiku 5.5 へ変えた。
+    """
     from grace.config import get_config
 
-    assert INTENT_MODEL == "claude-haiku-4-5-20251001"
+    assert INTENT_MODEL == "claude-haiku-5-5"
     assert get_config().llm.light_model == INTENT_MODEL
 
 
@@ -153,7 +156,7 @@ def test_review_request_shares_the_same_validation():
 
 def test_data_requests_default_to_the_new_models():
     """データ準備側の既定。チャンク化は軽量、Q/A 生成は既定モデル。"""
-    assert ChunkingRequest(input_file="a/b.csv").model == "claude-haiku-4-5"
+    assert ChunkingRequest(input_file="a/b.csv").model == "claude-haiku-5-5"
     assert QaGenerationRequest(input_file="a/b.csv").model == "claude-sonnet-5-5"
 
 
@@ -217,7 +220,7 @@ def _config_with_models():
     config.llm = SimpleNamespace(
         prompt_addendum="",
         model="claude-sonnet-5",
-        light_model="claude-haiku-4-5-20251001",
+        light_model="claude-haiku-5-5",
         heavy_model="",
     )
     return config
@@ -256,7 +259,7 @@ def test_core_keeps_light_model_when_overriding(monkeypatch):
     """
     config = _run_core_capturing_config(monkeypatch, "claude-opus-5-5")
 
-    assert config.llm.light_model == "claude-haiku-4-5-20251001"
+    assert config.llm.light_model == "claude-haiku-5-5"
 
 
 def test_core_without_model_keeps_the_configured_default(monkeypatch):

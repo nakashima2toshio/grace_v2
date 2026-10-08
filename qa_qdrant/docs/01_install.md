@@ -1,6 +1,6 @@
 # インストール・環境構築ガイド（Q/A 生成・Qdrant 登録まわり）
 
-**Version 2.5** | 最終更新: 2026-09-26
+**Version 2.6** | 最終更新: 2026-10-08
 
 ---
 
@@ -187,7 +187,7 @@ touch .env
 
 | 用途 | 変数 | 既定モデル | 取得先 |
 |---|---|---|---|
-| **LLM 全般**（Q/A 生成・回答生成・根拠検証 等） | `ANTHROPIC_API_KEY` | `claude-sonnet-5`（軽量 `claude-haiku-4-5-20251001`） | Anthropic Console |
+| **LLM 全般**（Q/A 生成・回答生成・根拠検証 等） | `ANTHROPIC_API_KEY` | `claude-sonnet-5`（軽量 `claude-haiku-5-5`） | Anthropic Console |
 | **Embedding のみ**（検索） | `GOOGLE_API_KEY` | `gemini-embedding-001`（3072 次元） | Google AI Studio |
 
 ```bash
@@ -851,6 +851,7 @@ grace_v2/
 
 | バージョン | 変更内容 |
 |---|---|
+| 2.6 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
 | 2.5 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
 | 2.4 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
 | 2.3 | 現在の既定モデルの記述（構成図・依存表・API キー表の 3 箇所）を旧既定 `claude-sonnet-4-6` → `claude-sonnet-5` へ是正（2026-09-25） |

@@ -107,7 +107,7 @@ description: >-
 
 ## 3. 技術スタック表記の統一（CLAUDE.md §3）
 - LLM = **Anthropic Claude**、既定 `claude-sonnet-5`（最上位 `claude-fable-5-1` / 上位 `claude-opus-5-5` /
-  軽量 `claude-haiku-4-5`・日付指定 `claude-haiku-4-5-20251001`）。鍵 `ANTHROPIC_API_KEY`（CLAUDE.md §9.3）。
+  軽量 `claude-haiku-5-5`・日付指定 `claude-haiku-5-5`）。鍵 `ANTHROPIC_API_KEY`（CLAUDE.md §9.3）。
   `claude-sonnet-4-6` は**旧既定**。履歴の記述では当時の値として残す。
 - Embedding = **Gemini** `gemini-embedding-001`（3072次元）。鍵 `GOOGLE_API_KEY`。
 - LLM設定クラスは `ModelConfig`（`config.py`）。`text-embedding-3-*` を LLM/本番Embedding用途で書かない。

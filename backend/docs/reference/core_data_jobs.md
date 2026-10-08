@@ -1,6 +1,6 @@
 # core/data_jobs.py - データ準備ジョブ runner ドキュメント
 
-**Version 1.6** | 最終更新: 2026-09-26
+**Version 1.7** | 最終更新: 2026-10-08
 
 > **本書の位置づけ**: `backend/app/core/data_jobs.py`（データ準備 4 ジョブの runner）の **IPO リファレンス**。
 > 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。
@@ -274,7 +274,7 @@ job = mgr.start(ChunkingParams(input_file="OUTPUT/cc_news_1per.csv"))
 class ChunkingParams:
     input_file: str                      # 'ディレクトリ名/ファイル名' 形式
     output_dir: str = "output_chunked"
-    model: str = "claude-haiku-4-5"
+    model: str = "claude-haiku-5-5"
     workers: int = 8
     block_size: int = 1000
     text_column: Optional[str] = None
@@ -310,7 +310,7 @@ class QaGenerationParams:
 > `iterdir()` でサブディレクトリを見ないため、`qa_output/pipeline` にすると
 > 生成した Q/A CSV が「③ Qdrant 登録」の選択肢に出てこない。
 
-> 📝 **モデルの既定はチャンク化（`claude-haiku-4-5`）と違う。** Q/A 生成は
+> 📝 **モデルの既定はチャンク化（`claude-haiku-5-5`）と違う。** Q/A 生成は
 > 文章生成の比重が大きいので、CLI（`make_qa_register_qdrant.py --model`）と
 > `QAPipeline` の既定に合わせて `claude-sonnet-5` にしてある。
 
@@ -496,6 +496,7 @@ register_runner(DeleteParams,   _delete_runner,   "delete")
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 1.7 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
 | 1.6 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
 | 1.5 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
 | 1.4 | 2026-09-16 | 3 階建て再編（`reference/` へ移設）に伴い、冒頭へ**位置づけと上位文書への導線**を追加した |

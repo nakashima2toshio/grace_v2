@@ -1,6 +1,6 @@
 # data_pipeline_service.py - データ準備パイプラインの Web 向けラッパ層 ドキュメント
 
-**Version 1.1** | 最終更新: 2026-09-24
+**Version 1.2** | 最終更新: 2026-10-08
 
 ---
 
@@ -247,7 +247,7 @@ path = resolve_input_file("OUTPUT/cc_news_1per.csv")
 text = load_input_text(path, text_column=None, max_rows=20)
 chunks = run_chunking_sync(
     text,
-    model="claude-haiku-4-5",
+    model="claude-haiku-5-5",
     max_workers=8,
     block_size=1000,
     output_file="output_chunked/cc_news_1per_chunks.csv",
@@ -477,6 +477,7 @@ run_chunking_sync, run_qa_generation_sync, load_input_text
 |-----------|---------|
 | 1.0 | 初版作成。`services/docs/` で唯一欠けていた本モジュールを IPO 形式で記述。`run_qa_generation_sync()`（2026-09-12 追加）を含む（2026-09-12） |
 | 1.1 | 使用例を IPO 詳細の冒頭（`### 4.1 使用例`）へ移し、末尾の「## 6. 使用例」章を削除（基本フォーマット `a_class_method_md_format.md` v1.6〜 §6.1 に準拠。2026-09-24）。IPO の小節を 4.2 以降へ繰り下げ、後続の章番号を 1 つ繰り上げた。文書内の `§4.x` 参照も追随。あわせて主な責務を各責務対応のモジュール（5 行）と 1:1 に並べ直した。使用例の `model` を現行の既定 `claude-sonnet-5` へ |
+| 1.2 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
 
 ---
 

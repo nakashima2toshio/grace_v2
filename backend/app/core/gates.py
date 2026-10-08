@@ -31,7 +31,7 @@ def judge_model(config) -> str:
     groundedness などは `grace/config.py` 経由で yml の
     `llm.model` / `llm.light_model` を読む。つまり解決経路が 2 本ある。
 
-    現時点では両者がたまたま同じ値（`claude-haiku-4-5-20251001`）なので
+    現時点では両者がたまたま同じ値（`claude-haiku-5-5`。2026-10-08 までは `claude-haiku-4-5-20251001`）なので
     表には出ていないが、**yml の `light_model` を書き換えても判定系だけが
     取り残される**。同じ値を 2 箇所で管理している状態そのものが負債である。
 

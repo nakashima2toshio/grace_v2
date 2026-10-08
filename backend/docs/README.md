@@ -1,6 +1,6 @@
 # backend/docs — 文書の地図
 
-**Version 2.6** | 最終更新: 2026-09-27
+**Version 2.7** | 最終更新: 2026-10-08
 
 ---
 
@@ -8,7 +8,7 @@
 どの順に読むかだけを示す。
 
 > ⚠️ **本リポジトリは Anthropic 版。** LLM は `claude-sonnet-5`（軽量
-> `claude-haiku-4-5-20251001`）で `ANTHROPIC_API_KEY` が必須、Embedding のみ
+> `claude-haiku-5-5`）で `ANTHROPIC_API_KEY` が必須、Embedding のみ
 > Gemini `gemini-embedding-001`（3072 次元・`GOOGLE_API_KEY`）。姉妹リポジトリ
 > `grace_v2_local` は Ollama 版で**表記が逆**なので、あちらの文書を持ち込まない。
 
@@ -187,6 +187,7 @@ reference/*.md             引く（通読しない）
 
 | Version | 日付 | 変更内容 |
 |---|---|---|
+| 2.7 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随 |
 | 2.6 | 2026-09-27 | **§1「backend の責務」を新設**し、frontend / backend の役割分担の要約（全体像の図・backend の役割表・持たないもの・1 回の問い合わせの流れ・分担のルール）を置いた。frontend 側の同じ要約（`frontend/docs/README.md` §1 v2.8）と対になる。これに伴い既存の §1〜§5 を §2〜§6 へ繰り下げた（本書内・他文書から本書の節番号を参照している箇所は無いことを grep で確認） |
 | 2.5 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
 | 2.4 | 2026-09-26 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |

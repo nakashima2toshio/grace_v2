@@ -1,6 +1,6 @@
 # GRACE-Support 処理フローと設計 ドキュメント
 
-**Version 3.4** | 最終更新: 2026-10-04
+**Version 3.5** | 最終更新: 2026-10-08
 
 > **本書の位置づけ**: GRACE-Support（問い合わせ → 回答）の**処理フロー（HOW）と
 > 設計判断（WHY）を 1 本にまとめた正本**。v3.0 で `support_spec.md` を統合した。
@@ -149,7 +149,7 @@ flowchart TB
     subgraph EXTERNAL["外部サービス・部品層"]
         GRACE["grace: planner / executor + tools<br>(rag_search / web_search / reasoning)"]
         CONF["grace.confidence:<br>GroundednessVerifier /<br>SourceAgreementCalculator"]
-        HAIKU["軽量 LLM (claude-haiku-4-5-20251001)<br>意図分類・実質回答判定"]
+        HAIKU["軽量 LLM (claude-haiku-5-5)<br>意図分類・実質回答判定"]
         ACT["support_actions.py:<br>ActionBackend / IdentityVerifier"]
         HITL["grace.intervention +<br>InterventionBridge（フロント承認）"]
     end
@@ -247,7 +247,7 @@ style BRIDGE fill:#1a1a1a,stroke:#fff,color:#fff
 |-----------|-----------|------|
 | `grace`（リポジトリ内） | - | planner / executor + tools / GroundednessVerifier / SourceAgreementCalculator / InterventionHandler |
 | `support_actions`（リポジトリ内） | - | ActionBackend（dry-run / webhook / pseudo）・IdentityVerifier |
-| Anthropic Claude API | `claude-sonnet-5`（既定）/ `claude-haiku-4-5-20251001`（軽量判定） | Plan / reasoning / 検証・分類・判定 |
+| Anthropic Claude API | `claude-sonnet-5`（既定）/ `claude-haiku-5-5`（軽量判定） | Plan / reasoning / 検証・分類・判定 |
 | Gemini Embedding API | `gemini-embedding-001`（3072次元） | RAG 検索の埋め込み |
 | Qdrant | - | 内部ナレッジのベクトル検索（コレクション `*_anthropic`） |
 
@@ -1548,7 +1548,7 @@ STEP_IDS = (
 | キー | デフォルト値 | 説明 |
 |-----|-------------|------|
 | `notify_th` / `confirm_th` | config 既定（gov のみ 0.8 / 0.5 に上書き） | ④ 回答ゲートのしきい値 |
-| `INTENT_MODEL` | `"claude-haiku-4-5-20251001"` | ④ ④' ⑥ の二段判定に使う軽量モデル |
+| `INTENT_MODEL` | `"claude-haiku-5-5"` | ④ ④' ⑥ の二段判定に使う軽量モデル |
 | `NO_INFO_MARKERS` | 「見当たりません」等 6 句 | ④' 第 1 段の候補検出（語幹照合） |
 | `DEFAULT_CONFIRM_TIMEOUT` | 300（秒） | ⑥ 承認待ちのフォールバックタイムアウト |
 | `dry_run` | True | ⑥ アクションバックエンドの既定（実行せず記録のみ） |
@@ -1577,7 +1577,7 @@ STEP_IDS = (
 groundedness 検証・⑤ 再検証・haiku 判定 2 種）。
 
 - 最大費目はステップ毎の確信度評価 `evaluate_with_factors`（およそ 1/3）。
-  `claude-haiku-4-5-20251001`（`config.llm.light_model`）で実行され、`reasoning` /
+  `claude-haiku-5-5`（`config.llm.light_model`）で実行され、`reasoning` /
   groundedness / `evaluate_final` は `claude-sonnet-5` を使う。
 - 費用を抑えたいときは、⑤ Web フォールバックと外部検索を止めるのが最も効く。
 
@@ -1595,12 +1595,12 @@ groundedness 検証・⑤ 再検証・haiku 判定 2 種）。
 | 1 | `collections` の実検索限定 | プロファイルの対象コレクション（実名 `gov_faq_anthropic` 等）で RAG 検索範囲をスコープ制限。フォールバック連鎖にも適用。未登録コレクションのみなら制限なしで従来動作（警告） | ✅ **実装済み**（`config.qdrant.allowed_collections`＋`RAGSearchTool._apply_allowed_collections`・テスト `backend/tests/test_vertical_scope.py`） |
 | 2 | `prompt_addendum` のプロンプト注入 | reasoning プロンプトのシステム指示直後へ業界方針（断定回避・出典必須・本人確認等）を「業務方針（遵守）」として追記 | ✅ **実装済み**（`config.llm.prompt_addendum`＋`ReasoningTool._build_prompt`） |
 | 3 | KPI 評価スクリプト | 分岐一致率・誤エスカレ率・**強制エスカレ誤検知率（0 目標）**・出典付与率・**根拠なし回答率（0 目標）**・アクション適合率・本人確認遵守率を自動計測 | ❌ **本リポジトリには無い**（旧版は `eval/vertical/run.py` を実装済みとしていたが、`eval/` は git 全履歴に存在しない） |
-| 4 | 二段判定（キーワード誤検知抑止） | エスカレ語・アクション語の部分一致を候補検出に格下げし、一致時のみ軽量 LLM（`claude-haiku-4-5-20251001`）で意図分類（question/request/incident）。question は強制エスカレ・起票を抑止 | ✅ **実装済み**（`_should_force_escalate` / `_decide_action`・単体テスト `backend/tests/test_no_info_judge.py`） |
+| 4 | 二段判定（キーワード誤検知抑止） | エスカレ語・アクション語の部分一致を候補検出に格下げし、一致時のみ軽量 LLM（`claude-haiku-5-5`）で意図分類（question/request/incident）。question は強制エスカレ・起票を抑止 | ✅ **実装済み**（`_should_force_escalate` / `_decide_action`・単体テスト `backend/tests/test_no_info_judge.py`） |
 | 5 | 「情報なし回答」検知ゲート（④'） | 「見つかりませんでした」型の誠実な回答が出典・支持率を伴い answer で通過する問題（3 業種の out-of-scope で顕在化）への対処。定型句の候補検出＋軽量 LLM の実質回答判定（answered/no_info）の二段判定で、情報なしなら escalate に倒す。判定失敗は安全側（escalate） | ✅ **実装済み**（`_detect_no_info_answer` / `create_no_info_judge`） |
 | 6 | Web 重複実行の排除（⑤） | executor が動的 Web 検索済みなら、⑤ フォールバックは回答再生成（reasoning）と相互検証を省略し、内部回答を本文スニペットで再検証のみ実施（1 ケースあたり十数秒〜短縮）。出典は URL 包含で重複排除（`_merge_citations`） | ✅ **実装済み** |
 | 7 | ④' 判定プロンプトの few-shot 改善 | 「弊社固有の規定は見当たりませんでした」等の断り書きに haiku ジャッジが反応し、実質回答まで no_info と誤判定する over-strict を、判定基準の具体化＋few-shot 判定例で是正 | ✅ **実装済み**（PR #116。ec 9/9 に回復） |
 | 8 | テスト用コレクションの整備 | 合成 Q&A ＋一括登録スクリプトで業界別コレクションを用意し、out-of-scope 検証用の「穴」をガードテストで維持する | ❌ **本リポジトリには無い**（旧版は `eval/vertical/register_test_collections.py` を実装済みとしていたが存在しない） |
-| 9 | ステップ確信度評価の軽量化 | `evaluate_with_factors` を `claude-haiku-4-5-20251001`（`config.llm.light_model`）で実行し、確信度評価のコストを削減。reasoning・groundedness・evaluate_final は sonnet を維持 | ✅ **実装済み**（PR #118・§8.2） |
+| 9 | ステップ確信度評価の軽量化 | `evaluate_with_factors` を `claude-haiku-5-5`（`config.llm.light_model`）で実行し、確信度評価のコストを削減。reasoning・groundedness・evaluate_final は sonnet を維持 | ✅ **実装済み**（PR #118・§8.2） |
 | 10 | out-of-scope × 動的 Web の answer 化対策（escalate_recall 回復） | ①④' 判定基準を精密化: 「質問された事柄そのもの」と「確認方法の案内」を区別し案内のみは no_info、将来予測質問への非確定情報（要望・検討段階）の紹介も no_info。一般知識質問への Web 根拠つき実質回答は answered として保護する few-shot を併記。②出典が Web のみ（社内根拠ゼロ）の answer は候補句がなくても ④' 判定を必須化（`_detect_no_info_answer` の `force_judge`）。追加コストは Web-only 回答 1 件あたり haiku 1 呼び出し | ✅ **実装済み・効果確認済み**（`create_no_info_judge` / `_detect_no_info_answer`。escalate_recall の回復を確認。saas 500 エラーは #12） |
 | 11 | ungrounded_answer_rate の計測是正（次工程候補①） | `SupportResult`/`CaseResult` に判定できた主張数 `groundedness_decided` を伝搬し、「判定可能（decided>0）かつ支持率 < confirm_th」のみを根拠なしに計上。判定不能（Q&A 形式ソースで全 neutral）は新指標 `groundedness_neutral_rate` で可視化。根本対策として Groundedness プロンプトに Q&A 形式ソースの扱いを明記 | ✅ **実装済み・効果確認済み**（PR #126。2026-07-11 再計測で ungrounded 0.000／neutral_rate saas 0.600・ec 0.667） |
 | 12 | web_search のタイムアウト耐性強化（次工程候補②） | タイムアウト→検索0件→情報なし回答→誤エスカレの連鎖（saas「500エラー報告」）を遮断。リトライを設定化（`max_retries`/`retry_backoff_seconds`・対象を Timeout/ConnectionError/5xx に拡大）＋主バックエンド失敗/0件時の `fallback_backend`（既定 duckduckgo・キー不要）を追加 | ✅ **実装済み・効果確認済み**（PR #127。2026-07-11 再計測で saas 8/8 到達＝「500 エラー報告」通過） |
@@ -1693,6 +1693,7 @@ InterventionBridge
 
 | Version | 変更内容 |
 |---|---|
+| 3.5 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
 | 3.4 | `use_web=False` を「内部 RAG のみ」に揃えた（2026-10-04）。⑤ に加えて executor の Web 検索（動的挿入・計画済みステップ・並列プリフェッチ・fallback・ReAct）も止める。あわせて、回答本文で引用していない Web 出典を表示から外す（`gates.drop_uncited_web_citations`。社内の出典だけを引用し URL を 1 つも書いていない回答に限る。ゲートの後・表示用の出典だけ） |
 | 3.3 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
 | 3.2 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
@@ -1842,7 +1843,7 @@ OUT    : run_support_agent(
 |------|------|
 | **モジュール** | `backend/app/core/verticals.py`（`PROFILES`）＋ `grace.config`（`get_config`） |
 | **コード** | `profile = PROFILES.get("gov")` → `config.qdrant.allowed_collections` / `config.llm.prompt_addendum` へ配線 |
-| **処理** | 1. `get_config()` で共通設定を取得し、planner/executor/verifier/tool_registry/intervention を生成<br>2. `create_intent_classifier(config)` / `create_no_info_judge(config)`（軽量 `claude-haiku-4-5-20251001`）を用意（**この時点では呼ばない**。候補一致時のみ発火）<br>3. gov プロファイルで `notify_th=0.8 / confirm_th=0.5` に上書き<br>4. **検索スコープと方針をコア config へ書き込む**（tools は config 参照を保持するため実行時に効く） |
+| **処理** | 1. `get_config()` で共通設定を取得し、planner/executor/verifier/tool_registry/intervention を生成<br>2. `create_intent_classifier(config)` / `create_no_info_judge(config)`（軽量 `claude-haiku-5-5`）を用意（**この時点では呼ばない**。候補一致時のみ発火）<br>3. gov プロファイルで `notify_th=0.8 / confirm_th=0.5` に上書き<br>4. **検索スコープと方針をコア config へ書き込む**（tools は config 参照を保持するため実行時に効く） |
 
 ```python
 # 使用例

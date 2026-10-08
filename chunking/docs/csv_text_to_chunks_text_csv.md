@@ -1,6 +1,6 @@
 # csv_text_to_chunks_text_csv.py - LLMベースセマンティックチャンキング（統一版） ドキュメント
 
-**Version 1.8** | 最終更新: 2026-09-26
+**Version 1.9** | 最終更新: 2026-10-08
 
 ---
 
@@ -88,7 +88,7 @@ flowchart TB
     end
 
     subgraph EXTERNAL["外部サービス層"]
-        LLM["Anthropic API (claude-haiku-4-5)"]
+        LLM["Anthropic API (claude-haiku-5-5)"]
         TIKTOKEN["tiktoken cl100k_base"]
         FS["ローカルファイル output_chunked/*.csv"]
         CKPT["CheckpointManager (JSON)"]
@@ -268,7 +268,7 @@ style CLIB fill:#1a1a1a,stroke:#fff,color:#fff
 uv run python -m chunking.csv_text_to_chunks_text_csv \
   --input-file OUTPUT/cc_news_2per.csv \
   --output output_chunked \
-  --model claude-haiku-4-5 \
+  --model claude-haiku-5-5 \
   --workers 2
 
 # 出力:
@@ -302,7 +302,7 @@ text = load_text_from_csv("data/sample.csv", max_rows=50)
 
 chunks = asyncio.run(chunks_all_async(
     text=text,
-    model="claude-haiku-4-5",
+    model="claude-haiku-5-5",
     max_workers=8,
     block_size=1000,
     checkpoint_manager=CheckpointManager(),
@@ -740,7 +740,7 @@ generate_output_filename("data/input.txt", "chunks_output")
 ```python
 async def chunks_all_async(
     text: str,
-    model: str = "claude-haiku-4-5",
+    model: str = "claude-haiku-5-5",
     max_workers: int = 8,
     block_size: int = 1000,
     checkpoint_manager: Optional[CheckpointManager] = None,
@@ -753,7 +753,7 @@ async def chunks_all_async(
 | パラメータ | 型 | デフォルト | 説明 |
 |------------|------|-----------|------|
 | `text` | str | - | 入力テキスト |
-| `model` | str | "claude-haiku-4-5" | LLM モデル名 |
+| `model` | str | "claude-haiku-5-5" | LLM モデル名 |
 | `max_workers` | int | 8 | 並列ワーカー数 |
 | `block_size` | int | 1000 | Step1 のブロックサイズ（文字数） |
 | `checkpoint_manager` | Optional[CheckpointManager] | None | チェックポイント管理（未指定時は新規） |
@@ -763,7 +763,7 @@ async def chunks_all_async(
 
 | 項目 | 内容 |
 |------|------|
-| **Input** | `text: str`, `model: str = "claude-haiku-4-5"`, `max_workers: int = 8`, `block_size: int = 1000`, `checkpoint_manager: Optional[CheckpointManager] = None`, `output_file: Optional[str] = None`, `dataset_type: str = "custom"`, `source_file: Optional[str] = None` |
+| **Input** | `text: str`, `model: str = "claude-haiku-5-5"`, `max_workers: int = 8`, `block_size: int = 1000`, `checkpoint_manager: Optional[CheckpointManager] = None`, `output_file: Optional[str] = None`, `dataset_type: str = "custom"`, `source_file: Optional[str] = None` |
 | **Process** | 1. `GOOGLE_API_KEY` を環境変数から取得（無ければ `ValueError`）<br>2. `AsyncAPIClient`（`max_retries=3`, `max_output_tokens=16384`）を構築<br>3. Step1 → Step2 → Step3 を順次実行<br>4. `_enforce_max_chunk_tokens(..., MAX_CHUNK_TOKENS)` で上限強制<br>5. `output_file` 指定時、拡張子 `.csv` なら `save_chunks_as_csv`、それ以外は `save_chunks_as_text` |
 | **Output** | `List[str]`: 最終チャンクリスト |
 
@@ -782,7 +782,7 @@ from chunking.csv_text_to_chunks_text_csv import chunks_all_async
 
 chunks = asyncio.run(chunks_all_async(
     text=open("data/document.txt").read(),
-    model="claude-haiku-4-5",
+    model="claude-haiku-5-5",
     max_workers=8,
     output_file="output_chunked/document_chunks.csv",
     dataset_type="document",
@@ -828,7 +828,7 @@ async def _step1_hierarchical_split(
 
 ```python
 # 使用例（通常は chunks_all_async 経由で呼ばれる）
-paragraphs = await _step1_hierarchical_split(text, client, "claude-haiku-4-5", 1000, ckpt)
+paragraphs = await _step1_hierarchical_split(text, client, "claude-haiku-5-5", 1000, ckpt)
 ```
 
 ---
@@ -866,7 +866,7 @@ async def _step2_semantic_chunking(
 
 ```python
 # 使用例
-chunks = await _step2_semantic_chunking(paragraphs, client, "claude-haiku-4-5", ckpt)
+chunks = await _step2_semantic_chunking(paragraphs, client, "claude-haiku-5-5", ckpt)
 ```
 
 ---
@@ -904,7 +904,7 @@ async def _step3_continuity_check(
 
 ```python
 # 使用例
-final = await _step3_continuity_check(step2_chunks, client, "claude-haiku-4-5", ckpt)
+final = await _step3_continuity_check(step2_chunks, client, "claude-haiku-5-5", ckpt)
 ```
 
 ---
@@ -925,7 +925,7 @@ CLI 引数:
 |------|----|-----------|------|
 | `--input-file` | str | （必須） | 入力 `.txt` / `.csv` |
 | `--output` | str | `chunks_output` | 出力ディレクトリ |
-| `--model` | str | `claude-haiku-4-5` | LLM モデル名 |
+| `--model` | str | `claude-haiku-5-5` | LLM モデル名 |
 | `--workers` | int | 8 | 並列ワーカー数 |
 | `--block-size` | int | 1000 | Step1 ブロックサイズ |
 | `--verbose` | flag | False | 詳細ログ |
@@ -950,7 +950,7 @@ None
 uv run python -m chunking.csv_text_to_chunks_text_csv \
   --input-file OUTPUT/cc_news_2per.csv \
   --output output_chunked \
-  --model claude-haiku-4-5 \
+  --model claude-haiku-5-5 \
   --workers 2
 ```
 
@@ -981,16 +981,18 @@ uv run python -m chunking.csv_text_to_chunks_text_csv \
 > |---|---|
 > | `csv_text_to_chunks_text_csv.py:571-573` | `os.getenv("ANTHROPIC_API_KEY")`。未設定なら `ValueError` |
 > | `async_api_client.py:77` | `create_llm_client("anthropic", ...)` |
-> | `chunks_all_async()` の既定 `model` | `claude-haiku-4-5` |
-> | CLI `--model` の既定 | `claude-haiku-4-5` |
+> | `chunks_all_async()` の既定 `model` | `claude-haiku-5-5` |
+> | CLI `--model` の既定 | `claude-haiku-5-5` |
 >
 > したがって本モジュールに必要なキーは **`ANTHROPIC_API_KEY`** である
 > （`GOOGLE_API_KEY` は Embedding 用で、チャンキングでは使わない）。
 > これは CLAUDE.md §3 のプロバイダ方針とも一致する。
 >
-> 📌 **既定モデル名は `claude-haiku-4-5`（日付サフィックス無し）。**
-> `config.py` の価格表・上限表には `claude-haiku-4-5-20251001` しか無く、
-> コスト計算が既定値へフォールバックする問題がある（`docs/doc_modernization_todo.md` T6-5）。
+> 📌 **既定モデル名は 2026-10-08 から `claude-haiku-5-5`（Claude Haiku 5.5）。** それ以前は
+> `claude-haiku-4-5`（日付サフィックス無し）だった。どちらも `config.py` の価格表・上限表に
+> 載っている（`backend/tests/test_model_table_coverage.py` が検査）。
+> Haiku 5.5 は思考が既定で ON なので、`helper/helper_llm.py` が `thinking: disabled` を明示して
+> 構造化 JSON が途中で切れないようにしている。
 
 
 ---
@@ -1027,6 +1029,7 @@ from chunking.csv_text_to_chunks_text_csv import (
 | 1.6 | 使用例を IPO 詳細の冒頭（`### 4.1 使用例`）へ移し、末尾の「## 6. 使用例」章を削除（基本フォーマット `a_class_method_md_format.md` v1.6〜 §6.1 に準拠。2026-09-24）。IPO の小節を 4.2 以降へ繰り下げ、後続の章番号を 1 つ繰り上げた。文書内の `§4.x` 参照も追随 |
 | 1.7 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所）。`EMBEDDING_INPUT_TOKEN_LIMIT` は `ModelConfig.EMBEDDING_MAX_INPUT_TOKENS`（2048 → 8192）を参照する形になったので定数表・構成図・概要を更新 |
 | 1.8 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`）。入力上限を 8192 → 2048（`ModelConfig.EMBEDDING_MAX_INPUT_TOKENS`）へ戻した |
+| 1.9 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
 
 ---
 
@@ -1054,7 +1057,7 @@ flowchart LR
     end
 
     subgraph SVC["外部サービス"]
-        ANTHROPIC["Anthropic API (claude-haiku-4-5)"]
+        ANTHROPIC["Anthropic API (claude-haiku-5-5)"]
     end
 
     MODULE --> PD

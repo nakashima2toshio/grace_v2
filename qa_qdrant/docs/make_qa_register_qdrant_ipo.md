@@ -1,6 +1,6 @@
 # make_qa_register_qdrant.py - Q/A 生成 → Qdrant 登録 統合 CLI ドキュメント
 
-**Version 1.7** | 最終更新: 2026-09-26
+**Version 1.8** | 最終更新: 2026-10-08
 
 ---
 
@@ -356,7 +356,7 @@ python qa_qdrant/make_qa_register_qdrant.py \
 
 # 出力例（抜粋）:
 # 📝 テキストファイル検出 - チャンク作成 + Q/A生成を実行します
-# ✂️ チャンク化: data/document.txt → output_chunked/document_chunks.csv（model=claude-haiku-4-5）
+# ✂️ チャンク化: data/document.txt → output_chunked/document_chunks.csv（model=claude-haiku-5-5）
 # ✅ チャンク作成完了: 42 チャンク
 ```
 
@@ -486,7 +486,7 @@ def chunk_text_file(txt_path: Path, output_dir: str, model: str) -> str
 |------------|------|-----------|------|
 | `txt_path` | Path | - | 入力テキストファイル（UTF-8） |
 | `output_dir` | str | - | チャンク CSV の出力先（CLI の `--chunk-output`・既定 `output_chunked`） |
-| `model` | str | - | チャンク化に使う LLM（CLI の `--chunk-model`・既定 `claude-haiku-4-5`） |
+| `model` | str | - | チャンク化に使う LLM（CLI の `--chunk-model`・既定 `claude-haiku-5-5`） |
 
 | 項目 | 内容 |
 |------|------|
@@ -504,7 +504,7 @@ def chunk_text_file(txt_path: Path, output_dir: str, model: str) -> str
 from pathlib import Path
 from qa_qdrant.make_qa_register_qdrant import chunk_text_file
 
-csv_path = chunk_text_file(Path("data/document.txt"), output_dir="output_chunked", model="claude-haiku-4-5")
+csv_path = chunk_text_file(Path("data/document.txt"), output_dir="output_chunked", model="claude-haiku-5-5")
 print(csv_path)
 # output_chunked/document_chunks.csv
 ```
@@ -572,7 +572,7 @@ print(normalize_source_filename("qa_pairs_livedoor.csv"))
 | | `--input-file` | — | 入力ファイル（`.csv` / `.txt`。§3.1） |
 | CSV 処理 | `--text-column` | `text` | 本文列の列名。判定に使い、`QAPipeline(text_column=...)` へ渡す（この列が無く `Combined_Text` があればそちら・§3.3 の 4） |
 | チャンク化（`.txt` のみ） | `--chunk-output` | `output_chunked` | チャンク CSV の出力先 |
-| | `--chunk-model` | `claude-haiku-4-5` | チャンク化に使う LLM（チャンク化 CLI・データ管理タブの既定と同じ） |
+| | `--chunk-model` | `claude-haiku-5-5` | チャンク化に使う LLM（チャンク化 CLI・データ管理タブの既定と同じ） |
 | Q/A 生成 | `--model` | `claude-sonnet-5` | `QAPipeline` に渡す LLM モデル（Anthropic Claude） |
 | | `--max-docs` | `None` | 処理する最大チャンク数 |
 | | `--use-celery` | off | Celery 並列で生成する |
@@ -602,7 +602,7 @@ print(normalize_source_filename("qa_pairs_livedoor.csv"))
 | ログ設定 | import 時に `logging.basicConfig(level=INFO, format='%(asctime)s - %(levelname)s - %(message)s')` |
 | `sys.path` | import 時に先頭へプロジェクトルートを挿入 |
 | 日時サフィックスの正規表現 | `_\d{8}_\d{6}`（`normalize_source_filename()`） |
-| `CHUNK_DEFAULT_MODEL` / `CHUNK_DEFAULT_OUTPUT_DIR` | `claude-haiku-4-5` / `output_chunked`（`--chunk-model` / `--chunk-output` の既定） |
+| `CHUNK_DEFAULT_MODEL` / `CHUNK_DEFAULT_OUTPUT_DIR` | `claude-haiku-5-5` / `output_chunked`（`--chunk-model` / `--chunk-output` の既定） |
 | `CHUNK_WORKERS` / `CHUNK_BLOCK_SIZE` | `8` / `1000`（`.txt` のチャンク化の並列数・ブロック文字数。CLI からは変えられない） |
 
 ---
@@ -640,6 +640,7 @@ normalize_source_filename   # 日時サフィックスの除去
 | 1.5 | §3.2 の `<種別>` の記述を是正（2026-09-26）。「`--dataset` のときはデータセット設定の `type`」は誤りで、`type` キーが無いため一律 `unknown` になっていた。`QAPipeline._load_config()` がデータセット名で補うよう直したのに合わせ、出力名・チャンク ID・途中経過ファイルがデータセット間で共有されていたことも記録 |
 | 1.6 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
 | 1.7 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
+| 1.8 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
 
 ---
 

@@ -338,8 +338,8 @@ class ModelChoice(BaseModel):
     """GET /api/models の 1 要素。ヘッダーのモデルセレクタ用。
 
     `config.py::get_selectable_models()`（= `ModelConfig.SELECTABLE_MODELS`）で
-    絞り込み済みの一覧を返す。旧既定（`claude-sonnet-4-6`）や日付指定エイリアス
-    （`claude-haiku-4-5-20251001`）は**選択肢に出さない**。
+    絞り込み済みの一覧を返す。旧既定（`claude-sonnet-4-6`）・旧軽量（`claude-haiku-4-5`）や
+    日付指定エイリアス（`claude-haiku-4-5-20251001`）は**選択肢に出さない**。
     """
 
     id: str
@@ -461,7 +461,7 @@ class ChunkingRequest(BaseModel):
     input_file: str = Field(min_length=1, description="入力ファイル（--input-file 相当）")
     output_dir: str = Field(default="output_chunked", description="出力先（--output 相当）")
     model: str = Field(
-        default="claude-haiku-4-5",
+        default="claude-haiku-5-5",
         description="チャンク化に使う LLM（GET /api/models の選択肢から 1 つ）",
     )
     workers: int = Field(default=8, ge=1, le=32, description="並列ワーカー数")

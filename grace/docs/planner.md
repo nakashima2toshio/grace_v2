@@ -1,6 +1,6 @@
 # planner.py - GRACE 計画生成エージェント ドキュメント
 
-**Version 3.12** | 最終更新: 2026-10-06
+**Version 3.13** | 最終更新: 2026-10-08
 
 ---
 
@@ -24,7 +24,7 @@
 
 加えて、計画生成の入口で**曖昧クエリ**（「あの件について教えて」のように指示語のみで対象が特定できない質問）を検知し、検索を行わずユーザーに明確化を求める `ask_user` 計画へ振り分けます。さらに **P4 実行メモリ層**（`grace/memory.py`）と連携し、過去の実行実績から「この質問で当たりやすいコレクション」を学習している場合は、`rag_search` の対象コレクションをその最良コレクションに固定します（十分な実績が無ければ全コレクション検索）。
 
-LLM 呼び出しは `grace/llm_compat.py` の `create_chat_client()` で生成したクライアント経由で行います。このクライアントは google-genai 互換の `client.models.generate_content(...)` インターフェースを保ったまま、内部では Anthropic Claude（既定 `claude-sonnet-5-5`、軽量用途 `claude-haiku-4-5-20251001`）を呼び出すアダプターです。Embedding（検索）は別途 Gemini `gemini-embedding-001`（3072次元）を使用します。
+LLM 呼び出しは `grace/llm_compat.py` の `create_chat_client()` で生成したクライアント経由で行います。このクライアントは google-genai 互換の `client.models.generate_content(...)` インターフェースを保ったまま、内部では Anthropic Claude（既定 `claude-sonnet-5-5`、軽量用途 `claude-haiku-5-5`）を呼び出すアダプターです。Embedding（検索）は別途 Gemini `gemini-embedding-001`（3072次元）を使用します。
 
 ### 主な責務
 
@@ -1064,7 +1064,7 @@ class PlannerConfig(BaseModel):
 | キー | デフォルト値 | 説明 |
 |-----|-------------|------|
 | `provider` | "anthropic" | LLMプロバイダー |
-| `model` | "claude-sonnet-5-5" | 既定モデル（軽量用途は `claude-haiku-4-5-20251001`） |
+| `model` | "claude-sonnet-5-5" | 既定モデル（軽量用途は `claude-haiku-5-5`） |
 | `temperature` | 0.7 | 計画生成時の温度 |
 | `max_tokens` | 4096 | 最大トークン数 |
 
@@ -1123,6 +1123,7 @@ __all__ = [
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 3.13 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
 | 3.12 | 現在の既定モデルの記載 `claude-sonnet-5` を実装（`grace/config.py` の `LLMConfig.model` / `grace/llm_compat.py` の `DEFAULT_ANTHROPIC_MODEL` = `claude-sonnet-5-5`）に合わせて是正（2026-10-06。CLAUDE.md §9.3。旧既定は履歴の記述にだけ残す） |
 | 3.11 | 計画生成プロンプトから `SEARCH_QUERY_INSTRUCTION` を外した（2026-09-29）。「rag_search の query は元の質問文を完全一致でコピー・キーワード化は禁止」と「質問をキーワード列に変換せよ」を同じプロンプトに入れており、指示が正反対で矛盾していた。`services.prompts` への依存も解消 |
 | 3.10 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |

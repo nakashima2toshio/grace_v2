@@ -242,7 +242,7 @@ GRACE_E2E=1 GRACE_E2E_REPEAT=3 uv run --no-sync pytest backend/tests/e2e -m e2e 
 | 用途 | プロバイダ | 既定 | APIキー |
 |---|---|---|---|
 | **Embedding（検索）のみ** | **Gemini** | `gemini-embedding-001`（3072次元） | `GOOGLE_API_KEY` |
-| **それ以外の全 LLM 用途**（Q&A生成・Plan/Execute/Reasoning/Confidence/Replan/ReAct 等） | **Anthropic** | `claude-sonnet-5-5`（軽量 `claude-haiku-4-5-20251001`） | `ANTHROPIC_API_KEY` |
+| **それ以外の全 LLM 用途**（Q&A生成・Plan/Execute/Reasoning/Confidence/Replan/ReAct 等） | **Anthropic** | `claude-sonnet-5-5`（軽量 `claude-haiku-5-5`） | `ANTHROPIC_API_KEY` |
 
 - LLM クライアントは `helper.helper_llm.create_llm_client("anthropic")` /
   `grace.llm_compat.create_chat_client`。
@@ -289,7 +289,7 @@ GRACE_E2E=1 GRACE_E2E_REPEAT=3 uv run --no-sync pytest backend/tests/e2e -m e2e 
 **経路 1 が正。** 経路 2 は `backend/app/core/gates.py::judge_model()` が
 「config から解決できないときだけ `INTENT_MODEL` へフォールバックする」形に是正済みなので、
 **`INTENT_MODEL` を直接使うコードを新たに書かない**こと（詳細は同関数の docstring）。
-経路 1 と 2 は現在たまたま同じ値（`claude-haiku-4-5-20251001`）なので、
+経路 1 と 2 は現在たまたま同じ値（`claude-haiku-5-5`。2026-10-08 までは `claude-haiku-4-5-20251001`）なので、
 **取り残しはテストでは表面化しない**。
 
 設定は yml → 環境変数（接頭辞 `GRACE_`）→ `GraceConfig`（pydantic）で検証、の 3 段。
@@ -299,24 +299,25 @@ GRACE_E2E=1 GRACE_E2E_REPEAT=3 uv run --no-sync pytest backend/tests/e2e -m e2e 
 
 ### 3.2 実在するモデル名（勝手に「修正」しない）
 
-`config.py::ModelConfig` が定義する 8 つはすべて実在し、**すべて正しい**。
+`config.py::ModelConfig` が定義する 9 つはすべて実在し、**すべて正しい**。
 
 | モデル名 | 用途 | UI の選択肢 |
 |---|---|:--:|
 | `claude-fable-5-1` | 最上位（難しい推論・長時間のエージェント処理） | ✅ |
 | `claude-opus-5-5` | 上位（`claude-opus-5` の後継・単価も安い） | ✅ |
 | `claude-sonnet-5-5` | **既定**（推論・生成）。**思考を無効化できない**（`ALWAYS_THINKING_MODELS`） | ✅ |
-| **`claude-haiku-4-5`** | 軽量。**日付なしエイリアス**。チャンキングの既定値 | ✅ |
+| `claude-haiku-5-5` | **軽量**（Claude Haiku 5.5）。`llm.light_model` / `INTENT_MODEL` / チャンキングの既定値（2026-10-08〜） | ✅ |
 | `claude-opus-5` | 旧上位（後方互換。`llm.heavy_model` 等の既存設定用） | ❌ |
-| `claude-haiku-4-5-20251001` | 上記の日付指定。`llm.light_model` / `INTENT_MODEL` の値 | ❌ |
+| **`claude-haiku-4-5`** | 旧軽量（Haiku 4.5）。**日付なしエイリアス**。2026-10-08 までチャンキングの既定値 | ❌ |
+| `claude-haiku-4-5-20251001` | 上記の日付指定。2026-10-08 まで `llm.light_model` / `INTENT_MODEL` の値 | ❌ |
 | `claude-sonnet-5` | 旧既定（後方互換。既存設定の読み込み用） | ❌ |
 | `claude-sonnet-4-6` | 旧々既定（後方互換。既存設定の読み込み用） | ❌ |
 
 **`claude-haiku-4-5` を「日付が抜けている」と判断して書き換えないこと。**
-意図的なエイリアスであり、`MODEL_PRICING` / `MODEL_LIMITS` にも 8 つとも登録されている。
+意図的なエイリアスであり、`MODEL_PRICING` / `MODEL_LIMITS` にも 9 つとも登録されている。
 これは R1（モデル名のマッピングを作らない）と同種の事故である。
 
-> ⚠️ **「UI の選択肢 ❌」は「使えない」という意味ではない。** 下 4 つは有効な
+> ⚠️ **「UI の選択肢 ❌」は「使えない」という意味ではない。** 下 5 つは有効な
 > モデル名で、設定ファイルからは指定できる。**同じモデルが 2 行（日付あり／なし）
 > 並ぶのを避けるため、また旧世代を選ばせないため、セレクタに出していないだけ**である
 > （`ModelConfig.AVAILABLE_MODELS` ⊃ `SELECTABLE_MODELS`）。
@@ -327,6 +328,13 @@ GRACE_E2E=1 GRACE_E2E_REPEAT=3 uv run --no-sync pytest backend/tests/e2e -m e2e 
 > （`{"type": "disabled"}` も 400）を `grace/llm_compat.py` と
 > `helper/helper_llm.py` が読む。**選択肢にモデルを足すときはこの 3 表も確認する**
 > （詳細は `backend/docs/config_and_providers.md` §3.1）。
+>
+> ⚠️ **Haiku 5.5 は Haiku 4.5 と送り方が違う**（2026-10-08 に軽量モデルを切り替えた）。
+> `temperature` は 400・`budget_tokens` も 400 なので `NO_TEMPERATURE_MODELS` と
+> `ADAPTIVE_THINKING_MODELS` に入れてある。thinking を省略すると思考が既定で ON になり
+> `max_tokens` を食うため、`llm_compat.py` も `helper_llm.py` も `{"type": "disabled"}` を明示する
+> （effort high 以下なら受け付けるので `ALWAYS_THINKING_MODELS` には入れない）。
+> 同じ文章でトークン数が約 30% 増える。
 >
 > ⚠️ **Sonnet 5.5 は `stop_reason` も見る。** `grace/llm_compat.py` は `refusal` を
 > `LLMRefusalError`、JSON 応答の `max_tokens` 打ち切りを 1 回再試行のうち
@@ -668,15 +676,16 @@ python -m chunking.csv_text_to_chunks_text_csv \
 | 用途 | ✅ 正しい表記 | ❌ 禁止表記 |
 |---|---|---|
 | LLM全般 | `Anthropic Claude` | `OpenAI GPT`, `Gemini`（LLM 用途） |
-| デフォルトモデル | `claude-sonnet-5-5`（最上位 `claude-fable-5-1` / 上位 `claude-opus-5-5` / 軽量 `claude-haiku-4-5`・日付指定 `claude-haiku-4-5-20251001`） | `gpt-4o-mini`, `gemini-2.5-flash` |
+| デフォルトモデル | `claude-sonnet-5-5`（最上位 `claude-fable-5-1` / 上位 `claude-opus-5-5` / 軽量 `claude-haiku-5-5`。旧軽量 `claude-haiku-4-5`・日付指定 `claude-haiku-4-5-20251001` は後方互換） | `gpt-4o-mini`, `gemini-2.5-flash` |
 | Embedding | `Gemini` `gemini-embedding-001`（3072次元。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） | `text-embedding-3-*`（本番 Embedding 用途）、`gemini-3.1-flash-lite` 等の生成モデル（`embedContent` 非対応） |
 | LLMクライアント | `create_llm_client("anthropic")` | `"openai"` / `"gemini"`（LLM 用途） |
 | LLM用APIキー | `ANTHROPIC_API_KEY` | `OPENAI_API_KEY` |
 | エージェント名 | `GRACE-Support` / `GRACE-Review` | `GRACE` 単独で Support だけを指すこと |
 | フロントエンド | `Vite + React 18 + TypeScript` | `Streamlit`, `Next.js` |
 
-> `claude-haiku-4-5`（日付なし）は**実在するエイリアスでチャンキングの既定値**。
-> 日付付きへ「統一」しないこと（§3.2）。
+> 軽量の既定は `claude-haiku-5-5`（Claude Haiku 5.5・2026-10-08〜）。旧軽量の
+> `claude-haiku-4-5`（日付なし）は**実在するエイリアス**なので、日付付きへ「統一」しないこと（§3.2）。
+> 履歴・変更履歴では当時の値（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）として残す。
 >
 > `claude-sonnet-4-6` は**旧既定**。履歴・変更履歴の記述では当時の値として残す
 > （現在の既定を述べる箇所だけ `claude-sonnet-5-5` にする）。
@@ -706,7 +715,7 @@ grace_v2 に**存在しない**: `setup.py` / `server.py` / a-prefixed scripts
 ## R1. モデル名のマッピングを絶対に作らない
 
 **以下はすべて実在する有効なモデル名:**
-- `claude-fable-5-1`, `claude-opus-5-5`, `claude-sonnet-5-5`, `claude-sonnet-5`, `claude-opus-5`, `claude-haiku-4-5`, `claude-haiku-4-5-20251001`, `claude-sonnet-4-6`
+- `claude-fable-5-1`, `claude-opus-5-5`, `claude-sonnet-5-5`, `claude-haiku-5-5`, `claude-sonnet-5`, `claude-opus-5`, `claude-haiku-4-5`, `claude-haiku-4-5-20251001`, `claude-sonnet-4-6`
 - `gpt-5-nano`, `gpt-5-mini`, `gpt-5` ← 実在する GPT-5 系
 - `gpt-4.1`, `gpt-4.1-mini` ← 実在する GPT-4.1 系
 - `o3`, `o3-mini`, `o4`, `o4-mini` ← 実在する O 系

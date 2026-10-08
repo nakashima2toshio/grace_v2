@@ -1,6 +1,6 @@
 # 生成（reasoning / detect）フロー ドキュメント
 
-**Version 2.3** | 最終更新: 2026-09-26
+**Version 2.4** | 最終更新: 2026-10-08
 
 ---
 
@@ -286,7 +286,7 @@ reasoning ステップの入力を組み立てる、回答品質を左右する�
 |---|---|---|
 | `provider` | `"anthropic"` | チャットクライアントの選択（`create_chat_client`） |
 | `model` | `"claude-sonnet-5"` | reasoning / detect に使うモデル |
-| `light_model` | `"claude-haiku-4-5-20251001"` | 軽量判定用（`judge_model`。生成本体では未使用） |
+| `light_model` | `"claude-haiku-5-5"` | 軽量判定用（`judge_model`。生成本体では未使用） |
 | `temperature` | `0.7` | 生成の温度（detect は 0.0 固定） |
 | `max_tokens` | `4096` | `max_output_tokens` として渡る |
 | `prompt_addendum` | `""` | **業界プロファイル方針の注入口**（0-(B) が設定） |
@@ -382,6 +382,7 @@ print(result.confidence_factors)   # {'has_sources': True, 'source_count': 1, ..
 
 | バージョン | 変更内容 |
 |---|---|
+| 2.4 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
 | 2.3 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
 | 2.2 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
 | 2.1 | `a_cross_doc_md_format.md`（横断文書・種別 A）に準拠（2026-09-24）。概要（主な責務／各責務対応のモジュール／3 層のアーキテクチャ構成図）を追加し、冒頭の説明文を概要へ移した。本文の章番号は変えていない |

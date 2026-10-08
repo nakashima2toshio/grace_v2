@@ -1,6 +1,6 @@
 # DataJobPanel.tsx - チャンキング / Qdrant 登録の実行パネル ドキュメント
 
-**Version 1.8** | 最終更新: 2026-09-26
+**Version 1.9** | 最終更新: 2026-10-08
 
 ---
 
@@ -493,7 +493,7 @@ Q/A CSV が**「③ Qdrant 登録」のファイルセレクタに出てこな�
 
 | variant | 既定 | 理由 |
 |---|---|---|
-| `chunking` | `claude-haiku-4-5` | 文字列処理が主。軽量モデルで足りる |
+| `chunking` | `claude-haiku-5-5` | 文字列処理が主。軽量モデルで足りる |
 | `qa` | `claude-sonnet-5` | 文章生成の比重が大きい。CLI（`make_qa_register_qdrant.py --model`）と `QAPipeline` の既定に合わせる |
 
 > ⚠️ **この既定値をフロントに持たない。** 実体は `backend/app/schemas.py` の
@@ -593,3 +593,4 @@ LLM 用途（Anthropic Claude）とは別系統なので、画面から切り替
 | 1.6 | 2026-09-24 | `a_react_page_md_format.md` v1.1 に追随（2026-09-24）。概要に「各責務対応のモジュール」（主な責務と 1:1）を追加し、`## 1.` を「アーキテクチャ構成図」として **1.1 システム全体での位置づけ（3 層）** と 1.2 コンポーネントツリー図の 2 枚構成にした。Mermaid の `classDef subgraphStyle` の欠落を補った |
 | 1.7 | 2026-09-26 | Embedding を `gemini-embedding-2` へ変更し、モデル名の定義を `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所へ集約（2026-09-26）。`embeddingLabel` prop を追加し、③ Qdrant 登録の注記のモデル名を API 由来にした（直書きをやめた） |
 | 1.8 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
+| 1.9 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随 |

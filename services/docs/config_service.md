@@ -1,6 +1,6 @@
 # config_service.py - 設定管理サービス ドキュメント
 
-**Version 1.5** | 最終更新: 2026-09-26
+**Version 1.6** | 最終更新: 2026-10-08
 
 ---
 
@@ -619,7 +619,7 @@ def _get_default_config(self) -> Dict[str, Any]
 **戻り値例**:
 ```python
 {
-    "models": {"default": "claude-sonnet-5", "available": ["claude-fable-5-1", "claude-opus-5-5", "claude-sonnet-5", "claude-haiku-4-5"]},
+    "models": {"default": "claude-sonnet-5", "available": ["claude-fable-5-1", "claude-opus-5-5", "claude-sonnet-5", "claude-haiku-5-5"]},
     "llm": {"provider": "anthropic"}
 }
 ```
@@ -734,7 +734,7 @@ reload_config()
 {
     "models": {
         "default": "claude-sonnet-5",
-        "available": ["claude-fable-5-1", "claude-opus-5-5", "claude-sonnet-5", "claude-haiku-4-5"]
+        "available": ["claude-fable-5-1", "claude-opus-5-5", "claude-sonnet-5", "claude-haiku-5-5"]
     },
     "api": {
         "timeout": 30,
@@ -777,7 +777,7 @@ reload_config()
 | キー | デフォルト値 | 説明 |
 |-----|-------------|------|
 | `models.default` | "claude-sonnet-5" | 既定のLLMモデル（Anthropic Claude） |
-| `models.available` | ["claude-fable-5-1", "claude-opus-5-5", "claude-sonnet-5", "claude-haiku-4-5"] | 利用可能なモデル一覧 |
+| `models.available` | ["claude-fable-5-1", "claude-opus-5-5", "claude-sonnet-5", "claude-haiku-5-5"] | 利用可能なモデル一覧 |
 | `api.timeout` | 30 | APIタイムアウト（秒） |
 | `api.max_retries` | 3 | 最大リトライ回数 |
 | `api.openai_api_key` | None | OpenAI APIキー（既定では未設定） |
@@ -842,6 +842,7 @@ __all__ = [
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 1.6 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
 | 1.5 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
 | 1.4 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
 | 1.3 | 直下 `config.yml` の `models.default` を `claude-sonnet-5` へ是正したのに追随（2026-09-24）。`get_config("models.default")` などの出力例・`_get_default_config()` の戻り値例を現行の値へ更新 |

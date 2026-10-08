@@ -389,5 +389,5 @@ def test_optimize_for_coverage_names_this_projects_llm(rag_qa):
 
     strategy = rag_qa.QAGenerationOptimizer().optimize_for_coverage(TEXT, budget=100)
     models = [phase["model"] for phase in strategy.values() if "model" in phase]
-    assert models == ["claude-haiku-4-5", "claude-sonnet-5"]
+    assert models == ["claude-haiku-5-5", "claude-sonnet-5"]
     assert set(models) <= set(ModelConfig.AVAILABLE_MODELS)
