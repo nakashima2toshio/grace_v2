@@ -1,6 +1,6 @@
 # ジョブ実行基盤（jobs / intervention_bridge / job_logs） ドキュメント
 
-**Version 1.1** | 最終更新: 2026-09-24
+**Version 1.2** | 最終更新: 2026-10-08
 
 > **本書の位置づけ**: GRACE-Support・GRACE-Review・データ準備の **3 系統が共有する
 > 実行基盤の正本**。ジョブのライフサイクル、SSE のイベント配信、HITL 承認の橋渡し、
@@ -161,7 +161,14 @@ record = {"seq": len(self.events), "ts": time.time(), **asdict(event)}
 - **再接続しても取りこぼさない**（ブラウザのリロード・ネットワーク瞬断に耐える）
 
 新イベントが `poll_timeout`（既定 15 秒）来ないと `None` を yield し、API 側が
-`: keepalive` コメントを送る（プロキシ・ブラウザのタイムアウト回避）。
+keepalive（`SSE_KEEPALIVE` = `event: keepalive` の名前付きイベント）を送る（プロキシ・ブラウザのタイムアウト回避）。
+
+> ⚠️ **keepalive があっても、接続が黙って止まることはある**（2026-10-08、姉妹リポジトリ grace_v2_local の実例:
+> チャンク化の Step 2 が 38 分ログを出さない間に、エラーも出さずに画面への配信が止まった。処理は最後まで
+> 終わっていた）。そのためフロントの `subscribeStream` は、keepalive も含めて 60 秒何も届かなければ
+> 張り直し、リプレイされた分を `seq` で読み飛ばす（`frontend/src/state/streamWatch.ts`）。
+> keepalive を**コメント行に戻さないこと** — JS から見えなくなり、静かなだけの接続を
+> 1 分ごとに張り直すようになる。
 
 ### イベントの種類（`SupportEvent.type`）
 
@@ -341,3 +348,4 @@ SSE は**失敗しても必ず `done` 番兵で閉じる**（`status` に `faile
 |---|---|---|
 | 1.0 | 2026-09-16 | 新規作成。`jobs.py` / `intervention_bridge.py` / `job_logs.py` に分散していた共有基盤の説明を 1 本に集約した |
 | 1.1 | 2026-09-24 | `a_cross_doc_md_format.md` v1.1（種別 A）に準拠（2026-09-24）。概要に主な責務・各責務対応のモジュール・アーキテクチャ構成図を追加。本文の章番号は変えていない |
+| 1.2 | 2026-10-08 | keepalive を名前付きイベント（`SSE_KEEPALIVE`）へ変更し、フロントが黙って止まった接続を張り直すことを §2 に追記（姉妹リポジトリ grace_v2_local で、長い処理中に画面への配信が黙って止まった件の移植） |

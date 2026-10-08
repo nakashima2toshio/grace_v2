@@ -1,6 +1,6 @@
 # core/jobs.py - ジョブ管理（インメモリ）ドキュメント
 
-**Version 1.5** | 最終更新: 2026-09-16
+**Version 1.6** | 最終更新: 2026-10-08
 
 > **本書の位置づけ**: `backend/app/core/jobs.py`（ジョブ管理・runner 注入・イベント蓄積）の **IPO リファレンス**。
 > 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。
@@ -510,7 +510,7 @@ None  # poll_timeout 到達 → keepalive
 ```python
 # 使用例（api/support.py）
 for event in job.stream_events():
-    yield ": keepalive\n\n" if event is None else f"data: {json.dumps(event)}\n\n"
+    yield SSE_KEEPALIVE if event is None else f"data: {json.dumps(event)}\n\n"
 ```
 
 #### プロパティ: `done`
@@ -734,6 +734,7 @@ register_runner, done_event, job_manager, MAX_FINISHED_JOBS
 
 | バージョン | 日付 | 変更内容 |
 |-----------|------|---------|
+| 1.6 | 2026-10-08 | keepalive の定数 `SSE_KEEPALIVE`（`event: keepalive` の名前付きイベント。3 つの SSE ストリームで共用）を追加したのに追随。コメント行だとフロントから見えず、黙って止まった接続を検知できなかった |
 | 1.5 | 2026-09-16 | 3 階建て再編（`reference/` へ移設）に伴い、冒頭へ**位置づけと上位文書への導線**を追加した |
 | 1.4 | 2026-09-15 | **§4.1「使用例」を新設**（2026-09-15）。ドキュメント規約 `a_class_method_md_format.md` §6.1 が IPO 詳細セクションの冒頭に必須としている代表ワークフローが欠落していた。独自 runner の登録と実行（`register_runner` → `start` → `stream_events`）、再購読の 2 本を追加し、**実行して出力を確認した**（外部依存が要る例はその旨を明記）。旧 §4.1〜§4.3 は §4.2〜§4.4 へ繰り下げ |
 | 1.0 | 2026-07-15 | 初版作成（JobParams / SupportJob / JobManager / job_manager の IPO ドキュメント） |

@@ -1,6 +1,6 @@
 # api/support.py - サポート問い合わせ API ドキュメント
 
-**Version 1.3** | 最終更新: 2026-09-16
+**Version 1.4** | 最終更新: 2026-10-08
 
 > **本書の位置づけ**: `backend/app/api/support.py`（Support のジョブ起動 / SSE / HITL / 結果取得）の **IPO リファレンス**。
 > 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。
@@ -294,14 +294,15 @@ def stream_events(job_id: str) -> StreamingResponse
 | 項目 | 内容 |
 |------|------|
 | **Input** | `job_id: str` |
-| **Process** | 1. `job_manager.get(job_id)`、無ければ 404<br>2. `job.stream_events()` を反復<br>3. None は `: keepalive` コメント、イベントは `data: {JSON}`<br>4. 終端で `done_event(job)`（`type` / `status` / `ts` / `started_at`）を送出 |
+| **Process** | 1. `job_manager.get(job_id)`、無ければ 404<br>2. `job.stream_events()` を反復<br>3. None は keepalive（`SSE_KEEPALIVE` = `event: keepalive` の名前付きイベント）、イベントは `data: {JSON}`<br>4. 終端で `done_event(job)`（`type` / `status` / `ts` / `started_at`）を送出 |
 | **Output** | `StreamingResponse`（media_type=`text/event-stream`、`Cache-Control: no-cache` / `X-Accel-Buffering: no`） |
 
 **戻り値例**:
 ```
 data: {"seq": 0, "ts": 1752543210.1, "type": "log", "step": "plan", "message": "❓ 問い合わせ: 返品したい"}
 
-: keepalive
+event: keepalive
+data: {}
 
 data: {"type": "done", "status": "completed", "ts": 1752543299.8, "started_at": 1752543210.0}
 ```
@@ -418,6 +419,7 @@ router  # APIRouter(prefix="/api/support", tags=["support"])
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 1.4 | 2026-10-08 | SSE の keepalive をコメント行から名前付きイベント（`event: keepalive`）へ変更したのに追随 |
 | 1.3 | 2026-09-16 | 3 階建て再編（`reference/` へ移設）に伴い、冒頭へ**位置づけと上位文書への導線**を追加した |
 | 1.2 | **§4.1「使用例」を新設**（2026-09-15）。ドキュメント規約 `a_class_method_md_format.md` §6.1 が IPO 詳細セクションの冒頭に必須としている代表ワークフローが欠落していた。ジョブ起動 → SSE 購読 → 承認 → 結果取得、エラー応答（422 / 404）の 2 本を追加し、**実行して出力を確認した**（外部依存が要る例はその旨を明記）。旧 §4.1 は §4.2 へ繰り下げ |
 | 1.0 | 初版作成（4 エンドポイント: query / stream(SSE) / confirm / result の IPO ドキュメント） |

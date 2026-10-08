@@ -422,6 +422,7 @@ GRACE_E2E=1 GRACE_E2E_REPEAT=3 uv run --no-sync pytest backend/tests/e2e -m e2e 
 | `state/headerModel.ts`（モデル選択をヘッダーで行う。全タブ） | ✅（2026-09-23） | ✅（2026-09-23 に移植。**既定値の取り方が違う**） |
 | `components/ModelSelect.tsx` | ❌（2026-09-23 に削除） | ❌（同日に削除） |
 | `state/focusTrap.ts` / `state/selectionKeys.ts`（a11y） | ✅（2026-09-24 に移植） | ✅ |
+| `state/streamWatch.ts`（SSE の張り直し）と `jobs.py::SSE_KEEPALIVE` | ✅（2026-10-08 に移植） | ✅ |
 | LLM プロバイダ | Anthropic | Ollama（ローカル） |
 
 > この表は、**ファイル単位で見た両リポジトリの差分**である。
@@ -506,6 +507,7 @@ React の型（`KeyboardEvent` 等）に直接依存させず、必要なフィ�
 | `state/focusTrap.ts` | `ConfirmModal` 内の Tab 移動先（端で巻き戻す。**Escape では閉じない**） |
 | `state/selectionKeys.ts` | 指摘の選択キー（Enter / Space・IME 変換中は発火しない）と選択トグル |
 | `state/staleResult.ts` | GRACE-Review の結果が入力欄の文書のものか（例文ボタンで差し替えて未実行なら「古い」と表示） |
+| `state/streamWatch.ts` | SSE が黙って止まったか（60 秒無音）・張り直し時のリプレイ分の読み飛ばし（`seq`）。`api/client.ts::subscribeStream` が使う。⚠️ backend の keepalive は名前付きイベント（`jobs.py::SSE_KEEPALIVE`）でなければ見えない（2026-10-08 に grace_v2_local から移植） |
 | `state/citations.ts` / `highlight.ts` / `elapsed.ts` / `activeJobs.ts` | 表示用の派生値 |
 | `state/jobReducer.ts` / `dataReducer.ts` / `reviewReducer.ts` | ジョブ状態の遷移 |
 

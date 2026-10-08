@@ -1,6 +1,6 @@
 # webapp_flow.md - GRACE-Support Web アプリ処理フロー（`run_dev.sh` 起点）ドキュメント
 
-**Version 2.5** | 最終更新: 2026-09-26
+**Version 2.6** | 最終更新: 2026-10-08
 
 > ⚠️ **`React`（フロントエンドのライブラリ）の話であって、`ReAct`（推論と行動を反復する
 > エージェントパターン）の解説書ではない。** 旧ファイル名 `react_processing_flow.md` は
@@ -397,7 +397,7 @@ style CORE fill:#1a1a1a,stroke:#fff,color:#fff
 | 項目 | 内容 |
 |------|------|
 | **Input** | `job_id` |
-| **Process** | 1. `stream_events()` がイベント列を先頭から yield<br>2. 新イベントが来ない間は keepalive コメント（`: keepalive`）<br>3. 完了時に `{"type":"done"}` 番兵を送出 |
+| **Process** | 1. `stream_events()` がイベント列を先頭から yield<br>2. 新イベントが来ない間は keepalive（`event: keepalive` の名前付きイベント。フロントはこれで接続の生存を見張り、60 秒無音なら張り直す）<br>3. 完了時に `{"type":"done"}` 番兵を送出 |
 | **Output** | `text/event-stream`（`data: {SupportEventModel の JSON}`） |
 
 ### 4.① 業界プロファイル適用
@@ -666,6 +666,7 @@ sequenceDiagram
 | 2.3 | 概要の「各責務対応のモジュール」を主な責務と 1:1（7 行）に揃えた（8 行で、1 つの責務が複数行に割れていた。基本フォーマット §2.4。2026-09-24） |
 | 2.4 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
 | 2.5 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
+| 2.6 | SSE の keepalive を名前付きイベントへ変更したのに追随（2026-10-08） |
 
 ---
 

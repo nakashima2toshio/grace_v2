@@ -1,6 +1,6 @@
 # api/review.py - 文書レビュー API ドキュメント
 
-**Version 1.2** | 最終更新: 2026-09-16
+**Version 1.3** | 最終更新: 2026-10-08
 
 > **本書の位置づけ**: `backend/app/api/review.py`（Review のジョブ起動 / SSE / HITL / 結果取得）の **IPO リファレンス**。
 > 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。
@@ -370,7 +370,7 @@ def stream_events(job_id: str) -> StreamingResponse
 | 項目 | 内容 |
 |------|------|
 | **Input** | `job_id: str` |
-| **Process** | 1. ジョブを引く（無ければ 404）<br>2. `job.stream_events()` を `data: {JSON}\n\n` へ整形<br>3. `None`（タイムアウト）は `: keepalive` コメントを送る<br>4. 終端に `done` 番兵を送る |
+| **Process** | 1. ジョブを引く（無ければ 404）<br>2. `job.stream_events()` を `data: {JSON}\n\n` へ整形<br>3. `None`（タイムアウト）は keepalive（`SSE_KEEPALIVE` = `event: keepalive` の名前付きイベント）を送る<br>4. 終端に `done` 番兵を送る |
 | **Output** | `StreamingResponse`（`text/event-stream`） |
 
 **配信例**:
@@ -535,6 +535,7 @@ const unsubscribe = subscribeStream(
 
 | バージョン | 日付 | 変更内容 |
 |-----------|------|---------|
+| 1.3 | 2026-10-08 | SSE の keepalive を名前付きイベントへ変更したのに追随 |
 | 1.2 | 2026-09-16 | 3 階建て再編（`reference/` へ移設）に伴い、冒頭へ**位置づけと上位文書への導線**を追加した |
 | 1.1 | 2026-09-15 | **§4.1「使用例」を新設**（2026-09-15）。ドキュメント規約 `a_class_method_md_format.md` §6.1 が IPO 詳細セクションの冒頭に必須としている代表ワークフローが欠落していた。文書投入 → SSE → 結果取得、ルールセット一覧とエラー応答の 2 本を追加し、**実行して出力を確認した**（外部依存が要る例はその旨を明記）。旧 §4.1 は §4.2 へ繰り下げ |
 | 1.0 | 2026-07-29 | 初版作成（GRACE-Review STEP5・PR #41 に対応） |
