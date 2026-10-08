@@ -1,6 +1,6 @@
 # frontend — 責務・構成・モジュール構造
 
-**Version 3.0** | 最終更新: 2026-10-03
+**Version 3.1** | 最終更新: 2026-10-08
 
 `frontend/`（Vite + React 18 + TypeScript）の**入口文書**である。
 前半（§1〜§7）で frontend の責務・構成・モジュール構造・データの流れを説明し、
@@ -151,9 +151,9 @@ frontend/
     ├── types.ts              # API スキーマの型（backend/app/schemas.py と 1:1・431 行）
     ├── styles.css            # グローバル CSS（1,342 行）
     ├── api/
-    │   └── client.ts         # fetch / EventSource を包む唯一の通信層（301 行）
+    │   └── client.ts         # fetch / EventSource を包む唯一の通信層（369 行）
     ├── components/           # 19 コンポーネント（.tsx）+ ReviewForm の例文テスト
-    ├── state/                # 判断ロジックの純関数・reducer・ストア（21 モジュール）+ テスト
+    ├── state/                # 判断ロジックの純関数・reducer・ストア（22 モジュール）+ テスト
     └── markdown/
         └── parseMarkdown.ts  # 依存なしの Markdown → ブロック AST（250 行）+ テスト
 ```
@@ -346,8 +346,15 @@ App
 3. **承認待ちが来たら POST で応答**（`confirm*`）
 
 SSE の 1 イベントは `types.ts::SupportEvent`（`type: 'step' | 'log' | 'intervention' | 'result' | 'error' | 'done'`）で、
-**3 種のジョブで形式が同一**。`done` を受けると購読を閉じる。`done` 前の切断だけを
-「バックエンドの起動を確認してください」というエラーとして通知する。
+**3 種のジョブで形式が同一**。`done` を受けると購読を閉じる。
+
+**接続が切れても、黙って止まっても張り直す**（2026-10-08 から）。`onerror` が来たとき、または
+keepalive（15 秒ごとの名前付きイベント `keepalive`）も含めて 60 秒何も届かないとき、
+`EventSource` を閉じて張り直す。バックエンドは先頭からリプレイするので、渡し済みの `seq` 以下は
+読み飛ばし、各パネルの reducer に同じイベントは二度届かない（判断は `state/streamWatch.ts`）。
+何も受け取れないまま 5 回失敗したときだけ「バックエンドの起動を確認してください」というエラーを出す。
+きっかけは姉妹リポジトリ grace_v2_local で、チャンク化の Step 2 が 38 分ログを出さない間に配信が
+**エラーなしで**止まり、処理は終わっているのに画面だけ途中で固まったこと（同じ作りなのでこちらにも移植）。
 HTTP エラーは `requireOk()` が `API エラー (status): body` の `Error` に変換する。
 
 ```mermaid
@@ -408,7 +415,8 @@ sequenceDiagram
 |---|---|---|
 | モデル情報・選択肢（`App`） | **握りつぶす**。既定モデルだけの選択肢に縮退 | サーバーは設定どおりのモデルで走るので機能は失われない |
 | 業界プロファイル / ルールセット | **`MetaErrorBanner` で理由と再読み込みボタンを出す**（`state/metaFetch.ts`） | 空のセレクタだけでは「壊れている」としか見えないため |
-| ジョブの起動・SSE 切断 | パネルのエラーバナー（`role` 付き） | 利用者が再実行を判断できるように |
+| ジョブの起動 | パネルのエラーバナー（`role` 付き） | 利用者が再実行を判断できるように |
+| SSE 切断・無音 | **自動で張り直す**（リプレイ分は `seq` で読み飛ばす）。5 回続けて失敗したらエラーバナー | ジョブはバックエンドで走り続けているので、表示だけを取り戻せばよい |
 
 ---
 
@@ -528,7 +536,7 @@ result の型が違うため**無理にジェネリック化しない**方針で
 
 ## 10. state/ 純関数の一覧
 
-`state/` は 21 モジュール（テストを除く）。役割で分類する。
+`state/` は 22 モジュール（テストを除く）。役割で分類する。
 
 | 分類 | モジュール | 行数 | 切り出した判断 |
 |---|---|---:|---|
@@ -548,6 +556,7 @@ result の型が違うため**無理にジェネリック化しない**方針で
 | | `documentLimit.ts` | 52 | 文字数上限の判定・表示文言・アナウンス文言 |
 | | `metaFetch.ts` | 53 | メタ取得失敗 → 対処可能な文言 |
 | | `timelineAnnounce.ts` | 43 | 支援技術へ読み上げる 1 行 |
+| **通信の見張り** | `streamWatch.ts` | 59 | SSE が止まったか（60 秒無音）・リプレイ分の読み飛ばし（`seq`）・張り直しの待ち時間（`api/client.ts::subscribeStream` が使う） |
 | | `interventionKind.ts` | 36 | 承認待ちが action（⑥）か question（0-(A)）か |
 | **キー操作・a11y** | `submitKey.ts` | 49 | `QueryForm` / `ReviewForm` の送信キー（Ctrl+Enter / ⌘+Enter・IME 変換中は送信しない） |
 | | `tabKeys.ts` | 49 | タブの矢印キー移動（roving tabindex） |
@@ -565,11 +574,11 @@ result の型が違うため**無理にジェネリック化しない**方針で
 
 ## 11. テスト件数（実測）
 
-**2026-09-26 に `cd frontend && npx vitest run` を実行した実測値。記憶で書かないこと。**
+**2026-10-08 に `cd frontend && npx vitest run` を実行した実測値。記憶で書かないこと。**
 
 ```
-Test Files  24 passed (24)
-     Tests  332 passed (332)
+Test Files  26 passed (26)
+     Tests  346 passed (346)
 ```
 
 | テストファイル | 件数 |
@@ -595,6 +604,8 @@ Test Files  24 passed (24)
 | `state/timelineAnnounce.test.ts` | 9 |
 | `state/selectionKeys.test.ts` | 9 |
 | `state/activeJobs.test.ts` | 8 |
+| `state/streamWatch.test.ts` | 8 |
+| `api/client.test.ts` | 6 |
 | `state/jobReducer.test.ts` | 7 |
 | `state/interventionKind.test.ts` | 4 |
 | `state/modelLabel.test.ts` | 5 |
@@ -658,6 +669,7 @@ npm run build    # 本番ビルド
 
 | 版 | 日付 | 変更内容 |
 |---|---|---|
+| 3.1 | 2026-10-08 | **SSE の張り直し**を grace_v2_local から移植したのに追随。`api/client.ts::subscribeStream` が切断・無音（60 秒）で張り直し、リプレイ分を `seq` で読み飛ばすようにした（local でチャンク化の長い無音中に画面だけ固まった件）。§3 の `client.ts` を 369 行、§6.1・§6.3 を更新、§10 に `streamWatch.ts`（22 モジュール）、§11 のテスト件数を **26 ファイル / 346 件**（実測・`streamWatch.test.ts` 8 件・`api/client.test.ts` 6 件を追加）へ更新 |
 | 3.0 | 2026-10-03 | GRACE-Review の結果が古いことを表示する `state/staleResult.ts`（6 件）を追加したのに追随。§8 の `ReviewPanel.md` 1.6 / 219 行・`ReviewForm.md` 1.9 / 264 行、§10 に `staleResult.ts`、§11 のテスト件数を **24 ファイル / 332 件**（実測）へ更新 |
 | 2.9 | 2026-10-02 | 原文ペインの見出しを `state/highlight.ts::documentViewHeading` へ切り出したのに追随。§8 の `DocumentView.md` を 1.4、§10 の `highlight.ts` を 117 行、§11 のテスト件数を **23 ファイル / 326 件**（実測・`highlight.test.ts` 13 → 18）へ更新 |
 | 2.8 | 2026-09-27 | §1 の冒頭に frontend / backend の役割分担の要約（全体像の図・frontend の役割表・持たないもの・1 回の問い合わせの流れ・分担のルール）を追加した。§1.1 / §1.2 の詳細表と章番号は変えていない |

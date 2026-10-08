@@ -1,6 +1,6 @@
 # API 契約（エンドポイント・SSE・ステータス） ドキュメント
 
-**Version 1.3** | 最終更新: 2026-09-24
+**Version 1.4** | 最終更新: 2026-10-08
 
 ---
 
@@ -188,18 +188,19 @@ GET    …/result/{job_id}      → ポーリング用フォールバック
 ```
 data: {"seq":0,"ts":1758000000.0,"type":"step","step":"plan","status":"started", ...}
 
-: keepalive
+event: keepalive
+data: {}
 
 data: {"type":"done","status":"completed","ts":...,"started_at":...}
 ```
 
 | 約束 | 内容 |
 |---|---|
-| イベント名 | **付けない**（`event:` 行を出さない）。種別は JSON の `type` で判定する |
+| イベント名 | 進捗イベントには**付けない**（`event:` 行を出さない。`onmessage` で受ける）。種別は JSON の `type` で判定する。名前付きは keepalive だけ |
 | メッセージ | `data: ` + `SupportEventModel` の JSON 1 行（`ensure_ascii=False`） |
-| keepalive | `: keepalive` のコメント行（15 秒新イベントが無いとき） |
+| keepalive | `event: keepalive` + `data: {}` の**名前付きイベント**（15 秒新イベントが無いとき。定数 `jobs.py::SSE_KEEPALIVE`）。`onmessage` には来ず、フロントの見張り（`state/streamWatch.ts`）が「接続が生きている」証拠として使う。⚠️ **コメント行（`: keepalive`）に戻さない** — EventSource はコメントを捨てるので JS から見えず、黙って止まった接続を検知できない（`test_sse_keepalive.py`） |
 | 終端 | `type:"done"` の番兵 1 通。フロントはこれで `EventSource` を閉じる |
-| リプレイ | **常に seq=0 から**配信する。途中購読・再接続でも取りこぼさない |
+| リプレイ | **常に seq=0 から**配信する。途中購読・再接続でも取りこぼさない。フロントは張り直したとき、渡し済みの `seq` 以下を読み飛ばす（`api/client.ts::subscribeStream`） |
 | ヘッダ | `Cache-Control: no-cache` / `X-Accel-Buffering: no` |
 
 `type` の値は `step` / `log` / `intervention` / `result` / `error` の 5 種
@@ -291,6 +292,7 @@ Qdrant が落ちていても 200 を返し、本文の `available: false` と理
 
 | Version | 日付 | 変更内容 |
 |---|---|---|
+| 1.4 | 2026-10-08 | §3 の keepalive をコメント行から名前付きイベント（`event: keepalive`）へ変更したのに追随。フロントの張り直しと `seq` による読み飛ばしを追記（姉妹リポジトリ grace_v2_local で、長い処理中に画面への配信が黙って止まった件の移植） |
 | 1.3 | 2026-09-24 | `a_cross_doc_md_format.md` v1.1（種別 A）に準拠（2026-09-24）。概要（主な責務／各責務対応のモジュール／3 層のアーキテクチャ構成図）を追加し、冒頭の説明文を概要へ移した。本文の章番号は変えていない。ヘッダーの Version と変更履歴の最新版の食い違いも解消した |
 | 1.2 | 2026-09-23 | モデル選択肢を 4 件へ変更（`claude-fable-5-1` / `claude-opus-5-5` を追加、`claude-opus-5` を外した） |
 | 1.1 | 2026-09-16 | `GET /api/models` / `GET /api/model` を追加（23 → 25）。モデル選択の契約と 422 の条件を追記 |
