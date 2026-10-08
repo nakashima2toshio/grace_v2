@@ -1,6 +1,6 @@
 # async_api_client.py - チャンク化用 非同期APIクライアント ドキュメント
 
-**Version 2.3** | 最終更新: 2026-10-08
+**Version 2.4** | 最終更新: 2026-10-08
 
 ---
 
@@ -23,7 +23,7 @@
 `chunking/async_api_client.py` は、チャンク化の 3 段階（階層分割 → 意味チャンク化 → 連続性チェック）
 から呼ばれる**構造化出力つき非同期 LLM クライアント**である。
 
-LLM は **Anthropic Claude**（既定 `claude-sonnet-5-5` = `config.py::ModelConfig.DEFAULT_MODEL`・`ANTHROPIC_API_KEY`）。
+LLM は **Anthropic Claude**（本クライアントはチャンク化専用なので、既定は軽量の `claude-haiku-5-5` = `config.py::ModelConfig.CHUNKING_MODEL`。`DEFAULT_MODEL` とは別・`ANTHROPIC_API_KEY`）。
 同期の `create_llm_client("anthropic").generate_structured()` を
 `asyncio.to_thread()` でラップし、`asyncio.Semaphore` で並列数を絞る。
 
@@ -254,7 +254,7 @@ AsyncAPIClient(
     max_workers: int = 8,
     max_retries: int = 3,
     max_output_tokens: int = 8192,
-    default_model: str = ModelConfig.DEFAULT_MODEL,  # = "claude-sonnet-5-5"
+    default_model: str = ModelConfig.CHUNKING_MODEL,  # = "claude-haiku-5-5"
     abort_after_consecutive_failures: Optional[int] = None,
 )
 ```
@@ -265,7 +265,7 @@ AsyncAPIClient(
 | `max_workers` | int | 8 | 並列実行数（Semaphore 制御） |
 | `max_retries` | int | 3 | 1 呼び出しあたりの最大リトライ回数 |
 | `max_output_tokens` | int | 8192 | 出力トークン制限 |
-| `default_model` | str | `ModelConfig.DEFAULT_MODEL`（`claude-sonnet-5-5`） | 既定 Claude モデル |
+| `default_model` | str | `ModelConfig.CHUNKING_MODEL`（`claude-haiku-5-5`） | 既定 Claude モデル（`chunks_all_async()` は選んだモデルをここにも渡す） |
 | `abort_after_consecutive_failures` | Optional[int] | None | 連続失敗の許容回数。None なら `DEFAULT_ABORT_AFTER_CONSECUTIVE_FAILURES`。**0 で中断を無効** |
 
 | 項目 | 内容 |
@@ -398,7 +398,7 @@ async def generate_content(
 | `max_workers` | 8 | 並列実行数 |
 | `max_retries` | 3 | 最大リトライ回数 |
 | `max_output_tokens` | 8192 | 出力トークン制限（呼び出し側は 16384 を渡す） |
-| `default_model` | `ModelConfig.DEFAULT_MODEL`（`claude-sonnet-5-5`） | 既定モデル |
+| `default_model` | `ModelConfig.CHUNKING_MODEL`（`claude-haiku-5-5`） | 既定モデル |
 
 ### 5.2 `DEFAULT_ABORT_AFTER_CONSECUTIVE_FAILURES`
 
@@ -443,6 +443,7 @@ AsyncAPIClient                             # 非同期クライアント
 | 2.1 | 使用例を IPO 詳細の冒頭（`### 4.1 使用例`）へ移し、末尾の「## 6. 使用例」章を削除（基本フォーマット `a_class_method_md_format.md` v1.6〜 §6.1 に準拠。2026-09-24）。IPO の小節を 4.2 以降へ繰り下げ、後続の章番号を 1 つ繰り上げた。文書内の `§4.x` 参照も追随。あわせて「各責務対応のモジュール」を主な責務と同じ順・同じ粒度に並べ直した（行数は一致していたが、2〜5 行目の対応がずれていた） |
 | 2.2 | 既定モデルの記述（5 箇所）を実装（`async_api_client.py` の `default_model`）に合わせて旧既定 `claude-sonnet-4-6` → `claude-sonnet-5` へ是正（2026-09-25） |
 | 2.3 | 既定モデル（`default_model`）がコード側で `config.py::ModelConfig.DEFAULT_MODEL` 参照になったのに追随し、記述（5 箇所）を `claude-sonnet-5` → `claude-sonnet-5-5` へ是正（チャンク化は呼び出し側が軽量 `claude-haiku-5-5` を渡す）（2026-10-08） |
+| 2.4 | チャンキングの既定を、回答生成・Q/A 生成の `ModelConfig.DEFAULT_MODEL` から分けた `config.py::ModelConfig.CHUNKING_MODEL`（`claude-haiku-5-5`）の 1 箇所で決めるようにしたのに追随（2026-10-08） |
 
 ---
 

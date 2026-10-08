@@ -1,6 +1,6 @@
 # 設定・モデル・プロバイダの解決経路 ドキュメント
 
-**Version 1.9** | 最終更新: 2026-10-08
+**Version 1.10** | 最終更新: 2026-10-08
 
 ---
 
@@ -156,7 +156,7 @@ def detect_model(config) -> str:
 | 意図分類・情報なし判定（`gates.py`） | `judge_model()` | `llm.light_model` = `claude-haiku-5-5` |
 | 言及分類・空疎判定（`review_gates.py`） | `judge_model()` | 同上 |
 | ③ Detect 第2段（`review_gates.py`） | `detect_model()` | `llm.model` |
-| チャンク化（`ChunkingParams.model`） | 経路 3 相当のリクエスト既定 | `claude-haiku-5-5` |
+| チャンク化（`ChunkingParams.model`） | 経路 3 とは**分けた** `config.py::ModelConfig.CHUNKING_MODEL` | `claude-haiku-5-5` |
 | Q/A 生成（`QaGenerationParams.model`） | 同上 | `claude-sonnet-5-5` |
 | Qdrant 登録の Embedding（`RegisterParams.provider`） | リクエスト既定 | `gemini` |
 
@@ -337,6 +337,7 @@ class Yml,Env,Loader,Validated,Users,Dotenv,Runtime default
 
 | Version | 日付 | 変更内容 |
 |---|---|---|
+| 1.10 | 2026-10-08 | チャンキングの既定を、回答生成・Q/A 生成の `ModelConfig.DEFAULT_MODEL` から分けた `config.py::ModelConfig.CHUNKING_MODEL`（`claude-haiku-5-5`）の 1 箇所で決めるようにしたのに追随 |
 | 1.9 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随 |
 | 1.8 | 2026-09-29 | `httpx` / `httpcore` の INFO ログを WARNING に絞る（`config.quiet_noisy_loggers()`。`config` の import 時に効く）。1 回の Qdrant 検索でコンソールが `HTTP Request: GET …` の数十行で埋まっていた。環境変数 `GRACE_HTTP_LOG_LEVEL`（例 `INFO`）で戻せる。起動コマンドの案内を `docker compose`（プラグイン版）へ更新 |
 | 1.7 | 2026-09-29 | Sonnet 5.5 のプロンプトガイドの要点（`between_tools`・JSON 推論タスクの扱い）を §3.1 に追記 |

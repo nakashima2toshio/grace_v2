@@ -8,7 +8,8 @@
   同期 API を asyncio.to_thread() でラップし、Semaphore で並列数を制御する。
   - 戻り値契約は従来どおり「検証済み JSON 文字列」（呼び出し側が
     model_validate_json() でパースする）を維持。
-  - LLM は Anthropic Claude（既定は config.py::ModelConfig.DEFAULT_MODEL。チャンク化は呼び出し側が軽量モデルを渡す）。
+  - LLM は Anthropic Claude。本クライアントはチャンク化専用なので、既定は
+    config.py::ModelConfig.CHUNKING_MODEL（軽量。DEFAULT_MODEL とは別）。
 """
 
 import asyncio
@@ -60,7 +61,7 @@ class AsyncAPIClient:
         max_workers: int = 8,
         max_retries: int = 3,
         max_output_tokens: int = 8192,
-        default_model: str = ModelConfig.DEFAULT_MODEL,
+        default_model: str = ModelConfig.CHUNKING_MODEL,
         abort_after_consecutive_failures: Optional[int] = None,
     ):
         """
