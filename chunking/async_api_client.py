@@ -8,7 +8,7 @@
   同期 API を asyncio.to_thread() でラップし、Semaphore で並列数を制御する。
   - 戻り値契約は従来どおり「検証済み JSON 文字列」（呼び出し側が
     model_validate_json() でパースする）を維持。
-  - LLM は Anthropic Claude（既定 claude-sonnet-5）。
+  - LLM は Anthropic Claude（既定は config.py::ModelConfig.DEFAULT_MODEL。チャンク化は呼び出し側が軽量モデルを渡す）。
 """
 
 import asyncio
@@ -18,6 +18,7 @@ from typing import Optional, Type
 
 from pydantic import BaseModel
 
+from config import ModelConfig
 from helper.helper_llm import create_llm_client
 
 logger = logging.getLogger(__name__)
@@ -59,7 +60,7 @@ class AsyncAPIClient:
         max_workers: int = 8,
         max_retries: int = 3,
         max_output_tokens: int = 8192,
-        default_model: str = "claude-sonnet-5",
+        default_model: str = ModelConfig.DEFAULT_MODEL,
         abort_after_consecutive_failures: Optional[int] = None,
     ):
         """

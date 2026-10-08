@@ -42,7 +42,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import argparse
 import logging
 
-from config import DATASET_CONFIGS
+from config import DATASET_CONFIGS, ModelConfig
 from qa_generation.pipeline import QAPipeline
 
 # ログ設定
@@ -105,8 +105,8 @@ def main():
     parser.add_argument(
         "--model",
         type=str,
-        default="claude-sonnet-5",
-        help="使用するLLMモデル（Anthropic Claude / デフォルト: claude-sonnet-5）"
+        default=ModelConfig.DEFAULT_MODEL,
+        help=f"使用するLLMモデル（Anthropic Claude / デフォルト: {ModelConfig.DEFAULT_MODEL}）"
     )
     parser.add_argument(
         "--output",

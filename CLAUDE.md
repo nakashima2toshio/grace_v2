@@ -275,7 +275,7 @@ GRACE_E2E=1 GRACE_E2E_REPEAT=3 uv run --no-sync pytest backend/tests/e2e -m e2e 
 |---|---|---|---|
 | 1 | **設定ファイル（正）** | `config/grace_config.yml` の `llm.model` / `llm.light_model` | `grace/config.py::ConfigLoader` 経由で planner / reasoning / groundedness / ReAct |
 | 2 | **モジュール定数** | `backend/app/core/verticals.py::INTENT_MODEL`（リテラル） | 判定系（意図分類・情報なし判定）。**yml を一切見ない** |
-| 3 | **Python 定数** | `config.py::ModelConfig.DEFAULT_MODEL` | 上記以外（チャンキング・Q&A 生成など CLI 側） |
+| 3 | **Python 定数** | `config.py::ModelConfig.DEFAULT_MODEL` | 上記以外（Q&A 生成の CLI・`QAPipeline`・`SmartQAGenerator`・`helper_rag_qa` の生成器・`AsyncAPIClient` の既定）。**ここでは文字列を直書きせず `ModelConfig.DEFAULT_MODEL` を参照する**（2026-10-08 まで旧既定 `claude-sonnet-5` が直書きで残り、画面と CLI で Q&A 生成のモデルが割れていた。`backend/tests/test_qa_default_model.py` が検査）。チャンキングの既定は軽量の `claude-haiku-5-5` |
 | 4 | **リクエスト単位の上書き** | UI のモデルセレクタ → `QueryRequest.model` / `ReviewRequest.model` → コアが `config.llm.model` を差し替え | その 1 リクエストの生成・推論・根拠検証・③ Detect |
 | 5 | **直下 `config.yml`** | `config.yml` の `models.default`（`services/config_service.py` が読む） | `services/agent_service.py`（Legacy ReAct）。**ファイルの値がコード側のフォールバックより優先される**。2026-09-24 まで `claude-sonnet-4-6` のまま残っていた（`backend/tests/test_model_selection.py` が経路 3 との一致を検査） |
 

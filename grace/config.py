@@ -59,7 +59,7 @@ class LLMConfig(BaseModel):
     """LLM設定（本プロジェクトは Anthropic を使用）"""
     provider: str = "anthropic"
     # 既定モデル。UI のモデルセレクタ（GET /api/models）で
-    # claude-opus-5 / claude-haiku-4-5 へリクエスト単位に上書きできる。
+    # 選択肢（config.py::ModelConfig.SELECTABLE_MODELS）のモデルへリクエスト単位に上書きできる。
     model: str = "claude-sonnet-5-5"
     # ステップ毎の確信度評価（evaluate_with_factors）などテレメトリ級の
     # 定型評価タスクに使う軽量モデル。回答生成・根拠検証は model を使う。
@@ -348,7 +348,7 @@ class ExecutorConfig(BaseModel):
     # RAG 検索結果の意味的適合性チェック（_evaluate_rag_relevance）に使うモデル。
     # 出力は YES / NO の 2 値だけなので、既定では軽量モデル（llm.light_model）を使う。
     # ""（空）= llm.light_model にフォールバック。A/B したいときはモデル名を直接書く
-    #   （例: "claude-sonnet-4-6" で従来どおり主モデル判定に戻せる）。
+    #   （例: llm.model と同じ "claude-sonnet-5-5" を書けば主モデル判定になる）。
     # ⚠️ この判定は「RAG 経路を捨てて Web 検索へ落ちるか」を左右する影響の大きい
     #    分岐なので、モデルを変えたら誤判定率を実測で確認すること。
     relevance_check_model: str = ""
