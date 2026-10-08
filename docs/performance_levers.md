@@ -1,6 +1,6 @@
 # 性能改善レバー — 回答品質とレイテンシ・コストを決めている箇所
 
-**Version 2.4** | 最終更新: 2026-09-29
+**Version 2.5** | 最終更新: 2026-10-08
 
 ---
 
@@ -27,7 +27,7 @@
 `docs/guardrails.md`、生成の詳細は `docs/reasoning_flow.md` を参照。
 
 技術スタック: LLM = Anthropic Claude（既定 `claude-sonnet-5`・軽量
-`claude-haiku-4-5-20251001`）／Embedding = Gemini（`gemini-embedding-001`・3072次元）。
+`claude-haiku-5-5`）／Embedding = Gemini（`gemini-embedding-001`・3072次元）。
 
 > ⚠️ **行番号は書かない。** 実装への参照はすべて「ファイル名 + シンボル名」で示す。
 > v1.7 は行番号で書かれていたが、2026-09-02 の突き合わせで**すべて別のコードを
@@ -334,7 +334,7 @@ Anthropic 版では、レイテンシよりも**単価 × 呼び出し回数**�
 ```yaml
 llm:
   model: "claude-sonnet-5"                   # 標準層
-  light_model: "claude-haiku-4-5-20251001"     # 分類・YES/NO 判定
+  light_model: "claude-haiku-5-5"     # 分類・YES/NO 判定
   heavy_model: ""                              # 論理層。""=model と同じ（既定・無効）
   heavy_thinking_budget_tokens: 0
 ```
@@ -533,7 +533,7 @@ gov / saas / ec のコレクションが 1 つも無ければ、検索スコー�
 
 ### 8.5 モデル割り当てとコスト（§5）
 
-コンソールの LLM 呼び出しログで、判定系が `claude-haiku-4-5-20251001`、
+コンソールの LLM 呼び出しログで、判定系が `claude-haiku-5-5`、
 生成・検証が `claude-sonnet-5` になっているかを見る。判定系まで標準層に
 なっていれば M-3 の巻き戻し（`relevance_check_model` の設定漏れ）を疑う。
 
@@ -558,6 +558,7 @@ gov / saas / ec のコレクションが 1 つも無ければ、検索スコー�
 
 | バージョン | 変更内容 |
 |---|---|
+| 2.5 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
 | 2.4 | P-04 の緩和で足す候補を、首位スコアから 0.10 以内に限った（2026-09-29）。首位が強いときに低関連の文書が混ざるのを防ぐ。あわせて、回答生成後の最終評価・Groundedness 検証の先行実行（ステップ確信度の評価と重ねる）を追記 |
 | 2.3 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
 | 2.2 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |

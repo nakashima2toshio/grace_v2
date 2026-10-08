@@ -66,7 +66,7 @@ python qa_qdrant/make_qa_register_qdrant.py \
 
 チャンク化（--input-file が .txt の場合）:
 --chunk-output      チャンクCSVの出力ディレクトリ（デフォルト: output_chunked）
---chunk-model       チャンク化に使うLLMモデル（デフォルト: claude-haiku-4-5）
+--chunk-model       チャンク化に使うLLMモデル（デフォルト: claude-haiku-5-5）
                     ※ .txt は先にチャンク化 CLI と同じ処理で <入力名>_chunks.csv を作ってから Q/A 生成する
 
 Qdrant登録:
@@ -140,7 +140,7 @@ def normalize_source_filename(filename: str) -> str:
 
 
 # .txt 入力のチャンク化の既定値（チャンク化 CLI・データ管理タブの ChunkingParams と同じ）
-CHUNK_DEFAULT_MODEL = "claude-haiku-4-5"
+CHUNK_DEFAULT_MODEL = "claude-haiku-5-5"
 CHUNK_DEFAULT_OUTPUT_DIR = "output_chunked"
 CHUNK_WORKERS = 8
 CHUNK_BLOCK_SIZE = 1000

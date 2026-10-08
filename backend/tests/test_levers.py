@@ -270,7 +270,10 @@ def test_thinking_budget_falsy_means_disabled(value):
 
 @pytest.mark.parametrize(
     "model",
-    ["claude-sonnet-5-5", "claude-sonnet-5", "claude-opus-5", "claude-opus-5-5", "claude-fable-5-1"],
+    [
+        "claude-sonnet-5-5", "claude-sonnet-5", "claude-opus-5", "claude-opus-5-5",
+        "claude-fable-5-1", "claude-haiku-5-5",
+    ],
 )
 def test_new_generation_never_sends_temperature(model):
     """temperature を送ると 400 になる世代には送らない。"""
@@ -288,7 +291,7 @@ def test_haiku_still_receives_temperature(model):
     assert kwargs["thinking"] == {"type": "disabled"}
 
 
-@pytest.mark.parametrize("model", ["claude-sonnet-5", "claude-opus-5"])
+@pytest.mark.parametrize("model", ["claude-sonnet-5", "claude-opus-5", "claude-haiku-5-5"])
 def test_adaptive_generation_can_still_disable_thinking(model):
     """ADAPTIVE だが ALWAYS ではない世代は disabled を受け付ける。"""
     kwargs = _call({"max_output_tokens": 10}, model=model)
@@ -300,7 +303,10 @@ def test_adaptive_generation_can_still_disable_thinking(model):
 
 @pytest.mark.parametrize(
     "model",
-    ["claude-sonnet-5-5", "claude-sonnet-5", "claude-opus-5", "claude-opus-5-5", "claude-fable-5-1"],
+    [
+        "claude-sonnet-5-5", "claude-sonnet-5", "claude-opus-5", "claude-opus-5-5",
+        "claude-fable-5-1", "claude-haiku-5-5",
+    ],
 )
 def test_adaptive_generation_uses_adaptive_instead_of_budget(model):
     """budget_tokens を受け付けない世代では adaptive を送る。"""
@@ -475,10 +481,41 @@ def _helper_call(model: str, **kwargs):
     return spy.kwargs
 
 
-@pytest.mark.parametrize("model", ["claude-sonnet-5", "claude-opus-5-5", "claude-fable-5-1"])
+@pytest.mark.parametrize(
+    "model", ["claude-sonnet-5", "claude-opus-5-5", "claude-fable-5-1", "claude-haiku-5-5"]
+)
 def test_helper_client_drops_temperature_for_new_generation(model):
     assert "temperature" not in _helper_call(model, temperature=0.3)
 
 
 def test_helper_client_keeps_temperature_for_haiku():
     assert _helper_call("claude-haiku-4-5", temperature=0.3)["temperature"] == 0.3
+
+
+# --- Haiku 5.5（2026-10-08）: 思考が既定で ON になった軽量モデル ---------------
+# Haiku 4.5 は頼まない限り思考しなかったが、Haiku 5.5 は thinking を省略すると
+# adaptive で思考し、その分が max_tokens を食う。チャンキング（構造化 JSON・
+# max_output_tokens 8192）が途中で切れないよう、helper 経路でも llm_compat と同じく
+# 「無効化できる世代には disabled を明示する」。
+
+
+@pytest.mark.parametrize("model", ["claude-haiku-5-5", "claude-sonnet-5", "claude-opus-5"])
+def test_helper_client_disables_thinking_when_the_model_allows_it(model):
+    kwargs = _helper_call(model)
+
+    assert kwargs["thinking"] == {"type": "disabled"}
+
+
+@pytest.mark.parametrize("model", ["claude-sonnet-5-5", "claude-opus-5-5", "claude-fable-5-1"])
+def test_helper_client_leaves_thinking_unset_for_always_thinking_models(model):
+    """disabled を送ると 400 になる世代には thinking を送らない（従来どおり）。"""
+    assert "thinking" not in _helper_call(model)
+
+
+@pytest.mark.parametrize("model", ["claude-haiku-4-5", "claude-haiku-4-5-20251001"])
+def test_helper_client_leaves_haiku_4_5_unchanged(model):
+    """Haiku 4.5 は従来どおり thinking を送らず、temperature も送る（後方互換）。"""
+    kwargs = _helper_call(model, temperature=0.3)
+
+    assert "thinking" not in kwargs
+    assert kwargs["temperature"] == 0.3

@@ -1,6 +1,6 @@
 # api/meta.py - メタ情報 API ドキュメント
 
-**Version 1.7** | 最終更新: 2026-09-26
+**Version 1.8** | 最終更新: 2026-10-08
 
 > **本書の位置づけ**: `backend/app/api/meta.py`（モデル一覧 / 業界プロファイル / ルールセット一覧・ヘルスチェック）の **IPO リファレンス**。
 > 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。
@@ -293,13 +293,13 @@ def list_models() -> List[ModelChoice]
      "context_window": 1000000, "max_output": 128000},
     {"id": "claude-sonnet-5", "input_price": 0.002, "output_price": 0.01,
      "context_window": 1000000, "max_output": 128000},
-    {"id": "claude-haiku-4-5", "input_price": 0.001, "output_price": 0.005,
-     "context_window": 200000, "max_output": 64000},
+    {"id": "claude-haiku-5-5", "input_price": 0.0001, "output_price": 0.0005,
+     "context_window": 1000000, "max_output": 128000},
 ]
 ```
 
-> ⚠️ **旧既定（`claude-sonnet-4-6`）と日付指定エイリアス
-> （`claude-haiku-4-5-20251001`）は出てこない。** どちらも実在する有効な
+> ⚠️ **旧既定（`claude-sonnet-4-6`）と旧軽量 Haiku 4.5（`claude-haiku-4-5` /
+> 日付指定 `claude-haiku-4-5-20251001`）は出てこない。** どちらも実在する有効な
 > モデル名で `AVAILABLE_MODELS` には残っている（`CLAUDE.md` R1）。同じモデルが
 > 2 行並ぶのを避けるため、**選択肢からだけ外している**。
 >
@@ -327,8 +327,8 @@ def current_model() -> ModelInfo
 
 **戻り値例**:
 ```python
-{"model": "claude-sonnet-5", "light_model": "claude-haiku-4-5-20251001",
- "heavy_model": "", "chunking_model": "claude-haiku-4-5", "qa_model": "claude-sonnet-5",
+{"model": "claude-sonnet-5", "light_model": "claude-haiku-5-5",
+ "heavy_model": "", "chunking_model": "claude-haiku-5-5", "qa_model": "claude-sonnet-5",
  "embedding_model": "gemini-embedding-001", "embedding_dims": 3072}
 ```
 
@@ -461,8 +461,8 @@ GET /api/health
 
 ```text
 0. GET /api/models  /  GET /api/model
-   → [{"id": "claude-fable-5-1", ...}, {"id": "claude-opus-5-5", ...}, {"id": "claude-sonnet-5", ...}, {"id": "claude-haiku-4-5", ...}]
-   → {"model": "claude-sonnet-5", "light_model": "claude-haiku-4-5-20251001", ...}
+   → [{"id": "claude-fable-5-1", ...}, {"id": "claude-opus-5-5", ...}, {"id": "claude-sonnet-5", ...}, {"id": "claude-haiku-5-5", ...}]
+   → {"model": "claude-sonnet-5", "light_model": "claude-haiku-5-5", ...}
    （モデルセレクタの選択肢と「（既定値: …）」表示に反映）
 
 1. GET /api/health
@@ -494,6 +494,7 @@ router  # APIRouter(prefix="/api", tags=["meta"])
 
 | バージョン | 日付 | 変更内容 |
 |-----------|------|---------|
+| 1.8 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随 |
 | 1.7 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
 | 1.6 | 2026-09-26 | Embedding を `gemini-embedding-2` へ変更し、モデル名の定義を `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所へ集約（2026-09-26）。`GET /api/model` の戻り値に `embedding_model` / `embedding_dims` を追加（データ管理タブ「③ Qdrant 登録」の注記に実名を出すため。選択肢ではない） |
 | 1.5 | 2026-09-23 | `GET /api/models` の戻り値例を 4 件へ更新（`claude-fable-5-1` / `claude-opus-5-5` を追加、`claude-opus-5` を外した） |

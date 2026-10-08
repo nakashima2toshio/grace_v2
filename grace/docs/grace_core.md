@@ -1,6 +1,6 @@
 # grace_core.md - GRACE コアモジュール群（Planner 系）アーキテクチャ ドキュメント
 
-**Version 3.5** | 最終更新: 2026-10-06
+**Version 3.6** | 最終更新: 2026-10-08
 
 > **参考ドキュメント**
 > - [`grace/docs/grace.md`](./grace.md) — 設計思想（**なぜ**この形か。ReAct → Reflection → GRACE 5 段階の経緯）
@@ -56,7 +56,7 @@
 
 各モジュールの IPO 詳細（シグネチャ・戻り値例・使用例）は個別ドキュメントに委ね、本書は **全体アーキテクチャ・データフロー・モジュール間連携・リンク集**に徹する。
 
-> 📝 **技術スタック**: LLM 用途はすべて **Anthropic Claude**（既定 `claude-sonnet-5-5`、軽量 `claude-haiku-4-5-20251001`、鍵 `ANTHROPIC_API_KEY`）。検索の Embedding のみ **Gemini** `gemini-embedding-001`（3072 次元、鍵 `GOOGLE_API_KEY`）を継続利用。LLM クライアントは `grace.llm_compat.create_chat_client()` を経由する。
+> 📝 **技術スタック**: LLM 用途はすべて **Anthropic Claude**（既定 `claude-sonnet-5-5`、軽量 `claude-haiku-5-5`、鍵 `ANTHROPIC_API_KEY`）。検索の Embedding のみ **Gemini** `gemini-embedding-001`（3072 次元、鍵 `GOOGLE_API_KEY`）を継続利用。LLM クライアントは `grace.llm_compat.create_chat_client()` を経由する。
 
 ### 主な責務
 
@@ -1038,6 +1038,7 @@ __all__ = [
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 3.6 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
 | 3.5 | 現在の既定モデルの記載 `claude-sonnet-5` を実装（`grace/config.py` の `LLMConfig.model` / `grace/llm_compat.py` の `DEFAULT_ANTHROPIC_MODEL` = `claude-sonnet-5-5`）に合わせて是正（2026-10-06。CLAUDE.md §9.3。旧既定は履歴の記述にだけ残す） |
 | 3.4 | `rag_sufficient_score` の既定を 0.7 → 0.64 に追随（2026-10-04。`executor.md` v4.12）。設定表のセクション名を実体（`qdrant.`）に直した |
 | 3.3 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |

@@ -1,6 +1,6 @@
 # chunking/docs/ 棚卸し
 
-**Version 1.3** | 最終更新: 2026-09-26
+**Version 1.4** | 最終更新: 2026-10-08
 
 > 📎 **姉妹版**: [`docs/README.md`](../../docs/README.md)（直下・配置の境界） /
 > [`qa_generation/docs/README.md`](../../qa_generation/docs/README.md) /
@@ -16,7 +16,7 @@
 > 運用手順の入口は [`README_DATA.md`](../../README_DATA.md)。
 
 > ⚠️ **本リポジトリは Anthropic 版。** チャンク化の LLM は Anthropic Claude
-> （CLI の `--model` 既定は `claude-haiku-4-5`・日付なしエイリアス）。
+> （CLI の `--model` 既定は `claude-haiku-5-5`）。
 > 姉妹リポジトリ `grace_v2_local` は Ollama 版で、`usage.md` / `timing.md` などこちらに無い文書を持つ。
 > **索引をコピーで持ち込まないこと**（中身が別物。CLAUDE.md §5）。
 
@@ -130,6 +130,7 @@ uv run --no-sync pytest backend/tests/test_chunking_abort.py -q
 
 | Version | 日付 | 変更 |
 |---|---|---|
+| 1.4 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随 |
 | 1.3 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随して `csv_text_to_chunks_text_csv.md` v1.8（入力上限 8192 → 2048）の行数・Ver を再実測 |
 | 1.2 | 2026-09-26 | `csv_text_to_chunks_text_csv.md` v1.7（Embedding の入力上限 2048 → 8192 = `ModelConfig.EMBEDDING_MAX_INPUT_TOKENS`、モデル名 `gemini-embedding-2`）に追随して行数・Ver を再実測 |
 | 1.1 | 2026-09-25 | 残タスク 1（`async_api_client.md` の既定モデル）を完了し、§2 の行数・Ver を更新 |

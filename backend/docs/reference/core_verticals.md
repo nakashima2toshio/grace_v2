@@ -1,6 +1,6 @@
 # core/verticals.py - 業界プロファイル定義 ドキュメント
 
-**Version 1.4** | 最終更新: 2026-09-16
+**Version 1.5** | 最終更新: 2026-10-08
 
 > **本書の位置づけ**: `backend/app/core/verticals.py`（`VerticalProfile` / `PROFILES` / `ActionRequest`）の **IPO リファレンス**。
 > 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。
@@ -39,7 +39,7 @@
 業界プロファイルは、検索スコープ（Qdrant コレクション）・強制エスカレ語・アクション対応・
 本人確認要否・しきい値・業界方針を 1 つの枠にまとめ、`--vertical`（gov/saas/ec）で切り替える。
 組み込みで自治体・SaaS・EC の 3 プロファイル（`PROFILES`）を持つ。意図分類には Anthropic の
-軽量モデル `claude-haiku-4-5-20251001`（`INTENT_MODEL`）を使う。
+軽量モデル `claude-haiku-5-5`（`INTENT_MODEL`）を使う。
 
 さらに、検索スコープ（`collections`）が効くのは**内部 RAG だけ**で Web 検索には及ばないという
 制約に対処するため、生成側（reasoning）で担当範囲を明示する共通方針 `SCOPE_POLICY`（W-2）と、
@@ -463,7 +463,7 @@ PROFILES: Dict[str, VerticalProfile] = {
 
 ```python
 DEFAULT_QUERY = "パスワードを忘れました"
-INTENT_MODEL = "claude-haiku-4-5-20251001"  # 意図分類の軽量モデル
+INTENT_MODEL = "claude-haiku-5-5"  # 意図分類の軽量モデル
 
 Decision   = Literal["answer", "escalate"]
 ActionType = Literal["create_ticket", "send_reply", "escalate_to_human"]
@@ -559,6 +559,7 @@ ActionRequest, VerticalProfile, PROFILES
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 1.5 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随 |
 | 1.4 | 2026-09-16 | 3 階建て再編（`reference/` へ移設）に伴い、冒頭へ**位置づけと上位文書への導線**を追加した |
 | 1.3 | **§4.1「使用例」を新設**（2026-09-15）。ドキュメント規約 `a_class_method_md_format.md` §6.1 が IPO 詳細セクションの冒頭に必須としている代表ワークフローが欠落していた。プロファイルの解決と参照、3 プロファイルの差の一覧、注入される 2 種類の文字列の 3 本を追加し、**実行して出力を確認した**（外部依存が要る例はその旨を明記）。旧 §4.1〜§4.2 は §4.2〜§4.3 へ繰り下げ |
 | 1.0 | 初版作成（ActionRequest / VerticalProfile / PROFILES と型エイリアスの IPO ドキュメント） |

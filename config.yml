@@ -10,11 +10,11 @@ models:
     - "claude-fable-5-1"              # 最上位
     - "claude-opus-5-5"               # 上位
     - "claude-sonnet-5-5"             # 推論・生成（既定）
-    - "claude-haiku-4-5"              # 軽量・高速
+    - "claude-haiku-5-5"              # 軽量・高速
 
   categories:
     thinking: ["claude-sonnet-5-5"]                # 高度推論
-    fast: ["claude-haiku-4-5-20251001"]          # 高速処理
+    fast: ["claude-haiku-5-5"]                   # 高速処理
     standard: ["claude-sonnet-5-5"]                # 標準処理
     # embeddings: 定義は config.py::ModelConfig.EMBEDDING_MODEL（ここには書かない）
 

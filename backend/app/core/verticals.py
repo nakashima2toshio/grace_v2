@@ -22,7 +22,7 @@ ActionType = Literal["create_ticket", "send_reply", "escalate_to_human"]
 Intent = Literal["question", "request", "incident"]
 
 # 意図分類に使う軽量モデル（CLAUDE.md プロバイダ方針の軽量既定）
-INTENT_MODEL = "claude-haiku-4-5-20251001"
+INTENT_MODEL = "claude-haiku-5-5"
 
 # 全プロファイル共通のスコープ方針（reasoning プロンプトへ注入）。
 #

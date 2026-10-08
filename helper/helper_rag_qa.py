@@ -2266,7 +2266,7 @@ class QAGenerationOptimizer:
             },
             "phase3": {
                 "method"     : "llm_cheap",
-                "model"      : "claude-haiku-4-5",
+                "model"      : "claude-haiku-5-5",
                 "target"     : "gap_filling",
                 "cost"       : budget * 0.3,
                 "expected_qa": 20
@@ -2384,7 +2384,7 @@ class OptimizedHybridQAGenerator:
         # サポートモデルリスト（Anthropic LLM + Gemini）
         self.supported_models = [
             "claude-sonnet-5-5", "claude-sonnet-5", "claude-fable-5-1", "claude-opus-5-5",
-            "claude-opus-5", "claude-haiku-4-5",
+            "claude-opus-5", "claude-haiku-5-5", "claude-haiku-4-5",
             "claude-haiku-4-5-20251001", "claude-sonnet-4-6",
             "gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-2.5-pro",
             "gemini-2.5-flash", "gemini-2.5-flash-lite-preview-06-17"
@@ -2720,6 +2720,7 @@ Instructions:
             "claude-fable-5-1": {"input": 10.0, "output": 50.0},
             "claude-opus-5-5": {"input": 4.0, "output": 20.0},
             "claude-opus-5": {"input": 5.0, "output": 25.0},
+            "claude-haiku-5-5": {"input": 0.10, "output": 0.50},
             "claude-haiku-4-5": {"input": 1.0, "output": 5.0},
             "claude-haiku-4-5-20251001": {"input": 1.0, "output": 5.0},
             "claude-sonnet-4-6": {"input": 3.0, "output": 15.0},

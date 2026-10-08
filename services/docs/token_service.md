@@ -1,6 +1,6 @@
 # token_service.py - トークン管理サービス ドキュメント
 
-**Version 1.4** | 最終更新: 2026-09-26
+**Version 1.5** | 最終更新: 2026-10-08
 
 ---
 
@@ -14,7 +14,7 @@
 >
 > | 用途 | プロバイダ | 既定 |
 > |---|---|---|
-> | LLM 全般 | **Anthropic** | `claude-sonnet-5`（軽量 `claude-haiku-4-5-20251001`） |
+> | LLM 全般 | **Anthropic** | `claude-sonnet-5`（軽量 `claude-haiku-5-5`） |
 > | Embedding のみ | **Gemini** | `gemini-embedding-001`（3072 次元） |
 >
 > 表に OpenAI / Gemini のモデルが並んでいるのは、**過去に扱ったモデルの
@@ -46,7 +46,7 @@
 
 `token_service.py`は、トークンカウント・コスト推定・テキスト切り詰めを統合的に提供するサービスモジュールです。`tiktoken`を用いたトークン数算出を中核とし、複数モデルのエンコーディング・価格・トークン制限を一元管理します。複数の旧ヘルパー（`helper_api.py::TokenManager`、`helper_rag.py::TokenManager`、`helper_text.py::count_tokens`）を統合した後継実装です。
 
-技術スタックではLLMに **Anthropic Claude**（既定 `claude-sonnet-5` / 軽量 `claude-haiku-4-5-20251001`）、Embedding に **Gemini**（`gemini-embedding-001`）を採用します。本モジュールの定数表（`MODEL_ENCODINGS` / `LLM_PRICING` / `EMBEDDING_PRICING` / `MODEL_LIMITS`）には既定 LLM の Claude を先頭に定義し、Gemini / OpenAI 系のエントリは後方互換のため残置しています。
+技術スタックではLLMに **Anthropic Claude**（既定 `claude-sonnet-5` / 軽量 `claude-haiku-5-5`）、Embedding に **Gemini**（`gemini-embedding-001`）を採用します。本モジュールの定数表（`MODEL_ENCODINGS` / `LLM_PRICING` / `EMBEDDING_PRICING` / `MODEL_LIMITS`）には既定 LLM の Claude を先頭に定義し、Gemini / OpenAI 系のエントリは後方互換のため残置しています。
 
 ### 主な責務
 
@@ -675,6 +675,7 @@ MODEL_ENCODINGS = {
     "claude-fable-5-1": "cl100k_base",
     "claude-opus-5-5": "cl100k_base",
     "claude-opus-5": "cl100k_base",
+    "claude-haiku-5-5": "cl100k_base",
     "claude-haiku-4-5": "cl100k_base",
     "claude-haiku-4-5-20251001": "cl100k_base",
     "claude-sonnet-4-6": "cl100k_base",
@@ -712,6 +713,7 @@ LLM_PRICING = {
     "claude-fable-5-1": {"input": 0.010, "output": 0.050},
     "claude-opus-5-5": {"input": 0.004, "output": 0.020},
     "claude-opus-5": {"input": 0.005, "output": 0.025},
+    "claude-haiku-5-5": {"input": 0.0001, "output": 0.0005},
     "claude-haiku-4-5": {"input": 0.001, "output": 0.005},
     "claude-haiku-4-5-20251001": {"input": 0.001, "output": 0.005},
     "claude-sonnet-4-6": {"input": 0.003, "output": 0.015},
@@ -732,6 +734,7 @@ LLM_PRICING = {
 | `claude-fable-5-1` | 0.010 | 0.050 |
 | `claude-opus-5-5` | 0.004 | 0.020 |
 | `claude-opus-5` | 0.005 | 0.025 |
+| `claude-haiku-5-5` | 0.0001 | 0.0005 |
 | `claude-haiku-4-5` | 0.001 | 0.005 |
 | `claude-haiku-4-5-20251001` | 0.001 | 0.005 |
 | `claude-sonnet-4-6` | 0.003 | 0.015 |
@@ -769,6 +772,7 @@ MODEL_LIMITS = {
     "claude-fable-5-1": {"max_tokens": 1000000, "max_output": 128000},
     "claude-opus-5-5": {"max_tokens": 1000000, "max_output": 128000},
     "claude-opus-5": {"max_tokens": 1000000, "max_output": 128000},
+    "claude-haiku-5-5": {"max_tokens": 1000000, "max_output": 128000},
     "claude-haiku-4-5": {"max_tokens": 200000, "max_output": 64000},
     "claude-haiku-4-5-20251001": {"max_tokens": 200000, "max_output": 64000},
     "claude-sonnet-4-6": {"max_tokens": 200000, "max_output": 8192},
@@ -793,6 +797,7 @@ MODEL_LIMITS = {
 | `claude-fable-5-1` | 1000000 | 128000 |
 | `claude-opus-5-5` | 1000000 | 128000 |
 | `claude-opus-5` | 1000000 | 128000 |
+| `claude-haiku-5-5` | 1000000 | 128000 |
 | `claude-haiku-4-5` | 200000 | 64000 |
 | `claude-haiku-4-5-20251001` | 200000 | 64000 |
 | `claude-sonnet-4-6` | 200000 | 8192 |
@@ -843,6 +848,7 @@ __all__ = [
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 1.5 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
 | 1.4 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`）。単価表・使用例を 001（0.0001）へ戻し、`gemini-embedding-2` は切り替え候補として残した（コードの `EMBEDDING_PRICING` と同じ） |
 | 1.3 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所）。§5.4 `EMBEDDING_PRICING` は `ModelConfig.EMBEDDING_PRICING` を参照する形になったので表と単価例（0.0002）を実装に合わせた |
 | 1.2 | 使用例を IPO 詳細の冒頭（`### 4.1 使用例`）へ移し、末尾の「## 6. 使用例」章を削除（基本フォーマット `a_class_method_md_format.md` v1.6〜 §6.1 に準拠。2026-09-24）。IPO の小節を 4.2 以降へ繰り下げ、後続の章番号を 1 つ繰り上げた。文書内の `§4.x` 参照も追随。あわせて`MODEL_ENCODINGS` / `LLM_PRICING` / `MODEL_LIMITS` の Claude 行を実装に同期（`claude-sonnet-5` など 5 モデルが欠落、`claude-haiku-4-5-20251001` の上限が 8192 のままだった）。2026-09-12 に解消済みの `claude-haiku-4-5` 欠落の警告を「解消済み」へ更新 |

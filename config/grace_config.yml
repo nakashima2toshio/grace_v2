@@ -5,7 +5,7 @@
 #   1. このファイル → 2. 環境変数で上書き → 3. GraceConfig(pydantic) で検証
 #
 # 環境変数での上書き: GRACE_<SECTION>_<KEY>
-#   例: GRACE_LLM_MODEL=claude-haiku-4-5-20251001
+#   例: GRACE_LLM_MODEL=claude-haiku-5-5
 #       GRACE_QDRANT_URL=http://qdrant:6333
 #   ※ セクション名は先頭の 1 語のみ（GRACE_WEB_SEARCH_* は web.search_* と
 #      解釈されるため効かない。web_search の変更はこのファイルで行う）
@@ -30,7 +30,7 @@ llm:
   # ここを変えると「未選択（既定値）」で走ったときのモデルが変わる。
   model: "claude-sonnet-5-5"
   # 分類・YES/NO 判定など軽量な用途に使うモデル
-  light_model: "claude-haiku-4-5-20251001"
+  light_model: "claude-haiku-5-5"  # Claude Haiku 5.5（2026-10-08 に Haiku 4.5 から変更）
   # M-1: 論理層（計画生成・推論・根拠検証・ReAct）に使う上位モデル。
   # ""（空）= model と同じ ＝ 現行挙動。上位へ寄せるときだけ設定する。
   #

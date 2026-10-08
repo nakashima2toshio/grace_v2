@@ -1,6 +1,6 @@
 # schemas.py - API スキーマ（Pydantic）ドキュメント
 
-**Version 1.10** | 最終更新: 2026-09-26
+**Version 1.11** | 最終更新: 2026-10-08
 
 > **本書の位置づけ**: `backend/app/schemas.py`（API のリクエスト / レスポンス / イベントの Pydantic スキーマ）の **IPO リファレンス**。
 > 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。
@@ -876,7 +876,7 @@ class ModelInfo(BaseModel):
 class ChunkingRequest(BaseModel):
     input_file: str          = Field(min_length=1)              # 'ディレクトリ名/ファイル名'
     output_dir: str          = Field(default="output_chunked")
-    model: str               = Field(default="claude-haiku-4-5")   # 選択肢外は 422
+    model: str               = Field(default="claude-haiku-5-5")   # 選択肢外は 422
     workers: int             = Field(default=8, ge=1, le=32)
     block_size: int          = Field(default=1000, ge=100, le=8000)
     text_column: Optional[str] = None
@@ -1091,6 +1091,7 @@ ReviewResultModel, ReviewJobStatusResponse, RuleSetInfo
 | 1.8 | 2026-09-24 | 使用例を IPO 詳細の冒頭（`### 4.1 使用例`）へ移し、末尾の「## 5. 使用例」章を削除（基本フォーマット `a_class_method_md_format.md` v1.6〜 §6.1 に準拠。2026-09-24）。IPO の小節を 4.2 以降へ繰り下げ、後続の章番号を 1 つ繰り上げた。文書内の `§4.x` 参照も追随 |
 | 1.9 | 2026-09-26 | Embedding を `gemini-embedding-2` へ変更し、モデル名の定義を `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所へ集約（2026-09-26）。`ModelInfo` に `embedding_model` / `embedding_dims` を追加 |
 | 1.10 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
+| 1.11 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随 |
 
 ---
 

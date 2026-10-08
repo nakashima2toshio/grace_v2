@@ -1,12 +1,12 @@
 # grace/docs 棚卸し
 
-**Version 1.14** | 最終更新: 2026-10-06
+**Version 1.15** | 最終更新: 2026-10-08
 
 `grace/` パッケージのドキュメント一覧と、実装への追随状況・残タスク・検証手順をまとめる。
 新しく文書を書く／直す前に、まずここを見る。
 冒頭の[概要](#概要)に、**GRACE-Support と GRACE-Review が grace のどのモジュールをどのステップで使うか**（両者の比較を含む）を置いている。
 
-> ⚠️ **本リポジトリは Anthropic 版。** LLM は `claude-sonnet-5-5`（軽量 `claude-haiku-4-5-20251001`）、
+> ⚠️ **本リポジトリは Anthropic 版。** LLM は `claude-sonnet-5-5`（軽量 `claude-haiku-5-5`）、
 > Embedding のみ Gemini `gemini-embedding-001`（3072 次元）。
 > 姉妹リポジトリ `grace_v2_local` は Ollama 版で、**プロバイダ表記はあちらと逆**である。
 > 「Anthropic と書いてあるから誤記」ではない。CLAUDE.md §3 を参照。
@@ -570,6 +570,7 @@ PY
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 1.15 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
 | 1.14 | `config.md` v1.12（冒頭の行番号参照 `config.py:411` をシンボル参照へ是正）に追随して §2.2 の行数・Ver を更新（2026-10-06）。grace/docs に残っていた最後の行番号参照で、grace_v2_local の `docs_audit.md` §5.2 の再測定で見つかった |
 | 1.13 | §5 タスク 5 を完了（2026-10-06）。未記載だった 6 シンボルを実装から書き起こし、`confidence.md`（§4.14 断り文の除外・§4.15 `damp_support_rate`）/ `executor.md`（`_prefetch_enabled`）/ `llm_compat.md`（§4.7 `_stop_category`・§5.3.1 `_ALWAYS_THINKING_MIN_TOKENS`）へ追加し、§3.1 の AST 網羅が全 11 モジュールで 100% に戻った。`config.md` の設定一覧の抜け 2 件と、v1.12 で同書の変更履歴に足した行の日付列の抜けも直した。§2 の行数・Ver を再実測 |
 | 1.12 | **冒頭に[概要](#概要)を新設し、GRACE-Review を取り込んだ**（2026-10-06・問題 #17）。それまで本書は GRACE-Support（基本版）の流れだけを前提にしていた。両エージェントのステップごとに grace のどのモジュール（シンボル）が効くかの表と、モジュール単位・観点単位の比較表、3 層の構成図を置いた（Review は `planner` / `executor` を通らず、`tools` / `confidence` / `intervention` / `llm_compat` を直接呼ぶ）。章番号は変えていない。あわせて (1) §2 の行数・Ver を実測し直した（7 文書が古いままだった）、(2) §3.1 の AST 網羅を再実測し、未記載 6 件を §5 タスク 5 として登録（問題 #16）、(3) 冒頭と 11 文書の**現在の既定モデル**の記載を `claude-sonnet-5` から `claude-sonnet-5-5` へ是正 |

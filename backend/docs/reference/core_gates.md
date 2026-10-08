@@ -1,6 +1,6 @@
 # core/gates.py - 回答ゲート・判定ロジック ドキュメント
 
-**Version 1.5** | 最終更新: 2026-09-16
+**Version 1.6** | 最終更新: 2026-10-08
 
 > **本書の位置づけ**: `backend/app/core/gates.py`（Support の判定ロジック（質問分析・回答ゲート・救済・情報なし検知））の **IPO リファレンス**。
 > 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。
@@ -44,7 +44,7 @@
 
 多くが副作用のない純関数で、`core/support_agent.py` のパイプラインから呼ばれる。二段判定
 （第 1 段=キーワード候補検出、第 2 段=軽量 LLM 判定）が中核で、LLM は Anthropic Claude の
-軽量モデル `claude-haiku-4-5-20251001`（`INTENT_MODEL`）を使う。LLM 判定に失敗した場合は
+軽量モデル `claude-haiku-5-5`（`INTENT_MODEL`）を使う。LLM 判定に失敗した場合は
 常に安全側（従来のキーワード判定 / escalate）へ倒す。
 
 ### 主な責務
@@ -913,7 +913,7 @@ MULTI_QUESTION_MARKERS = (
 意図分類・情報なし判定に使う軽量モデル。
 
 ```python
-INTENT_MODEL = "claude-haiku-4-5-20251001"  # verticals.py で定義
+INTENT_MODEL = "claude-haiku-5-5"  # verticals.py で定義
 ```
 
 > ⚠️ **`INTENT_MODEL` を直接使うコードを新たに書かないこと。** 解決は `judge_model()` を通し、
@@ -976,6 +976,7 @@ NO_INFO_MARKERS
 | 1.3 | **未記載だったモジュール定数 7 件を追加**（2026-09-15）。`JUDGE_UNEXPECTED_OUTPUT` / `JUDGE_EXCEPTION`（§5.2）、`MULTI_QUESTION_MARKERS` / `MULTI_QUESTION_MIN_MARKS` / `MAX_QUESTION_CLUSTERS`（§5.3）、`_SCOPE_PREFIX_RE` / `OUT_OF_SCOPE_ANSWER_MARKERS`（§5.4）。**動作の説明（0-(A) 複数質問検知・担当範囲外の断り）は既にあったが、それを決める定数名と値が書かれていなかった**ため、閾値を調べるのに実装を読む必要があった。あわせて「過剰分解は単一とみなす側へ倒す」「ラベルが 1 行でも欠けたら判定を捨てる」「断りの語は緩く拾ってよい（拾えなくても `ensure_out_of_scope_notice` が追記するので情報は欠けない）」という**安全側の倒し方**を注記した。§5.5 に `INTENT_MODEL` を直接使わない旨（CLAUDE.md §3.1）も追記 |
 | 1.2 | AST 照合で未記載だった 5 件を追加（`judge_model` / `_contradicted_claims` / `_abbreviate_reason` / `_count_question_marks` / `_char_bigrams`）（2026-09-04・`4e4607d`） |
 | 1.1 | 実コード再読による最新化: 未記載だった `_collect_source_texts()`（P-01・groundedness 検証へ出典**本文**を渡す）の IPO を §4.3 に追加し、識別子のみを渡すと全主張が neutral 化して支持率の分母が 0 になる理由を明記。関数一覧・責務表・主要機能一覧・モジュール構成図・エクスポートに反映（純関数 14 → 15） |
+| 1.6 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
 
 ---
 

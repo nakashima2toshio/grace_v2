@@ -1,6 +1,6 @@
 # config.py - GRACE 設定管理 ドキュメント
 
-**Version 1.12** | 最終更新: 2026-10-06
+**Version 1.13** | 最終更新: 2026-10-08
 
 > 📌 **`config.GeminiConfig` の LLM モデル一覧は後方互換である。**
 > `config.py::GeminiConfig` の docstring にあるとおり、`GeminiConfig` は
@@ -278,13 +278,13 @@ import os
 from grace.config import get_config, reset_config, reload_config
 
 # 環境変数で軽量モデルに切り替え
-os.environ["GRACE_LLM_MODEL"] = "claude-haiku-4-5-20251001"
+os.environ["GRACE_LLM_MODEL"] = "claude-haiku-5-5"
 os.environ["GRACE_QDRANT_SEARCH_LIMIT"] = "10"
 
 # 既存シングルトンをリセットして再構築
 reset_config()
 config = get_config()
-print(config.llm.model)          # claude-haiku-4-5-20251001
+print(config.llm.model)          # claude-haiku-5-5
 print(config.qdrant.search_limit)  # 10
 
 # 設定ファイル変更後に再読み込み
@@ -442,13 +442,13 @@ def _apply_env_overrides(self, config_dict: Dict[str, Any]) -> Dict[str, Any]
 
 **戻り値例**:
 ```python
-{"llm": {"model": "claude-haiku-4-5-20251001"}, "qdrant": {"search_limit": 10}}
+{"llm": {"model": "claude-haiku-5-5"}, "qdrant": {"search_limit": 10}}
 ```
 
 ```python
 # 使用例
 import os
-os.environ["GRACE_LLM_MODEL"] = "claude-haiku-4-5-20251001"
+os.environ["GRACE_LLM_MODEL"] = "claude-haiku-5-5"
 # loader.load() 内で llm.model が上書きされる
 ```
 
@@ -701,11 +701,11 @@ LLM（本プロジェクトは Anthropic Claude を使用）の設定。
 | `temperature` | float | `0.7` | 生成温度 |
 | `max_tokens` | int | `4096` | 最大出力トークン数 |
 | `timeout` | int | `30` | タイムアウト秒数 |
-| `light_model` | str | `"claude-haiku-4-5-20251001"` | **軽量モデル**。二値判定（RAG 適合性・意図分類等）に使う |
+| `light_model` | str | `"claude-haiku-5-5"` | **軽量モデル**。二値判定（RAG 適合性・意図分類等）に使う |
 | `heavy_model` | str | `""` | **論理層モデル**（M-1）。計画生成・claim 分解・支持判定に使う。空なら `model` と同じ |
 | `heavy_thinking_budget_tokens` | int | `0` | 論理層の**拡張思考**トークン予算。0=無効 |
 
-> 📝 **注意**: 既定 LLM は `claude-sonnet-5-5`。軽量用途では `claude-haiku-4-5-20251001` を環境変数 `GRACE_LLM_MODEL` で指定できます。APIキーは `ANTHROPIC_API_KEY`。
+> 📝 **注意**: 既定 LLM は `claude-sonnet-5-5`。軽量用途では `claude-haiku-5-5` を環境変数 `GRACE_LLM_MODEL` で指定できます。APIキーは `ANTHROPIC_API_KEY`。
 
 > ⚠️ **`heavy_thinking_budget_tokens` は `heavy_model` を設定していない間は効きません。**
 > `heavy_thinking_budget()` が `heavy_model` 未設定時に 0 を返すためです
@@ -878,7 +878,7 @@ Embedding（Gemini）の設定。
 >
 > 解決順は次の 3 段です（`executor.py::_relevance_check_model`）。
 > 1. `executor.relevance_check_model`（明示指定）
-> 2. `llm.light_model`（**既定**。`claude-haiku-4-5-20251001`）
+> 2. `llm.light_model`（**既定**。`claude-haiku-5-5`）
 > 3. `llm.model`（軽量モデルが未設定の環境向けの最終フォールバック）
 >
 > つまり**既定でも軽量モデルが使われる**ため、通常はこのフィールドを設定する必要はありません。
@@ -933,6 +933,7 @@ __all__ = [
 
 | バージョン | 日付 | 変更内容 |
 |-----------|------|---------|
+| 1.13 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随 |
 | 1.12 | 2026-10-06 | 冒頭の注記にあった行番号参照 `config.py:411` を、シンボル参照 `config.py::GeminiConfig` の docstring へ改めた。行 411 は現在 `get_dataset_dict` の位置で、参照先とずれていた（行番号は書かない規則。grace_v2_local の `backend/docs/docs_audit.md` §5.2 の再測定で発見） |
 | 1.11 | 2026-10-06 | 設定一覧の表に、v1.7 で追加した 2 設定（`executor.prefetch_final_evaluation` / `confidence.groundedness_exclude_absence_claims`）が載っていなかったのを補った（変更履歴にだけ書かれていた）。§5.5 の網羅度減衰の実装の所在を `executor.py::_damp_support_rate` から `confidence.py::damp_support_rate`（Support / Review 共通。executor 側は委譲するだけ）へ是正。v1.10 の行に日付列が抜けて表が崩れていたのを直した |
 | 1.10 | 2026-10-06 | 現在の既定モデルの記載 `claude-sonnet-5` を実装（`grace/config.py` の `LLMConfig.model` / `grace/llm_compat.py` の `DEFAULT_ANTHROPIC_MODEL` = `claude-sonnet-5-5`）に合わせて是正（2026-10-06。CLAUDE.md §9.3。旧既定は履歴の記述にだけ残す） |

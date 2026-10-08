@@ -1,6 +1,6 @@
 # core/review_gates.py - 文書レビューの判定・抑止ロジック ドキュメント
 
-**Version 1.3** | 最終更新: 2026-09-16
+**Version 1.4** | 最終更新: 2026-10-08
 
 > **本書の位置づけ**: `backend/app/core/review_gates.py`（Review の判定ロジック（二段判定・抑止・救済・重大度））の **IPO リファレンス**。
 > 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。
@@ -520,7 +520,7 @@ def create_mention_classifier(config) -> Callable[[str], Optional[Mention]]
 | 項目 | 内容 |
 |------|------|
 | **Input** | `config` |
-| **Process** | 軽量モデル（`claude-haiku-4-5-20251001`）のクライアントを閉じ込めたクロージャを返す |
+| **Process** | 軽量モデル（`claude-haiku-5-5`）のクライアントを閉じ込めたクロージャを返す |
 | **Output** | `Callable[[str], Optional[Mention]]`: `"claim"` / `"negation"` / `"quotation"` / `None` |
 
 #### `should_force_high`
@@ -882,6 +882,7 @@ from backend.app.core.review_gates import (
 
 | バージョン | 日付 | 変更内容 |
 |-----------|------|---------|
+| 1.4 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随 |
 | 1.3 | 2026-09-16 | 3 階建て再編（`reference/` へ移設）に伴い、冒頭へ**位置づけと上位文書への導線**を追加した |
 | 1.2 | 2026-09-15 | **§4.1「使用例」を新設**（2026-09-15）。ドキュメント規約 `a_class_method_md_format.md` §6.1 が IPO 詳細セクションの冒頭に必須としている代表ワークフローが欠落していた。指摘ゲート・重大度の調整・誤検知抑止からの救済の 3 本を追加し、**実行して出力を確認した**（外部依存が要る例はその旨を明記）。旧 §4.1〜§4.6 は §4.2〜§4.7 へ繰り下げ |
 | 1.0 | 2026-07-29 | 初版作成（GRACE-Review STEP2・PR #38 に対応） |

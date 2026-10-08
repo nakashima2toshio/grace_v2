@@ -1,6 +1,6 @@
 # 設定・モデル・プロバイダの解決経路 ドキュメント
 
-**Version 1.8** | 最終更新: 2026-09-29
+**Version 1.9** | 最終更新: 2026-10-08
 
 ---
 
@@ -95,7 +95,7 @@ style EXTERNAL fill:#1a1a1a,stroke:#fff,color:#fff
 | 用途 | プロバイダ | 既定 | API キー |
 |---|---|---|---|
 | **Embedding（検索）のみ** | **Gemini** | `gemini-embedding-001`（3072 次元。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） | `GOOGLE_API_KEY` |
-| **それ以外の全 LLM 用途** | **Anthropic** | `claude-sonnet-5-5`（軽量 `claude-haiku-4-5-20251001`） | `ANTHROPIC_API_KEY` |
+| **それ以外の全 LLM 用途** | **Anthropic** | `claude-sonnet-5-5`（軽量 `claude-haiku-5-5`） | `ANTHROPIC_API_KEY` |
 
 - **LLM 用途**: Plan / Execute / Reasoning / Confidence / Replan / ReAct、意図分類・
   情報なし判定・違反検出、Q/A 生成、チャンク化
@@ -143,7 +143,7 @@ def detect_model(config) -> str:
 > 同じプロセス・同じ base_url の groundedness は成功しており、差は
 > **どちらの経路でモデル名を解決したか**だけだった。
 
-> ⚠️ 経路 1 と 2 は現在たまたま同じ値（`claude-haiku-4-5-20251001`）なので、
+> ⚠️ 経路 1 と 2 は現在たまたま同じ値（`claude-haiku-5-5`）なので、
 > **取り残しはテストでは表面化しない。**
 
 ---
@@ -153,16 +153,24 @@ def detect_model(config) -> str:
 | 使う場所 | 解決 | 既定 |
 |---|---|---|
 | planner / executor / reasoning / groundedness（`grace/`） | 経路 1 | `llm.model` = `claude-sonnet-5-5` |
-| 意図分類・情報なし判定（`gates.py`） | `judge_model()` | `llm.light_model` = `claude-haiku-4-5-20251001` |
+| 意図分類・情報なし判定（`gates.py`） | `judge_model()` | `llm.light_model` = `claude-haiku-5-5` |
 | 言及分類・空疎判定（`review_gates.py`） | `judge_model()` | 同上 |
 | ③ Detect 第2段（`review_gates.py`） | `detect_model()` | `llm.model` |
-| チャンク化（`ChunkingParams.model`） | 経路 3 相当のリクエスト既定 | `claude-haiku-4-5` |
+| チャンク化（`ChunkingParams.model`） | 経路 3 相当のリクエスト既定 | `claude-haiku-5-5` |
 | Q/A 生成（`QaGenerationParams.model`） | 同上 | `claude-sonnet-5-5` |
 | Qdrant 登録の Embedding（`RegisterParams.provider`） | リクエスト既定 | `gemini` |
 
-> ⚠️ **`claude-haiku-4-5`（日付なし）はエイリアスであって書き損じではない。**
-> チャンク化の既定値として意図的に使っている。`claude-haiku-4-5-20251001` へ
-> 「統一」しないこと（`CLAUDE.md` §3.2）。
+> 📌 **軽量モデルは 2026-10-08 に Haiku 4.5 から Claude Haiku 5.5（`claude-haiku-5-5`）へ変えた。**
+> 判定系（`light_model` / `INTENT_MODEL`）とチャンク化の既定が同じ `claude-haiku-5-5` になった
+> （以前は前者が日付指定 `claude-haiku-4-5-20251001`、後者が日付なし `claude-haiku-4-5`）。
+> Haiku 5.5 は日付なしの固定 ID で、別名は無い。
+> ⚠️ **送り方が Haiku 4.5 と違う。** `temperature` は 400（`NO_TEMPERATURE_MODELS`）、
+> `budget_tokens` も 400 で思考は adaptive のみ（`ADAPTIVE_THINKING_MODELS`）。
+> thinking を省略すると思考が既定で ON になるので、`grace/llm_compat.py` と
+> `helper/helper_llm.py` は `{"type": "disabled"}` を明示する（effort high 以下なら受け付ける）。
+> 同じ文章でトークン数が約 30% 増える（トークナイザが新しい）。
+> 旧 Haiku 4.5 の 2 つ（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）は実在する有効な
+> モデル名なので、既存設定のために表へ残す（`CLAUDE.md` R1）。
 
 ---
 
@@ -179,7 +187,7 @@ ModelConfig.SELECTABLE_MODELS = [
     "claude-fable-5-1",  # 最上位
     "claude-opus-5-5",   # 上位
     "claude-sonnet-5-5", # 既定（Sonnet 5 は選択肢から外し、後方互換の表にだけ残している）
-    "claude-haiku-4-5",  # 軽量
+    "claude-haiku-5-5",  # 軽量
 ]
 
 def get_selectable_models() -> List[str]: ...
@@ -192,8 +200,8 @@ def get_selectable_models() -> List[str]: ...
 | `run_support_agent_core` / `run_review_agent_core` | コア側の再検証（スキーマを通らない CLI 経路のため） |
 
 > ⚠️ **`AVAILABLE_MODELS` と混同しない。** あちらは「単価・上限を知っている
-> モデル」の一覧で、旧既定（`claude-sonnet-4-6`）と日付指定エイリアス
-> （`claude-haiku-4-5-20251001`）も含む。どちらも実在する有効なモデル名なので
+> モデル」の一覧で、旧既定（`claude-sonnet-4-6`）と旧軽量（`claude-haiku-4-5` /
+> 日付指定 `claude-haiku-4-5-20251001`）も含む。どちらも実在する有効なモデル名なので
 > 消さない（`CLAUDE.md` R1）。**選択肢に出さないだけ**である
 > （同じモデルが 2 行並ぶのを避けるため）。旧上位 `claude-opus-5` も同様に
 > 選択肢からは外したが、`llm.heavy_model` 等の既存設定のために表には残している。
@@ -239,9 +247,9 @@ if model:
 ```json
 {
   "model": "claude-sonnet-5-5",
-  "light_model": "claude-haiku-4-5-20251001",
+  "light_model": "claude-haiku-5-5",
   "heavy_model": "",
-  "chunking_model": "claude-haiku-4-5",
+  "chunking_model": "claude-haiku-5-5",
   "qa_model": "claude-sonnet-5-5"
 }
 ```
@@ -329,6 +337,7 @@ class Yml,Env,Loader,Validated,Users,Dotenv,Runtime default
 
 | Version | 日付 | 変更内容 |
 |---|---|---|
+| 1.9 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随 |
 | 1.8 | 2026-09-29 | `httpx` / `httpcore` の INFO ログを WARNING に絞る（`config.quiet_noisy_loggers()`。`config` の import 時に効く）。1 回の Qdrant 検索でコンソールが `HTTP Request: GET …` の数十行で埋まっていた。環境変数 `GRACE_HTTP_LOG_LEVEL`（例 `INFO`）で戻せる。起動コマンドの案内を `docker compose`（プラグイン版）へ更新 |
 | 1.7 | 2026-09-29 | Sonnet 5.5 のプロンプトガイドの要点（`between_tools`・JSON 推論タスクの扱い）を §3.1 に追記 |
 | 1.6 | 2026-09-29 | 既定を `claude-sonnet-5-5` へ変更したのに追随。`claude-sonnet-5-5` は思考を無効化できない（`{"type": "disabled"}` が 400）ので `ALWAYS_THINKING_MODELS` に載せる旨を追記（実機の 400 で判明。Sonnet 5 と同じ扱いにした当初の仮定が誤りだった） |

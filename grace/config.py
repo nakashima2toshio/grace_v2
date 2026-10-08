@@ -63,7 +63,7 @@ class LLMConfig(BaseModel):
     model: str = "claude-sonnet-5-5"
     # ステップ毎の確信度評価（evaluate_with_factors）などテレメトリ級の
     # 定型評価タスクに使う軽量モデル。回答生成・根拠検証は model を使う。
-    light_model: str = "claude-haiku-4-5-20251001"
+    light_model: str = "claude-haiku-5-5"
     # M-1: 論理層（計画生成・推論・根拠検証）に使う上位モデル。
     # ""（空）= model と同じ。上位モデルへ寄せたいときだけ設定する
     # （例: "claude-opus-5"）。

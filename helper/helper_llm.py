@@ -58,7 +58,8 @@ LLM_MODELS = [
     "claude-fable-5-1",           # 最上位（難しい推論・長時間のエージェント処理）
     "claude-opus-5-5",            # 上位（下の旧上位の後継）
     "claude-opus-5",              # 旧上位（後方互換）
-    "claude-haiku-4-5",           # 軽量（日付なしエイリアス）
+    "claude-haiku-5-5",           # 軽量（Haiku 5.5。2026-10-08〜の既定）
+    "claude-haiku-4-5",           # 旧軽量（日付なしエイリアス・後方互換）
     "claude-haiku-4-5-20251001",  # 文字列処理・eval ジャッジ向け
     "claude-sonnet-4-6",          # 旧既定（後方互換）
     "gemini-2.5-flash",
@@ -75,6 +76,7 @@ LLM_PRICING = {
     "claude-fable-5-1"           : {"input": 0.010, "output": 0.050},
     "claude-opus-5-5"            : {"input": 0.004, "output": 0.020},
     "claude-opus-5"              : {"input": 0.005, "output": 0.025},
+    "claude-haiku-5-5"           : {"input": 0.0001, "output": 0.0005},
     "claude-haiku-4-5"           : {"input": 0.001, "output": 0.005},
     "claude-haiku-4-5-20251001"  : {"input": 0.001, "output": 0.005},
     "claude-sonnet-4-6"          : {"input": 0.003, "output": 0.015},
@@ -91,6 +93,7 @@ LLM_LIMITS = {
     "claude-fable-5-1"           : {"max_tokens": 1000000, "max_output": 128000},
     "claude-opus-5-5"            : {"max_tokens": 1000000, "max_output": 128000},
     "claude-opus-5"              : {"max_tokens": 1000000, "max_output": 128000},
+    "claude-haiku-5-5"           : {"max_tokens": 1000000, "max_output": 128000},
     "claude-haiku-4-5"           : {"max_tokens": 200000, "max_output": 64000},
     "claude-haiku-4-5-20251001"  : {"max_tokens": 200000, "max_output": 64000},
     "claude-sonnet-4-6"          : {"max_tokens": 200000, "max_output": 8192},
@@ -309,6 +312,13 @@ class AnthropicClient(LLMClient):
         # temperature を送ると 400 になるモデルがある（config.py::NO_TEMPERATURE_MODELS）
         if temperature is not None and ModelConfig.supports_temperature(model):
             create_kwargs["temperature"] = temperature
+        # 思考が既定で ON の世代（ADAPTIVE_THINKING_MODELS）のうち、無効化できるものには
+        # disabled を明示する（grace/llm_compat.py の「budget なし」分岐と同じ規則）。
+        # 省略すると adaptive で思考し、その分が max_tokens を食う。Haiku 4.5 → 5.5 で
+        # チャンキング（構造化 JSON・max_output_tokens 8192）が途中で切れないようにするため。
+        # 無効化できない世代（ALWAYS_THINKING_MODELS）は従来どおり何も送らない。
+        if ModelConfig.uses_adaptive_thinking(model) and not ModelConfig.thinking_always_on(model):
+            create_kwargs["thinking"] = {"type": "disabled"}
         message = self._get_client().messages.create(**create_kwargs)
         # per-call usage を記録（usage が無い/壊れている場合は 0）
         usage = getattr(message, "usage", None)
