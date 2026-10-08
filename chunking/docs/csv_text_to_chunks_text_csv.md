@@ -1,6 +1,6 @@
 # csv_text_to_chunks_text_csv.py - LLMベースセマンティックチャンキング（統一版） ドキュメント
 
-**Version 1.9** | 最終更新: 2026-10-08
+**Version 1.10** | 最終更新: 2026-10-08
 
 ---
 
@@ -740,7 +740,7 @@ generate_output_filename("data/input.txt", "chunks_output")
 ```python
 async def chunks_all_async(
     text: str,
-    model: str = "claude-haiku-5-5",
+    model: str = ModelConfig.CHUNKING_MODEL,  # = "claude-haiku-5-5"
     max_workers: int = 8,
     block_size: int = 1000,
     checkpoint_manager: Optional[CheckpointManager] = None,
@@ -753,7 +753,7 @@ async def chunks_all_async(
 | パラメータ | 型 | デフォルト | 説明 |
 |------------|------|-----------|------|
 | `text` | str | - | 入力テキスト |
-| `model` | str | "claude-haiku-5-5" | LLM モデル名 |
+| `model` | str | `ModelConfig.CHUNKING_MODEL`（`claude-haiku-5-5`） | LLM モデル名。クライアント（`AsyncAPIClient`）の既定にも同じ値を渡す |
 | `max_workers` | int | 8 | 並列ワーカー数 |
 | `block_size` | int | 1000 | Step1 のブロックサイズ（文字数） |
 | `checkpoint_manager` | Optional[CheckpointManager] | None | チェックポイント管理（未指定時は新規） |
@@ -925,7 +925,7 @@ CLI 引数:
 |------|----|-----------|------|
 | `--input-file` | str | （必須） | 入力 `.txt` / `.csv` |
 | `--output` | str | `chunks_output` | 出力ディレクトリ |
-| `--model` | str | `claude-haiku-5-5` | LLM モデル名 |
+| `--model` | str | `ModelConfig.CHUNKING_MODEL`（`claude-haiku-5-5`） | LLM モデル名 |
 | `--workers` | int | 8 | 並列ワーカー数 |
 | `--block-size` | int | 1000 | Step1 ブロックサイズ |
 | `--verbose` | flag | False | 詳細ログ |
@@ -1030,6 +1030,7 @@ from chunking.csv_text_to_chunks_text_csv import (
 | 1.7 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所）。`EMBEDDING_INPUT_TOKEN_LIMIT` は `ModelConfig.EMBEDDING_MAX_INPUT_TOKENS`（2048 → 8192）を参照する形になったので定数表・構成図・概要を更新 |
 | 1.8 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`）。入力上限を 8192 → 2048（`ModelConfig.EMBEDDING_MAX_INPUT_TOKENS`）へ戻した |
 | 1.9 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
+| 1.10 | チャンキングの既定を、回答生成・Q/A 生成の `ModelConfig.DEFAULT_MODEL` から分けた `config.py::ModelConfig.CHUNKING_MODEL`（`claude-haiku-5-5`）の 1 箇所で決めるようにしたのに追随（2026-10-08） |
 
 ---
 

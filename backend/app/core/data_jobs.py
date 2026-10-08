@@ -49,6 +49,7 @@ from typing import Any, Dict, List, Optional
 from backend.app.core.job_logs import capture_logs
 from backend.app.core.jobs import register_runner
 from backend.app.core.support_agent import ConfirmFn, EmitFn, SupportEvent
+from config import ModelConfig
 from grace.intervention import (
     InterventionLevel,
     InterventionRequest,
@@ -103,7 +104,8 @@ class ChunkingParams:
     # 'ディレクトリ名/ファイル名' 形式（許可ディレクトリ内に限る）
     input_file: str
     output_dir: str = "output_chunked"
-    model: str = "claude-haiku-5-5"
+    # 既定は config.py::ModelConfig.CHUNKING_MODEL（DEFAULT_MODEL とは別）
+    model: str = ModelConfig.CHUNKING_MODEL
     workers: int = 8
     block_size: int = 1000
     text_column: Optional[str] = None

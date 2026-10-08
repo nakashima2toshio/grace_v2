@@ -557,7 +557,7 @@ def _enforce_max_chunk_tokens(chunks: List[str], max_tokens: int) -> List[str]:
 
 async def chunks_all_async(
         text: str,
-        model: str = "claude-haiku-5-5",
+        model: str = ModelConfig.CHUNKING_MODEL,
         max_workers: int = 8,
         block_size: int = 1000,
         checkpoint_manager: Optional[CheckpointManager] = None,
@@ -577,7 +577,10 @@ async def chunks_all_async(
         api_key=api_key,
         max_workers=max_workers,
         max_retries=3,
-        max_output_tokens=16384
+        max_output_tokens=16384,
+        # クライアントの既定も同じモデルにしておく（モデル名が渡らなかった呼び出しが
+        # 別モデルへ黙って回避されないように）
+        default_model=model,
     )
 
     if checkpoint_manager is None:
@@ -885,8 +888,8 @@ async def main():
     parser.add_argument(
         "--model",
         type=str,
-        default="claude-haiku-5-5",
-        help="使用するLLMモデル"
+        default=ModelConfig.CHUNKING_MODEL,
+        help=f"使用するLLMモデル（デフォルト: {ModelConfig.CHUNKING_MODEL}。config.py::ModelConfig.CHUNKING_MODEL）"
     )
     parser.add_argument(
         "--workers",

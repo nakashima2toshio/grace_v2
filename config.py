@@ -81,8 +81,18 @@ class ModelConfig:
         "claude-haiku-5-5",
     ]
 
-    # デフォルトモデル
+    # デフォルトモデル（回答生成・推論・根拠検証・Q/A 生成）
     DEFAULT_MODEL: str = "claude-sonnet-5-5"
+
+    # チャンキング（データ管理タブ「① チャンキング」・チャンク化 CLI）の既定モデル。
+    # DEFAULT_MODEL とは**分けて**持つ。チャンク化は 1 ファイルで数百回 LLM を呼ぶ
+    # 構造化出力（JSON 分割）で、軽量モデルで足りる。DEFAULT_MODEL を変えても
+    # チャンキングは変わらない。参照元: backend/app/schemas.py::ChunkingRequest /
+    # backend/app/core/data_jobs.py::ChunkingParams / chunking/csv_text_to_chunks_text_csv.py
+    # （chunks_all_async・--model）/ chunking/async_api_client.py::AsyncAPIClient /
+    # qa_qdrant/make_qa_register_qdrant.py::CHUNK_DEFAULT_MODEL
+    # （backend/tests/test_chunking_default_model.py が検査）。
+    CHUNKING_MODEL: str = "claude-haiku-5-5"
 
     # -----------------------------------------------------------------
     # Embedding（検索用途のみ Gemini）— Embedding モデル名の**唯一の定義**

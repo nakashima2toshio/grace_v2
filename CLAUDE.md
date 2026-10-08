@@ -275,7 +275,7 @@ GRACE_E2E=1 GRACE_E2E_REPEAT=3 uv run --no-sync pytest backend/tests/e2e -m e2e 
 |---|---|---|---|
 | 1 | **設定ファイル（正）** | `config/grace_config.yml` の `llm.model` / `llm.light_model` | `grace/config.py::ConfigLoader` 経由で planner / reasoning / groundedness / ReAct |
 | 2 | **モジュール定数** | `backend/app/core/verticals.py::INTENT_MODEL`（リテラル） | 判定系（意図分類・情報なし判定）。**yml を一切見ない** |
-| 3 | **Python 定数** | `config.py::ModelConfig.DEFAULT_MODEL` | 上記以外（Q&A 生成の CLI・`QAPipeline`・`SmartQAGenerator`・`helper_rag_qa` の生成器・`AsyncAPIClient` の既定）。**ここでは文字列を直書きせず `ModelConfig.DEFAULT_MODEL` を参照する**（2026-10-08 まで旧既定 `claude-sonnet-5` が直書きで残り、画面と CLI で Q&A 生成のモデルが割れていた。`backend/tests/test_qa_default_model.py` が検査）。チャンキングの既定は軽量の `claude-haiku-5-5` |
+| 3 | **Python 定数** | `config.py::ModelConfig.DEFAULT_MODEL` | 上記以外（Q&A 生成の CLI・`QAPipeline`・`SmartQAGenerator`・`helper_rag_qa` の生成器の既定）。**ここでは文字列を直書きせず `ModelConfig.DEFAULT_MODEL` を参照する**（2026-10-08 まで旧既定 `claude-sonnet-5` が直書きで残り、画面と CLI で Q&A 生成のモデルが割れていた。`backend/tests/test_qa_default_model.py` が検査）。**チャンキングは分けて `ModelConfig.CHUNKING_MODEL`（`claude-haiku-5-5`）** を参照する（`ChunkingRequest` / `ChunkingParams` / `chunks_all_async` / チャンク化 CLI の `--model` / `CHUNK_DEFAULT_MODEL` / `AsyncAPIClient`。`backend/tests/test_chunking_default_model.py` が検査）。`DEFAULT_MODEL` を変えてもチャンキングは変わらない |
 | 4 | **リクエスト単位の上書き** | UI のモデルセレクタ → `QueryRequest.model` / `ReviewRequest.model` → コアが `config.llm.model` を差し替え | その 1 リクエストの生成・推論・根拠検証・③ Detect |
 | 5 | **直下 `config.yml`** | `config.yml` の `models.default`（`services/config_service.py` が読む） | `services/agent_service.py`（Legacy ReAct）。**ファイルの値がコード側のフォールバックより優先される**。2026-09-24 まで `claude-sonnet-4-6` のまま残っていた（`backend/tests/test_model_selection.py` が経路 3 との一致を検査） |
 
@@ -306,7 +306,7 @@ GRACE_E2E=1 GRACE_E2E_REPEAT=3 uv run --no-sync pytest backend/tests/e2e -m e2e 
 | `claude-fable-5-1` | 最上位（難しい推論・長時間のエージェント処理） | ✅ |
 | `claude-opus-5-5` | 上位（`claude-opus-5` の後継・単価も安い） | ✅ |
 | `claude-sonnet-5-5` | **既定**（推論・生成）。**思考を無効化できない**（`ALWAYS_THINKING_MODELS`） | ✅ |
-| `claude-haiku-5-5` | **軽量**（Claude Haiku 5.5）。`llm.light_model` / `INTENT_MODEL` / チャンキングの既定値（2026-10-08〜） | ✅ |
+| `claude-haiku-5-5` | **軽量**（Claude Haiku 5.5）。`llm.light_model` / `INTENT_MODEL` / チャンキングの既定値（`ModelConfig.CHUNKING_MODEL`。2026-10-08〜） | ✅ |
 | `claude-opus-5` | 旧上位（後方互換。`llm.heavy_model` 等の既存設定用） | ❌ |
 | **`claude-haiku-4-5`** | 旧軽量（Haiku 4.5）。**日付なしエイリアス**。2026-10-08 までチャンキングの既定値 | ❌ |
 | `claude-haiku-4-5-20251001` | 上記の日付指定。2026-10-08 まで `llm.light_model` / `INTENT_MODEL` の値 | ❌ |

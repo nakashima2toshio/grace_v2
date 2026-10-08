@@ -4,7 +4,7 @@
 2026-09-28 に既定を `claude-sonnet-5-5` へ変えたとき、画面の「② Q/A 作成」
 （`QaGenerationRequest` / `QaGenerationParams`）だけが追随し、CLI 側
 （`make_qa_register_qdrant.py --model` / `make_qa.py --model` / `QAPipeline` /
-`SmartQAGenerator` / `helper_rag_qa` の各生成器 / `qa_service` / `AsyncAPIClient`）は
+`SmartQAGenerator` / `helper_rag_qa` の各生成器 / `qa_service`）は
 旧既定 `claude-sonnet-5` を直書きしたまま残っていた。同じ Q/A 生成が、画面からだと
 Sonnet 5.5、CLI からだと Sonnet 5 で走っていた。直書きをやめ、正本を参照させる。
 """
@@ -35,7 +35,6 @@ def test_default_model_is_the_current_default():
     ("qa_generation.pipeline", "QAPipeline.__init__", "model"),
     ("qa_generation.smart_qa_generator", "SmartQAGenerator.__init__", "model"),
     ("services.qa_service", "generate_qa_pairs", "model"),
-    ("chunking.async_api_client", "AsyncAPIClient.__init__", "default_model"),
     ("helper.helper_rag_qa", "QACountOptimizer.__init__", "llm_model"),
     ("helper.helper_rag_qa", "LLMBasedQAGenerator.__init__", "model"),
     ("helper.helper_rag_qa", "ChainOfThoughtQAGenerator.__init__", "model"),

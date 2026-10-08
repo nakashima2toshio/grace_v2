@@ -11,7 +11,7 @@ from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
-from config import get_selectable_models
+from config import ModelConfig, get_selectable_models
 
 
 def _validate_model_choice(v: Optional[str]) -> Optional[str]:
@@ -461,7 +461,7 @@ class ChunkingRequest(BaseModel):
     input_file: str = Field(min_length=1, description="入力ファイル（--input-file 相当）")
     output_dir: str = Field(default="output_chunked", description="出力先（--output 相当）")
     model: str = Field(
-        default="claude-haiku-5-5",
+        default=ModelConfig.CHUNKING_MODEL,
         description="チャンク化に使う LLM（GET /api/models の選択肢から 1 つ）",
     )
     workers: int = Field(default=8, ge=1, le=32, description="並列ワーカー数")

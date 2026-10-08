@@ -1,6 +1,6 @@
 # make_qa_register_qdrant.py - Q/A 生成 → Qdrant 登録 統合 CLI ドキュメント
 
-**Version 1.9** | 最終更新: 2026-10-08
+**Version 1.10** | 最終更新: 2026-10-08
 
 ---
 
@@ -602,7 +602,7 @@ print(normalize_source_filename("qa_pairs_livedoor.csv"))
 | ログ設定 | import 時に `logging.basicConfig(level=INFO, format='%(asctime)s - %(levelname)s - %(message)s')` |
 | `sys.path` | import 時に先頭へプロジェクトルートを挿入 |
 | 日時サフィックスの正規表現 | `_\d{8}_\d{6}`（`normalize_source_filename()`） |
-| `CHUNK_DEFAULT_MODEL` / `CHUNK_DEFAULT_OUTPUT_DIR` | `claude-haiku-5-5` / `output_chunked`（`--chunk-model` / `--chunk-output` の既定） |
+| `CHUNK_DEFAULT_MODEL` / `CHUNK_DEFAULT_OUTPUT_DIR` | `ModelConfig.CHUNKING_MODEL`（`claude-haiku-5-5`）/ `output_chunked`（`--chunk-model` / `--chunk-output` の既定） |
 | `CHUNK_WORKERS` / `CHUNK_BLOCK_SIZE` | `8` / `1000`（`.txt` のチャンク化の並列数・ブロック文字数。CLI からは変えられない） |
 
 ---
@@ -642,6 +642,7 @@ normalize_source_filename   # 日時サフィックスの除去
 | 1.7 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
 | 1.8 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
 | 1.9 | Q/A 生成の既定モデルがコード側で `config.py::ModelConfig.DEFAULT_MODEL` 参照になったのに追随し、既定の記述を `claude-sonnet-5` → `claude-sonnet-5-5` へ是正（概要・引数表）（2026-10-08） |
+| 1.10 | チャンキングの既定を、回答生成・Q/A 生成の `ModelConfig.DEFAULT_MODEL` から分けた `config.py::ModelConfig.CHUNKING_MODEL`（`claude-haiku-5-5`）の 1 箇所で決めるようにしたのに追随（2026-10-08） |
 
 ---
 
