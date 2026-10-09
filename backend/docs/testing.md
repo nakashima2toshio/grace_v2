@@ -1,6 +1,6 @@
 # backend テストの地図 ドキュメント
 
-**Version 2.8** | 最終更新: 2026-10-07
+**Version 2.9** | 最終更新: 2026-10-09
 
 ---
 
@@ -331,7 +331,8 @@ GRACE_E2E=1 uv run --no-sync pytest backend/tests/e2e -m e2e -rs
 | `test_api.py` | Support API の応答 |
 | `test_data_jobs.py` / `test_data_pipeline.py` / `test_chunking_abort.py` / `test_collection_selection.py` | データ準備 4 ジョブ |
 | `test_config_isolation.py` / `test_config_file_and_memory.py` / `test_scope_and_models.py` / `test_model_table_coverage.py` | 設定・モデル解決 |
-| `test_celery_worker_init.py` | Celery ワーカー起動時の初期化（`configure_worker_process`）が ERROR を出さず、タスクが実際に使う `qa_generation.smart_qa_generator` を確かめる（削除済みの `qa_generation.generation` を見ていた回帰） |
+| `test_celery_worker_init.py` | Celery ワーカー起動時の初期化（`configure_worker_process`）と `python celery_config.py`（`__main__`）が ERROR を出さず、タスクが実際に使う `qa_generation.smart_qa_generator` を確かめる（削除済みの `qa_generation.generation` を見ていた回帰） |
+| `test_qa_generation_core.py` | **Q/A 生成の中核**（`QAPipeline.run()` / `SmartQAGenerator.process_chunk()` / `analyze_coverage()`）を偽 LLM・偽 Embedding で直接実行する。`test_data_jobs.py` は `run_qa_generation_sync` をスタブにするので、パイプライン本体はここでしか走らない |
 | `integration/test_*_live.py`（4 ファイル） | **実 Qdrant / Redis の結合テスト**（§1.1。未起動なら skip） |
 | `test_qdrant_snapshot.py` | `scripts/qdrant_snapshot.py` の Qdrant を使わない部分（対象コレクションの集め方・tar の検査・CLI） |
 | `test_measure_rag_threshold.py` / `integration/test_measure_rag_threshold_live.py` | `scripts/measure_rag_threshold.py`（RAG のしきい値の実測・LLM 不使用）の判定（分離可否・推奨値・今のしきい値での帯。**他業界の質問は判定に混ぜず参考として別に数える**）と業界ごとの集計・質問の組み立て／実 Qdrant で全コレクション中の最良スコアを拾えるか。grace_v2_local と同じ内容 |
@@ -349,6 +350,7 @@ GRACE_E2E=1 uv run --no-sync pytest backend/tests/e2e -m e2e -rs
 | `grace.confidence` / `support_actions.py`（**Support / Review 共用**） | 全体 |
 | `schemas.py` / `api/*.py` | `test_api.py` `test_review_api.py` ＋ **frontend ゲート**（`types.ts` の追随） |
 | `core/data_jobs.py` | `test_data_jobs.py` `test_data_pipeline.py` |
+| `qa_generation/*.py` / `services/data_pipeline_service.py` の Q/A 生成 | `test_qa_generation_core.py` `test_qa_pipeline_*.py` `test_qa_generation_import_side_effects.py` `test_qa_pair_definitions.py` |
 | `qdrant_client_wrapper.py` / `services/qdrant_service.py` / `qa_qdrant/register_to_qdrant.py` / `celery_*.py` | 上の単体テストに加えて `backend/tests/integration/`（Qdrant / Redis を起動して。§1.1） |
 | 判定・閾値・プロンプト・モデル既定（`gates.py` / `review_gates.py` / `rulesets.py` / `config/grace_config.yml`） | 単体テストに加えて、できれば E2E（§1.2）。とくに「適正LP案 → 0 件」 |
 | `frontend/src/components/QueryForm.tsx` / `ReviewForm.tsx` の例文 | `e2e/test_e2e_cases.py`（期待値とずれていないか） |
@@ -412,3 +414,4 @@ GRACE_E2E=1 uv run --no-sync pytest backend/tests/e2e -m e2e -rs
 | 1.4 | 2026-10-02 | テストの地図に `test_review_document_context.py` を追加 |
 | 1.3 | 2026-10-02 | テストの地図に `test_review_cosmetic_lp_expected.py` を追加（化粧品LP案の期待値・確定の上限・判定基準と修正案の指示） |
 | 1.2 | 2026-09-26 | §1 に「`GOOGLE_API_KEY` があっても結果が変わらないこと」の注意を追記。`RAGSearchTool.execute` を回す 3 ファイルがキーのある環境で実 Embedding API を呼び、8 件落ちていたのを是正したのに合わせた |
+| 2.9 | 2026-10-09 | 地図に `test_qa_generation_core.py`（Q/A 生成の中核 3 つの直接テスト）を追加し、`test_celery_worker_init.py` の対象に `celery_config.py` の `__main__` を追記。§3 に `qa_generation/` を触ったときに流すテストを追加 |

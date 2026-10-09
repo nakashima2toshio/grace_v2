@@ -1,6 +1,6 @@
 # pipeline.py - Q/A 生成パイプライン ドキュメント
 
-**Version 1.6** | 最終更新: 2026-10-08
+**Version 1.7** | 最終更新: 2026-10-09
 
 ---
 
@@ -53,7 +53,7 @@
 | 機能 | 説明 |
 |---|---|
 | `QAPipeline(dataset_name=..., input_file=..., model=..., output_dir=...)` | パイプラインを構成する |
-| `run(use_celery=..., celery_workers=..., batch_chunks=..., analyze_coverage=...)` | 全工程を実行するメイン API |
+| `run(use_celery=..., celery_workers=..., concurrency=..., analyze_coverage=...)` | 全工程を実行するメイン API |
 | `generate_qa(chunks, ...)` | Q/A 生成のみを行う |
 | `evaluate_coverage(chunks, qa_pairs, ...)` | カバレッジ分析のみを行う |
 
@@ -282,7 +282,6 @@ def __init__(self,
              model: str = ModelConfig.DEFAULT_MODEL,  # = "claude-sonnet-5-5"
              output_dir: str = "qa_output/pipeline",
              max_docs: Optional[int] = None,
-             client: Optional[LLMClient] = None,
              text_column: Optional[str] = None)
 ```
 
@@ -293,7 +292,6 @@ def __init__(self,
 | `model` | str | `ModelConfig.DEFAULT_MODEL`（`claude-sonnet-5-5`） | 使用モデル（Anthropic Claude） |
 | `output_dir` | str | "qa_output/pipeline" | 出力ディレクトリ |
 | `max_docs` | Optional[int] | None | 最大処理チャンク数 |
-| `client` | Optional[LLMClient] | None | LLMクライアント（DI用） |
 | `text_column` | Optional[str] | None | チャンク本文の列名。指定時はその列だけを使い、無ければ `ValueError`。`None` なら下の §4.4 の優先順で自動検出 |
 
 **入力の排他制御**: `dataset_name` と `input_file` は同時に指定できません。
@@ -344,8 +342,7 @@ Q/Aペアを生成します。
 def generate_qa(self, chunks: List[Dict],
                 use_celery: bool = False,
                 celery_workers: int = 1,
-                concurrency: int = 8,
-                batch_chunks: int = 3) -> List[Dict]
+                concurrency: int = 8) -> List[Dict]
 ```
 
 | パラメータ | 型 | デフォルト | 説明 |
@@ -353,15 +350,20 @@ def generate_qa(self, chunks: List[Dict],
 | `chunks` | List[Dict] | - | チャンクのリスト |
 | `use_celery` | bool | False | Celery並列処理を使用するか |
 | `celery_workers` | int | 1 | ワーカープロセス数チェック用 |
-| `concurrency` | int | 8 | 並列タスク数 |
-| `batch_chunks` | int | 3 | 1回のAPIで処理するチャンク数 |
+| `concurrency` | int | 8 | 並列タスク数（**ログ表示用**。実際の並列数は Celery ワーカー起動時の `-c`） |
 
 ### 4.6 `_generate_sync()`
 
-SmartQAGeneratorを使用した同期生成。
+SmartQAGeneratorを使用した同期生成（チャンク 1 件 = LLM 呼び出し 1 回）。
+
+> 📝 **1 回の呼び出しで複数チャンクを渡す機能は無い。** 以前は `batch_chunks`（`_generate_sync` では `batch_size`）
+> という引数を受け取っていたが、同期でも Celery でも一度も使われていなかったため 2026-10-09 に削除した。
+> 同じく `__init__` の `client`（保存するだけで参照ゼロ）も削除した。
+> `concurrency` は残しているが**ログ表示用**で、Celery の実際の並列数はワーカー起動時の `-c`（`start_celery.sh -c`）で決まる
+> （タスクは全件まとめて投入し、ワーカーが `-c` 個ずつ消費する）。
 
 ```python
-def _generate_sync(self, chunks: List[Dict], batch_size: int) -> List[Dict]
+def _generate_sync(self, chunks: List[Dict]) -> List[Dict]
 ```
 
 **処理フロー**:
@@ -394,7 +396,6 @@ def run(self,
         use_celery: bool = False,
         celery_workers: int = 1,
         concurrency: int = 8,
-        batch_chunks: int = 3,
         analyze_coverage: bool = True,
         coverage_threshold: Optional[float] = None) -> Dict
 ```
@@ -403,8 +404,7 @@ def run(self,
 |----------|---|----------|------|
 | `use_celery` | bool | False | Celery並列処理を使用するか |
 | `celery_workers` | int | 1 | ワーカープロセス数チェック用 |
-| `concurrency` | int | 8 | 並列タスク数 |
-| `batch_chunks` | int | 3 | 1回のAPIで処理するチャンク数 |
+| `concurrency` | int | 8 | 並列タスク数（**ログ表示用**。実際の並列数は Celery ワーカー起動時の `-c`） |
 | `analyze_coverage` | bool | True | カバレッジ分析を実行するか |
 | `coverage_threshold` | Optional[float] | None | カスタム閾値 |
 
@@ -437,7 +437,6 @@ def run(self,
 | `model` | - | str | `ModelConfig.DEFAULT_MODEL`（`claude-sonnet-5-5`） | LLMモデル（Anthropic Claude） |
 | `output_dir` | - | str | "qa_output/pipeline" | 出力先 |
 | `max_docs` | - | int | None | 最大処理数 |
-| `client` | - | LLMClient | None | カスタムクライアント |
 | `text_column` | - | str | None | チャンク本文の列名（未指定なら自動検出） |
 
 ※ `dataset_name` と `input_file` はいずれか1つを必ず指定
@@ -448,8 +447,7 @@ def run(self,
 |----------|---|----------|------|
 | `use_celery` | bool | False | Celery使用 |
 | `celery_workers` | int | 1 | ワーカー数チェック |
-| `concurrency` | int | 8 | 並列タスク数 |
-| `batch_chunks` | int | 3 | バッチサイズ |
+| `concurrency` | int | 8 | 並列タスク数（ログ表示用。実際の並列数はワーカーの `-c`） |
 | `analyze_coverage` | bool | True | カバレッジ分析実行 |
 | `coverage_threshold` | float | None | カスタム閾値 |
 
@@ -807,6 +805,7 @@ for i in range(min(3, len(df))):
 | 1.0 | 2026-06-21 | 初版（v3.0 実装に対応。LLM を Anthropic Claude へ統一・Embedding は Gemini 維持。2026-09-05 に `qa_generation/docs/` へ移設） |
 | 1.1 | 2026-09-24 | 基本フォーマット `a_class_method_md_format.md` の章構成へ組み替え。概要に「主な責務」と「各責務対応のモジュール」（1:1）を置き、`## 1. アーキテクチャ構成図`（3 層＋データフロー）を新設。既存の構成図は `## 2. モジュール構成図` へ、使用方法は IPO 詳細の冒頭（`### 4.1 使用例`）へ移した。章・小節に番号を振った。本文の内容は変えていない |
 | 1.2 | 2026-09-24 | `QAPipeline` の引数の記述を実装に合わせた。削除済みの `use_smart_generation` を `generate_qa()` / `run()` / `_generate_sync()` のシグネチャ・引数表・使用例から外した。主要機能一覧の `batch_size` を実引数名 `batch_chunks` へ直し、v3.0 の変更点表に「その後削除」を注記。`model` の既定値を `claude-sonnet-5` へ |
+| 1.7 | 2026-10-09 | 処理に効いていなかった引数を削除したのに追随。`__init__` の `client`、`generate_qa()` / `run()` の `batch_chunks`、`_generate_sync()` の `batch_size` をシグネチャ・引数表から外し、§4.6 に経緯を注記。`concurrency` はログ表示用で、実際の並列数は Celery ワーカーの `-c` で決まることを明記。直接テストは `test_qa_generation_core.py` |
 | 1.6 | 2026-10-08 | Q/A 生成の既定モデルがコード側で `config.py::ModelConfig.DEFAULT_MODEL` 参照になったのに追随し、既定の記述を `claude-sonnet-5` → `claude-sonnet-5-5` へ是正（使用例・`QAPipeline` のシグネチャ・引数表） |
 | 1.5 | 2026-09-26 | `_load_config()` が `--dataset` の種別をデータセット名で補うようになったのに追随。それまでは一律 `unknown` で、途中経過ファイルがデータセット間で共有されていた（`backend/tests/test_qa_pipeline_dataset_type.py`） |
 | 1.4 | 2026-09-25 | `QAPipeline` に `text_column` 引数を追加したのに追随（§4.2 のシグネチャ・引数表、§4.4 の対応カラム、§5.1）。`make_qa_register_qdrant.py` の `--text-column` が生成に渡らなかった問題の修正。既定 `None` は従来の自動検出のままなので、データ管理タブ・`make_qa.py` の挙動は変わらない。回帰は `test_qa_pipeline_text_column.py`（6 件） |

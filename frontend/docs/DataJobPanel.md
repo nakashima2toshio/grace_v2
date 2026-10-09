@@ -1,6 +1,6 @@
 # DataJobPanel.tsx - チャンキング / Qdrant 登録の実行パネル ドキュメント
 
-**Version 1.10** | 最終更新: 2026-10-08
+**Version 1.11** | 最終更新: 2026-10-09
 
 ---
 
@@ -25,7 +25,7 @@
 | 項目 | 内容 |
 |---|---|
 | ファイル | `frontend/src/components/DataJobPanel.tsx` |
-| 種別 | コンテナコンポーネント（`useReducer` + `useState` × 21 + `useEffect` × 2 + `useRef`） |
+| 種別 | コンテナコンポーネント（`useReducer` + `useState` × 20 + `useEffect` × 2 + `useRef`） |
 | 親 | `DataPanel.tsx`（`variant` を渡して 3 用途で共用） |
 | 子 | `Timeline.tsx`、`ConfirmModal.tsx`（モデルの選択はヘッダー＝`App` に移した） |
 | 主な依存 | `../api/client`, `../state/dataParams`, `../state/dataReducer` |
@@ -126,7 +126,7 @@ flowchart TB
     subgraph Container["コンテナ（本ドキュメント対象）"]
         direction TB
         DP["DataPanel.tsx<br>useState(sub)"]
-        DJ["DataJobPanel.tsx<br>useReducer(dataReducer)<br>useState × 21"]
+        DJ["DataJobPanel.tsx<br>useReducer(dataReducer)<br>useState × 20"]
     end
     subgraph Logic["純ロジック"]
         direction TB
@@ -216,8 +216,7 @@ export function DataJobPanel({
 | `combineRows` | `boolean` | `false` | チェックボックス | CSV 全行を結合 |
 | `qaOutputDir` | `string` | `'qa_output'` | 入力 | Q/A CSV・JSON の出力先。**入れ子にしない**（§7） |
 | `useCelery` | `boolean` | `false` | チェックボックス | Celery で並列生成（**ワーカーが要る**） |
-| `concurrency` | `number` | `8` | 入力 | Celery の並列タスク数 |
-| `batchChunks` | `number` | `3` | 入力 | 1 回の生成で渡すチャンク数 |
+| `concurrency` | `number` | `8` | 入力 | Celery の並列タスク数（**表示用**。起動コマンド `./start_celery.sh restart -c {concurrency}` に入る。実際の並列数はワーカー起動時の `-c`） |
 | `analyzeCoverage` | `boolean` | `true` | チェックボックス | カバレージ分析を実行 |
 | `collection` | `string` | `''` | 入力 / ファイル選択で補完 | 登録先コレクション名 |
 | `recreate` | `boolean` | `false` | チェックボックス | **既存を作り直す（要承認）** |
@@ -595,3 +594,4 @@ LLM 用途（Anthropic Claude）とは別系統なので、画面から切り替
 | 1.8 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
 | 1.9 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随 |
 | 1.10 | 2026-10-08 | 「Q/A 生成のモデル既定」の表の `qa` を実装（`QaGenerationRequest.model`）どおり `claude-sonnet-5` → `claude-sonnet-5-5` へ是正 |
+| 1.11 | 2026-10-09 | Q/A 生成フォームから「1 回の生成で渡すチャンク数」（`batchChunks`）を削除。`QAPipeline` は同期でも Celery でもチャンク 1 件 = LLM 呼び出し 1 回で、この値を一度も使っていなかった（API の `batch_chunks` も同時に削除）。`useState` は 21 → 20。「並列タスク数」のラベルを「並列タスク数（ワーカーの -c）」とし、実際の並列数はワーカー起動時の `-c` で決まる旨の注記を足した |

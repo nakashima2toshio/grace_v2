@@ -1,6 +1,6 @@
 # data_pipeline_service.py - データ準備パイプラインの Web 向けラッパ層 ドキュメント
 
-**Version 1.3** | 最終更新: 2026-10-08
+**Version 1.4** | 最終更新: 2026-10-09
 
 ---
 
@@ -374,7 +374,7 @@ def run_chunking_sync(
 def run_qa_generation_sync(
     input_file: str, *, model: str, output_dir: str,
     max_docs: Optional[int] = None, use_celery: bool = False,
-    concurrency: int = 8, batch_chunks: int = 3,
+    concurrency: int = 8,
     analyze_coverage: bool = True,
 ) -> Dict[str, Any]
 ```
@@ -398,14 +398,15 @@ def run_qa_generation_sync(
 ```
 
 > 📝 **`run_chunking_sync()` と違い `asyncio.run()` は挟まない。**
-> `QAPipeline.run()` は同期関数で、並列化は Celery か `ThreadPoolExecutor` の中に閉じている。
+> `QAPipeline.run()` は同期関数で、並列化は Celery（`use_celery=True`）の中に閉じている。`use_celery=False` ならチャンクを 1 件ずつ順に処理する。
 
 > ⚠️ **Celery ワーカーが立っていないときに `use_celery=True` を渡すと例外を投げる**
 > （`check_celery_workers` が失敗する）。呼び出し側で握って error イベントへ変換すること。
 > ワーカーの起動は `./start_celery.sh restart -c 8`。
 
 > 📝 `celery_workers=1` を固定で渡しているが、これは**ワーカー数のチェック用**であって
-> 並列度ではない。実際の並列数は `concurrency` が決める。
+> 並列度ではない。`concurrency` もログ表示用で、実際の並列数は**ワーカー起動時の `-c`**（`./start_celery.sh restart -c 8`）が決める。
+> 以前あった `batch_chunks`（1 回の LLM 呼び出しで渡すチャンク数）は処理に使われていなかったため 2026-10-09 に削除した。
 
 ### 4.4 JSON 化
 
@@ -479,6 +480,7 @@ run_chunking_sync, run_qa_generation_sync, load_input_text
 | 1.1 | 使用例を IPO 詳細の冒頭（`### 4.1 使用例`）へ移し、末尾の「## 6. 使用例」章を削除（基本フォーマット `a_class_method_md_format.md` v1.6〜 §6.1 に準拠。2026-09-24）。IPO の小節を 4.2 以降へ繰り下げ、後続の章番号を 1 つ繰り上げた。文書内の `§4.x` 参照も追随。あわせて主な責務を各責務対応のモジュール（5 行）と 1:1 に並べ直した。使用例の `model` を現行の既定 `claude-sonnet-5` へ |
 | 1.2 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
 | 1.3 | 使用例の `model` を現行の既定 `claude-sonnet-5-5`（`data_jobs.QaGenerationParams.model` と同じ）へ（2026-10-08） |
+| 1.4 | `run_qa_generation_sync()` から処理に効いていなかった `batch_chunks` を削除。`concurrency` はログ表示用で実際の並列数はワーカーの `-c` で決まること、並列化は Celery の中だけ（`ThreadPoolExecutor` は使っていない）であることへ記述を是正（2026-10-09） |
 
 ---
 

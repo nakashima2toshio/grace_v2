@@ -1,6 +1,6 @@
 # make_qa_register_qdrant.py - Q/A 生成 → Qdrant 登録 統合 CLI ガイド
 
-**Version 1.7** | 最終更新: 2026-10-08
+**Version 1.8** | 最終更新: 2026-10-09
 
 ---
 
@@ -413,7 +413,6 @@ python make_qa_register_qdrant_modified.py \
 --max-docs N                  # 最大処理文書数
 --use-celery                  # Celery並列処理を使用
 --celery-workers N            # Celeryワーカー数（デフォルト: 8）
---batch-chunks N              # 1回のAPIで処理するチャンク数（1-5）
 --merge-chunks                # 小さいチャンクを統合（デフォルト: True）
 --overlap-tokens N            # チャンク間の重複トークン数
 --use-similarity              # ベクトル類似度分割を使用
@@ -493,7 +492,6 @@ python -m chunking.csv_to_chunks_text_para_modified \
 python make_qa_register_qdrant_modified.py \
   --input-chunks news_chunks.csv \
   --collection news_qa \
-  --batch-chunks 3 \
   --recreate
 ```
 
@@ -947,3 +945,4 @@ python -m chunking.csv_to_chunks_text_para_modified \
 | 1.2 | 概要の「結論」に、本文の `--model` 既定（`gemini-2.0-flash`）が当時の値で、現在は `claude-sonnet-5` である旨を追記。本文は当時の記録として変えていない（2026-09-25） |
 | 1.1 | `a_cross_doc_md_format.md` の種別 B の骨格へ揃えた（2026-09-24）。H1＋Version ヘッダー、番号なしの「概要」（状態・結論・対象モジュール）、目次の作り直し（装飾絵文字付き見出しのアンカー切れを解消）、本文 H2 の番号付けを行った。本文は当時の記録として変えていない。「バージョン履歴」章はツール自体の版（1.0.0〜1.2.0）なので本文に残した |
 | 1.0 | 初版（2026-09-05 に `qa_qdrant/docs/` へ移設した時点の版） |
+| 1.8 | 引数一覧と使用例から `--batch-chunks` を削除（処理に使われていなかったため CLI から削除）（2026-10-09） |

@@ -1,6 +1,6 @@
 # schemas.py - API スキーマ（Pydantic）ドキュメント
 
-**Version 1.12** | 最終更新: 2026-10-08
+**Version 1.13** | 最終更新: 2026-10-09
 
 > **本書の位置づけ**: `backend/app/schemas.py`（API のリクエスト / レスポンス / イベントの Pydantic スキーマ）の **IPO リファレンス**。
 > 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。
@@ -898,8 +898,7 @@ class QaGenerationRequest(BaseModel):
     model: str                 = Field(default="claude-sonnet-5-5")  # 選択肢外は 422
     max_docs: Optional[int]    = Field(default=None, ge=1)
     use_celery: bool           = False   # ⚠️ True なら Celery ワーカーが要る
-    concurrency: int           = Field(default=8, ge=1, le=32)
-    batch_chunks: int          = Field(default=3, ge=1, le=20)
+    concurrency: int           = Field(default=8, ge=1, le=32)  # 表示用。実際の並列数はワーカーの -c
     analyze_coverage: bool     = True
     verbose: bool              = False
 ```
@@ -1093,6 +1092,7 @@ ReviewResultModel, ReviewJobStatusResponse, RuleSetInfo
 | 1.10 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
 | 1.11 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随 |
 | 1.12 | 2026-10-08 | `QaGenerationRequest.model` の既定を実装どおり `claude-sonnet-5` → `claude-sonnet-5-5` へ是正し、注記の理由を「アプリ全体の既定に合わせる」へ直した |
+| 1.13 | 2026-10-09 | `QaGenerationRequest.batch_chunks` を削除（処理に使われていなかった。古いクライアントが送っても無視される）。`concurrency` は表示用である旨を注記 |
 
 ---
 

@@ -214,7 +214,6 @@ const qaBase: QaFormState = {
   maxDocs: '',
   useCelery: false,
   concurrency: 8,
-  batchChunks: 3,
   analyzeCoverage: true,
   verbose: false,
 };
@@ -224,7 +223,8 @@ describe('buildQaParams', () => {
     const params = buildQaParams(qaBase);
     expect(params.input_file).toBe('output_chunked/cc_news_chunks.csv');
     expect(params.model).toBe('claude-sonnet-5');
-    expect(params.batch_chunks).toBe(3);
+    // 処理に効かなかった batch_chunks は 2026-10-09 に削除した（送らない）
+    expect('batch_chunks' in params).toBe(false);
     expect(params.analyze_coverage).toBe(true);
   });
 
