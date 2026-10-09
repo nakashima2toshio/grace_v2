@@ -112,7 +112,7 @@ uv run ruff check .                     # ブロッキングCIゲート
      tool は `search_rag_knowledge_base_cached`。LLM 応答は
      `ToolUseResponse(text, tool_calls, stop_reason, assistant_message)`。
 3. **既定値ドリフト（期待値を現行へ）**
-   - モデル既定 `gemini-2.0-flash` → `claude-sonnet-4-6`。
+   - モデル既定 `gemini-2.0-flash` → 現行の既定。**期待値はリテラルで書かず `config.py::ModelConfig.DEFAULT_MODEL` を参照する**（2026-10-09 時点 `claude-sonnet-5-5`。この行は以前 `claude-sonnet-4-6` のまま残っていた）。
    - `config_service`: env override は `ANTHROPIC_API_KEY` → `api.anthropic_api_key`。
    - ValueError メッセージ `"ANTHROPIC_API_KEY is not set"`。
 4. **削除された挙動**
