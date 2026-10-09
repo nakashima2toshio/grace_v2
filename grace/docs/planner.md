@@ -1,6 +1,6 @@
 # planner.py - GRACE 計画生成エージェント ドキュメント
 
-**Version 3.13** | 最終更新: 2026-10-08
+**Version 3.14** | 最終更新: 2026-10-09
 
 ---
 
@@ -1024,7 +1024,8 @@ def create_planner(
 # 使用例
 from grace.planner import create_planner
 
-planner = create_planner(model_name="claude-sonnet-4-6")
+# model_name を省略すると resolve_heavy_model(): llm.heavy_model（既定は空）→ llm.model（現在 claude-sonnet-5-5）
+planner = create_planner()
 plan = planner.create_plan("RAGとは何ですか？")
 print(len(plan.steps))
 # 出力: 2
@@ -1123,6 +1124,7 @@ __all__ = [
 
 | バージョン | 変更内容 |
 |-----------|---------|
+| 3.14 | 使用例の `create_planner(model_name="claude-sonnet-4-6")`（旧々既定の直書き）を `create_planner()` に改め、省略時は `resolve_heavy_model()`（`llm.heavy_model` が空なら `llm.model`。現在 `claude-sonnet-5-5`）を使う旨のコメントにした（2026-10-09） |
 | 3.13 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
 | 3.12 | 現在の既定モデルの記載 `claude-sonnet-5` を実装（`grace/config.py` の `LLMConfig.model` / `grace/llm_compat.py` の `DEFAULT_ANTHROPIC_MODEL` = `claude-sonnet-5-5`）に合わせて是正（2026-10-06。CLAUDE.md §9.3。旧既定は履歴の記述にだけ残す） |
 | 3.11 | 計画生成プロンプトから `SEARCH_QUERY_INSTRUCTION` を外した（2026-09-29）。「rag_search の query は元の質問文を完全一致でコピー・キーワード化は禁止」と「質問をキーワード列に変換せよ」を同じプロンプトに入れており、指示が正反対で矛盾していた。`services.prompts` への依存も解消 |
