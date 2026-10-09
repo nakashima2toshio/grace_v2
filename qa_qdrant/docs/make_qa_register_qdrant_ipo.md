@@ -1,6 +1,6 @@
 # make_qa_register_qdrant.py - Q/A 生成 → Qdrant 登録 統合 CLI ドキュメント
 
-**Version 1.10** | 最終更新: 2026-10-08
+**Version 1.11** | 最終更新: 2026-10-09
 
 ---
 
@@ -391,7 +391,7 @@ def main() -> None
 | 項目 | 内容 |
 |------|------|
 | **Input** | CLI 引数（§6.1）、環境変数 `GOOGLE_API_KEY` |
-| **Process** | 1. `argparse` で引数を解析（`--collection` は必須）<br>2. `--dataset` と `--input-file` がちょうど 1 つであることを確かめる（0 個・2 個ならエラー終了）<br>3. `GOOGLE_API_KEY` が無ければエラー終了（`--provider` に `gemini` 以外を渡すと手順 1 で argparse が終了コード 2）<br>4. 入力の種類で Phase 1 を振り分け（§3.1）。Q/A を生成する経路では生成（`.txt` はチャンク化）の前に `require_anthropic_key()` で `ANTHROPIC_API_KEY` を確かめ、無ければ終了コード 1。`.txt` なら先に `chunk_text_file()` でチャンク CSV を作る。生成する場合は `QAPipeline(...).run(use_celery, celery_workers, concurrency, batch_chunks, analyze_coverage=True)` を呼び、`result["saved_files"]["qa_csv"]` を Q/A CSV とする<br>5. Q/A CSV が作られていなければエラー終了<br>6. `run_registration()` で Phase 2 を実行<br>7. 成功なら件数・Q/A CSV・UI 用 CSV のパスをログに出す。失敗ならエラーログを出して終了コード 1<br>8. 途中の例外は「致命的なエラー」としてトレースバックを出して終了コード 1 |
+| **Process** | 1. `argparse` で引数を解析（`--collection` は必須）<br>2. `--dataset` と `--input-file` がちょうど 1 つであることを確かめる（0 個・2 個ならエラー終了）<br>3. `GOOGLE_API_KEY` が無ければエラー終了（`--provider` に `gemini` 以外を渡すと手順 1 で argparse が終了コード 2）<br>4. 入力の種類で Phase 1 を振り分け（§3.1）。Q/A を生成する経路では生成（`.txt` はチャンク化）の前に `require_anthropic_key()` で `ANTHROPIC_API_KEY` を確かめ、無ければ終了コード 1。`.txt` なら先に `chunk_text_file()` でチャンク CSV を作る。生成する場合は `QAPipeline(...).run(use_celery, celery_workers, concurrency, analyze_coverage=True)` を呼び、`result["saved_files"]["qa_csv"]` を Q/A CSV とする<br>5. Q/A CSV が作られていなければエラー終了<br>6. `run_registration()` で Phase 2 を実行<br>7. 成功なら件数・Q/A CSV・UI 用 CSV のパスをログに出す。失敗ならエラーログを出して終了コード 1<br>8. 途中の例外は「致命的なエラー」としてトレースバックを出して終了コード 1 |
 | **Output** | `None`。副作用として Q/A CSV / JSON・UI 用 CSV・Qdrant のポイントを作る。**終了コード**: 成功で `0`、入力・カラム・キー不備・Phase 1 の例外・**Phase 2（Qdrant 登録）の失敗で `1`** |
 
 **戻り値例**:
@@ -576,9 +576,8 @@ print(normalize_source_filename("qa_pairs_livedoor.csv"))
 | Q/A 生成 | `--model` | `ModelConfig.DEFAULT_MODEL`（`claude-sonnet-5-5`） | `QAPipeline` に渡す LLM モデル（Anthropic Claude） |
 | | `--max-docs` | `None` | 処理する最大チャンク数 |
 | | `--use-celery` | off | Celery 並列で生成する |
-| | `-c`, `--concurrency` | `8` | 並列タスク数。`start_celery.sh -c` と同じ値を推奨 |
+| | `-c`, `--concurrency` | `8` | 並列タスク数（**ログ表示用**）。実際の並列数は `start_celery.sh -c` で決まるので同じ値を指定する |
 | | `--celery-workers` | `1` | **非推奨**。ワーカー数チェック用（後方互換のため残っている） |
-| | `--batch-chunks` | `3` | 1 回の API 呼び出しで処理するチャンク数 |
 | Qdrant 登録 | `--collection` | —（**必須**） | 登録先コレクション名 |
 | | `--recreate` | off | コレクションを作り直す |
 | | `--batch-size` | `100` | Embedding・アップサートのバッチサイズ |
@@ -643,6 +642,7 @@ normalize_source_filename   # 日時サフィックスの除去
 | 1.8 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
 | 1.9 | Q/A 生成の既定モデルがコード側で `config.py::ModelConfig.DEFAULT_MODEL` 参照になったのに追随し、既定の記述を `claude-sonnet-5` → `claude-sonnet-5-5` へ是正（概要・引数表）（2026-10-08） |
 | 1.10 | チャンキングの既定を、回答生成・Q/A 生成の `ModelConfig.DEFAULT_MODEL` から分けた `config.py::ModelConfig.CHUNKING_MODEL`（`claude-haiku-5-5`）の 1 箇所で決めるようにしたのに追随（2026-10-08） |
+| 1.11 | §6.1 の引数表から `--batch-chunks` を削除（処理に使われていなかった）。`-c/--concurrency` はログ表示用で、実際の並列数は `start_celery.sh -c` で決まることを明記（2026-10-09） |
 
 ---
 

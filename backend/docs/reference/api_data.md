@@ -1,6 +1,6 @@
 # api/data.py - データ準備ジョブ API ドキュメント
 
-**Version 1.4** | 最終更新: 2026-10-08
+**Version 1.5** | 最終更新: 2026-10-09
 
 > **本書の位置づけ**: `backend/app/api/data.py`（データ準備 4 ジョブの起動と共通 SSE / HITL）の **IPO リファレンス**。
 > 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。
@@ -227,7 +227,7 @@ def generate_qa(request: QaGenerationRequest) -> QueryAccepted
 
 | 項目 | 内容 |
 |------|------|
-| **Input** | `QaGenerationRequest`（`input_file` / `output_dir` / `model` / `max_docs` / `use_celery` / `concurrency` / `batch_chunks` / `analyze_coverage` / `verbose`） |
+| **Input** | `QaGenerationRequest`（`input_file` / `output_dir` / `model` / `max_docs` / `use_celery` / `concurrency` / `analyze_coverage` / `verbose`） |
 | **Process** | `QaGenerationParams` へ詰め替えて `job_manager.start()` |
 | **Output** | `QueryAccepted(job_id, stream_url)` — `202 Accepted` |
 
@@ -368,3 +368,4 @@ curl http://localhost:8000/api/data/result/<job_id>
 | 1.2 | **§3.1「使用例」を新設**（2026-09-15）。ドキュメント規約 `a_class_method_md_format.md` §6.1 が IPO 詳細セクションの冒頭に必須としている代表ワークフローが欠落していた。入力候補の確認 → チャンク化ジョブ起動、破壊的操作の CONFIRM 経路の 2 本を追加し、**実行して出力を確認した**（外部依存が要る例はその旨を明記）。旧 §3.1〜§3.7 は §3.2〜§3.8 へ繰り下げ |
 | 1.0 | 初版作成。`backend/app/api/data.py`（160 行）の 6 エンドポイントを IPO 形式で記述。3 種のジョブと CONFIRM の要否、SSE / HITL を共通エンドポイントにまとめた理由、`DELETE` メソッドを使わない理由、入力検証を runner に寄せた理由を実コードのコメントから起こして記載 |
 | 1.1 | **`POST /api/qa/generate` を追加**（`QaGenerationRequest` → `QaGenerationParams`）。ジョブは 4 種になり、SSE / HITL の共通エンドポイントもそのまま 4 種で共有する。§3 の節番号を繰り下げ |
+| 1.5 | `POST /api/qa/generate` の入力から `batch_chunks` を削除したのに追随（2026-10-09） |

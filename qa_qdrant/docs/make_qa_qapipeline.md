@@ -1,6 +1,6 @@
 # QAPipeline & SmartQAGenerator - Q/Aペア生成システム ドキュメント
 
-**Version 1.5** | 最終更新: 2026-10-08
+**Version 1.6** | 最終更新: 2026-10-09
 
 ---
 
@@ -404,7 +404,7 @@ QAPipeline(
     model: str = ModelConfig.DEFAULT_MODEL,  # = "claude-sonnet-5-5"
     output_dir: str = "qa_output/pipeline",
     max_docs: Optional[int] = None,
-    client: Optional[LLMClient] = None
+    text_column: Optional[str] = None
 )
 ```
 
@@ -415,7 +415,7 @@ QAPipeline(
 | `model` | str | `ModelConfig.DEFAULT_MODEL`（`claude-sonnet-5-5`） | 使用する LLM モデル（Anthropic Claude） |
 | `output_dir` | str | "qa_output/pipeline" | 出力ディレクトリ |
 | `max_docs` | Optional[int] | None | 処理する最大チャンク数 |
-| `client` | Optional[LLMClient] | None | LLMクライアント（DI用） |
+| `text_column` | Optional[str] | None | チャンク本文の列名（未指定なら `text` → `Combined_Text` → `content` → `chunk_text` の順で自動検出） |
 
 | 項目 | 内容 |
 |------|------|
@@ -495,8 +495,7 @@ def generate_qa(
     chunks: List[Dict],
     use_celery: bool = False,
     celery_workers: int = 1,
-    concurrency: int = 8,
-    batch_chunks: int = 3
+    concurrency: int = 8
 ) -> List[Dict]
 ```
 
@@ -505,8 +504,7 @@ def generate_qa(
 | `chunks` | List[Dict] | - | チャンクのリスト |
 | `use_celery` | bool | False | Celery並列処理を使用するか |
 | `celery_workers` | int | 1 | Celeryワーカー数チェック用 |
-| `concurrency` | int | 8 | 並列タスク数 |
-| `batch_chunks` | int | 3 | 1回のAPIで処理するチャンク数 |
+| `concurrency` | int | 8 | 並列タスク数（ログ表示用。実際の並列数はワーカーの `-c`） |
 
 | 項目 | 内容 |
 |------|------|
@@ -540,7 +538,6 @@ def run(
     use_celery: bool = False,
     celery_workers: int = 1,
     concurrency: int = 8,
-    batch_chunks: int = 3,
     analyze_coverage: bool = True,
     coverage_threshold: Optional[float] = None
 ) -> Dict
@@ -550,8 +547,7 @@ def run(
 |------------|------|-----------|------|
 | `use_celery` | bool | False | Celery並列処理を使用するか |
 | `celery_workers` | int | 1 | Celeryワーカー数 |
-| `concurrency` | int | 8 | 並列タスク数 |
-| `batch_chunks` | int | 3 | バッチサイズ |
+| `concurrency` | int | 8 | 並列タスク数（ログ表示用。実際の並列数はワーカーの `-c`） |
 | `analyze_coverage` | bool | True | カバレージ分析を実行するか |
 | `coverage_threshold` | Optional[float] | None | カバレージ判定閾値 |
 
@@ -799,6 +795,7 @@ def analyze_qa_statistics(results: List[Dict]) -> Dict
 | 1.3 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
 | 1.4 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
 | 1.5 | Q/A 生成の既定モデルがコード側で `config.py::ModelConfig.DEFAULT_MODEL` 参照になったのに追随し、既定の記述を `claude-sonnet-5` → `claude-sonnet-5-5` へ是正（構成図・依存表・`QAPipeline` / `SmartQAGenerator` のシグネチャ・引数表・使用例・§5.2）（2026-10-08） |
+| 1.6 | `QAPipeline` から処理に効いていなかった `client` / `batch_chunks` を削除したのに追随（`__init__` には実装どおり `text_column` を記載）。`concurrency` はログ表示用である旨を注記（2026-10-09） |
 
 ---
 

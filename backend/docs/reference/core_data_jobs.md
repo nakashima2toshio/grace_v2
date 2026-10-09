@@ -1,6 +1,6 @@
 # core/data_jobs.py - データ準備ジョブ runner ドキュメント
 
-**Version 1.8** | 最終更新: 2026-10-08
+**Version 1.9** | 最終更新: 2026-10-09
 
 > **本書の位置づけ**: `backend/app/core/data_jobs.py`（データ準備 4 ジョブの runner）の **IPO リファレンス**。
 > 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。
@@ -297,8 +297,7 @@ class QaGenerationParams:
     model: str = "claude-sonnet-5-5"
     max_docs: Optional[int] = None
     use_celery: bool = False
-    concurrency: int = 8
-    batch_chunks: int = 3
+    concurrency: int = 8          # 表示用。実際の並列数はワーカー起動時の -c
     analyze_coverage: bool = True
     verbose: bool = False
 ```
@@ -505,3 +504,4 @@ register_runner(DeleteParams,   _delete_runner,   "delete")
 | 1.0 | 初版作成。`backend/app/core/data_jobs.py`（547 行）の全公開要素を IPO 形式で記述。3 種のステップ定義、`jobs.py` に手を入れず `register_runner` で追加する方式、既存 3 パッケージを無改修のまま `capture_logs()` で進捗を出す方式、CONFIRM の要否（削除は常に／登録は `recreate=True` のときだけ）とその理由、`provider="gemini"` が Embedding 用途として正しいことを実コードのコメントから起こして記載 |
 | 1.1 | **Q/A 生成を追加**（`QaGenerationParams` / `_qa_runner` / `QA_STEP_IDS`）。runner は 4 種になった。出力先の既定を `qa_output` 直下にした理由（`list_input_files()` が非再帰）、入力検証を ① で完結させる理由、0 件生成を error にする理由を追記。§2・§4・§5 の節番号を繰り下げ |
 | 1.2 | `_chunking_runner` が `ChunkingAbortedError` を専用に捕捉するようになったことを追記。LLM が連続で失敗したとき、機械的分割へフォールバックして「成功」で終わらせないための中断（回帰は `test_chunking_abort.py`） |
+| 1.9 | `QaGenerationParams.batch_chunks` を削除（`QAPipeline` が一度も使っていなかった）。`concurrency` は表示用である旨を注記（2026-10-09） |

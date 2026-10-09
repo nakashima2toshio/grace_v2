@@ -1,6 +1,6 @@
 # qa_generation/ - Q/A 生成パッケージ（データ準備 ②）ドキュメント
 
-**Version 2.0** | 最終更新: 2026-10-08
+**Version 2.1** | 最終更新: 2026-10-09
 
 > 📎 **姉妹版**: [`docs/README.md`](../../docs/README.md)（直下・配置の境界） /
 > [`grace/docs/README.md`](../../grace/docs/README.md) /
@@ -285,13 +285,13 @@ style MOD fill:#1a1a1a,stroke:#fff,color:#fff
 
 ### 3.2 文書一覧
 
-> 行数・Ver は **2026-10-08 の実測値**（`wc -l` と各文書のヘッダー）。
+> 行数・Ver は **2026-10-08 の実測値**（`pipeline` 行のみ 2026-10-09 に再実測）（`wc -l` と各文書のヘッダー）。
 > 7 文書はすべて IPO 形式（`a_class_method_md_format.md` 準拠。使用例は IPO 詳細の冒頭）。
 > 本書は v2.0 から同じ IPO 形式（パッケージ全体の概要＋索引）。
 
 | 文書 | 対象実装 | 実装行数 | 文書行数 | Ver | 重要度 |
 |---|---|---:|---:|---|:--:|
-| [`pipeline.md`](pipeline.md) | `pipeline.py` — `QAPipeline`（Web / CLI 共通の実体） | 569 | 813 | 1.6 | ★★★ |
+| [`pipeline.md`](pipeline.md) | `pipeline.py` — `QAPipeline`（Web / CLI 共通の実体） | 555 | 812 | 1.7 | ★★★ |
 | [`smart_qa_generator.md`](smart_qa_generator.md) | `smart_qa_generator.py` — `SmartQAGenerator`（構造化出力 1 回） | 301 | 573 | 1.3 | ★★★ |
 | [`semantic.md`](semantic.md) | `semantic.py` — `SemanticCoverage`（Embedding によるカバレージ） | 543 | 780 | 1.3 | ★★☆ |
 | [`evaluation.md`](evaluation.md) | `evaluation.py` — `analyze_coverage()` ほか | 316 | 822 | 1.3 | ★★☆ |
@@ -327,7 +327,7 @@ style MOD fill:#1a1a1a,stroke:#fff,color:#fff
 
 ### 4.1 棚卸しで分かったこと
 
-1〜5 は 2026-09-24、6・7 は 2026-10-08 に実装を読んで確認した。いずれも**機能上の不具合ではない**が、誤解や無駄を生む。
+1〜5 は 2026-09-24、6・7 は 2026-10-08 に実装を読んで確認した。いずれも**機能上の不具合ではない**が、誤解や無駄を生む。**7 件とも対処済み。**
 
 | # | 内容 | 根拠（実測） | 扱い |
 |---|---|---|---|
@@ -336,8 +336,8 @@ style MOD fill:#1a1a1a,stroke:#fff,color:#fff
 | 3 | ~~死んだ引数 `provider="anthropic"`~~ | `QAPipeline._generate_with_celery()` が渡すが、受け側（`celery_tasks.py`）は使っていなかった | ✅ 受け側ごと削除（2026-09-25） |
 | 4 | ~~`smart_qa_generator.md` の既定モデルが旧既定のまま~~ | 実装は `ModelConfig.DEFAULT_MODEL` を参照する | ✅ 是正済み（以後、既定は直書きせず `ModelConfig.DEFAULT_MODEL` を参照。`test_qa_default_model.py` が検査） |
 | 5 | ~~`load_uploaded_file()` で、空セルが文字列 `"nan"` として残る~~ | `clean_text(str(x))` と先に `str()` をかけていたため、欠損判定に届かなかった（[`data_io.md`](data_io.md) §8 の 7） | ✅ 修正済み（2026-09-24） |
-| 6 | `celery_config.py` を**スクリプトとして実行**すると、削除済みの `qa_generation.generation` の import を試して `❌` を出す | `celery_config.py` の `if __name__ == '__main__':` 内（398 行目付近）。ワーカー起動時の確認（`configure_worker_process`）は 2026-10-03 に `smart_qa_generator` へ直し済み（`test_celery_worker_init.py`）だが、`__main__` 側が取り残されている | ⏳ 残タスク 6（本パッケージ外） |
-| 7 | `QAPipeline` の引数 `client` / `batch_chunks` / `concurrency` は**受け取るが処理に効かない** | `client` は `self.client` に保存するだけで参照ゼロ。`batch_chunks` は同期（`_generate_sync` の docstring に「現在は未使用」）でも Celery（`submit_unified_qa_generation(chunks, config, model)` に渡らない）でも使われない。`concurrency` はログに出すだけで、実際の並列数は Celery ワーカーの `-c` で決まる。一方 [`pipeline.md`](pipeline.md) は `batch_chunks` を「1 回の API で処理するチャンク数」と説明している | ⏳ 残タスク 7 |
+| 6 | ~~`celery_config.py` を**スクリプトとして実行**すると、削除済みの `qa_generation.generation` の import を試して `❌` を出す~~ | `celery_config.py` の `if __name__ == '__main__':` 内。ワーカー起動時の確認（`configure_worker_process`）は 2026-10-03 に `smart_qa_generator` へ直してあったが、`__main__` 側が取り残されていた | ✅ 修正済み（2026-10-09）。回帰は `test_celery_worker_init.py`（3 件・修正前は 1 件 fail） |
+| 7 | ~~`QAPipeline` の引数 `client` / `batch_chunks` / `concurrency` は**受け取るが処理に効かない**~~ | `client` は `self.client` に保存するだけで参照ゼロ。`batch_chunks` は同期でも Celery（`submit_unified_qa_generation(chunks, config, model)` に渡らない）でも使われず、画面には「1 回の生成で渡すチャンク数」として出ていた。`concurrency` はログに出すだけで、実際の並列数は Celery ワーカーの `-c` で決まる | ✅ 対処済み（2026-10-09）。`client` / `batch_chunks` を `QAPipeline`・`run_qa_generation_sync`・API（`QaGenerationRequest` / `QaGenerationParams`）・画面（`DataJobPanel` の入力欄）・CLI（`--batch-chunks`）から**削除**。`concurrency` は起動コマンドとログの表示用として残し、各所の説明を「実際の並列数はワーカーの `-c`」へ直した |
 
 > 姉妹リポジトリ `grace_v2_local` では 1・3 を 2026-09-21 に解消済み。本リポジトリでも同じ方法・同じ判断で解消した。
 
@@ -350,9 +350,11 @@ style MOD fill:#1a1a1a,stroke:#fff,color:#fff
 | 3 | ~~`QAPair` の 3 重定義を解消する（§4.1 の 2）~~ | ✅ **完了**（2026-09-25）。直下 `models.py` へ一本化。回帰は `test_qa_pair_definitions.py` |
 | 4 | ~~死んだ `provider` 引数を外す（§4.1 の 3）~~ | ✅ **完了**（2026-09-25） |
 | 5 | ~~`load_uploaded_file()` の `"nan"` 混入を直す（§4.1 の 5）~~ | ✅ **完了**（2026-09-24）。回帰は `test_data_io_missing_text.py` |
-| 6 | `celery_config.py` の `__main__` の import 確認を `qa_generation.smart_qa_generator` へ直す（§4.1 の 6） | 低 |
-| 7 | `QAPipeline` の効かない引数（`client` / `batch_chunks` / `concurrency`）を、実装するか、`pipeline.md` に「効かない」と明記するかを決める（§4.1 の 7）。呼び出し側（`services/data_pipeline_service.py`・CLI 2 本）も引数を渡しているので、削除するなら同時に直す | 中 |
-| 8 | `QAPipeline.run()` / `SmartQAGenerator.process_chunk()` / `analyze_coverage()` に直接のテストを足す（§8 の注記） | 中 |
+| 6 | ~~`celery_config.py` の `__main__` の import 確認を `qa_generation.smart_qa_generator` へ直す（§4.1 の 6）~~ | ✅ **完了**（2026-10-09） |
+| 7 | ~~`QAPipeline` の効かない引数（`client` / `batch_chunks` / `concurrency`）を処理する（§4.1 の 7）~~ | ✅ **完了**（2026-10-09）。`client` / `batch_chunks` は削除、`concurrency` は表示用と明記 |
+| 8 | ~~`QAPipeline.run()` / `SmartQAGenerator.process_chunk()` / `analyze_coverage()` に直接のテストを足す~~ | ✅ **完了**（2026-10-09）。`test_qa_generation_core.py`（12 件） |
+
+**残タスク 0 件**（2026-10-09）。
 
 ---
 
@@ -364,16 +366,16 @@ style MOD fill:#1a1a1a,stroke:#fff,color:#fff
 
 | メソッド | 概要 |
 |---------|------|
-| `__init__(dataset_name, input_file, model, output_dir, max_docs, client, text_column)` | 入力の排他検証・設定ロード・`SmartQAGenerator` の生成 |
-| `run(use_celery, celery_workers, concurrency, batch_chunks, analyze_coverage, coverage_threshold)` | 全工程を実行するメイン API |
+| `__init__(dataset_name, input_file, model, output_dir, max_docs, text_column)` | 入力の排他検証・設定ロード・`SmartQAGenerator` の生成 |
+| `run(use_celery, celery_workers, concurrency, analyze_coverage, coverage_threshold)` | 全工程を実行するメイン API |
 | `load_data()` | チャンク済み CSV（または事前定義データセット）を DataFrame で読む |
-| `generate_qa(chunks, use_celery, celery_workers, concurrency, batch_chunks)` | 再開処理を挟んで同期／Celery で生成する |
+| `generate_qa(chunks, use_celery, celery_workers, concurrency)` | 再開処理を挟んで同期／Celery で生成する |
 | `evaluate_coverage(chunks, qa_pairs, threshold)` | `analyze_coverage()` を呼ぶ |
 | `save(qa_pairs, coverage_results)` | `save_results()` を呼ぶ |
 | `_validate_inputs()` / `_load_config()` | `dataset_name` と `input_file` の排他検証、設定辞書の作成 |
 | `_load_chunks_from_csv(df)` | 本文列・ID 列を検出してチャンクのリストにする |
 | `_progress_path()` / `_load_progress()` / `_append_progress()` / `_clear_progress()` | 逐次保存（`qa_progress_<種別>.jsonl`） |
-| `_generate_sync(chunks, batch_size)` / `_generate_with_celery(chunks, workers, concurrency, batch_size)` | 同期生成／Celery 生成 |
+| `_generate_sync(chunks)` / `_generate_with_celery(chunks, workers, concurrency)` | 同期生成／Celery 生成 |
 
 #### SmartQAGenerator（`smart_qa_generator.py`）
 
@@ -520,7 +522,6 @@ QAPipeline(
     model: str = ModelConfig.DEFAULT_MODEL,
     output_dir: str = "qa_output/pipeline",
     max_docs: Optional[int] = None,
-    client: Optional[LLMClient] = None,
     text_column: Optional[str] = None,
 )
 ```
@@ -532,12 +533,11 @@ QAPipeline(
 | `model` | str | `ModelConfig.DEFAULT_MODEL` | 生成に使う LLM（現在 `claude-sonnet-5-5`） |
 | `output_dir` | str | `"qa_output/pipeline"` | 結果と逐次保存ファイルの出力先 |
 | `max_docs` | Optional[int] | None | 処理する最大チャンク数（`input_file` のときだけ効く） |
-| `client` | Optional[LLMClient] | None | DI 用として受け取るが**未使用**（§4.1 の 7） |
 | `text_column` | Optional[str] | None | 本文列名。指定時はその列だけを使い、無ければ `ValueError` |
 
 | 項目 | 内容 |
 |------|------|
-| **Input** | `dataset_name`, `input_file`, `model`, `output_dir`, `max_docs`, `client`, `text_column` |
+| **Input** | `dataset_name`, `input_file`, `model`, `output_dir`, `max_docs`, `text_column` |
 | **Process** | 1. `_validate_inputs()`: `dataset_name` / `input_file` がちょうど 1 つでなければ `ValueError`<br>2. `_load_config()`: ファイルなら `{name, text_column: "text", lang: "ja", qa_per_chunk: 3, type: <ファイル名の stem>}`、データセットなら `DATASET_CONFIGS` をコピーし `type` が無ければデータセット名を補う（未知の名前は `ValueError`）<br>3. `SmartQAGenerator(model=model)` を生成 |
 | **Output** | `QAPipeline` インスタンス |
 
@@ -564,7 +564,6 @@ def run(self,
         use_celery: bool = False,
         celery_workers: int = 1,
         concurrency: int = 8,
-        batch_chunks: int = 3,
         analyze_coverage: bool = True,
         coverage_threshold: Optional[float] = None) -> Dict
 ```
@@ -573,14 +572,13 @@ def run(self,
 |------------|------|-----------|------|
 | `use_celery` | bool | False | Celery 並列で生成するか |
 | `celery_workers` | int | 1 | 起動しているべきワーカー数（**確認用**） |
-| `concurrency` | int | 8 | ログに出すだけ（§4.1 の 7）。実際の並列数はワーカーの `-c` |
-| `batch_chunks` | int | 3 | 現在は未使用（§4.1 の 7） |
+| `concurrency` | int | 8 | ログ表示用（§4.1 の 7）。実際の並列数は Celery ワーカー起動時の `-c` |
 | `analyze_coverage` | bool | True | カバレージ分析を行うか |
 | `coverage_threshold` | Optional[float] | None | standard 閾値の上書き（None なら 0.7） |
 
 | 項目 | 内容 |
 |------|------|
-| **Input** | `use_celery`, `celery_workers`, `concurrency`, `batch_chunks`, `analyze_coverage`, `coverage_threshold` |
+| **Input** | `use_celery`, `celery_workers`, `concurrency`, `analyze_coverage`, `coverage_threshold` |
 | **Process** | 1. `load_data()` → `_load_chunks_from_csv()`（チャンク 0 件なら `RuntimeError`）<br>2. `generate_qa()`（逐次保存から再開）<br>3. `analyze_coverage` かつ Q/A が 1 件以上なら `evaluate_coverage()`、それ以外は `coverage_rate=0` のダミー<br>4. `save()` → `_clear_progress()`<br>5. 例外はログを出して再送出 |
 | **Output** | `Dict`: `{saved_files, qa_count, coverage_results, success}` |
 
@@ -614,8 +612,7 @@ print(result["coverage_results"]["coverage_rate"])
 def generate_qa(self, chunks: List[Dict],
                 use_celery: bool = False,
                 celery_workers: int = 1,
-                concurrency: int = 8,
-                batch_chunks: int = 3) -> List[Dict]
+                concurrency: int = 8) -> List[Dict]
 ```
 
 | パラメータ | 型 | デフォルト | 説明 |
@@ -623,12 +620,11 @@ def generate_qa(self, chunks: List[Dict],
 | `chunks` | List[Dict] | - | `_load_chunks_from_csv()` が作ったチャンク |
 | `use_celery` | bool | False | Celery を使うか |
 | `celery_workers` | int | 1 | ワーカー数の確認用 |
-| `concurrency` | int | 8 | ログ出力のみ |
-| `batch_chunks` | int | 3 | 未使用 |
+| `concurrency` | int | 8 | ログ表示用 |
 
 | 項目 | 内容 |
 |------|------|
-| **Input** | `chunks`, `use_celery`, `celery_workers`, `concurrency`, `batch_chunks` |
+| **Input** | `chunks`, `use_celery`, `celery_workers`, `concurrency` |
 | **Process** | 1. `_load_progress()` で `qa_progress_<種別>.jsonl` を読む（壊れた行は飛ばす）<br>2. 処理済みチャンクを除き、復元した Q/A を `prior_pairs` に入れる<br>3. 残りが 0 件なら `prior_pairs` を返す<br>4. `_generate_with_celery()` または `_generate_sync()` で生成し、チャンクごとに `_append_progress()`<br>5. `prior_pairs + new_pairs` を返す |
 | **Output** | `List[Dict]`: Q/A のリスト（同期では `{question, answer, chunk_id, topic, dataset_type}`） |
 
@@ -873,11 +869,12 @@ print(f"{cov['coverage_rate']:.1%}")
 
 ## 8. テスト
 
-`qa_generation/` に関わるテストは次の 10 ファイル（2026-10-08、`backend/tests` を grep して確認。件数は実行して数えた値）。
+`qa_generation/` に関わるテストは次の 11 ファイル（2026-10-09、`backend/tests` を grep して確認。件数は実行して数えた値）。
 いずれも実 API キー・Qdrant 不要。
 
 | テストファイル | 件数 | 関わり方 |
 |---|---:|---|
+| `backend/tests/test_qa_generation_core.py` | 12 | **中核 3 つを直接実行する。** `QAPipeline.run()`（生成 → 4 ファイル保存 → 逐次保存ファイルの削除・途中経過からの再開・失敗チャンクは記録しない・カバレージ閾値の受け渡し・CSV 以外の拒否・削除した `client` / `batch_chunks` を受け付けないこと）、`SmartQAGenerator.process_chunk()`（構造化結果の詰め替え・例外と空応答で `success=False`）、`analyze_coverage()`（standard 閾値でのカバー判定・多段階閾値・`custom_threshold`・Q/A 0 件）。LLM・Embedding・tiktoken は偽物へ差し替える |
 | `backend/tests/test_qa_pair_definitions.py` | 6 | `qa_generation.QAPair` / `QAPairsList` が直下 `models.py` の正本そのものであること・別定義を書き戻していないこと（§4.1 の 2） |
 | `backend/tests/test_qa_generation_import_side_effects.py` | 3 | `import qa_generation.data_io` で Celery が載らないこと・Celery は必要時に読めること・`helper/` 配下に裸 import が無いこと（§4.1 の 1） |
 | `backend/tests/test_qa_pipeline_text_column.py` | 6 | `QAPipeline(text_column=...)` が指定列を優先すること・指定列が無ければ `ValueError`・未指定なら従来の検出順のままであること、`make_qa_register_qdrant.py --text-column` が `QAPipeline` へ渡ること |
@@ -885,12 +882,12 @@ print(f"{cov['coverage_rate']:.1%}")
 | `backend/tests/test_data_io_missing_text.py` | 3 | `load_uploaded_file()` が欠損セルを `"nan"` にしないこと（§4.1 の 5） |
 | `backend/tests/test_qa_default_model.py` | 9 | `QAPipeline` / `SmartQAGenerator` を含む Q/A 生成の既定モデルが `ModelConfig.DEFAULT_MODEL` を指すこと |
 | `backend/tests/test_model_table_coverage.py` | 5 | 各所の既定モデルが料金表・上限表に登録されていること（既定値はテスト内で手で列挙） |
-| `backend/tests/test_data_jobs.py` | 43 | データ管理タブのジョブ。`run_qa_generation_sync` を**スタブへ差し替える**ので `QAPipeline` 自体は実行されない |
-| `backend/tests/test_celery_worker_init.py` | 2 | ワーカー起動時の import 確認が `qa_generation.smart_qa_generator` を見ること（削除済みの `qa_generation.generation` を見ない） |
+| `backend/tests/test_data_jobs.py` | 44 | データ管理タブのジョブ（API から `batch_chunks` が消えたことの検査を含む）。`run_qa_generation_sync` を**スタブへ差し替える**ので `QAPipeline` 自体は実行されない |
+| `backend/tests/test_celery_worker_init.py` | 3 | ワーカー起動時と `python celery_config.py`（`__main__`）の import 確認が `qa_generation.smart_qa_generator` を見ること（削除済みの `qa_generation.generation` を見ない。§4.1 の 6） |
 | `backend/tests/test_qa_qdrant_package_init.py` | 2 | `import qa_qdrant` で `qa_generation` が読み込まれないこと |
 
-> ⚠️ **`QAPipeline.run()` は Web / CLI 共通の実体なのに、直接のテストが無い。**
-> `SmartQAGenerator.process_chunk()`（失敗時に `success=False` を返す契約）と `analyze_coverage()` も同様（残タスク 8）。
+> 📝 2026-10-08 までは `QAPipeline.run()`（Web / CLI 共通の実体）・`process_chunk()`・`analyze_coverage()` に直接のテストが無かった。
+> 2026-10-09 に `test_qa_generation_core.py` を足して解消した（残タスク 8）。実 LLM・実 Embedding での確認は `backend/tests/e2e/` の範囲外。
 
 ---
 
@@ -927,6 +924,7 @@ __all__ = [
 
 | Version | 日付 | 変更 |
 |---|---|---|
+| 2.1 | 2026-10-09 | **残タスク 6〜8 を完了し、残タスク 0 件。** 6: `celery_config.py` の `__main__` の import 確認を `qa_generation.smart_qa_generator` へ直した（`test_celery_worker_init.py` に 1 件追加・修正前は fail）。7: `QAPipeline` の効かない引数のうち `client` / `batch_chunks` を、`QAPipeline`・`run_qa_generation_sync`・API・画面・CLI（`--batch-chunks`）から削除し、`concurrency` は表示用と明記（§5・§6.2 のシグネチャと引数表を更新）。8: `test_qa_generation_core.py`（12 件）を追加。§3.2 の `pipeline` 行と §8 のテスト一覧（11 ファイル）を再実測 |
 | 2.0 | 2026-10-08 | **`a_class_method_md_format.md`（IPO 形式）で全面改訂。** 概要に主な責務 7 件・各責務対応のモジュール・主要機能一覧を新設し、3 層のアーキテクチャ構成図＋データフロー、モジュール構成図、クラス・関数一覧表、IPO 詳細（冒頭の使用例 3 本＋`QAPipeline` / `SmartQAGenerator` / `load_uploaded_file` / `save_results` / `analyze_coverage`）、設定・定数、エクスポート、付録の依存関係図を追加。旧 §1〜§6 の索引（目的別の入口・一覧・カバレッジ・書き分け）は §3、棚卸しと残タスクは §4 へ移した。§3.2 の行数・Ver を再実測（`smart_qa_generator.py` 301 行、`pipeline.md` 813 行 v1.6、`smart_qa_generator.md` 573 行 v1.3、`data_io.md` 483 行 v1.3）。§8 のテストを 6 → 10 ファイルへ更新し件数を実測（`test_qa_pipeline_dataset_type.py` / `test_qa_default_model.py` / `test_celery_worker_init.py` / `test_qa_qdrant_package_init.py` を追加）。棚卸しに 2 件を追加（6: `celery_config.py` の `__main__` が削除済みの `qa_generation.generation` を見ている、7: `QAPipeline` の `client` / `batch_chunks` / `concurrency` が処理に効かない）、残タスク 6〜8 を登録 |
 | 1.14 | 2026-10-08 | 冒頭の注記の既定 LLM を `claude-sonnet-5` → 現在の既定 `claude-sonnet-5-5`（`config.py::ModelConfig.DEFAULT_MODEL`）へ是正 |
 | 1.13 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`）。同じ改訂の 2 文書の行数・Ver を再実測 |

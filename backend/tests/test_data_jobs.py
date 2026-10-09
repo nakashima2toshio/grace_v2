@@ -849,10 +849,19 @@ def test_qa_endpoint_validates_params():
         "/api/qa/generate",
         json={"input_file": "output_chunked/a.csv", "concurrency": 99},
     ).status_code == 422
-    # batch_chunks は 1..20
-    assert client.post(
-        "/api/qa/generate",
-        json={"input_file": "output_chunked/a.csv", "batch_chunks": 0},
-    ).status_code == 422
     # input_file は必須
     assert client.post("/api/qa/generate", json={}).status_code == 422
+
+
+def test_qa_params_have_no_batch_chunks():
+    """`batch_chunks` は処理に使われていなかったので API から外した（2026-10-09）。
+
+    画面には「1 回の生成で渡すチャンク数」として出ていたが、`QAPipeline` は
+    同期でも Celery でもチャンク 1 件 = LLM 呼び出し 1 回で、値を一切使っていなかった。
+    """
+    import dataclasses
+
+    from backend.app.schemas import QaGenerationRequest
+
+    assert "batch_chunks" not in QaGenerationRequest.model_fields
+    assert "batch_chunks" not in {f.name for f in dataclasses.fields(QaGenerationParams)}

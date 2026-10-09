@@ -1,6 +1,6 @@
 # データ準備パイプライン（チャンキング / Q/A 生成 / 登録 / 削除） ドキュメント
 
-**Version 1.7** | 最終更新: 2026-09-30
+**Version 1.8** | 最終更新: 2026-10-09
 
 ---
 
@@ -372,7 +372,7 @@ style L4 fill:#1a1a1a,stroke:#fff,color:#fff
 
 | 項目 | 内容 |
 |---|---|
-| **Input** | `QaGenerationParams(input_file, output_dir, model, max_docs, use_celery, concurrency, batch_chunks, analyze_coverage)`、`emit` |
+| **Input** | `QaGenerationParams(input_file, output_dir, model, max_docs, use_celery, concurrency, analyze_coverage)`、`emit` |
 | **Process** | ① 入力の検証（許可パス・`.csv`・テキストカラム）<br>② `run_qa_generation_sync()` で Q/A 生成<br>③ カバレージ分析（`analyze_coverage=False` なら skip）<br>④ 出力ファイルの存在確認 |
 | **Output** | `{"kind": "qa", "qa_csv", "qa_json", "qa_count", "coverage_rate", "total_chunks", "model"}` |
 
@@ -522,6 +522,7 @@ CHUNKING_STEP_LABELS, QA_STEP_LABELS, REGISTER_STEP_LABELS, DELETE_STEP_LABELS
 | 1.5 | 2026-09-26 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
 | 1.6 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
 | 1.7 | 2026-09-30 | 付録 A の登録コマンドに `--no-create-ui-csv` を追加し、理由（登録スクリプトが既定で UI 用 CSV = `question` / `answer` の 2 列を `qa_output/<入力と同じファイル名>` へ書き、入力 CSV 自身を上書きして `topic` 列が消える）を明記 |
+| 1.8 | 2026-10-09 | `QaGenerationParams` から処理に効いていなかった `batch_chunks` を削除したのに追随 |
 
 ---
 
