@@ -1,0 +1,12 @@
+{
+  "dataset_type": "cc_news_2per_anthropic_chunks",
+  "dataset_name": "cc_news_2per_anthropic_chunks",
+  "generated_at": "20261009_134428",
+  "total_qa_pairs": 124,
+  "coverage_rate": 0.9555555555555556,
+  "files": {
+    "qa_json": "qa_output/qa_pairs_cc_news_2per_anthropic_chunks_20261009_134428.json",
+    "qa_csv": "qa_output/qa_pairs_cc_news_2per_anthropic_chunks_20261009_134428.csv",
+    "coverage": "qa_output/coverage_cc_news_2per_anthropic_chunks_20261009_134428.json"
+  }
+}

@@ -1,0 +1,201 @@
+{
+  "coverage_rate": 0.9555555555555556,
+  "covered_chunks": 43,
+  "total_chunks": 45,
+  "uncovered_chunks": [
+    {
+      "chunk_id": "cc_news_2per_anthropic_chunk_4",
+      "similarity": 0.6808782185799783,
+      "gap": 0.019121781420021633,
+      "text_preview": "This is officially our new favorite way to get in on the football fun...."
+    },
+    {
+      "chunk_id": "cc_news_2per_anthropic_chunk_40",
+      "similarity": 0.698821221904071,
+      "gap": 0.001178778095928923,
+      "text_preview": "Check out the highlights in this video below; for the full 24-minute version, click here...."
+    }
+  ],
+  "max_similarities": [
+    0.8423396016538842,
+    0.8655136046922721,
+    0.861483559050705,
+    0.9166833006354171,
+    0.6808782185799783,
+    0.7613191427979942,
+    0.8857098202497908,
+    0.8543466161490432,
+    0.7952032792073825,
+    0.8017811629715663,
+    0.8316805038856654,
+    0.8806668376217873,
+    0.7560738270907076,
+    0.8429867471311445,
+    0.8222491750177766,
+    0.8781477638993487,
+    0.8646353131711465,
+    0.7595594000058628,
+    0.828003783104248,
+    0.8918182222599179,
+    0.8704918985591084,
+    0.8563653307915368,
+    0.8657015985321603,
+    0.8271490274105666,
+    0.8290890683369121,
+    0.8154498419571093,
+    0.8836986452300842,
+    0.8865970317263461,
+    0.8544528490039495,
+    0.8870013587194526,
+    0.8424884163523099,
+    0.8490324344812583,
+    0.8234017193863937,
+    0.827012163340897,
+    0.8399716791817473,
+    0.8747402195687087,
+    0.8801585073526274,
+    0.8426754869644305,
+    0.8585179255892451,
+    0.7547675971272446,
+    0.698821221904071,
+    0.7695480565863626,
+    0.843024913452941,
+    0.7944025577057057,
+    0.8812010401332004
+  ],
+  "threshold": 0.7,
+  "multi_threshold": {
+    "strict": {
+      "threshold": 0.8,
+      "covered_chunks": 36,
+      "coverage_rate": 0.8,
+      "uncovered_count": 9,
+      "uncovered_chunks": [
+        {
+          "chunk_id": "cc_news_2per_anthropic_chunk_4",
+          "similarity": 0.6808782185799783,
+          "gap": 0.11912178142002172
+        },
+        {
+          "chunk_id": "cc_news_2per_anthropic_chunk_5",
+          "similarity": 0.7613191427979942,
+          "gap": 0.03868085720200587
+        },
+        {
+          "chunk_id": "cc_news_2per_anthropic_chunk_8",
+          "similarity": 0.7952032792073825,
+          "gap": 0.004796720792617504
+        },
+        {
+          "chunk_id": "cc_news_2per_anthropic_chunk_12",
+          "similarity": 0.7560738270907076,
+          "gap": 0.04392617290929246
+        },
+        {
+          "chunk_id": "cc_news_2per_anthropic_chunk_17",
+          "similarity": 0.7595594000058628,
+          "gap": 0.040440599994137294
+        },
+        {
+          "chunk_id": "cc_news_2per_anthropic_chunk_39",
+          "similarity": 0.7547675971272446,
+          "gap": 0.04523240287275543
+        },
+        {
+          "chunk_id": "cc_news_2per_anthropic_chunk_40",
+          "similarity": 0.698821221904071,
+          "gap": 0.10117877809592901
+        },
+        {
+          "chunk_id": "cc_news_2per_anthropic_chunk_41",
+          "similarity": 0.7695480565863626,
+          "gap": 0.03045194341363744
+        },
+        {
+          "chunk_id": "cc_news_2per_anthropic_chunk_43",
+          "similarity": 0.7944025577057057,
+          "gap": 0.005597442294294375
+        }
+      ]
+    },
+    "standard": {
+      "threshold": 0.7,
+      "covered_chunks": 43,
+      "coverage_rate": 0.9555555555555556,
+      "uncovered_count": 2,
+      "uncovered_chunks": [
+        {
+          "chunk_id": "cc_news_2per_anthropic_chunk_4",
+          "similarity": 0.6808782185799783,
+          "gap": 0.019121781420021633
+        },
+        {
+          "chunk_id": "cc_news_2per_anthropic_chunk_40",
+          "similarity": 0.698821221904071,
+          "gap": 0.001178778095928923
+        }
+      ]
+    },
+    "lenient": {
+      "threshold": 0.6,
+      "covered_chunks": 45,
+      "coverage_rate": 1.0,
+      "uncovered_count": 0,
+      "uncovered_chunks": []
+    }
+  },
+  "chunk_analysis": {
+    "by_length": {
+      "long": {
+        "count": 12,
+        "covered": 12,
+        "avg_similarity": 0.8431740413737439,
+        "coverage_rate": 1.0
+      },
+      "medium": {
+        "count": 14,
+        "covered": 14,
+        "avg_similarity": 0.8441496889588852,
+        "coverage_rate": 1.0
+      },
+      "short": {
+        "count": 19,
+        "covered": 17,
+        "avg_similarity": 0.8231924382452993,
+        "coverage_rate": 0.8947368421052632
+      }
+    },
+    "by_position": {
+      "beginning": {
+        "count": 15,
+        "covered": 14,
+        "avg_similarity": 0.8265943597823411,
+        "coverage_rate": 0.9333333333333333
+      },
+      "middle": {
+        "count": 16,
+        "covered": 16,
+        "avg_similarity": 0.8525405968162536,
+        "coverage_rate": 1.0
+      },
+      "end": {
+        "count": 14,
+        "covered": 13,
+        "avg_similarity": 0.824091108769631,
+        "coverage_rate": 0.9285714285714286
+      }
+    },
+    "summary": {
+      "total_chunks": 45,
+      "total_qa_pairs": 124,
+      "threshold_used": 0.7,
+      "insights": []
+    }
+  },
+  "dataset_type": "cc_news_2per_anthropic_chunks",
+  "optimal_thresholds": {
+    "strict": 0.8,
+    "standard": 0.7,
+    "lenient": 0.6
+  }
+}
