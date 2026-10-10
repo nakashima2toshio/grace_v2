@@ -1,6 +1,6 @@
 # services/docs/ 棚卸し
 
-**Version 1.4** | 最終更新: 2026-10-10
+**Version 1.5** | 最終更新: 2026-10-10
 
 > 📎 **姉妹版**: [`docs/README.md`](../../docs/README.md)（直下・配置の境界） /
 > [`backend/docs/README.md`](../../backend/docs/README.md) /
@@ -12,7 +12,7 @@
 新しく文書を書く／直す前に、まずここを見る。
 
 > ⚠️ **本リポジトリは Anthropic 版。** 姉妹リポジトリ `grace_v2_local`（Ollama 版）にも同じ構成の
-> `services/docs/` と索引があるが、**`agent_service` の位置づけ（§4）とテストの置き場所（§6）が違う**。
+> `services/docs/` と索引があるが、**テストの置き場所（§6）が違う**（`agent_service.py` は両リポジトリとも 2026-10-10 に削除）。
 > 索引をコピーで持ち込まないこと（CLAUDE.md §5）。
 
 ---
@@ -22,7 +22,7 @@
 - [1. 目的別の入口](#1-目的別の入口)
 - [2. 一覧](#2-一覧)
 - [3. 実装カバレッジ](#3-実装カバレッジ)
-- [4. `agent_service.py` は Legacy ReAct 経路である](#4-agent_servicepy-は-legacy-react-経路である)
+- [4. `agent_service.py` は削除した（Legacy ReAct 経路）](#4-agent_servicepy-は削除したlegacy-react-経路)
 - [5. 書き分けの約束](#5-書き分けの約束)
 - [6. テスト件数（実測）](#6-テスト件数実測)
 - [7. 残タスク](#7-残タスク)
@@ -51,7 +51,7 @@
 
 | 文書 | 対象実装 | 実装行数 | 文書行数 | Ver | 重要度 |
 |---|---|---:|---:|---|:--:|
-| [`__init__.md`](__init__.md) | `__init__.py` — 再エクスポート（`__all__` **50 件**） | 146 | 470 | 1.6 | ★★★ |
+| [`__init__.md`](__init__.md) | `__init__.py` — 再エクスポート（`__all__` **50 件**） | 146 | 470 | 1.8 | ★★★ |
 | [`qdrant_service.md`](qdrant_service.md) | `qdrant_service.py` — Qdrant CRUD・ヘルスチェック・Embedding 登録 | 1104 | 1547 | 2.4 | ★★★ |
 | [`data_pipeline_service.md`](data_pipeline_service.md) | `data_pipeline_service.py` — データ準備の Web 向けラッパ層 | 351 | 513 | 1.1 | ★★★ |
 | [`config_service.md`](config_service.md) | `config_service.py` — YAML / 環境変数・ロガー | 289 | 886 | 1.5 | ★★☆ |
@@ -59,9 +59,9 @@
 | [`json_service.md`](json_service.md) | `json_service.py` — 安全な JSON 入出力 | 283 | 676 | 1.1 | ★★☆ |
 | [`cache_service.md`](cache_service.md) | `cache_service.py` — TTL 付きメモリキャッシュ | 258 | 890 | 1.3 | ★★☆ |
 | [`qa_service.md`](qa_service.md) | `qa_service.py` — Q/A 生成（サブプロセス実行） | 174 | 527 | 1.2 | ★★☆ |
-| [`log_service.md`](log_service.md) | `log_service.py` — 未回答質問ログ | 89 | 461 | 1.2 | ★☆☆ |
+| [`log_service.md`](log_service.md) | `log_service.py` — 未回答質問ログ | 89 | 462 | 1.3 | ★☆☆ |
 | [`prompts.md`](prompts.md) | `prompts.py` — 共通プロンプト定義 | 32 | 318 | 1.1 | ★☆☆ |
-| [`agent_service.md`](agent_service.md) | `agent_service.py` — **Legacy ReAct**（§4 を先に読むこと） | 538 | 623 | 2.7 | ★☆☆ |
+| ~~[`agent_service.md`](archive/agent_service.md)~~ | `agent_service.py` — **2026-10-10 に削除**（Legacy ReAct。文書は `archive/` に凍結） | — | 623 | 2.7 | — |
 
 > 📌 **`token_service.md` に `gpt-4o` などが並ぶのは誤りではない。** `token_service.py` が持つ
 > トークナイザ・単価の**互換辞書**であり、このプロジェクトが使う LLM ではない（同書の冒頭注記）。
@@ -78,25 +78,21 @@
 
 ---
 
-## 4. `agent_service.py` は Legacy ReAct 経路である
+## 4. `agent_service.py` は削除した（Legacy ReAct 経路）
 
-Web 経路（`run_support_agent_core` / `run_review_agent_core`）の計画実行は `grace/executor.py` の
-通常ステップ（`rag_search` / `web_search` / `reasoning` / `ask_user`）で完結し、`ReActAgent` を通らない。
-`agent_parallel_search.py` / `agent_cache.py` と同じ位置づけである（CLAUDE.md §1）。
+`services/agent_service.py`（`ReActAgent`）は **2026-10-10 に削除した**。Web 経路（`run_support_agent_core` /
+`run_review_agent_core`）の計画実行は `grace/executor.py` の通常ステップ（`rag_search` / `web_search` /
+`reasoning` / `ask_user`）で完結し、`ReActAgent` を通らなかった。最後の起動口だった
+`grace/step_trace/benchmark.py` も同日に削除したため、どこからも起動しなくなっていた。
 
-ただし**コード上の呼び出し元は残っている**（2026-09-25 に `grep -rn "ReActAgent"` で確認）。
+同時に削除したもの: `grace/executor.py::_execute_legacy_agent_step`・`grace/schemas.py` の `run_legacy_agent`
+アクション・`agent_parallel_search.py`・`agent_cache.py`・`agent_tools.py` の `search_rag_knowledge_base()` /
+`search_rag_knowledge_base_cached()` / `list_rag_collections()`・テスト `backend/tests/test_agent_service.py`（5 件）。
+文書は [`archive/agent_service.md`](archive/agent_service.md) に凍結した。
 
-| 呼び出し元 | 条件 |
-|---|---|
-| `grace/executor.py::_execute_legacy_agent_step` | 計画ステップの `action` が `run_legacy_agent` のとき。**プランナのプロンプト（`grace/planner.py::PLAN_GENERATION_PROMPT`）は上の 4 アクションしか提示しない**ので通常は通らないが、スキーマ（`grace/schemas.py::PlanStep.action`）上は許されている |
-| ~~`grace/step_trace/benchmark.py`~~ | 2026-10-10 に削除（ベンチマーク計測用だった） |
-
-> ⚠️ 「本番から 1 件も呼ばれない」と書いた姉妹リポジトリ `grace_v2_local` の索引とは**事情が違う**。
-> 引き写さないこと。
->
-> 📌 `agent_service.py` の既定モデルは直下 `config.yml` の `models.default`（CLAUDE.md §3.1 の**経路 5**）で決まる。
-> `backend/tests/test_model_selection.py::test_top_level_config_yml_default_matches_model_config` が
-> `ModelConfig.DEFAULT_MODEL` との一致を検査している。
+> 📌 **呼び出し元が無くなったもの（コードは残している）**: `services/log_service.py::log_unanswered_question()`
+> （未回答ログの書き込み）、`helper/helper_llm.py` の `generate_with_tools()`（Tool Use）。
+> 直下 `config.yml` の `models.default` も読むコードが無い（CLAUDE.md §3.1 の経路 5）。
 
 ---
 
@@ -124,7 +120,6 @@ Web 経路（`run_support_agent_core` / `run_review_agent_core`）の計画実�
 | `backend/tests/test_config_service.py` | 7 | `config_service`（既定値が `ModelConfig` と一致すること・既定プロバイダが Anthropic であること） |
 | `backend/tests/test_json_service.py` | 6 | `json_service` |
 | `backend/tests/test_token_service.py` | 6 | `token_service`（既定モデルが単価・上限表に載っていること） |
-| `backend/tests/test_agent_service.py` | 5 | `agent_service`（Legacy ReAct。LLM クライアントが Anthropic で作られること） |
 | `backend/tests/test_cache_service.py` | 4 | `cache_service` |
 | `backend/tests/test_log_service.py` | 3 | `log_service` |
 | `backend/tests/test_qa_service.py` | 2 | `qa_service`（LLM クライアントが Anthropic で作られること） |
@@ -172,3 +167,4 @@ uv run --no-sync pytest backend/tests/test_*_service.py backend/tests/test_data_
 | 1.2 | 2026-09-26 | Embedding を `gemini-embedding-2` へ変えたのに追随して 6 文書（`__init__` / `agent_service` / `cache_service` / `config_service` / `qdrant_service` / `token_service`）の行数・Ver を再実測。実装行数も PR #216 で変わった `qdrant_service.py`（1104）/ `token_service.py`（351）を更新 |
 | 1.3 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随して 6 文書の行数・Ver を再実測（実装行数は変化なし） |
 | 1.4 | 2026-10-10 | `grace/step_trace/`（`benchmark.py` を含む）を 2026-10-10 にディレクトリごと削除したのに追随し、現状を述べる記述から外した（過去の経緯の記述は残す）。`agent_service.md` の行数・版を実測へ（623 行・v2.7。v2.6 までの更新が索引に反映されていなかった分を含む） |
+| 1.5 | 2026-10-10 | Legacy ReAct 経路（`services/agent_service.py`・`agent_parallel_search.py`・`agent_cache.py`・`executor._execute_legacy_agent_step`・`run_legacy_agent` アクション）を 2026-10-10 に削除したのに追随 |

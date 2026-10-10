@@ -107,10 +107,8 @@ uv run ruff check .                     # ブロッキングCIゲート
 2. **旧 patch ターゲット（移行残骸）**
    - `google.generativeai`（旧SDK・未インストール）→ 新SDK `google.genai`。
      helper_llm はモジュール直下 `genai` を持つので `helper.helper_llm.genai` を patch。
-   - `services.agent_service.genai`/`.QdrantClient` は廃止。現行は
-     `create_llm_client("anthropic")`（`agent.llm`）・`get_qdrant_client()`・
-     tool は `search_rag_knowledge_base_cached`。LLM 応答は
-     `ToolUseResponse(text, tool_calls, stop_reason, assistant_message)`。
+   - `services.agent_service`（Legacy ReAct）は 2026-10-10 にモジュールごと削除した。これを import / patch する
+     テストは書かない（見つけたら削除対象）。
 3. **既定値ドリフト（期待値を現行へ）**
    - モデル既定 `gemini-2.0-flash` → 現行の既定。**期待値はリテラルで書かず `config.py::ModelConfig.DEFAULT_MODEL` を参照する**（2026-10-09 時点 `claude-sonnet-5-5`。この行は以前 `claude-sonnet-4-6` のまま残っていた）。
    - `config_service`: env override は `ANTHROPIC_API_KEY` → `api.anthropic_api_key`。

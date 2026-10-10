@@ -1,6 +1,6 @@
 # schemas.py - GRACE Pydanticスキーマ定義 ドキュメント
 
-**Version 2.2** | 最終更新: 2026-09-24
+**Version 2.3** | 最終更新: 2026-10-10
 
 ---
 
@@ -497,7 +497,7 @@ print(status.value)  # 出力: "success"
 ```python
 class PlanStep(BaseModel):
     step_id: int = Field(..., description="ステップ番号（1から開始）", ge=1)
-    action: Literal["rag_search", "web_search", "reasoning", "ask_user", "code_execute", "run_legacy_agent"]
+    action: Literal["rag_search", "web_search", "reasoning", "ask_user", "code_execute"]
     description: str = Field(..., description="このステップで何をするか", min_length=1)
     query: Optional[str] = Field(None, description="検索クエリ（検索系アクションの場合）")
     collection: Optional[str] = Field(None, description="検索対象コレクション（RAG検索の場合）")
@@ -1237,6 +1237,7 @@ __all__ = [
 | 2.0 | 2026-09-04 | **未記載シンボル 7 件を追加**（AST 照合）。(1) **ReAct（S3）の 3 クラス `ScratchpadEntry` / `Scratchpad` / `AgentThought` がまるごと欠落**していたため §4.9〜§4.11 を新設し、§4.9 だったユーティリティ関数を §4.12 へ繰り下げ。`Scratchpad.add` / `as_prompt` / `last_confidence` も IPO で記述（`add` が observation を 600 文字で切るのは、履歴が毎ターン Reason のプロンプトへ丸ごと入るため）。(2) **`repair_plan_dependencies` が未記載**だった。`validate_plan_dependencies` は報告するだけの非破壊で、警告のまま採用すると**存在しない依存先を持つステップが永久に実行されない**（reasoning ステップだと回答が一切生成されないまま計画が「完走」する）。両者の役割の違いを明記。(3) §3.2 / §3.3 の一覧表と §7 の `__all__` を実装と一致させた |
 | 2.1 | 2026-09-24 | 使用例を IPO 詳細の冒頭（`### 4.1 使用例`）へ移し、末尾の「## 6. 使用例」章を削除（基本フォーマット `a_class_method_md_format.md` v1.6〜 §6.1 に準拠。2026-09-24）。IPO の小節を 4.2 以降へ繰り下げ、後続の章番号を 1 つ繰り上げた。文書内の `§4.x` 参照も追随 |
 | 2.2 | 2026-09-24 | 概要に「各責務対応のモジュール」を追加した（基本フォーマット §2.4。2026-09-24）。主な責務に無かった ReAct 用スキーマ（`Scratchpad` / `AgentThought`）を責務に加え、1:1 に揃えた |
+| 2.3 | 2026-10-10 | Legacy ReAct 経路（`services/agent_service.py`・`agent_parallel_search.py`・`agent_cache.py`・`executor._execute_legacy_agent_step`・`run_legacy_agent` アクション）を 2026-10-10 に削除したのに追随 |
 
 ---
 

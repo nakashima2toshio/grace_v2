@@ -1,6 +1,6 @@
 # docs 棚卸し（リポジトリ直下 `docs/`）
 
-**Version 3.8** | 最終更新: 2026-10-10
+**Version 3.9** | 最終更新: 2026-10-10
 
 リポジトリ直下 `docs/` の一覧と、**どのディレクトリに何を置くかの境界**をまとめる。
 各領域の棚卸しは [`backend/docs/README.md`](../backend/docs/README.md) /
@@ -84,8 +84,8 @@ CLAUDE.md §9.1 の表を、判断に使える形へ具体化したもの。
 | D 資材 | ログ・画像・外部レビュー原文 | 同 §7.2（書式不問。空ファイル・空白入りファイル名は禁止） |
 | E モジュール IPO | トップレベル `.py` の IPO | `a_class_method_md_format.md` |
 
-> ⚠️ **トップレベル `.py` の IPO は直下 `docs/` が現状の置き場所**である
-> （`agent_parallel_search.md`）。パッケージに属さないため `<package>/docs/` が作れない。
+> ⚠️ **トップレベル `.py` の IPO は直下 `docs/` が置き場所**である
+> （唯一あった `agent_parallel_search.md` は、対象のモジュールを 2026-10-10 に削除したので `archive/` へ移した。現在は無い）。パッケージに属さないため `<package>/docs/` が作れない。
 > 横断文書と混ざるが、これを分けるために 1 ファイルのためのディレクトリは切らない。
 
 ---
@@ -102,22 +102,21 @@ CLAUDE.md §9.1 の表を、判断に使える形へ具体化したもの。
 | `pipelines.md` | A | **3 モード対照のハブ**（基本版 / Support / Review）。ステップ対照表・実行順・基本版との差・ガードレール有効表 | backend + frontend | 249 | 1.4 |
 | `guardrails.md` | A | ガードレール GA〜G9 の機構 → 実装 → **失敗時の既定** | backend + grace + ルート | 378 | 1.0 |
 | `reasoning_flow.md` | A | 生成の 2 ステップ（Support の `reasoning` / Review の `detect`） | grace + backend | 389 | 2.3 |
-| `performance_levers.md` | A | 回答品質・レイテンシ・コストを決めている箇所と未実装レバー | 全域 | 566 | 2.3 |
-| `agent_layers.md` | A | **一般エージェント用語 → 実装の対応表**（L0〜L4）。実装を読む前の見取り図 | 全域 | 415 | 1.3 |
+| `performance_levers.md` | A | 回答品質・レイテンシ・コストを決めている箇所と未実装レバー | 全域 | 577 | 2.7 |
+| `agent_layers.md` | A | **一般エージェント用語 → 実装の対応表**（L0〜L4）。実装を読む前の見取り図 | 全域 | 415 | 1.4 |
 | `app_tabs_overview.md` | A | **処理 3 タブの入口**。基本版 / GRACE-Support / GRACE-Review を「業界特化・処理フロー・回答」の 3 点で、画面の実行例つきでまとめる。ステップ対照表は `pipelines.md` へリンク | backend + frontend + grace | 380 | 1.2 |
 
 ### 3.2 モジュール IPO（トップレベル `.py`）
 
 | 文書 | 種別 | 対象 | 行数 | Ver |
 |---|:--:|---|---:|---|
-| `agent_parallel_search.md` | E | `agent_parallel_search.py` — 並列検索エンジン（`ThreadPoolExecutor`）。⚠️ Legacy ReAct 経路専用で Web アプリからは未稼働（同文書「稼働範囲」参照） | 733 | 1.3 |
 
 ### 3.3 進行中の TODO
 
 | 文書 | 種別 | 内容 | 行数 | Ver |
 |---|:--:|---|---:|---|
 | `doc_modernization_todo.md` | C | ドキュメント最新化 TODO。**①〜⑧ と §10 の残タスクはすべて完了**（スクリーンショット全 31 枚を撮影済み） | 488 | 2.6 |
-| `review_rag_rules_todo.md` | C | GRACE-Review の規程 RAG 整備 TODO。条文が根拠に届かない問題は両リポジトリで解消済み。**規程の雛形は grace_v2 にだけ置く方針**、残作業（雛形の監修・Qdrant コレクションの整理・policy-01 の規程登録ほか）と課題（Web 裏取りの価値・gemma4 の判定の質など）。Sonnet 5.5 / Opus 5.5 のモデル比較（3 サンプルで指摘が完全一致・既定は Sonnet 5.5 のまま） | 244 | 3.8 |
+| `review_rag_rules_todo.md` | C | GRACE-Review の規程 RAG 整備 TODO。条文が根拠に届かない問題は両リポジトリで解消済み。**規程の雛形は grace_v2 にだけ置く方針**、残作業（雛形の監修・Qdrant コレクションの整理・policy-01 の規程登録ほか）と課題（Web 裏取りの価値・gemma4 の判定の質など）。Sonnet 5.5 / Opus 5.5 のモデル比較（3 サンプルで指摘が完全一致・既定は Sonnet 5.5 のまま） | 245 | 3.9 |
 
 ### 3.4 資材ディレクトリ
 
@@ -246,3 +245,4 @@ EOF
 | 3.6 | 2026-10-08 | 現在の既定 LLM の記述を `claude-sonnet-5` から実装（`config.py::ModelConfig.DEFAULT_MODEL` / `config/grace_config.yml` の `llm.model`）どおり `claude-sonnet-5-5` へ是正（冒頭の注記）（2026-10-08） |
 | 3.7 | 2026-10-10 | `agent_layers.md` を v1.2 へ（削除した `a_pages_md_format.md` への言及を外した）。変更履歴を 3 列へ移した |
 | 3.8 | 2026-10-10 | `grace/step_trace/`（`benchmark.py` を含む）を 2026-10-10 にディレクトリごと削除したのに追随し、現状を述べる記述から外した（過去の経緯の記述は残す）。§3.1 の `agent_layers.md` / `agent_parallel_search.md` の行数・版を実測へ（v1.3） |
+| 3.9 | 2026-10-10 | Legacy ReAct 経路（`services/agent_service.py`・`agent_parallel_search.py`・`agent_cache.py`・`executor._execute_legacy_agent_step`・`run_legacy_agent` アクション）を 2026-10-10 に削除したのに追随 |

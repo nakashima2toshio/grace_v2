@@ -1,6 +1,6 @@
 # __init__.py - services パッケージ ドキュメント
 
-**Version 1.7** | 最終更新: 2026-10-08
+**Version 1.8** | 最終更新: 2026-10-10
 
 ---
 
@@ -53,7 +53,7 @@
 | 5 | Qdrant操作（CRUD・ヘルスチェック） | `qdrant_service.py` | 登録・検索・統計・コレクション管理 |
 | 6 | データ準備（パス検証・データ変換） | `data_pipeline_service.py` | 入力ファイル解決・Qdrant 操作・DataFrame 変換。※ `__init__.py` からは再エクスポートしない（`from services.data_pipeline_service import ...` で直接使う） |
 | 7 | Q/A生成（Anthropic Claude・サブプロセス実行） | `qa_service.py` | Q/Aペア生成とファイル保存 |
-| 8 | ReAct + Reflection エージェント | `agent_service.py` | `ReActAgent`（`grace/executor.py` から利用）。※ `__init__.py` からは再エクスポートしない（`from services.agent_service import ...` で直接使う） |
+| 8 | ~~ReAct + Reflection エージェント~~ | ~~`agent_service.py`~~ | **2026-10-10 に削除**（Legacy ReAct 経路。`services/docs/README.md` §4） |
 | 9 | 未回答質問ログ | `log_service.py` | `log_unanswered_question` ほか。※ `__init__.py` からは再エクスポートしない（`from services.log_service import ...` で直接使う） |
 
 ### 主要機能一覧
@@ -436,6 +436,7 @@ __all__ = [
 | 1.5 | 2026-09-26 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
 | 1.6 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
 | 1.7 | 2026-10-08 | 概要の技術スタックと使用例のコメントの既定 LLM を `claude-sonnet-5` → 現在の既定 `claude-sonnet-5-5`（`config.py::ModelConfig.DEFAULT_MODEL`）へ是正（2026-10-08） |
+| 1.8 | 2026-10-10 | Legacy ReAct 経路（`services/agent_service.py`・`agent_parallel_search.py`・`agent_cache.py`・`executor._execute_legacy_agent_step`・`run_legacy_agent` アクション）を 2026-10-10 に削除したのに追随 |
 
 ---
 
@@ -453,7 +454,6 @@ flowchart LR
         I5["services.qdrant_service"]
         I6["services.data_pipeline_service"]
         I7["services.qa_service"]
-        I8["services.agent_service"]
     end
 
     INIT --> I1
@@ -463,9 +463,8 @@ flowchart LR
     INIT --> I5
     INIT --> I6
     INIT --> I7
-    INIT --> I8
 classDef default fill:#000,stroke:#fff,color:#fff
 classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
-class INIT,I1,I2,I3,I4,I5,I6,I7,I8 default
+class INIT,I1,I2,I3,I4,I5,I6,I7 default
 style INTERNAL fill:#1a1a1a,stroke:#fff,color:#fff
 ```

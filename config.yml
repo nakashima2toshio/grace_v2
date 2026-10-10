@@ -1,8 +1,8 @@
 # config.yml（LLM=Anthropic Claude / Embedding=Gemini）
 
-# ⚠️ models.default は services/config_service.py 経由で services/agent_service.py
-#    （Legacy ReAct）の既定モデルになり、コード側のフォールバックより優先される。
-#    config.py::ModelConfig.DEFAULT_MODEL と必ず揃える
+# ⚠️ models.default を読むコードは無い（唯一の読み手だった services/agent_service.py
+#    〔Legacy ReAct〕は 2026-10-10 に削除した）。誤解を招かないよう値は
+#    config.py::ModelConfig.DEFAULT_MODEL と揃えておく
 #    （backend/tests/test_model_selection.py が一致を検査する）。
 models:
   default: "claude-sonnet-5-5"  # Anthropic デフォルトモデル（推論・生成）

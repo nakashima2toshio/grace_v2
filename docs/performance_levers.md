@@ -1,6 +1,6 @@
 # 性能改善レバー — 回答品質とレイテンシ・コストを決めている箇所
 
-**Version 2.6** | 最終更新: 2026-10-08
+**Version 2.7** | 最終更新: 2026-10-10
 
 ---
 
@@ -234,8 +234,9 @@ payload から本文を抽出。executor 内部の `_calculate_overall_confidenc
 
 **P-03b（未実装）**: `break` を廃して全スコープ横断でスコア統合する方式。
 案①で「正解が最後に評価される」問題は解消したが、**先頭コレクションが一次ヒットを
-返すと後続を見ない**構造自体は残っている。`ParallelSearchEngine`
-（`docs/agent_parallel_search.md`）を再利用すればレイテンシを増やさずに実現できる。
+返すと後続を見ない**構造自体は残っている。並列検索の実装 `ParallelSearchEngine`（`agent_parallel_search.py`）は
+Legacy ReAct 経路とともに 2026-10-10 に削除した（git 履歴と `docs/archive/agent_parallel_search.md` に残る）ので、
+実装するときはそれを参考に作り直す。
 
 ### P-06 — `RAG_SEARCH_LIMIT` 3 → 5（スコア 7）✅
 
@@ -546,7 +547,7 @@ gov / saas / ec のコレクションが 1 つも無ければ、検索スコー�
 | `docs/pipelines.md` | 3 モードの対照（どのモードで何が動くか） |
 | `docs/guardrails.md` | 判定（ゲート）の一覧・閾値・第 2 段 LLM 判定 |
 | `docs/reasoning_flow.md` | 生成（`reasoning` / `detect`）とプロンプト構造 |
-| `docs/agent_parallel_search.md` | 並列検索基盤（P-03b で再利用可能） |
+| `docs/archive/agent_parallel_search.md` | 並列検索基盤（2026-10-10 に削除。P-03b を作るときの参考） |
 | `backend/docs/support_flow.md` | 複数質問（0-(A)）の設計（§6） |
 | `backend/docs/archive/review_false_positive_todo.md` | Review の誤検知対応 TODO（§6 の関連） |
 | `backend/docs/reference/core_gates.md` | `_answer_gate` 等の判定純関数（P-07 の対象） |
@@ -573,3 +574,4 @@ gov / saas / ec のコレクションが 1 つも無ければ、検索スコー�
 | 2.4 | 2026-09-29 | P-04 の緩和で足す候補を、首位スコアから 0.10 以内に限った（2026-09-29）。首位が強いときに低関連の文書が混ざるのを防ぐ。あわせて、回答生成後の最終評価・Groundedness 検証の先行実行（ステップ確信度の評価と重ねる）を追記 |
 | 2.5 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
 | 2.6 | 2026-10-08 | 現在の既定 LLM の記述を `claude-sonnet-5` から実装（`config.py::ModelConfig.DEFAULT_MODEL` / `config/grace_config.yml` の `llm.model`）どおり `claude-sonnet-5-5` へ是正（技術スタック・モデル階層の yml 例・§8.5）（2026-10-08） |
+| 2.7 | 2026-10-10 | Legacy ReAct 経路（`services/agent_service.py`・`agent_parallel_search.py`・`agent_cache.py`・`executor._execute_legacy_agent_step`・`run_legacy_agent` アクション）を 2026-10-10 に削除したのに追随 |

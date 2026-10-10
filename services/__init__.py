@@ -13,7 +13,6 @@ services - ビジネスロジック分離モジュール
 - qdrant_service.py: Qdrant操作（CRUD、ヘルスチェック）
 - data_pipeline_service.py: データ準備（パス検証・Qdrant 操作・データ変換）
 - qa_service.py: Q/A生成（Anthropic Claude）
-- agent_service.py: ReAct + Reflection エージェント
 - log_service.py: 未回答質問ログ
 - prompts.py: 共通プロンプト
 

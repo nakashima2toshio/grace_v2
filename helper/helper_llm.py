@@ -6,6 +6,8 @@ LLMクライアント抽象化レイヤー
   - テキスト生成: generate_content()
   - 構造化出力: generate_structured()
   - Tool Use（ReAct ループ）: generate_with_tools() / build_tool_result_message()
+    （本番の呼び出し元だった services/agent_service.py〔Legacy ReAct〕は 2026-10-10 に削除した。
+     現在はテストからだけ呼ばれる）
 Embedding は別モジュール（helper_embedding）が担当し、本モジュールは LLM 生成のみ。
 Gemini は後方互換のため残置（google.genai は GeminiClient 内で遅延 import）。
 """
