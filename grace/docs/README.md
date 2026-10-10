@@ -1,6 +1,6 @@
 # grace/docs 棚卸し
 
-**Version 1.15** | 最終更新: 2026-10-08
+**Version 1.16** | 最終更新: 2026-10-10
 
 `grace/` パッケージのドキュメント一覧と、実装への追随状況・残タスク・検証手順をまとめる。
 新しく文書を書く／直す前に、まずここを見る。
@@ -233,7 +233,7 @@ A と B の線引きは思いつきではなく、**実測した依存の向き*
 | 役割 | 文書 | 対象 | 行数 | Ver | 重要度 |
 |---|---|---|---:|---|---|
 | 計画 | `planner.md` | `grace/planner.py` | 1187 | 3.12 | ★★★ |
-| 実行 | `executor.md` | `grace/executor.py` | 2219 | 4.16 | ★★★ |
+| 実行 | `executor.md` | `grace/executor.py` | 2345 | 4.18 | ★★★ |
 | 実行 | `tools.md` | `grace/tools.py`（`WebSearchTool` を含む全ツール） | 1687 | 3.7 | ★★★ |
 | 評価 | `confidence.md` | `grace/confidence.py` | 1862 | 2.10 | ★★★ |
 | 評価 | `calibration.md` | `grace/calibration.py` | 763 | 1.1 | ★★ |
@@ -586,3 +586,4 @@ PY
 | 1.13 | 2026-10-06 | §5 タスク 5 を完了（2026-10-06）。未記載だった 6 シンボルを実装から書き起こし、`confidence.md`（§4.14 断り文の除外・§4.15 `damp_support_rate`）/ `executor.md`（`_prefetch_enabled`）/ `llm_compat.md`（§4.7 `_stop_category`・§5.3.1 `_ALWAYS_THINKING_MIN_TOKENS`）へ追加し、§3.1 の AST 網羅が全 11 モジュールで 100% に戻った。`config.md` の設定一覧の抜け 2 件と、v1.12 で同書の変更履歴に足した行の日付列の抜けも直した。§2 の行数・Ver を再実測 |
 | 1.14 | 2026-10-06 | `config.md` v1.12（冒頭の行番号参照 `config.py:411` をシンボル参照へ是正）に追随して §2.2 の行数・Ver を更新（2026-10-06）。grace/docs に残っていた最後の行番号参照で、grace_v2_local の `docs_audit.md` §5.2 の再測定で見つかった |
 | 1.15 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
+| 1.16 | 2026-10-10 | §3 の `executor.md` の行数・版を実測へ（2219 行・v4.16 → 2345 行・v4.18。§4.1 使用例の書き直しに追随） |
