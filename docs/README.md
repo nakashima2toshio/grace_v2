@@ -1,6 +1,6 @@
 # docs 棚卸し（リポジトリ直下 `docs/`）
 
-**Version 3.6** | 最終更新: 2026-10-08
+**Version 3.7** | 最終更新: 2026-10-10
 
 リポジトリ直下 `docs/` の一覧と、**どのディレクトリに何を置くかの境界**をまとめる。
 各領域の棚卸しは [`backend/docs/README.md`](../backend/docs/README.md) /
@@ -103,7 +103,7 @@ CLAUDE.md §9.1 の表を、判断に使える形へ具体化したもの。
 | `guardrails.md` | A | ガードレール GA〜G9 の機構 → 実装 → **失敗時の既定** | backend + grace + ルート | 378 | 1.0 |
 | `reasoning_flow.md` | A | 生成の 2 ステップ（Support の `reasoning` / Review の `detect`） | grace + backend | 389 | 2.3 |
 | `performance_levers.md` | A | 回答品質・レイテンシ・コストを決めている箇所と未実装レバー | 全域 | 566 | 2.3 |
-| `agent_layers.md` | A | **一般エージェント用語 → 実装の対応表**（L0〜L4）。実装を読む前の見取り図 | 全域 | 415 | 1.1 |
+| `agent_layers.md` | A | **一般エージェント用語 → 実装の対応表**（L0〜L4）。実装を読む前の見取り図 | 全域 | 415 | 1.2 |
 | `app_tabs_overview.md` | A | **処理 3 タブの入口**。基本版 / GRACE-Support / GRACE-Review を「業界特化・処理フロー・回答」の 3 点で、画面の実行例つきでまとめる。ステップ対照表は `pipelines.md` へリンク | backend + frontend + grace | 380 | 1.2 |
 
 ### 3.2 モジュール IPO（トップレベル `.py`）
@@ -215,32 +215,33 @@ EOF
 
 ## 7. 変更履歴
 
-| バージョン | 変更内容 |
-|-----------|---------|
-| 3.6 | 現在の既定 LLM の記述を `claude-sonnet-5` から実装（`config.py::ModelConfig.DEFAULT_MODEL` / `config/grace_config.yml` の `llm.model`）どおり `claude-sonnet-5-5` へ是正（冒頭の注記）（2026-10-08） |
-| 3.5 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
-| 3.4 | §3.1 の `pipelines.md`（v1.4・G7 の Review 列を実装に合わせて是正）と `app_tabs_overview.md`（v1.1・§5 の表を `grace/docs/README.md` 概要へ移した）の行数・Ver を更新（2026-10-06） |
-| 3.3 | §3.1 に `app_tabs_overview.md`（処理 3 タブの概要・種別 A）を追加（2026-10-06） |
-| 3.2 | §3.3 の `review_rag_rules_todo.md` を v3.8 へ（2.17・2.18 の後の実測・3.3 の更新。2026-10-03） |
-| 3.1 | §3.3 の `review_rag_rules_todo.md` を v3.7 へ（2.1 の監修を完了に。2026-10-03） |
-| 3.0 | §3.3 の `review_rag_rules_todo.md` を v3.6 へ（2.1 の原文照合を済に。2026-10-03） |
-| 2.9 | §3.3 の `review_rag_rules_todo.md` を v3.5 へ（2.16〜2.18。2026-10-03） |
-| 2.8 | §3.3 の `review_rag_rules_todo.md` を v3.4 へ（2.14 と実測。2026-10-03） |
-| 2.7 | §3.3 の `review_rag_rules_todo.md` を v3.3 へ（2.12・2.13 の対応と修正後の実測。2026-10-02） |
-| 2.6 | §3.3 の `review_rag_rules_todo.md` を v3.2 へ（モデル比較と、それを受けたルール・指示文の修正。2026-10-02） |
-| 2.5 | §3.3 の `review_rag_rules_todo.md` を v3.0 へ（全面整理。両リポジトリ共通の方針・残作業・課題に組み直し。2026-10-01） |
-| 2.4 | §3.3 の `review_rag_rules_todo.md` を v2.3 へ（yakki-04 への第 66 条の追記を反映。2026-09-30） |
-| 2.3 | §3.3 の `review_rag_rules_todo.md` を v2.2 へ（yakki-02 へ第 66 条の原文を追記した進捗。2026-09-30） |
-| 2.2 | §3.3 の `review_rag_rules_todo.md` を v2.1 へ（「シミが治る」LP の再実行結果 20 秒を反映。2026-09-30） |
-| 2.1 | §3.3 の `review_rag_rules_todo.md` を v2.0 へ（登録後の実測・優先順・セグメント型検索案を反映。2026-09-30） |
-| 2.0 | §3.3 の `review_rag_rules_todo.md` を v1.1 へ（条文置換用の雛形 CSV を追記。2026-09-30） |
-| 1.9 | §3.3 に `review_rag_rules_todo.md`（GRACE-Review の規程 RAG 整備 TODO・種別 C）を追加（2026-09-30） |
-| 1.8 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`）。同じ改訂の 3 文書の行数・Ver を再実測 |
-| 1.7 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所）。あわせて同じ改訂の `performance_levers.md` v2.2 / `reasoning_flow.md` v2.2 / `pipelines.md` v1.2 の行数・Ver を再実測 |
-| 1.6 | §6 残タスク 2（`ReviewForm` / `ReviewPanel` のアクセシビリティ）を完了へ訂正（2026-09-25）。2026-09-12 に実装済み（ラベル・`aria-live`・`role="alert"`）だったのに ⏳ のまま残っていた。§3.3 の `doc_modernization_todo.md` の行数・Ver も更新 |
-| 1.5 | 冒頭の「各領域の棚卸し」に `chunking/docs/README.md` / `qa_qdrant/docs/README.md` / `services/docs/README.md`（いずれも新設）を追加し、全 8 領域に索引がそろった（2026-09-25） |
-| 1.4 | 冒頭の「各領域の棚卸し」に `qa_generation/docs/README.md`（新設）を追加（2026-09-24） |
-| 1.3 | §6 残タスク 4（`frontend/docs/` の React 仕様 v1.1 追随）を完了（2026-09-24）。`backend/docs/` も `reference/` は基本フォーマット（IPO 冒頭の使用例）、それ以外は `a_cross_doc_md_format.md` v1.1 の種別 A / B / C へ追随させた |
-| 1.2 | **`a_cross_doc_md_format.md`（横断文書フォーマット）を新設し、直下 `docs/` を準拠させた**（2026-09-24）。§2.2 に種別 A〜E と仕様の対応を追加し、§3 の各表に「種別」列を足して行数・Ver を実測へ更新。種別 A の 5 文書へ概要（主な責務／各責務対応のモジュール／3 層のアーキテクチャ構成図）を追加（本文の章番号は不変）、`pipelines.md` / `guardrails.md` の Version ヘッダーを追加（§6 残タスク 3 を完了）。本書のヘッダーが 1.0 のまま変更履歴だけ 1.1 に進んでいた不一致も解消した。§6 に残タスク 4（`frontend/docs/` の React 仕様 v1.1 追随）を追加 |
-| 1.1 | `agent_layers.md`（一般エージェント用語と実装の L0〜L4 対応表）を §3.1 へ追加し、§4 の正本一覧に「一般用語 → 実装の対応」を登録（2026-09-17）。同書はステップ表・ガードレール表を持たず `pipelines.md` / `guardrails.md` へリンクする |
-| 1.0 | 初版作成（2026-09-15）。直下 `docs/` だけ棚卸しの索引が無く、**どこに何を置くかの境界が明文化されていなかった**ため、同じ内容が別の場所へ書かれる事故が繰り返されていた（`grace/docs/` の 4 本重複・`backend/docs/` の IPO 3〜4 重管理・`pipelines.md` §3 の複製）。§2 に配置の判定基準、§4 に重複禁止ルールと正本の一覧、§5 に**全 docs ディレクトリを横断する検出スクリプト**を置いた。あわせて完了済みの `qa_tab_port_todo.md` を `archive/` へ移動し、`guardrails.md` §2 の表見出し「実装（ファイル:行）」を実態（行番号は書かない規則。実際に行番号は 1 つも無い）に合わせて「実装（ファイル・シンボル）」へ是正した |
+| バージョン | 日付 | 変更内容 |
+|---|---|---|
+| 1.0 | 2026-09-15 | 初版作成（2026-09-15）。直下 `docs/` だけ棚卸しの索引が無く、**どこに何を置くかの境界が明文化されていなかった**ため、同じ内容が別の場所へ書かれる事故が繰り返されていた（`grace/docs/` の 4 本重複・`backend/docs/` の IPO 3〜4 重管理・`pipelines.md` §3 の複製）。§2 に配置の判定基準、§4 に重複禁止ルールと正本の一覧、§5 に**全 docs ディレクトリを横断する検出スクリプト**を置いた。あわせて完了済みの `qa_tab_port_todo.md` を `archive/` へ移動し、`guardrails.md` §2 の表見出し「実装（ファイル:行）」を実態（行番号は書かない規則。実際に行番号は 1 つも無い）に合わせて「実装（ファイル・シンボル）」へ是正した |
+| 1.1 | 2026-09-17 | `agent_layers.md`（一般エージェント用語と実装の L0〜L4 対応表）を §3.1 へ追加し、§4 の正本一覧に「一般用語 → 実装の対応」を登録（2026-09-17）。同書はステップ表・ガードレール表を持たず `pipelines.md` / `guardrails.md` へリンクする |
+| 1.2 | 2026-09-24 | **`a_cross_doc_md_format.md`（横断文書フォーマット）を新設し、直下 `docs/` を準拠させた**（2026-09-24）。§2.2 に種別 A〜E と仕様の対応を追加し、§3 の各表に「種別」列を足して行数・Ver を実測へ更新。種別 A の 5 文書へ概要（主な責務／各責務対応のモジュール／3 層のアーキテクチャ構成図）を追加（本文の章番号は不変）、`pipelines.md` / `guardrails.md` の Version ヘッダーを追加（§6 残タスク 3 を完了）。本書のヘッダーが 1.0 のまま変更履歴だけ 1.1 に進んでいた不一致も解消した。§6 に残タスク 4（`frontend/docs/` の React 仕様 v1.1 追随）を追加 |
+| 1.3 | 2026-09-24 | §6 残タスク 4（`frontend/docs/` の React 仕様 v1.1 追随）を完了（2026-09-24）。`backend/docs/` も `reference/` は基本フォーマット（IPO 冒頭の使用例）、それ以外は `a_cross_doc_md_format.md` v1.1 の種別 A / B / C へ追随させた |
+| 1.4 | 2026-09-24 | 冒頭の「各領域の棚卸し」に `qa_generation/docs/README.md`（新設）を追加（2026-09-24） |
+| 1.5 | 2026-09-25 | 冒頭の「各領域の棚卸し」に `chunking/docs/README.md` / `qa_qdrant/docs/README.md` / `services/docs/README.md`（いずれも新設）を追加し、全 8 領域に索引がそろった（2026-09-25） |
+| 1.6 | 2026-09-25 | §6 残タスク 2（`ReviewForm` / `ReviewPanel` のアクセシビリティ）を完了へ訂正（2026-09-25）。2026-09-12 に実装済み（ラベル・`aria-live`・`role="alert"`）だったのに ⏳ のまま残っていた。§3.3 の `doc_modernization_todo.md` の行数・Ver も更新 |
+| 1.7 | 2026-09-26 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所）。あわせて同じ改訂の `performance_levers.md` v2.2 / `reasoning_flow.md` v2.2 / `pipelines.md` v1.2 の行数・Ver を再実測 |
+| 1.8 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`）。同じ改訂の 3 文書の行数・Ver を再実測 |
+| 1.9 | 2026-09-30 | §3.3 に `review_rag_rules_todo.md`（GRACE-Review の規程 RAG 整備 TODO・種別 C）を追加（2026-09-30） |
+| 2.0 | 2026-09-30 | §3.3 の `review_rag_rules_todo.md` を v1.1 へ（条文置換用の雛形 CSV を追記。2026-09-30） |
+| 2.1 | 2026-09-30 | §3.3 の `review_rag_rules_todo.md` を v2.0 へ（登録後の実測・優先順・セグメント型検索案を反映。2026-09-30） |
+| 2.2 | 2026-09-30 | §3.3 の `review_rag_rules_todo.md` を v2.1 へ（「シミが治る」LP の再実行結果 20 秒を反映。2026-09-30） |
+| 2.3 | 2026-09-30 | §3.3 の `review_rag_rules_todo.md` を v2.2 へ（yakki-02 へ第 66 条の原文を追記した進捗。2026-09-30） |
+| 2.4 | 2026-09-30 | §3.3 の `review_rag_rules_todo.md` を v2.3 へ（yakki-04 への第 66 条の追記を反映。2026-09-30） |
+| 2.5 | 2026-10-01 | §3.3 の `review_rag_rules_todo.md` を v3.0 へ（全面整理。両リポジトリ共通の方針・残作業・課題に組み直し。2026-10-01） |
+| 2.6 | 2026-10-02 | §3.3 の `review_rag_rules_todo.md` を v3.2 へ（モデル比較と、それを受けたルール・指示文の修正。2026-10-02） |
+| 2.7 | 2026-10-02 | §3.3 の `review_rag_rules_todo.md` を v3.3 へ（2.12・2.13 の対応と修正後の実測。2026-10-02） |
+| 2.8 | 2026-10-03 | §3.3 の `review_rag_rules_todo.md` を v3.4 へ（2.14 と実測。2026-10-03） |
+| 2.9 | 2026-10-03 | §3.3 の `review_rag_rules_todo.md` を v3.5 へ（2.16〜2.18。2026-10-03） |
+| 3.0 | 2026-10-03 | §3.3 の `review_rag_rules_todo.md` を v3.6 へ（2.1 の原文照合を済に。2026-10-03） |
+| 3.1 | 2026-10-03 | §3.3 の `review_rag_rules_todo.md` を v3.7 へ（2.1 の監修を完了に。2026-10-03） |
+| 3.2 | 2026-10-03 | §3.3 の `review_rag_rules_todo.md` を v3.8 へ（2.17・2.18 の後の実測・3.3 の更新。2026-10-03） |
+| 3.3 | 2026-10-06 | §3.1 に `app_tabs_overview.md`（処理 3 タブの概要・種別 A）を追加（2026-10-06） |
+| 3.4 | 2026-10-06 | §3.1 の `pipelines.md`（v1.4・G7 の Review 列を実装に合わせて是正）と `app_tabs_overview.md`（v1.1・§5 の表を `grace/docs/README.md` 概要へ移した）の行数・Ver を更新（2026-10-06） |
+| 3.5 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
+| 3.6 | 2026-10-08 | 現在の既定 LLM の記述を `claude-sonnet-5` から実装（`config.py::ModelConfig.DEFAULT_MODEL` / `config/grace_config.yml` の `llm.model`）どおり `claude-sonnet-5-5` へ是正（冒頭の注記）（2026-10-08） |
+| 3.7 | 2026-10-10 | `agent_layers.md` を v1.2 へ（削除した `a_pages_md_format.md` への言及を外した）。変更履歴を 3 列へ移した |
