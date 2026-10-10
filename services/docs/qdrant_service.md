@@ -1,6 +1,6 @@
 # qdrant_service.py - Qdrant操作サービス ドキュメント
 
-**Version 2.5** | 最終更新: 2026-10-10
+**Version 2.6** | 最終更新: 2026-10-10
 
 ---
 
@@ -475,7 +475,7 @@ upsert_points_to_qdrant(client, name, build_points_for_qdrant(
 # コレクションの次元から埋め込みの設定を決め、検索用（retrieval_query）にベクトル化して引く
 params = get_collection_embedding_params(client, name)
 vector = embed_query_for_search("住民票の写しはどうやって取りますか", dims=params["dims"])
-hits = client.query_points(collection_name=name, query=vector, limit=2, with_payload=True).points
+hits = client.query_points(collection_name=name, query=vector, limit=1, with_payload=True).points
 for h in hits:
     print(f"{h.score:.2f} {h.payload['question']}")
 
@@ -485,7 +485,6 @@ client.delete_collection(name)   # 片付け
 ```
 # 出力例（スコアは埋め込みによる。ここではスタブの値）:
 # 0.50 住民票の写しの取り方
-# 0.00 粗大ごみの出し方
 ```
 
 > 📝 `embed_query_for_search` は `dims` が 1536 なら OpenAI、3072 / 768 なら Gemini で埋め込む（`dims` を省くとモデル名で判定）。
@@ -1659,6 +1658,7 @@ batched
 | 2.3 | 2026-09-26 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所）。`get_collection_embedding_params` の次元→モデル対応、`embed_texts_for_qdrant` / `embed_query_for_search` の既定引数（`ModelConfig.EMBEDDING_MODEL`）を実装に合わせ、次元から登録時のモデルを判別できない注意を追記 |
 | 2.4 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`）。次元から登録モデルを判別できない注意は、特定のモデル名に依らない書き方にした |
 | 2.5 | 2026-10-10 | §4.1 使用例を処理パターン別（接続確認／Q/A の CSV を登録／中身の確認／検索／統合）の 5 本に書き直し、本物の Qdrant（docker-compose）で全例を実行して出力を確かめた（2026-10-10。Gemini Embedding だけスタブ）。旧例の `client.search`（qdrant-client 1.19.1 に無い）を `query_points` へ直した。qdrant-client 1.19.1 では `vectors_count` が無く `fetch_collections` / `fetch_collection_info` / `get_all_collections_simple` が件数を返せないことを注記 |
+| 2.6 | 2026-10-10 | 4.1.4 の検索例を limit=1 にした（スコアが同点の 2 件目は順番が決まらず、出力例と一致しないことがあった） |
 
 ---
 
