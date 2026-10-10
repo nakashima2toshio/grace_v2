@@ -1,0 +1,58 @@
+[
+  {
+    "question": "Regina Willoughbyは今シーズン後にどうなりますか？",
+    "answer": "40歳のReginaは、Columbia City Balletでの今シーズンが最後となり、3月に舞台から引退する予定です。",
+    "chunk_id": "cc_news_2per_anthropic_chunk_0",
+    "topic": "Reginaの引退",
+    "dataset_type": "cc_news_2per_anthropic_chunks"
+  },
+  {
+    "question": "Reginaの娘Melinaは今シーズンどのような立場でバレエ団に加わりましたか？",
+    "answer": "18歳のMelinaは今シーズンがColumbia City Balletでの初シーズンで、研修生（トレーニー）としてキャリアを始めます。",
+    "chunk_id": "cc_news_2per_anthropic_chunk_0",
+    "topic": "Melinaの入団",
+    "dataset_type": "cc_news_2per_anthropic_chunks"
+  },
+  {
+    "question": "『くるみ割り人形』でReginaとMelinaはそれぞれどの役を踊りますか？",
+    "answer": "Reginaは雪の女王、Melinaは雪の群舞（スノーコール）を踊ります。2人ともアラビアのディヴェルティスマンにも出演します。",
+    "chunk_id": "cc_news_2per_anthropic_chunk_0",
+    "topic": "くるみ割り人形の配役",
+    "dataset_type": "cc_news_2per_anthropic_chunks"
+  },
+  {
+    "question": "Reginaは娘と一緒に踊ることについてどう語っていますか？",
+    "answer": "Reginaは「一緒に踊るのはとても非現実的な感じ。Melinaがここまでバレエを続けるとは思わなかった」と語っています。",
+    "chunk_id": "cc_news_2per_anthropic_chunk_0",
+    "topic": "Reginaのコメント",
+    "dataset_type": "cc_news_2per_anthropic_chunks"
+  },
+  {
+    "question": "ニューヨーク・シティ・バレエの暫定リーダーシップチームはなぜ設置されたのですか？",
+    "answer": "バレエ・マスター・イン・チーフのピーター・マーティンスが、自身へのセクシャルハラスメント疑惑に関する社内調査の間、NYCBとSchool of American Balletからの一時休職を申し出たためです。",
+    "chunk_id": "cc_news_2per_anthropic_chunk_1",
+    "topic": "設置の経緯",
+    "dataset_type": "cc_news_2per_anthropic_chunks"
+  },
+  {
+    "question": "暫定リーダーシップチームのメンバーは誰ですか？",
+    "answer": "バレエ・マスターで元プリンシパルのジョナサン・スタッフォードが率い、レジデント・コレオグラファーでソリストのジャスティン・ペック、バレエ・マスターのクレイグ・ホールとレベッカ・クロームの4名です。",
+    "chunk_id": "cc_news_2per_anthropic_chunk_1",
+    "topic": "チーム構成",
+    "dataset_type": "cc_news_2per_anthropic_chunks"
+  },
+  {
+    "question": "暫定チームはどのような業務を担当しますか？",
+    "answer": "スケジュール管理、配役決定、リハーサルの指揮など、カンパニーの日々の芸術面での運営に必要な業務を担当します。",
+    "chunk_id": "cc_news_2per_anthropic_chunk_1",
+    "topic": "職務内容",
+    "dataset_type": "cc_news_2per_anthropic_chunks"
+  },
+  {
+    "question": "暫定チームのメンバーはリーダーシップ経験が少ないにもかかわらず、なぜ移行がスムーズに進むと期待されていますか？",
+    "answer": "メンバーはカンパニーの現在の芸術スタッフであり、団をよく知っているためです。例えばクロームはわずか2か月前に舞台を離れて現在の役割に就きました。ただし在任期間は未定です。",
+    "chunk_id": "cc_news_2per_anthropic_chunk_1",
+    "topic": "期待と任期",
+    "dataset_type": "cc_news_2per_anthropic_chunks"
+  }
+]
