@@ -1,6 +1,6 @@
 # services/docs/ 棚卸し
 
-**Version 1.3** | 最終更新: 2026-09-26
+**Version 1.4** | 最終更新: 2026-10-10
 
 > 📎 **姉妹版**: [`docs/README.md`](../../docs/README.md)（直下・配置の境界） /
 > [`backend/docs/README.md`](../../backend/docs/README.md) /
@@ -61,7 +61,7 @@
 | [`qa_service.md`](qa_service.md) | `qa_service.py` — Q/A 生成（サブプロセス実行） | 174 | 527 | 1.2 | ★★☆ |
 | [`log_service.md`](log_service.md) | `log_service.py` — 未回答質問ログ | 89 | 461 | 1.2 | ★☆☆ |
 | [`prompts.md`](prompts.md) | `prompts.py` — 共通プロンプト定義 | 32 | 318 | 1.1 | ★☆☆ |
-| [`agent_service.md`](agent_service.md) | `agent_service.py` — **Legacy ReAct**（§4 を先に読むこと） | 538 | 621 | 2.5 | ★☆☆ |
+| [`agent_service.md`](agent_service.md) | `agent_service.py` — **Legacy ReAct**（§4 を先に読むこと） | 538 | 623 | 2.7 | ★☆☆ |
 
 > 📌 **`token_service.md` に `gpt-4o` などが並ぶのは誤りではない。** `token_service.py` が持つ
 > トークナイザ・単価の**互換辞書**であり、このプロジェクトが使う LLM ではない（同書の冒頭注記）。
@@ -89,7 +89,7 @@ Web 経路（`run_support_agent_core` / `run_review_agent_core`）の計画実�
 | 呼び出し元 | 条件 |
 |---|---|
 | `grace/executor.py::_execute_legacy_agent_step` | 計画ステップの `action` が `run_legacy_agent` のとき。**プランナのプロンプト（`grace/planner.py::PLAN_GENERATION_PROMPT`）は上の 4 アクションしか提示しない**ので通常は通らないが、スキーマ（`grace/schemas.py::PlanStep.action`）上は許されている |
-| `grace/step_trace/benchmark.py` | ベンチマーク計測用 |
+| ~~`grace/step_trace/benchmark.py`~~ | 2026-10-10 に削除（ベンチマーク計測用だった） |
 
 > ⚠️ 「本番から 1 件も呼ばれない」と書いた姉妹リポジトリ `grace_v2_local` の索引とは**事情が違う**。
 > 引き写さないこと。
@@ -171,3 +171,4 @@ uv run --no-sync pytest backend/tests/test_*_service.py backend/tests/test_data_
 | 1.1 | 2026-09-25 | 姉妹リポジトリから `services/` の単体テスト 8 ファイル・52 件を移植したのにあわせ、§6 のテスト件数と §7 の残タスクを更新 |
 | 1.2 | 2026-09-26 | Embedding を `gemini-embedding-2` へ変えたのに追随して 6 文書（`__init__` / `agent_service` / `cache_service` / `config_service` / `qdrant_service` / `token_service`）の行数・Ver を再実測。実装行数も PR #216 で変わった `qdrant_service.py`（1104）/ `token_service.py`（351）を更新 |
 | 1.3 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随して 6 文書の行数・Ver を再実測（実装行数は変化なし） |
+| 1.4 | 2026-10-10 | `grace/step_trace/`（`benchmark.py` を含む）を 2026-10-10 にディレクトリごと削除したのに追随し、現状を述べる記述から外した（過去の経緯の記述は残す）。`agent_service.md` の行数・版を実測へ（623 行・v2.7。v2.6 までの更新が索引に反映されていなかった分を含む） |

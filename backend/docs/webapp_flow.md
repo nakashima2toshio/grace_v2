@@ -1,6 +1,6 @@
 # webapp_flow.md - GRACE-Support Web アプリ処理フロー（`run_dev.sh` 起点）ドキュメント
 
-**Version 2.8** | 最終更新: 2026-10-08
+**Version 2.9** | 最終更新: 2026-10-10
 
 > ⚠️ **`React`（フロントエンドのライブラリ）の話であって、`ReAct`（推論と行動を反復する
 > エージェントパターン）の解説書ではない。** 旧ファイル名 `react_processing_flow.md` は
@@ -542,7 +542,7 @@ style CORE fill:#1a1a1a,stroke:#fff,color:#fff
 | Plan & Execute（計画と実行の分離） | Plan（計画生成）と Execute（実行）を分離 | ② `planner.py` / ③ `executor.py` |
 | Orchestrator-Workers（中央制御・役割分担） | Executor が `ToolRegistry` を統制 | ③ `executor.py` + `tools.py`（rag_search/web_search/reasoning/ask_user） |
 | Parallelization（並列実行） | ⚠️ **Web 経路では未採用**。許可コレクションは `grace/tools.py` が優先順に**直列**検索し、一次閾値(0.70)到達で打ち切る（クエリベクトルは 1 回だけ生成して使い回す） | `grace/tools.py`（`RAGSearchTool.execute`）。`agent_parallel_search.py` は Legacy ReAct 経路専用で、Web からは呼ばれない |
-| ReAct（推論と行動の反復） | ⚠️ **Web 経路では未起動**。`run_legacy_agent` アクションを生成するプランナが存在せず、`ReActAgent` は `grace/step_trace/benchmark.py` の `mode="react"` からのみ動く | `services/agent_service.py`（`ReActAgent`）＝ベンチ専用 |
+| ReAct（推論と行動の反復） | ⚠️ **Web 経路では未起動**。`run_legacy_agent` アクションを生成するプランナが存在せず、唯一の起動口だった `grace/step_trace/benchmark.py` も 2026-10-10 に削除したので、`ReActAgent` はどこからも動かない | `services/agent_service.py`（`ReActAgent`）＝ベンチ専用 |
 | Evaluator-Optimizer（評価・最適化ループ） | 信頼度評価 → 再計画 | ③ `confidence.py` + `replan.py`（閾値 0.4） |
 | Self-Reflective（自己内省） | 根拠検証・LLM 自己評価 | ④a `confidence.py`（`GroundednessVerifier`/`LLMSelfEvaluator`） |
 | Human-in-the-Loop（人間介入） | CONFIRM 承認・有人エスカレ | ⑥ `intervention.py` + `intervention_bridge.py` |
@@ -555,7 +555,7 @@ style CORE fill:#1a1a1a,stroke:#fff,color:#fff
 |:--:|---------|------------------------|-----------------------------------|---------|
 | 1 | Prompt Chaining（逐次フェーズ分割） | `executor.py`（ステップ連鎖） | `support_agent.py` | ①→⑥ を逐次連結し、前段の出力を次段の入力にする |
 | 2 | Parallelization（並列実行） | `tools.py`（複数コレクション検索） | — | 許可コレクションを横断検索。ただし⚠️ **直列**（優先順に 1 つずつ検索し一次閾値0.70で break）。`ParallelSearchEngine`（`agent_parallel_search.py`）は**使っていない** |
-| 3 | Evaluator-Optimizer（評価・最適化ループ） | `confidence.py` / `replan.py` / `calibration.py` / `benchmark.py` | — | 信頼度評価 → 閾値0.4未満で再計画、較正（ECE 縮小）、KPI 計測 |
+| 3 | Evaluator-Optimizer（評価・最適化ループ） | `confidence.py` / `replan.py` / `calibration.py` | — | 信頼度評価 → 閾値0.4未満で再計画、較正（ECE 縮小） |
 | 4 | Orchestrator-Workers（中央制御・役割分担） | `executor.py` / `tools.py`（`ToolRegistry`） | `support_agent.py` / `jobs.py` | Executor が rag/web/reasoning/ask_user を統制、Job が実行を編成 |
 | 5 | ReAct（推論と行動の反復） | `executor.py`（動的経路） / `tools.py` | — | 複雑度 ≥ 0.7 で推論→行動→観測を反復（`services/agent_service.ReActAgent`） |
 | 6 | Self-Reflective（自己内省） | `confidence.py`（`GroundednessVerifier`/`LLMSelfEvaluator`） / `calibration.py` | `gates.py`（情報なし検知） | 生成回答を自己検証（根拠・自己評価・較正） |
@@ -576,7 +576,7 @@ style CORE fill:#1a1a1a,stroke:#fff,color:#fff
 | 安全性・管理 | Guardrails | `core/gates.py` / `grace/schemas.py` / `grace/confidence.py`（groundedness ゲート） | しきい値ゲート・型検証・根拠ゲート・情報なし検知 |
 | 安全性・管理 | Registry | `grace/tools.py`（`ToolRegistry`） / `core/verticals.py`（`PROFILES`） | ツール・業界プロファイルの登録簿 |
 | 安全性・管理 | Adapter | `grace/llm_compat.py` | google-genai 形式の呼び出しを Anthropic API へ橋渡しする互換アダプタ |
-| 安全性・管理 | Evaluator | `grace/confidence.py` / `grace/calibration.py` / `grace/step_trace/benchmark.py` | 信頼度評価・較正（温度スケーリング）・KPI 計測 |
+| 安全性・管理 | Evaluator | `grace/confidence.py` / `grace/calibration.py` | 信頼度評価・較正（温度スケーリング） |
 
 > 📝 **注記**: 「Voting / Role / Debate」は本システムではソース一致度・信号集約による合議的判定に留まり、独立エージェント同士の討論（Debate）や役割分担投票（Role/Voting）は本格実装していない。
 
@@ -669,6 +669,7 @@ sequenceDiagram
 | 2.6 | 2026-10-08 | SSE の keepalive を名前付きイベントへ変更したのに追随（2026-10-08） |
 | 2.7 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
 | 2.8 | 2026-10-08 | 現在の既定 LLM の記述を `claude-sonnet-5` から実装（`config.py::ModelConfig.DEFAULT_MODEL` / `config/grace_config.yml` の `llm.model`）どおり `claude-sonnet-5-5` へ是正（概要・用語表）（2026-10-08） |
+| 2.9 | 2026-10-10 | `grace/step_trace/`（`benchmark.py` を含む）を 2026-10-10 にディレクトリごと削除したのに追随し、現状を述べる記述から外した（過去の経緯の記述は残す） |
 
 ---
 

@@ -22,12 +22,11 @@ Web アプリ（`./run_dev.sh` / `uvicorn backend.app.main:app`）からは **�
   そちらへ移っている。
 - 本モジュールを実際に呼ぶのは `agent_tools.search_rag_knowledge_base_cached()` だけで、
   その呼び出し元は Legacy ReAct 経路（`services/agent_service.py::ReActAgent`）のみ。
-  さらにその ReAct 経路は `grace/step_trace/benchmark.py` の `mode="react"` /
-  `"both"`（GRACE との横並びベンチ）からしか起動しない
-  （`grace/schemas.py` の `run_legacy_agent` を生成するプランナは存在しない）。
+  その経路の唯一の起動口だった
+  `grace/step_trace/benchmark.py`（`mode="react"` / `"both"`）は 2026-10-10 に削除したので、
+  この経路は現在どこからも起動しない（`grace/schemas.py` の `run_legacy_agent` を生成するプランナも存在しない）。
 
-削除する場合は ReAct 経路（`services/agent_service.py` / `executor._execute_legacy_agent_step`
-/ `benchmark._run_react`）ごと撤去する必要がある。
+削除する場合は ReAct 経路（`services/agent_service.py` / `executor._execute_legacy_agent_step`）ごと撤去する必要がある。
 """
 
 import logging

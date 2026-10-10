@@ -1,6 +1,6 @@
 # docs 棚卸し（リポジトリ直下 `docs/`）
 
-**Version 3.7** | 最終更新: 2026-10-10
+**Version 3.8** | 最終更新: 2026-10-10
 
 リポジトリ直下 `docs/` の一覧と、**どのディレクトリに何を置くかの境界**をまとめる。
 各領域の棚卸しは [`backend/docs/README.md`](../backend/docs/README.md) /
@@ -53,7 +53,7 @@ CLAUDE.md §9.1 の表を、判断に使える形へ具体化したもの。
 
 | 置き場所 | 置くもの | 判断の目安 |
 |---|---|---|
-| `<package>/docs/<module>.md` | Python モジュールの IPO | **1 ファイル = 1 文書**。`chunking/` `qa_generation/` `qa_qdrant/` `services/` `grace/` `grace/step_trace/` |
+| `<package>/docs/<module>.md` | Python モジュールの IPO | **1 ファイル = 1 文書**。`chunking/` `qa_generation/` `qa_qdrant/` `services/` `grace/` |
 | `backend/docs/` | `backend/app/**` の IPO ＋ Support / Review の spec・flow | 対象が `backend/app/` に閉じているか |
 | `frontend/docs/` | React コンポーネント 1 件ごと | 対象が `frontend/src/` に閉じているか |
 | **直下 `docs/`** | **2 つ以上の領域にまたがる横断文書**、およびトップレベル `.py` の IPO | 「`backend/` だけ」「`grace/` だけ」で説明しきれないもの |
@@ -103,14 +103,14 @@ CLAUDE.md §9.1 の表を、判断に使える形へ具体化したもの。
 | `guardrails.md` | A | ガードレール GA〜G9 の機構 → 実装 → **失敗時の既定** | backend + grace + ルート | 378 | 1.0 |
 | `reasoning_flow.md` | A | 生成の 2 ステップ（Support の `reasoning` / Review の `detect`） | grace + backend | 389 | 2.3 |
 | `performance_levers.md` | A | 回答品質・レイテンシ・コストを決めている箇所と未実装レバー | 全域 | 566 | 2.3 |
-| `agent_layers.md` | A | **一般エージェント用語 → 実装の対応表**（L0〜L4）。実装を読む前の見取り図 | 全域 | 415 | 1.2 |
+| `agent_layers.md` | A | **一般エージェント用語 → 実装の対応表**（L0〜L4）。実装を読む前の見取り図 | 全域 | 415 | 1.3 |
 | `app_tabs_overview.md` | A | **処理 3 タブの入口**。基本版 / GRACE-Support / GRACE-Review を「業界特化・処理フロー・回答」の 3 点で、画面の実行例つきでまとめる。ステップ対照表は `pipelines.md` へリンク | backend + frontend + grace | 380 | 1.2 |
 
 ### 3.2 モジュール IPO（トップレベル `.py`）
 
 | 文書 | 種別 | 対象 | 行数 | Ver |
 |---|:--:|---|---:|---|
-| `agent_parallel_search.md` | E | `agent_parallel_search.py` — 並列検索エンジン（`ThreadPoolExecutor`）。⚠️ Legacy ReAct 経路専用で Web アプリからは未稼働（同文書「稼働範囲」参照） | 732 | 1.2 |
+| `agent_parallel_search.md` | E | `agent_parallel_search.py` — 並列検索エンジン（`ThreadPoolExecutor`）。⚠️ Legacy ReAct 経路専用で Web アプリからは未稼働（同文書「稼働範囲」参照） | 733 | 1.3 |
 
 ### 3.3 進行中の TODO
 
@@ -168,7 +168,7 @@ CLAUDE.md §9.1 の表を、判断に使える形へ具体化したもの。
 python3 - <<'EOF'
 import re, pathlib, collections
 ROOTS = ['docs', 'backend/docs', 'grace/docs', 'frontend/docs', 'services/docs',
-         'chunking/docs', 'qa_generation/docs', 'qa_qdrant/docs', 'grace/step_trace/docs']
+         'chunking/docs', 'qa_generation/docs', 'qa_qdrant/docs']
 files = [p for r in ROOTS for p in sorted(pathlib.Path(r).glob('*.md'))
          if 'archive' not in str(p)]
 
@@ -245,3 +245,4 @@ EOF
 | 3.5 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
 | 3.6 | 2026-10-08 | 現在の既定 LLM の記述を `claude-sonnet-5` から実装（`config.py::ModelConfig.DEFAULT_MODEL` / `config/grace_config.yml` の `llm.model`）どおり `claude-sonnet-5-5` へ是正（冒頭の注記）（2026-10-08） |
 | 3.7 | 2026-10-10 | `agent_layers.md` を v1.2 へ（削除した `a_pages_md_format.md` への言及を外した）。変更履歴を 3 列へ移した |
+| 3.8 | 2026-10-10 | `grace/step_trace/`（`benchmark.py` を含む）を 2026-10-10 にディレクトリごと削除したのに追随し、現状を述べる記述から外した（過去の経緯の記述は残す）。§3.1 の `agent_layers.md` / `agent_parallel_search.md` の行数・版を実測へ（v1.3） |
