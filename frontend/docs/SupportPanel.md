@@ -1,6 +1,6 @@
 # SupportPanel.tsx - 問い合わせ → 回答 パネル ドキュメント
 
-**Version 1.7** | 最終更新: 2026-09-24
+**Version 1.8** | 最終更新: 2026-10-10
 
 ---
 
@@ -540,8 +540,8 @@ class S,V,R,Go,Err,Fail,Stream,I,M,D default
 | `src/state/submitKey.test.ts` | 送信キー（IME 変換中は送信しない） | 10 |
 | `src/state/formMemory.test.ts` | タブ切替時の入力退避 | 13 |
 
-`backend/tests/test_api.py` が呼び先の API（ジョブ起動・SSE・confirm）を押さえる
-（`uv run pytest backend/tests`）。
+`tests/test_api.py` が呼び先の API（ジョブ起動・SSE・confirm）を押さえる
+（`uv run pytest tests`）。
 
 > 📌 **フロント全体は 18 ファイル / 266 件**（同上の実測）。件数は記憶で書かず、
 > 変更時に `npm test` を実行して数え直すこと。
@@ -574,3 +574,4 @@ class S,V,R,Go,Err,Fail,Stream,I,M,D default
 | 1.5 | 2026-09-16 | **モデルセレクタに追随。** `models` / `modelInfo` の取得（`fetchModels` / `fetchModelInfo`）を副作用へ追加し、`QueryForm` へ `models` / `defaultModel` を渡すようにした。取得失敗でバナーを出さない理由（縮退しても既定モデルで正しく走る）を明記 |
 | 1.6 | 2026-09-23 | **モデル選択をヘッダー（`App`）へ移した。** `models` / `modelInfo` の state と取得の副作用を削除し、`model` prop を受け取って `QueryForm` へ渡すだけにした |
 | 1.7 | 2026-09-24 | `a_react_page_md_format.md` v1.1 に追随（2026-09-24）。概要に「各責務対応のモジュール」（主な責務と 1:1）を追加し、`## 1.` を「アーキテクチャ構成図」として **1.1 システム全体での位置づけ（3 層）** と 1.2 コンポーネントツリー図の 2 枚構成にした。Mermaid の `classDef subgraphStyle` の欠落を補った |
+| 1.8 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |

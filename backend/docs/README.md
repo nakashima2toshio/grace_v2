@@ -1,6 +1,6 @@
 # backend/docs — 文書の地図
 
-**Version 2.8** | 最終更新: 2026-10-08
+**Version 2.9** | 最終更新: 2026-10-10
 
 ---
 
@@ -142,7 +142,7 @@ reference/*.md             引く（通読しない）
 | 文書 | 種別 | 内容 |
 |---|:--:|---|
 | [`install_and_setup.md`](./install_and_setup.md) | B | 環境構築・**起動手順の正本** |
-| [`testing.md`](./testing.md) | B | `backend/tests` の地図・結合テスト（実 Qdrant / Redis）・E2E（実 API・実データ）・どこを触ったらどれを流すか・CI の 4 ゲート |
+| [`testing.md`](./testing.md) | B | `tests` の地図・結合テスト（実 Qdrant / Redis）・E2E（実 API・実データ）・どこを触ったらどれを流すか・CI の 4 ゲート |
 | [`migration_plan.md`](./migration_plan.md) | C | 文書再編の計画（Phase 1 完了 / Phase 2・3 の予定） |
 | [`docs_audit.md`](./docs_audit.md) | C | 棚卸し・実装追随の照合結果・検証スクリプト・残タスク |
 | [`archive/`](./archive/) | — | 記録としては残すが実装の正ではない文書 |
@@ -197,3 +197,4 @@ reference/*.md             引く（通読しない）
 | 2.6 | 2026-09-27 | **§1「backend の責務」を新設**し、frontend / backend の役割分担の要約（全体像の図・backend の役割表・持たないもの・1 回の問い合わせの流れ・分担のルール）を置いた。frontend 側の同じ要約（`frontend/docs/README.md` §1 v2.8）と対になる。これに伴い既存の §1〜§5 を §2〜§6 へ繰り下げた（本書内・他文書から本書の節番号を参照している箇所は無いことを grep で確認） |
 | 2.7 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随 |
 | 2.8 | 2026-10-08 | 現在の既定 LLM の記述を `claude-sonnet-5` から実装（`config.py::ModelConfig.DEFAULT_MODEL` / `config/grace_config.yml` の `llm.model`）どおり `claude-sonnet-5-5` へ是正（冒頭の注記） |
+| 2.9 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |

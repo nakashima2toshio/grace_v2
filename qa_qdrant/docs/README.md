@@ -1,6 +1,6 @@
 # qa_qdrant/docs/ 棚卸し
 
-**Version 1.11** | 最終更新: 2026-10-08
+**Version 1.12** | 最終更新: 2026-10-10
 
 > 📎 **姉妹版**: [`docs/README.md`](../../docs/README.md)（直下・配置の境界） /
 > [`chunking/docs/README.md`](../../chunking/docs/README.md) /
@@ -132,7 +132,7 @@
   （`import qa_qdrant` だけで **1,406 モジュール → 整理後 35**）。
 - `main` / `PROJECT_ROOT` / `logger` を `qa_qdrant` から参照するコードは無かった（grep 実測）。
 
-整理後は docstring だけにし、`backend/tests/test_qa_qdrant_package_init.py`（2 件）で
+整理後は docstring だけにし、`tests/test_qa_qdrant_package_init.py`（2 件）で
 「docstring 以外を書き戻していない」「`import qa_qdrant` で `qa_generation` / `config` が載らない」を固定した。
 経緯は [`qa_generation/docs/__init__.md`](../../qa_generation/docs/__init__.md) §4
 （姉妹リポジトリ `grace_v2_local` は 2026-09-21 に同じ整理を実施済み）。
@@ -182,16 +182,16 @@
 
 | テストファイル | 件数 | 対象 |
 |---|---:|---|
-| `backend/tests/test_qa_qdrant_package_init.py` | 2 | `__init__.py` が docstring だけであること・import 副作用が無いこと（§4） |
-| `backend/tests/test_make_qa_register_qdrant_txt_input.py` | 3 | `make_qa_register_qdrant.py` の `.txt` 入力（先にチャンク化してから Q/A 生成へ渡すこと・空の本文／`ANTHROPIC_API_KEY` 無しで終了コード 1） |
-| `backend/tests/test_make_qa_register_qdrant_startup_checks.py` | 4 | `make_qa_register_qdrant.py` の起動時チェック（Q/A 生成の前に `ANTHROPIC_API_KEY` が無ければ終了コード 1・Q/A 済み CSV の登録では不要・`--provider` の `gemini` 以外は終了コード 2） |
-| `backend/tests/test_qa_pipeline_text_column.py` | 6 | `--text-column` が `QAPipeline(text_column=...)` へ渡ること（CLI 3 件）と、`QAPipeline` 側の指定列の優先・欠落時の ValueError・未指定時の自動検出（3 件） |
-| `backend/tests/test_make_qa_register_qdrant_exit_code.py` | 2 | `make_qa_register_qdrant.py` の `main()` が、Qdrant 登録の失敗で終了コード 1・成功で正常終了すること |
-| `backend/tests/test_data_jobs.py` | 43 | データ管理タブのジョブ全体。うち Qdrant 登録ジョブの runner（`register_to_qdrant` を呼ぶ）を含む（**間接**） |
-| `backend/tests/test_model_table_coverage.py` | 5 | CLI `--model` 既定が単価・上限表に載っていること（**間接**） |
+| `tests/test_qa_qdrant_package_init.py` | 2 | `__init__.py` が docstring だけであること・import 副作用が無いこと（§4） |
+| `tests/test_make_qa_register_qdrant_txt_input.py` | 3 | `make_qa_register_qdrant.py` の `.txt` 入力（先にチャンク化してから Q/A 生成へ渡すこと・空の本文／`ANTHROPIC_API_KEY` 無しで終了コード 1） |
+| `tests/test_make_qa_register_qdrant_startup_checks.py` | 4 | `make_qa_register_qdrant.py` の起動時チェック（Q/A 生成の前に `ANTHROPIC_API_KEY` が無ければ終了コード 1・Q/A 済み CSV の登録では不要・`--provider` の `gemini` 以外は終了コード 2） |
+| `tests/test_qa_pipeline_text_column.py` | 6 | `--text-column` が `QAPipeline(text_column=...)` へ渡ること（CLI 3 件）と、`QAPipeline` 側の指定列の優先・欠落時の ValueError・未指定時の自動検出（3 件） |
+| `tests/test_make_qa_register_qdrant_exit_code.py` | 2 | `make_qa_register_qdrant.py` の `main()` が、Qdrant 登録の失敗で終了コード 1・成功で正常終了すること |
+| `tests/test_data_jobs.py` | 43 | データ管理タブのジョブ全体。うち Qdrant 登録ジョブの runner（`register_to_qdrant` を呼ぶ）を含む（**間接**） |
+| `tests/test_model_table_coverage.py` | 5 | CLI `--model` 既定が単価・上限表に載っていること（**間接**） |
 
 ```bash
-uv run --no-sync pytest backend/tests/test_qa_qdrant_package_init.py -q
+uv run --no-sync pytest tests/test_qa_qdrant_package_init.py -q
 ```
 
 > ⚠️ **テストは薄い。** `register_to_qdrant.py`（587 行）・`make_qa.py`（265 行）・
@@ -216,3 +216,4 @@ uv run --no-sync pytest backend/tests/test_qa_qdrant_package_init.py -q
 | 1.9 | 2026-09-26 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所）。あわせて同じ改訂の 6 文書の行数・Ver と、PR #216 で変わった `register_to_qdrant.py` の実装行数（588）を再実測 |
 | 1.10 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`）。同じ改訂の 6 文書の行数・Ver を再実測 |
 | 1.11 | 2026-10-08 | Q/A 生成の既定モデルがコード側で `config.py::ModelConfig.DEFAULT_MODEL` 参照になったのに追随し、既定の記述を `claude-sonnet-5` → `claude-sonnet-5-5` へ是正（冒頭の注記） |
+| 1.12 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |

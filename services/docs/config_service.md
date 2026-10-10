@@ -1,6 +1,6 @@
 # config_service.py - 設定管理サービス ドキュメント
 
-**Version 1.7** | 最終更新: 2026-10-08
+**Version 1.8** | 最終更新: 2026-10-10
 
 ---
 
@@ -813,7 +813,7 @@ reload_config()
 | `config` | ConfigManager | `ConfigManager("config.yml")` のシングルトン |
 | `logger` | logging.Logger | `config.logger`（`Gemini_helper` ロガー） |
 
-> 📝 **注意**: LLMはAnthropic Claude（既定 `claude-sonnet-5-5`。`config.yml` の `models.default` がコード側より優先されるため、両者の一致を `backend/tests/test_model_selection.py` で検査している、鍵 `ANTHROPIC_API_KEY`）、EmbeddingはGemini（`gemini-embedding-001`、鍵 `GOOGLE_API_KEY`）を用います。
+> 📝 **注意**: LLMはAnthropic Claude（既定 `claude-sonnet-5-5`。`config.yml` の `models.default` がコード側より優先されるため、両者の一致を `tests/test_model_selection.py` で検査している、鍵 `ANTHROPIC_API_KEY`）、EmbeddingはGemini（`gemini-embedding-001`、鍵 `GOOGLE_API_KEY`）を用います。
 
 
 ---
@@ -850,6 +850,7 @@ __all__ = [
 | 1.5 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
 | 1.6 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
 | 1.7 | 2026-10-08 | 出力例・戻り値例・既定値表・注記の既定モデルを、実装（`_get_default_config()` / 直下 `config.yml` の `models.default`）どおり `claude-sonnet-5-5` へ是正（選択肢も同様）（2026-10-08） |
+| 1.8 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |
 
 ---
 

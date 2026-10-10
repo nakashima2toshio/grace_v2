@@ -1,6 +1,6 @@
 # grace/docs 棚卸し
 
-**Version 1.18** | 最終更新: 2026-10-10
+**Version 1.19** | 最終更新: 2026-10-10
 
 `grace/` パッケージのドキュメント一覧と、実装への追随状況・残タスク・検証手順をまとめる。
 新しく文書を書く／直す前に、まずここを見る。
@@ -189,7 +189,7 @@ style BASE fill:#1a1a1a,stroke:#fff,color:#fff
 
 > ⚠️ **共用部品を触るときは両方を壊さないこと。** `GroundednessVerifier` / `InterventionHandler` /
 > `ToolRegistry` は両エージェントの共用である。Support のつもりで直した変更が Review を壊す
-> （CLAUDE.md §1）。`backend/tests/test_review_*.py` も通すこと。
+> （CLAUDE.md §1）。`tests/test_review_*.py` も通すこと。
 
 ---
 
@@ -233,7 +233,7 @@ A と B の線引きは思いつきではなく、**実測した依存の向き*
 | 役割 | 文書 | 対象 | 行数 | Ver | 重要度 |
 |---|---|---|---:|---|---|
 | 計画 | `planner.md` | `grace/planner.py` | 1187 | 3.12 | ★★★ |
-| 実行 | `executor.md` | `grace/executor.py` | 2300 | 4.20 | ★★★ |
+| 実行 | `executor.md` | `grace/executor.py` | 2301 | 4.21 | ★★★ |
 | 実行 | `tools.md` | `grace/tools.py`（`WebSearchTool` を含む全ツール） | 1687 | 3.7 | ★★★ |
 | 評価 | `confidence.md` | `grace/confidence.py` | 1862 | 2.10 | ★★★ |
 | 評価 | `calibration.md` | `grace/calibration.py` | 763 | 1.1 | ★★ |
@@ -475,7 +475,7 @@ grep -rhoE '`[a-z0-9_]+(/[a-z0-9_]+)+\.(py|sh)`' grace/docs/*.md backend/docs/*.
 > 📝 このチェックで実際に見つかったもの: `agent_example.py` / `agent_example_core8.py` /
 > `eval/vertical/run.py` / `run_benchmark.py` / `grace/benchmark.py`（実際は
 > `grace/step_trace/benchmark.py`）/ `grace/web_search.py`（実際は `grace/tools.py` 内のクラス）/
-> `tests/grace/test_vertical_scope.py`（実際は `backend/tests/test_vertical_scope.py`）。
+> `tests/grace/test_vertical_scope.py`（実際は `tests/test_vertical_scope.py`）。
 > いずれも**文書の中にしか存在しなかった**。
 >
 > 是正後にこのチェックを流すと、残るのは
@@ -589,3 +589,4 @@ PY
 | 1.16 | 2026-10-10 | §3 の `executor.md` の行数・版を実測へ（2219 行・v4.16 → 2345 行・v4.18。§4.1 使用例の書き直しに追随） |
 | 1.17 | 2026-10-10 | `grace/step_trace/`（`benchmark.py` を含む）を 2026-10-10 にディレクトリごと削除したのに追随し、現状を述べる記述から外した（過去の経緯の記述は残す）。§3 の `executor.md` の行数・版を実測へ（2346 行・v4.19） |
 | 1.18 | 2026-10-10 | Legacy ReAct 経路の削除（2026-10-10）に追随し、§3 の `executor.md`（2300 行・v4.20）・`schemas.md`（v2.3）・`confidence_calibration.md`（v1.7）の行数・版と、§3.1 の `executor.md` の公開シンボル数（58 → 57）を実測へ |
+| 1.19 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |

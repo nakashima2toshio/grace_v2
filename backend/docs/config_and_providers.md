@@ -1,6 +1,6 @@
 # 設定・モデル・プロバイダの解決経路 ドキュメント
 
-**Version 1.10** | 最終更新: 2026-10-08
+**Version 1.11** | 最終更新: 2026-10-10
 
 ---
 
@@ -237,7 +237,7 @@ if model:
 | `llm.light_model` | **しない** | 判定系（意図分類・情報なし判定・RAG 適合性）は 2 値しか返さない定型判定で、上位モデルでも精度は変わらず単価だけ上がる（haiku と opus で 5 倍） |
 | `llm.heavy_model` | しない | `""` のとき `model` へフォールバックするため、選んだモデルへ自動で揃う |
 
-回帰テストは `backend/tests/test_model_selection.py`（26 件）。
+回帰テストは `tests/test_model_selection.py`（26 件）。
 
 ### 「（既定値）」に出す名前は API から取る
 
@@ -265,7 +265,7 @@ if model:
 `gemini-embedding-001`（3072 次元）固定で、変えると既存 Qdrant コレクションが
 使えず全件再登録になる（次元が同じでもモデルが違えばベクトルの意味が合わず、エラーに
 ならずに検索結果が壊れる）。モデル名の定義は `config.py::ModelConfig.EMBEDDING_MODEL` の
-1 箇所で、他のファイルに書かないことを `backend/tests/test_embedding_model_single_source.py` が検査する。`backend/tests/test_model_selection.py` が
+1 箇所で、他のファイルに書かないことを `tests/test_embedding_model_single_source.py` が検査する。`tests/test_model_selection.py` が
 「選択肢に embedding を含むモデル名が無い」ことを固定している。
 
 ---
@@ -328,7 +328,7 @@ class Yml,Env,Loader,Validated,Users,Dotenv,Runtime default
    含めないと「（既定値）」と同じモデルを明示的に選べない）
 6. **モデル名のマッピングは作らない**（`CLAUDE.md` R1）
 7. `judge_model()` / `detect_model()` を経由しない直接参照を新たに書いていないか grep する
-8. `backend/tests/test_model_selection.py` を通す（yml と `ModelConfig` の既定が
+8. `tests/test_model_selection.py` を通す（yml と `ModelConfig` の既定が
    割れていないことをここが見ている）
 
 ---
@@ -348,3 +348,4 @@ class Yml,Env,Loader,Validated,Users,Dotenv,Runtime default
 | 1.8 | 2026-09-29 | `httpx` / `httpcore` の INFO ログを WARNING に絞る（`config.quiet_noisy_loggers()`。`config` の import 時に効く）。1 回の Qdrant 検索でコンソールが `HTTP Request: GET …` の数十行で埋まっていた。環境変数 `GRACE_HTTP_LOG_LEVEL`（例 `INFO`）で戻せる。起動コマンドの案内を `docker compose`（プラグイン版）へ更新 |
 | 1.9 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随 |
 | 1.10 | 2026-10-08 | チャンキングの既定を、回答生成・Q/A 生成の `ModelConfig.DEFAULT_MODEL` から分けた `config.py::ModelConfig.CHUNKING_MODEL`（`claude-haiku-5-5`）の 1 箇所で決めるようにしたのに追随 |
+| 1.11 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |

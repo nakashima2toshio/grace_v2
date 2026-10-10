@@ -1,6 +1,6 @@
 # GRACE-Support インストール・環境設定ガイド
 
-**Version 1.6** | 最終更新: 2026-09-26
+**Version 1.7** | 最終更新: 2026-10-10
 
 ---
 
@@ -271,11 +271,11 @@ import する（例: [`core_support_agent.md` §6.1](./reference/core_support_ag
 ## 8. テスト
 
 ```bash
-# バックエンド（backend/tests ＋ 既存 tests/ 全体）
+# バックエンド（tests ＋ 既存 tests/ 全体）
 uv run pytest
 
-# backend/tests だけ
-uv run pytest backend/tests
+# tests だけ
+uv run pytest tests
 
 # フロントエンド
 cd frontend
@@ -283,7 +283,7 @@ npm test        # vitest（jobReducer）
 npm run build   # tsc --noEmit + vite build
 ```
 
-- CI（`.github/workflows/ci.yml`）: `ruff` / `compile` / `pytest backend/tests` /
+- CI（`.github/workflows/ci.yml`）: `ruff` / `compile` / `pytest tests` /
   `frontend（tsc + vitest + build）` がブロッキング、レガシー全体スイートは advisory。
 
 ---
@@ -315,3 +315,4 @@ npm run build   # tsc --noEmit + vite build
 | 1.4 | 2026-09-24 | `a_cross_doc_md_format.md` v1.1（種別 B）に準拠（2026-09-24）。概要（結論・対象モジュール）を追加し、冒頭の説明文を概要へ移した。本文の章番号は変えていない |
 | 1.5 | 2026-09-26 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
 | 1.6 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
+| 1.7 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |

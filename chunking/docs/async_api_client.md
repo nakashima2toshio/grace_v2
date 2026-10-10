@@ -1,6 +1,6 @@
 # async_api_client.py - チャンク化用 非同期APIクライアント ドキュメント
 
-**Version 2.4** | 最終更新: 2026-10-08
+**Version 2.5** | 最終更新: 2026-10-10
 
 ---
 
@@ -367,7 +367,7 @@ async def generate_content(
 **連続**失敗で数えるのが要点で、途中で 1 件でも成功すればカウントは 0 に戻る。
 単発の失敗が積み上がって止まることはない。
 
-回帰は `backend/tests/test_chunking_abort.py` で固定している。
+回帰は `tests/test_chunking_abort.py` で固定している。
 
 ### 4.6 `AsyncAPIClient.get_stats` / `reset_stats`
 
@@ -444,6 +444,7 @@ AsyncAPIClient                             # 非同期クライアント
 | 2.2 | 2026-09-25 | 既定モデルの記述（5 箇所）を実装（`async_api_client.py` の `default_model`）に合わせて旧既定 `claude-sonnet-4-6` → `claude-sonnet-5` へ是正（2026-09-25） |
 | 2.3 | 2026-10-08 | 既定モデル（`default_model`）がコード側で `config.py::ModelConfig.DEFAULT_MODEL` 参照になったのに追随し、記述（5 箇所）を `claude-sonnet-5` → `claude-sonnet-5-5` へ是正（チャンク化は呼び出し側が軽量 `claude-haiku-5-5` を渡す）（2026-10-08） |
 | 2.4 | 2026-10-08 | チャンキングの既定を、回答生成・Q/A 生成の `ModelConfig.DEFAULT_MODEL` から分けた `config.py::ModelConfig.CHUNKING_MODEL`（`claude-haiku-5-5`）の 1 箇所で決めるようにしたのに追随（2026-10-08） |
+| 2.5 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |
 
 ---
 

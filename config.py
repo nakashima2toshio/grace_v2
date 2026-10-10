@@ -91,7 +91,7 @@ class ModelConfig:
     # backend/app/core/data_jobs.py::ChunkingParams / chunking/csv_text_to_chunks_text_csv.py
     # （chunks_all_async・--model）/ chunking/async_api_client.py::AsyncAPIClient /
     # qa_qdrant/make_qa_register_qdrant.py::CHUNK_DEFAULT_MODEL
-    # （backend/tests/test_chunking_default_model.py が検査）。
+    # （tests/test_chunking_default_model.py が検査）。
     CHUNKING_MODEL: str = "claude-haiku-5-5"
 
     # -----------------------------------------------------------------
@@ -102,7 +102,7 @@ class ModelConfig:
     # **ここだけ**に書き、他のモジュールはこの値を参照する
     # （`GeminiConfig` / `QdrantConfig` / `helper/helper_embedding.py` /
     #  `grace/config.py::EmbeddingConfig` など）。
-    # `backend/tests/test_embedding_model_single_source.py` が、コード中に
+    # `tests/test_embedding_model_single_source.py` が、コード中に
     # モデル名のリテラルが増えていないことを検査する。
     #
     # ⚠️ **変更すると既存 Qdrant コレクションは使えない。** 次元が同じでも

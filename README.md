@@ -1,6 +1,6 @@
 # GRACE（grace_v2）- 業界特化・自律型エージェント基盤 ドキュメント
 
-**Version 4.1** | 最終更新: 2026-10-10
+**Version 4.2** | 最終更新: 2026-10-10
 
 > 日本語 RAG に、根拠検証（groundedness）・Web 裏取り・HITL（Human-In-The-Loop）承認を組み合わせた、
 > 業界特化の自律型エージェント。`./run_dev.sh` で起動し、ブラウザ（http://localhost:5173）の 4 タブから使う。
@@ -502,7 +502,7 @@ python qa_qdrant/register_to_qdrant.py                # 3. 登録のみ
 ```
 
 > ⚠️ **エージェント（基本版 / GRACE-Support / GRACE-Review）の実行に CLI は無い。** 唯一の入口は Web API である
-> （`agent_support_example.py` と `grace/step_trace/s*.py` は 2026-09-19 に削除）。挙動は画面か `backend/tests/` で確かめる。
+> （`agent_support_example.py` と `grace/step_trace/s*.py` は 2026-09-19 に削除）。挙動は画面か `tests/` で確かめる。
 
 ---
 
@@ -684,16 +684,16 @@ uvicorn backend.app.main:app --reload --port 8000
 
 ```bash
 uvx ruff@0.12.11 check . --no-cache                      # lint
-uv run --no-sync pytest backend/tests -q -rs             # backend（実 API キー・Qdrant 不要）
+uv run --no-sync pytest tests -q -rs             # backend（実 API キー・Qdrant 不要）
 python -m compileall -q -x '\.venv|/\.git/|/logs/' .     # 構文
 cd frontend && npm run lint && npm test && npm run build # frontend
 ```
 
 | 種類 | 置き場所 | 実行条件 |
 |---|---|---|
-| 単体テスト（スタブ） | `backend/tests/` ・ `frontend/src/**/*.test.ts` | 常に（CI） |
-| 結合テスト（実 Qdrant / Redis） | `backend/tests/integration/` | 起動していれば走る。未起動なら skip |
-| E2E（実 LLM・実 Embedding・実データ・課金あり） | `backend/tests/e2e/` | `GRACE_E2E=1` のときだけ |
+| 単体テスト（スタブ） | `tests/` ・ `frontend/src/**/*.test.ts` | 常に（CI） |
+| 結合テスト（実 Qdrant / Redis） | `tests/integration/` | 起動していれば走る。未起動なら skip |
+| E2E（実 LLM・実 Embedding・実データ・課金あり） | `tests/e2e/` | `GRACE_E2E=1` のときだけ |
 
 詳細は [`backend/docs/testing.md`](backend/docs/testing.md)。
 
@@ -766,3 +766,4 @@ cd frontend && npm run lint && npm test && npm run build # frontend
 | 3.10 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
 | 4.0 | 2026-10-08 | **一から書き直した**（2026-10-08）。直下 `docs/` の横断文書の形式（`a_cross_doc_md_format.md` 種別 A）に合わせ、番号なしの `## 概要` に主な責務（7）・各責務対応のモジュール（1 対 1）・3 層のアーキテクチャ構成図を置いた。本文は**アプリの 4 タブ**（基本版 / GRACE-Support / GRACE-Review / データ管理）ごとに「業界特化・処理フロー・回答」を実行例つきで並べ、続けて**処理概要**（コア：`grace/` ・ `services/` ・ `config.py`／画面系：`backend/` ・ `frontend/`／データ管理：`chunking/` ・ `qa_generation/` ・ `qa_qdrant/`）を新設した。旧版の画面別 IPO 詳細（各 UI 要素・バッジ・分岐条件）、API クライアントの関数一覧、画面ショットの撮影手順は、正本である `frontend/docs/<Component>.md` と `backend/docs/` へ委ねて本書から外した（画面操作とプログラムの対応表と、本人確認の識別子が効く条件は §2.4・§3.4 に要約して残した）。画面ショット 31 枚はすべて該当する節へ配置し直した。旧付録の依存関係図（ファイル単位）は §6.4 のモジュール単位の図に置き換えた。内容は実装で確かめた：ステップの表示名（`STEP_LABELS` / `REVIEW_STEP_LABELS`）、例文、ルール数（23 件・常時チェック 7 件を `EC_AD` から数えた）、フォームの既定値（`formMemory.ts`）、API ルート、既定モデル（回答・Q/A は `claude-sonnet-5-5`、チャンキングと判定系は `claude-haiku-5-5`） |
 | 4.1 | 2026-10-10 | Legacy ReAct 経路（`services/agent_service.py`・`agent_parallel_search.py`・`agent_cache.py`・`executor._execute_legacy_agent_step`・`run_legacy_agent` アクション）を 2026-10-10 に削除したのに追随 |
+| 4.2 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |

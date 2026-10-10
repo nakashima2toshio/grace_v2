@@ -1,6 +1,6 @@
 # GRACE-Review 処理フローと設計 ドキュメント
 
-**Version 3.5** | 最終更新: 2026-10-08
+**Version 3.6** | 最終更新: 2026-10-10
 
 > **本書の位置づけ**: GRACE-Review（文書 → 指摘）の**処理フロー（HOW）と設計判断（WHY）を
 > 1 本にまとめた正本**。v2.0 で `review_spec.md`（1,080 行）を統合した。
@@ -473,7 +473,7 @@ rule_citations = citations or [rule.citation()]
 > 文書全体スコープは 0.85 前後で効いていた）。
 > しかも本文クエリの結果は**セグメント内の全候補ルールで共用**されていたため、
 > 閾値を越えた場合は別ルールの行（例: yakki-02 の条文）が yakki-04 の根拠になりえた。
-> 回帰テストは `backend/tests/test_review_rule_query_retrieve.py`。
+> 回帰テストは `tests/test_review_rule_query_retrieve.py`。
 
 > ⚠️ **関連度の低い規程は根拠として採用しない**（`RuleSet.evidence_min_score`、既定 0.70）。
 > これは `agent_tools.COSINE_SIMILARITY_THRESHOLD`（RAG の一次閾値）と同じ値で、
@@ -1083,6 +1083,7 @@ _emit(SupportEvent(
 | 3.3 | 2026-10-03 | 文字列だけで決まる事実で LLM の判定を補う `backend/app/core/review_facts.py` を追加。(1) tokusho-01（`RuleItem.missing_fact_check="purchase_shipping"`）: 返品の行を除いて広告文に購入時の送料の語が無いのに ③ が「違反なし」と答えたら、違反として扱う（判定失敗のときは補わない）。(2) policy-01（`RuleItem.counter_check="return_terms"`）: 指摘文が返品の話で、広告と規程の返品条件（期限・条件語・返送料の負担）を読み取れ、広告が規程より不利でないと言い切れるときは ④' で抑止する。実測 2026-10-03（ローカル LLM・各 2 回再現）: 表記漏れLP案で送料の取りこぼし、OK 例で「未開封」と「未使用・未開封」の比較を逆に判定 |
 | 3.4 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
 | 3.5 | 2026-10-08 | 現在の既定 LLM の記述を `claude-sonnet-5` から実装（`config.py::ModelConfig.DEFAULT_MODEL` / `config/grace_config.yml` の `llm.model`）どおり `claude-sonnet-5-5` へ是正（技術スタック表）（2026-10-08） |
+| 3.6 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |
 
 > 統合元 `review_spec.md` の変更履歴（v1.0〜v1.4）は git で追える
 > （`git log --follow --all -- backend/docs/review_flow.md`）。

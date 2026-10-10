@@ -1,6 +1,6 @@
 # backend の落とし穴 ドキュメント
 
-**Version 1.2** | 最終更新: 2026-10-08
+**Version 1.3** | 最終更新: 2026-10-10
 
 ---
 
@@ -63,8 +63,8 @@
 | ジョブ基盤・SSE | `backend/app/core/jobs.py` |
 | キーワード一致・モデル解決 | `gates.py::_match_keyword` / `judge_model`（`review_gates.py` が再利用） |
 
-`backend/tests` の約 1/3（58 ファイル中 18 ファイル）が Review 系である。
-**共用部品を触ったら `backend/tests/test_review_*.py` も流す。**
+`tests` の約 1/3（58 ファイル中 18 ファイル）が Review 系である。
+**共用部品を触ったら `tests/test_review_*.py` も流す。**
 
 ---
 
@@ -169,3 +169,4 @@ Python 側が全部緑でも通らない。対応表は
 | 1.0 | 2026-09-16 | 新規作成。各モジュール文書に散っていた非自明な設計判断・過去の事故・「直してはいけないもの」を 1 枚に集約した |
 | 1.1 | 2026-09-24 | `a_cross_doc_md_format.md` v1.1（種別 B）に準拠（2026-09-24）。概要（結論・対象モジュール）を追加し、冒頭の説明文を概要へ移した。本文の章番号は変えていない |
 | 1.2 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随 |
+| 1.3 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |

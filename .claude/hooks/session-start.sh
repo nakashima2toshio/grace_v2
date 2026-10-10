@@ -7,11 +7,11 @@
 #   2. frontend の依存（npm install）を入れる
 #   3. dockerd を起動し、docker-compose/docker-compose.yml の
 #      Qdrant（:6333）と Redis（:6379）を立ち上げる
-#      → backend/tests/integration/ の結合テストが VM 内で走るようになる
+#      → tests/integration/ の結合テストが VM 内で走るようになる
 #   4. 環境変数 GRACE_E2E_SNAPSHOT_URL があれば、E2E 用の追加依存（requirements-e2e.txt）
 #      を入れ、Mac から持ってきた実データのスナップショットを Qdrant へ復元する
 #      （scripts/qdrant_snapshot.py restore。既存のコレクションは上書きしない）
-#      → backend/tests/e2e/ が実データで走るようになる（GRACE_E2E=1 で実行）
+#      → tests/e2e/ が実データで走るようになる（GRACE_E2E=1 で実行）
 #
 # ローカル（Mac）では何もしない（CLAUDE_CODE_REMOTE が無いので即 exit 0）。
 # Mac では従来どおり Docker Desktop で `docker compose ... up -d` する。
@@ -129,5 +129,5 @@ if [ -n "${GRACE_E2E_SNAPSHOT_URL:-}" ]; then
 fi
 
 echo "[grace session-start] ${status[*]}"
-echo "[grace session-start] 結合テスト: uv run --no-sync pytest backend/tests/integration -q -rs"
+echo "[grace session-start] 結合テスト: uv run --no-sync pytest tests/integration -q -rs"
 exit 0

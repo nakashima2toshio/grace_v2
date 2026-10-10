@@ -3,7 +3,7 @@
 
 ## なぜ必要か
 
-GRACE-Support / GRACE-Review の E2E（`backend/tests/e2e/`）は、Mac の Qdrant に
+GRACE-Support / GRACE-Review の E2E（`tests/e2e/`）は、Mac の Qdrant に
 登録済みの**実データ**（`gov_faq_anthropic` など）を検索して初めて意味を持つ。
 ところが Support 用データの元 CSV はリポジトリに無く（各自で用意する）、
 クラウド VM（Claude Code on the web）の Qdrant は空である。

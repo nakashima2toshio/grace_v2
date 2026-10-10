@@ -1,6 +1,6 @@
 # GRACE-Support 処理フローと設計 ドキュメント
 
-**Version 3.7** | 最終更新: 2026-10-09
+**Version 3.8** | 最終更新: 2026-10-10
 
 > **本書の位置づけ**: GRACE-Support（問い合わせ → 回答）の**処理フロー（HOW）と
 > 設計判断（WHY）を 1 本にまとめた正本**。v3.0 で `support_spec.md` を統合した。
@@ -1411,8 +1411,8 @@ UI のカード（`out_of_scope_questions`）は「どの質問が範囲外だ�
 
 | ファイル | 内容 |
 |---|---|
-| `backend/tests/test_multi_question.py` | 純ロジック（第 1 段・出力解析・再構成・保留質問）＋ `judges.multi_question` の独立性 |
-| `backend/tests/test_multi_question_pipeline.py` | パイプライン組み込み（単一質問の不変・選択・保留・タイムアウト時の挙動） |
+| `tests/test_multi_question.py` | 純ロジック（第 1 段・出力解析・再構成・保留質問）＋ `judges.multi_question` の独立性 |
+| `tests/test_multi_question_pipeline.py` | パイプライン組み込み（単一質問の不変・選択・保留・タイムアウト時の挙動） |
 | `frontend/src/state/interventionKind.test.ts` | 承認待ちの種類判定 |
 
 ---
@@ -1600,10 +1600,10 @@ groundedness 検証・⑤ 再検証・haiku 判定 2 種）。
 
 | # | 残タスク | 内容 | 状態 |
 |---|---------|------|------|
-| 1 | `collections` の実検索限定 | プロファイルの対象コレクション（実名 `gov_faq_anthropic` 等）で RAG 検索範囲をスコープ制限。フォールバック連鎖にも適用。未登録コレクションのみなら制限なしで従来動作（警告） | ✅ **実装済み**（`config.qdrant.allowed_collections`＋`RAGSearchTool._apply_allowed_collections`・テスト `backend/tests/test_vertical_scope.py`） |
+| 1 | `collections` の実検索限定 | プロファイルの対象コレクション（実名 `gov_faq_anthropic` 等）で RAG 検索範囲をスコープ制限。フォールバック連鎖にも適用。未登録コレクションのみなら制限なしで従来動作（警告） | ✅ **実装済み**（`config.qdrant.allowed_collections`＋`RAGSearchTool._apply_allowed_collections`・テスト `tests/test_vertical_scope.py`） |
 | 2 | `prompt_addendum` のプロンプト注入 | reasoning プロンプトのシステム指示直後へ業界方針（断定回避・出典必須・本人確認等）を「業務方針（遵守）」として追記 | ✅ **実装済み**（`config.llm.prompt_addendum`＋`ReasoningTool._build_prompt`） |
 | 3 | KPI 評価スクリプト | 分岐一致率・誤エスカレ率・**強制エスカレ誤検知率（0 目標）**・出典付与率・**根拠なし回答率（0 目標）**・アクション適合率・本人確認遵守率を自動計測 | ❌ **本リポジトリには無い**（旧版は `eval/vertical/run.py` を実装済みとしていたが、`eval/` は git 全履歴に存在しない） |
-| 4 | 二段判定（キーワード誤検知抑止） | エスカレ語・アクション語の部分一致を候補検出に格下げし、一致時のみ軽量 LLM（`claude-haiku-5-5`）で意図分類（question/request/incident）。question は強制エスカレ・起票を抑止 | ✅ **実装済み**（`_should_force_escalate` / `_decide_action`・単体テスト `backend/tests/test_no_info_judge.py`） |
+| 4 | 二段判定（キーワード誤検知抑止） | エスカレ語・アクション語の部分一致を候補検出に格下げし、一致時のみ軽量 LLM（`claude-haiku-5-5`）で意図分類（question/request/incident）。question は強制エスカレ・起票を抑止 | ✅ **実装済み**（`_should_force_escalate` / `_decide_action`・単体テスト `tests/test_no_info_judge.py`） |
 | 5 | 「情報なし回答」検知ゲート（④'） | 「見つかりませんでした」型の誠実な回答が出典・支持率を伴い answer で通過する問題（3 業種の out-of-scope で顕在化）への対処。定型句の候補検出＋軽量 LLM の実質回答判定（answered/no_info）の二段判定で、情報なしなら escalate に倒す。判定失敗は安全側（escalate） | ✅ **実装済み**（`_detect_no_info_answer` / `create_no_info_judge`） |
 | 6 | Web 重複実行の排除（⑤） | executor が動的 Web 検索済みなら、⑤ フォールバックは回答再生成（reasoning）と相互検証を省略し、内部回答を本文スニペットで再検証のみ実施（1 ケースあたり十数秒〜短縮）。出典は URL 包含で重複排除（`_merge_citations`） | ✅ **実装済み** |
 | 7 | ④' 判定プロンプトの few-shot 改善 | 「弊社固有の規定は見当たりませんでした」等の断り書きに haiku ジャッジが反応し、実質回答まで no_info と誤判定する over-strict を、判定基準の具体化＋few-shot 判定例で是正 | ✅ **実装済み**（PR #116。ec 9/9 に回復） |
@@ -1620,7 +1620,7 @@ groundedness 検証・⑤ 再検証・haiku 判定 2 種）。
 > 判定ロジック側（#1・#2・#4〜#7・#9〜#12・#14）は実コードで確認できる。
 >
 > したがって**業界特化の品質を数値で確かめたい場合は、評価基盤の新規実装が前提**になる。
-> 現存する自動テストは `backend/tests/` 配下のみ（[`testing.md`](./testing.md)）。
+> 現存する自動テストは `tests/` 配下のみ（[`testing.md`](./testing.md)）。
 
 ---
 
@@ -1712,6 +1712,7 @@ InterventionBridge
 | 3.5 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
 | 3.6 | 2026-10-08 | 現在の既定 LLM の記述を `claude-sonnet-5` から実装（`config.py::ModelConfig.DEFAULT_MODEL` / `config/grace_config.yml` の `llm.model`）どおり `claude-sonnet-5-5` へ是正（依存表・§9.2 実行コストの目安。「指示に従うかはモデル次第」の 2026-08-29 実測表は当時の記録なので変えていない）（2026-10-08） |
 | 3.7 | 2026-10-09 | 「指示に従うかはモデル次第」の 2026-08-29 実測表のモデル名を `claude-sonnet-5` → 当時の既定 `claude-sonnet-4-6` へ戻した。2026-09-16 の既定変更の一括置換で、計測していないモデル名に書き換わっていた（`gates.py` / `test_multi_question.py` の同じ表は `claude-sonnet-4-6` のまま正しかった）。現在の既定 `claude-sonnet-5-5` では未計測であること、コード側の担保はモデルに依存しないことを注記（2026-10-09） |
+| 3.8 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |
 
 > 統合元 `support_spec.md` の変更履歴（v1.0〜v1.2）と、さらにその統合元 3 文書の履歴は
 > git で追える（`git log --follow --all -- backend/docs/support_flow.md`）。

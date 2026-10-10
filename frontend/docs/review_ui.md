@@ -1,6 +1,6 @@
 # components/ReviewPanel ほか - GRACE-Review UI ドキュメント
 
-**Version 1.7** | 最終更新: 2026-09-24
+**Version 1.8** | 最終更新: 2026-10-10
 
 ---
 
@@ -567,7 +567,7 @@ document.slice(finding.start, finding.end) === finding.excerpt
 ```
 
 バックエンド側は `split_segments` で正規化を一切行わないことでこれを保証しており、
-`backend/tests/test_review_agent_core.py` と `test_review_api.py` が固定している。
+`tests/test_review_agent_core.py` と `test_review_api.py` が固定している。
 
 ---
 
@@ -632,3 +632,4 @@ document.slice(finding.start, finding.end) === finding.excerpt
 | 1.5 | 2026-09-23 | **詳細ログの既定を ON へ変更**（基本版 / GRACE-Support / GRACE-Review は `DEFAULT_QUERY_FORM` / `DEFAULT_REVIEW_FORM` の `verbose`、データ管理は `DataJobPanel` の `useState`） |
 | 1.6 | 2026-09-24 | **§8 のアクセシビリティ・チェックを実装へ追随。** grace_v2_local から移植したフォーカストラップ・指摘選択のキーボード操作・`ReviewForm` の Ctrl+Enter を反映し、❌ 2 行を ✅ に。あわせて、実装済みなのに ❌ のまま残っていた 2 行（textarea の `.sr-only` ラベル・`aria-controls` / `role="tabpanel"`）を実装と突き合わせて ✅ に訂正 |
 | 1.7 | 2026-09-24 | `a_react_page_md_format.md` v1.1 に追随（2026-09-24）。概要に「各責務対応のモジュール」（主な責務と 1:1）を追加し、`## 1.` を「アーキテクチャ構成図」として **1.1 システム全体での位置づけ（3 層）** と 1.2 コンポーネントツリー図の 2 枚構成にした。Mermaid の `classDef subgraphStyle` の欠落を補った |
+| 1.8 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |

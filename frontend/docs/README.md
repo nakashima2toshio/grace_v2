@@ -1,6 +1,6 @@
 # frontend — 責務・構成・モジュール構造
 
-**Version 3.1** | 最終更新: 2026-10-08
+**Version 3.2** | 最終更新: 2026-10-10
 
 `frontend/`（Vite + React 18 + TypeScript）の**入口文書**である。
 前半（§1〜§7）で frontend の責務・構成・モジュール構造・データの流れを説明し、
@@ -477,11 +477,11 @@ result の型が違うため**無理にジェネリック化しない**方針で
 | 文書 | 対象 | 実装行数 | 版 | 重要度 |
 |---|---|---:|---|:--:|
 | `App.md` | `App.tsx` — タブ切替・パネルの振り分け・ヘッダーのモデル選択 | 174 | 1.7 | ★★ |
-| `SupportPanel.md` | `components/SupportPanel.tsx` — 基本版 / GRACE-Support 共用 | 192 | 1.7 | ★★★ |
-| `ReviewPanel.md` | `components/ReviewPanel.tsx` — GRACE-Review 本体 | 219 | 1.6 | ★★★ |
+| `SupportPanel.md` | `components/SupportPanel.tsx` — 基本版 / GRACE-Support 共用 | 192 | 1.8 | ★★★ |
+| `ReviewPanel.md` | `components/ReviewPanel.tsx` — GRACE-Review 本体 | 219 | 1.7 | ★★★ |
 | `DataPanel.md` | `components/DataPanel.tsx` — データ管理タブの枠（サブタブ） | 111 | 1.5 | ★★ |
 | `DataJobPanel.md` | `components/DataJobPanel.tsx` — チャンキング / Q/A 作成 / 登録ジョブ | 751 | 1.8 | ★★★ |
-| `CollectionPanel.md` | `components/CollectionPanel.tsx` — コレクション管理 | 413 | 1.4 | ★★ |
+| `CollectionPanel.md` | `components/CollectionPanel.tsx` — コレクション管理 | 413 | 1.5 | ★★ |
 
 ### 8.2 入力・モーダル
 
@@ -490,7 +490,7 @@ result の型が違うため**無理にジェネリック化しない**方針で
 | `QueryForm.md` | `components/QueryForm.tsx` | 272 | 1.8 | ★★★ |
 | `ReviewForm.md` | `components/ReviewForm.tsx` | 264 | 1.9 | ★★ |
 | `ConfirmModal.md` | `components/ConfirmModal.tsx` — HITL アクション承認 | 142 | 1.3 | ★★ |
-| `QuestionSelectModal.md` | `components/QuestionSelectModal.tsx` — 0-(A) 主質問の選択 | 76 | 1.1 | ★★ |
+| `QuestionSelectModal.md` | `components/QuestionSelectModal.tsx` — 0-(A) 主質問の選択 | 76 | 1.2 | ★★ |
 
 ### 8.3 表示コンポーネント
 
@@ -511,7 +511,7 @@ result の型が違うため**無理にジェネリック化しない**方針で
 | 文書 | 内容 | 版 | 備考 |
 |---|---|---|---|
 | `README.md` | 本書（責務・構成・モジュール構造・棚卸し） | 2.6 | — |
-| `review_ui.md` | GRACE-Review 画面全体の設計を俯瞰する**横断文書** | 1.7 | 対応する `.tsx` は無い。個別仕様は各 `<Component>.md` が正 |
+| `review_ui.md` | GRACE-Review 画面全体の設計を俯瞰する**横断文書** | 1.8 | 対応する `.tsx` は無い。個別仕様は各 `<Component>.md` が正 |
 
 ---
 
@@ -690,3 +690,4 @@ npm run build    # 本番ビルド
 | 2.9 | 2026-10-02 | 原文ペインの見出しを `state/highlight.ts::documentViewHeading` へ切り出したのに追随。§8 の `DocumentView.md` を 1.4、§10 の `highlight.ts` を 117 行、§11 のテスト件数を **23 ファイル / 326 件**（実測・`highlight.test.ts` 13 → 18）へ更新 |
 | 3.0 | 2026-10-03 | GRACE-Review の結果が古いことを表示する `state/staleResult.ts`（6 件）を追加したのに追随。§8 の `ReviewPanel.md` 1.6 / 219 行・`ReviewForm.md` 1.9 / 264 行、§10 に `staleResult.ts`、§11 のテスト件数を **24 ファイル / 332 件**（実測）へ更新 |
 | 3.1 | 2026-10-08 | **SSE の張り直し**を grace_v2_local から移植したのに追随。`api/client.ts::subscribeStream` が切断・無音（60 秒）で張り直し、リプレイ分を `seq` で読み飛ばすようにした（local でチャンク化の長い無音中に画面だけ固まった件）。§3 の `client.ts` を 369 行、§6.1・§6.3 を更新、§10 に `streamWatch.ts`（22 モジュール）、§11 のテスト件数を **26 ファイル / 346 件**（実測・`streamWatch.test.ts` 8 件・`api/client.test.ts` 6 件を追加）へ更新 |
+| 3.2 | 2026-10-10 | 索引の行数・版を実測値へ更新（テストを直下 `tests/` へ移した変更に追随） |

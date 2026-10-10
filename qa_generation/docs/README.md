@@ -1,6 +1,6 @@
 # qa_generation/ - Q/A 生成パッケージ（データ準備 ②）ドキュメント
 
-**Version 2.1** | 最終更新: 2026-10-09
+**Version 2.2** | 最終更新: 2026-10-10
 
 > 📎 **姉妹版**: [`docs/README.md`](../../docs/README.md)（直下・配置の境界） /
 > [`grace/docs/README.md`](../../grace/docs/README.md) /
@@ -295,9 +295,9 @@ style MOD fill:#1a1a1a,stroke:#fff,color:#fff
 | [`smart_qa_generator.md`](smart_qa_generator.md) | `smart_qa_generator.py` — `SmartQAGenerator`（構造化出力 1 回） | 301 | 573 | 1.3 | ★★★ |
 | [`semantic.md`](semantic.md) | `semantic.py` — `SemanticCoverage`（Embedding によるカバレージ） | 543 | 780 | 1.3 | ★★☆ |
 | [`evaluation.md`](evaluation.md) | `evaluation.py` — `analyze_coverage()` ほか | 316 | 822 | 1.3 | ★★☆ |
-| [`data_io.md`](data_io.md) | `data_io.py` — 入力 CSV の読み込みと結果 4 ファイルの保存 | 168 | 483 | 1.3 | ★★☆ |
-| [`models.md`](models.md) | `models.py` — Pydantic モデル 8 クラス（`QAPair` / `QAPairsList` は直下 `models.py` から再エクスポート） | 149 | 422 | 1.4 | ★☆☆ |
-| [`__init__.md`](__init__.md) | `__init__.py` — 公開 API（再エクスポート 11 件） | 65 | 302 | 1.5 | ★☆☆ |
+| [`data_io.md`](data_io.md) | `data_io.py` — 入力 CSV の読み込みと結果 4 ファイルの保存 | 168 | 484 | 1.4 | ★★☆ |
+| [`models.md`](models.md) | `models.py` — Pydantic モデル 8 クラス（`QAPair` / `QAPairsList` は直下 `models.py` から再エクスポート） | 149 | 423 | 1.5 | ★☆☆ |
+| [`__init__.md`](__init__.md) | `__init__.py` — 公開 API（再エクスポート 11 件） | 65 | 303 | 1.6 | ★☆☆ |
 
 ### 3.3 実装カバレッジ
 
@@ -869,25 +869,25 @@ print(f"{cov['coverage_rate']:.1%}")
 
 ## 8. テスト
 
-`qa_generation/` に関わるテストは次の 11 ファイル（2026-10-09、`backend/tests` を grep して確認。件数は実行して数えた値）。
+`qa_generation/` に関わるテストは次の 11 ファイル（2026-10-09、`tests` を grep して確認。件数は実行して数えた値）。
 いずれも実 API キー・Qdrant 不要。
 
 | テストファイル | 件数 | 関わり方 |
 |---|---:|---|
-| `backend/tests/test_qa_generation_core.py` | 12 | **中核 3 つを直接実行する。** `QAPipeline.run()`（生成 → 4 ファイル保存 → 逐次保存ファイルの削除・途中経過からの再開・失敗チャンクは記録しない・カバレージ閾値の受け渡し・CSV 以外の拒否・削除した `client` / `batch_chunks` を受け付けないこと）、`SmartQAGenerator.process_chunk()`（構造化結果の詰め替え・例外と空応答で `success=False`）、`analyze_coverage()`（standard 閾値でのカバー判定・多段階閾値・`custom_threshold`・Q/A 0 件）。LLM・Embedding・tiktoken は偽物へ差し替える |
-| `backend/tests/test_qa_pair_definitions.py` | 6 | `qa_generation.QAPair` / `QAPairsList` が直下 `models.py` の正本そのものであること・別定義を書き戻していないこと（§4.1 の 2） |
-| `backend/tests/test_qa_generation_import_side_effects.py` | 3 | `import qa_generation.data_io` で Celery が載らないこと・Celery は必要時に読めること・`helper/` 配下に裸 import が無いこと（§4.1 の 1） |
-| `backend/tests/test_qa_pipeline_text_column.py` | 6 | `QAPipeline(text_column=...)` が指定列を優先すること・指定列が無ければ `ValueError`・未指定なら従来の検出順のままであること、`make_qa_register_qdrant.py --text-column` が `QAPipeline` へ渡ること |
-| `backend/tests/test_qa_pipeline_dataset_type.py` | 6 | `QAPipeline(dataset_name=...)` の種別（`config["type"]`）がデータセット名になること。以前は一律 `unknown` で、途中経過ファイルとチャンク ID がデータセット間で共有されていた |
-| `backend/tests/test_data_io_missing_text.py` | 3 | `load_uploaded_file()` が欠損セルを `"nan"` にしないこと（§4.1 の 5） |
-| `backend/tests/test_qa_default_model.py` | 9 | `QAPipeline` / `SmartQAGenerator` を含む Q/A 生成の既定モデルが `ModelConfig.DEFAULT_MODEL` を指すこと |
-| `backend/tests/test_model_table_coverage.py` | 5 | 各所の既定モデルが料金表・上限表に登録されていること（既定値はテスト内で手で列挙） |
-| `backend/tests/test_data_jobs.py` | 44 | データ管理タブのジョブ（API から `batch_chunks` が消えたことの検査を含む）。`run_qa_generation_sync` を**スタブへ差し替える**ので `QAPipeline` 自体は実行されない |
-| `backend/tests/test_celery_worker_init.py` | 3 | ワーカー起動時と `python celery_config.py`（`__main__`）の import 確認が `qa_generation.smart_qa_generator` を見ること（削除済みの `qa_generation.generation` を見ない。§4.1 の 6） |
-| `backend/tests/test_qa_qdrant_package_init.py` | 2 | `import qa_qdrant` で `qa_generation` が読み込まれないこと |
+| `tests/test_qa_generation_core.py` | 12 | **中核 3 つを直接実行する。** `QAPipeline.run()`（生成 → 4 ファイル保存 → 逐次保存ファイルの削除・途中経過からの再開・失敗チャンクは記録しない・カバレージ閾値の受け渡し・CSV 以外の拒否・削除した `client` / `batch_chunks` を受け付けないこと）、`SmartQAGenerator.process_chunk()`（構造化結果の詰め替え・例外と空応答で `success=False`）、`analyze_coverage()`（standard 閾値でのカバー判定・多段階閾値・`custom_threshold`・Q/A 0 件）。LLM・Embedding・tiktoken は偽物へ差し替える |
+| `tests/test_qa_pair_definitions.py` | 6 | `qa_generation.QAPair` / `QAPairsList` が直下 `models.py` の正本そのものであること・別定義を書き戻していないこと（§4.1 の 2） |
+| `tests/test_qa_generation_import_side_effects.py` | 3 | `import qa_generation.data_io` で Celery が載らないこと・Celery は必要時に読めること・`helper/` 配下に裸 import が無いこと（§4.1 の 1） |
+| `tests/test_qa_pipeline_text_column.py` | 6 | `QAPipeline(text_column=...)` が指定列を優先すること・指定列が無ければ `ValueError`・未指定なら従来の検出順のままであること、`make_qa_register_qdrant.py --text-column` が `QAPipeline` へ渡ること |
+| `tests/test_qa_pipeline_dataset_type.py` | 6 | `QAPipeline(dataset_name=...)` の種別（`config["type"]`）がデータセット名になること。以前は一律 `unknown` で、途中経過ファイルとチャンク ID がデータセット間で共有されていた |
+| `tests/test_data_io_missing_text.py` | 3 | `load_uploaded_file()` が欠損セルを `"nan"` にしないこと（§4.1 の 5） |
+| `tests/test_qa_default_model.py` | 9 | `QAPipeline` / `SmartQAGenerator` を含む Q/A 生成の既定モデルが `ModelConfig.DEFAULT_MODEL` を指すこと |
+| `tests/test_model_table_coverage.py` | 5 | 各所の既定モデルが料金表・上限表に登録されていること（既定値はテスト内で手で列挙） |
+| `tests/test_data_jobs.py` | 44 | データ管理タブのジョブ（API から `batch_chunks` が消えたことの検査を含む）。`run_qa_generation_sync` を**スタブへ差し替える**ので `QAPipeline` 自体は実行されない |
+| `tests/test_celery_worker_init.py` | 3 | ワーカー起動時と `python celery_config.py`（`__main__`）の import 確認が `qa_generation.smart_qa_generator` を見ること（削除済みの `qa_generation.generation` を見ない。§4.1 の 6） |
+| `tests/test_qa_qdrant_package_init.py` | 2 | `import qa_qdrant` で `qa_generation` が読み込まれないこと |
 
 > 📝 2026-10-08 までは `QAPipeline.run()`（Web / CLI 共通の実体）・`process_chunk()`・`analyze_coverage()` に直接のテストが無かった。
-> 2026-10-09 に `test_qa_generation_core.py` を足して解消した（残タスク 8）。実 LLM・実 Embedding での確認は `backend/tests/e2e/` の範囲外。
+> 2026-10-09 に `test_qa_generation_core.py` を足して解消した（残タスク 8）。実 LLM・実 Embedding での確認は `tests/e2e/` の範囲外。
 
 ---
 
@@ -941,6 +941,7 @@ __all__ = [
 | 1.14 | 2026-10-08 | 冒頭の注記の既定 LLM を `claude-sonnet-5` → 現在の既定 `claude-sonnet-5-5`（`config.py::ModelConfig.DEFAULT_MODEL`）へ是正 |
 | 2.0 | 2026-10-08 | **`a_class_method_md_format.md`（IPO 形式）で全面改訂。** 概要に主な責務 7 件・各責務対応のモジュール・主要機能一覧を新設し、3 層のアーキテクチャ構成図＋データフロー、モジュール構成図、クラス・関数一覧表、IPO 詳細（冒頭の使用例 3 本＋`QAPipeline` / `SmartQAGenerator` / `load_uploaded_file` / `save_results` / `analyze_coverage`）、設定・定数、エクスポート、付録の依存関係図を追加。旧 §1〜§6 の索引（目的別の入口・一覧・カバレッジ・書き分け）は §3、棚卸しと残タスクは §4 へ移した。§3.2 の行数・Ver を再実測（`smart_qa_generator.py` 301 行、`pipeline.md` 813 行 v1.6、`smart_qa_generator.md` 573 行 v1.3、`data_io.md` 483 行 v1.3）。§8 のテストを 6 → 10 ファイルへ更新し件数を実測（`test_qa_pipeline_dataset_type.py` / `test_qa_default_model.py` / `test_celery_worker_init.py` / `test_qa_qdrant_package_init.py` を追加）。棚卸しに 2 件を追加（6: `celery_config.py` の `__main__` が削除済みの `qa_generation.generation` を見ている、7: `QAPipeline` の `client` / `batch_chunks` / `concurrency` が処理に効かない）、残タスク 6〜8 を登録 |
 | 2.1 | 2026-10-09 | **残タスク 6〜8 を完了し、残タスク 0 件。** 6: `celery_config.py` の `__main__` の import 確認を `qa_generation.smart_qa_generator` へ直した（`test_celery_worker_init.py` に 1 件追加・修正前は fail）。7: `QAPipeline` の効かない引数のうち `client` / `batch_chunks` を、`QAPipeline`・`run_qa_generation_sync`・API・画面・CLI（`--batch-chunks`）から削除し、`concurrency` は表示用と明記（§5・§6.2 のシグネチャと引数表を更新）。8: `test_qa_generation_core.py`（12 件）を追加。§3.2 の `pipeline` 行と §8 のテスト一覧（11 ファイル）を再実測 |
+| 2.2 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |
 
 > v1.x の変更履歴にある節番号（§2〜§7）は旧構成のもの。v2.0 では §2 → §3.2、§3 → §3.3、§4 → §4.1、§5 → §3.4、§6 → §4.2、§7 → §8 に対応する。
 

@@ -1,6 +1,6 @@
 # config.py - GRACE 設定管理 ドキュメント
 
-**Version 1.13** | 最終更新: 2026-10-08
+**Version 1.14** | 最終更新: 2026-10-10
 
 > 📌 **`config.GeminiConfig` の LLM モデル一覧は後方互換である。**
 > `config.py::GeminiConfig` の docstring にあるとおり、`GeminiConfig` は
@@ -723,7 +723,7 @@ Embedding（Gemini）の設定。
 
 > ⚠️ **既定値は `config.py::ModelConfig`（Embedding の唯一の定義）から取る。**
 > `config/grace_config.yml` の `embedding:` に `model` / `dimensions` を書かないこと。
-> 書くとこの既定を素通りして二重定義になる（`backend/tests/test_embedding_model_single_source.py` が検査）。
+> 書くとこの既定を素通りして二重定義になる（`tests/test_embedding_model_single_source.py` が検査）。
 
 ### 5.3 ConfidenceWeights
 
@@ -825,7 +825,7 @@ Embedding（Gemini）の設定。
 | `collection_name` | str | `"customer_support_faq"` | デフォルトコレクション名 |
 | `search_limit` | int | `5` | 検索結果の取得件数 |
 | `score_threshold` | float | `0.35` | 検索スコア下限 |
-| `rag_sufficient_score` | float | `0.64` | RAG結果が十分と判断するスコア（未満ならweb_search動的実行・以上は LLM の適合性チェック）。**`executor.reasoning_min_rag_score` 以下にする**（2026-10-04 まで 0.7 で、採用した社内ナレッジがあるのに 0.64〜0.7 で無条件に Web も検索していた。`backend/tests/test_web_search_toggle.py`）。実データでの分布は `scripts/measure_rag_threshold.py` で測る |
+| `rag_sufficient_score` | float | `0.64` | RAG結果が十分と判断するスコア（未満ならweb_search動的実行・以上は LLM の適合性チェック）。**`executor.reasoning_min_rag_score` 以下にする**（2026-10-04 まで 0.7 で、採用した社内ナレッジがあるのに 0.64〜0.7 で無条件に Web も検索していた。`tests/test_web_search_toggle.py`）。実データでの分布は `scripts/measure_rag_threshold.py` で測る |
 | `search_priority` | list | `["wikipedia_ja", "livedoor", "cc_news", "japanese_text"]` | 検索優先コレクション順 |
 
 ### 5.12 WebSearchConfig
@@ -946,6 +946,7 @@ __all__ = [
 | 1.11 | 2026-10-06 | 設定一覧の表に、v1.7 で追加した 2 設定（`executor.prefetch_final_evaluation` / `confidence.groundedness_exclude_absence_claims`）が載っていなかったのを補った（変更履歴にだけ書かれていた）。§5.5 の網羅度減衰の実装の所在を `executor.py::_damp_support_rate` から `confidence.py::damp_support_rate`（Support / Review 共通。executor 側は委譲するだけ）へ是正。v1.10 の行に日付列が抜けて表が崩れていたのを直した |
 | 1.12 | 2026-10-06 | 冒頭の注記にあった行番号参照 `config.py:411` を、シンボル参照 `config.py::GeminiConfig` の docstring へ改めた。行 411 は現在 `get_dataset_dict` の位置で、参照先とずれていた（行番号は書かない規則。grace_v2_local の `backend/docs/docs_audit.md` §5.2 の再測定で発見） |
 | 1.13 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随 |
+| 1.14 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |
 
 ---
 

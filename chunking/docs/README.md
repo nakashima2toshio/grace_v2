@@ -1,6 +1,6 @@
 # chunking/docs/ 棚卸し
 
-**Version 1.4** | 最終更新: 2026-10-08
+**Version 1.5** | 最終更新: 2026-10-10
 
 > 📎 **姉妹版**: [`docs/README.md`](../../docs/README.md)（直下・配置の境界） /
 > [`qa_generation/docs/README.md`](../../qa_generation/docs/README.md) /
@@ -113,12 +113,12 @@
 
 | テストファイル | 件数 | 対象 |
 |---|---:|---|
-| `backend/tests/test_chunking_abort.py` | 5 | `async_api_client`（連続失敗での中断） |
-| `backend/tests/test_data_jobs.py` | 43 | データ管理タブのジョブ全体。うちチャンク化ジョブの runner・入力検証を含む（**間接**） |
-| `backend/tests/test_model_table_coverage.py` | 5 | CLI `--model` 既定が単価・上限表に載っていること（**間接**） |
+| `tests/test_chunking_abort.py` | 5 | `async_api_client`（連続失敗での中断） |
+| `tests/test_data_jobs.py` | 43 | データ管理タブのジョブ全体。うちチャンク化ジョブの runner・入力検証を含む（**間接**） |
+| `tests/test_model_table_coverage.py` | 5 | CLI `--model` 既定が単価・上限表に載っていること（**間接**） |
 
 ```bash
-uv run --no-sync pytest backend/tests/test_chunking_abort.py -q
+uv run --no-sync pytest tests/test_chunking_abort.py -q
 ```
 
 > ⚠️ `csv_text_to_chunks_text_csv.py`（1,000 行）の 3 段階パイプラインを**直接**検証するテストは無い。
@@ -135,3 +135,4 @@ uv run --no-sync pytest backend/tests/test_chunking_abort.py -q
 | 1.2 | 2026-09-26 | `csv_text_to_chunks_text_csv.md` v1.7（Embedding の入力上限 2048 → 8192 = `ModelConfig.EMBEDDING_MAX_INPUT_TOKENS`、モデル名 `gemini-embedding-2`）に追随して行数・Ver を再実測 |
 | 1.3 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随して `csv_text_to_chunks_text_csv.md` v1.8（入力上限 8192 → 2048）の行数・Ver を再実測 |
 | 1.4 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随 |
+| 1.5 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |

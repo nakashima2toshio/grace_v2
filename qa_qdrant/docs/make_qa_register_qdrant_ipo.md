@@ -1,6 +1,6 @@
 # make_qa_register_qdrant.py - Q/A 生成 → Qdrant 登録 統合 CLI ドキュメント
 
-**Version 1.11** | 最終更新: 2026-10-09
+**Version 1.12** | 最終更新: 2026-10-10
 
 ---
 
@@ -255,7 +255,7 @@ class START,DS,EXT,COLS,CHUNK,GEN,SKIP,FAIL,REG default
 2026-09-26 までは補っておらず（v1.4 までの本書の「データセット設定の `type`」という記述も誤り）、`self.config.get("type", "unknown")` の既定値へ倒れて
 **どのデータセットでも `unknown`** になっていました。UI 用 CSV（`qa_pairs_unknown.csv`）が上書きされるだけでなく、チャンク ID（`unknown_chunk_<n>`）と
 途中経過ファイル（`qa_progress_unknown.jsonl`）もデータセット間で共有され、途中で落ちたデータセットの途中経過を別のデータセットの再開が読んでいました
-（`backend/tests/test_qa_pipeline_dataset_type.py`。修正前の実装で fail することを確認）。
+（`tests/test_qa_pipeline_dataset_type.py`。修正前の実装で fail することを確認）。
 
 ### 3.3 既知の問題（2026-09-25 実測）
 
@@ -264,11 +264,11 @@ v1.0 では挙動を記録するだけでコードは変えなかった。**5 �
 
 | # | 問題 | 実測・根拠 | 影響 |
 |---|------|-----------|------|
-| 1 | ~~**`.txt` 入力は必ず失敗する。**~~ ✅ **修正済み（2026-09-25）** | 修正前は `.txt` をそのまま `QAPipeline` へ渡し、`QAPipeline.load_data()` が `.csv` しか受け付けないため `ValueError: 未対応のファイル形式: .txt` → **終了コード 1** だった。現在は `chunk_text_file()` で先にチャンク化する（§3.1 の 2。`backend/tests/test_make_qa_register_qdrant_txt_input.py` で固定。修正前の実装で fail することを確認） | —（解消） |
-| 2 | ~~**Qdrant 登録が失敗しても終了コードは 0。**~~ ✅ **修正済み（2026-09-25）** | 修正前は `run_registration()` が `False` を返しても `main()` はエラーログを出すだけで、Q/A 列ありの CSV を Qdrant 未起動の環境で渡すと**終了コード 0** だった。現在は `sys.exit(1)` で止まる（`backend/tests/test_make_qa_register_qdrant_exit_code.py` で固定。修正前の実装で fail することを確認） | —（解消） |
-| 3 | ~~**`--provider` は効かない。**~~ ✅ **修正済み（2026-09-25）** | 修正前は `run_registration(provider=...)` が受け取るだけで使わず、`embed_texts_for_qdrant()` は常に Gemini で Embedding していた（`--provider openai` でも黙って Gemini・3072 次元）。Embedding は Gemini だけという方針（CLAUDE.md §3）に合わせ、`choices=["gemini"]` にして他の値は argparse が**終了コード 2** で拒否する。`provider` は登録開始ログに出すだけ（`backend/tests/test_make_qa_register_qdrant_startup_checks.py` で固定。修正前の実装で fail することを確認） | —（解消） |
-| 4 | ~~**`--text-column` は Q/A 生成に渡らない。**~~ ✅ **修正済み（2026-09-25）** | 修正前は `main()` が判定にだけ使い、`QAPipeline` は `text` → `Combined_Text` → `content` → `chunk_text` の順で**自分で**列を探していた（独自の列名だけの CSV は生成で ValueError、`text` もある CSV は指定を無視）。`QAPipeline` に `text_column` 引数を足し、判定に使った列を渡す。`QAPipeline` の既定 `None` は従来の自動検出なので、データ管理タブ・`make_qa.py` は変わらない（`backend/tests/test_qa_pipeline_text_column.py` で固定。修正前の実装で fail することを確認） | —（解消） |
-| 5 | ~~起動時に `ANTHROPIC_API_KEY` を確かめない。~~ ✅ **修正済み（2026-09-25）** | 修正前は `.txt` 入力のチャンク化の前だけ確かめ、チャンク済み CSV・`--dataset` からの Q/A 生成は LLM を最初に呼ぶまで失敗しなかった。現在は Q/A を生成する経路（§3.1 の 1・2・4）で `require_anthropic_key()` が生成の前に確かめ、無ければ**終了コード 1**。Q/A 済み CSV の登録（§3.1 の 3）では確かめない（`backend/tests/test_make_qa_register_qdrant_startup_checks.py` で固定。修正前の実装で fail することを確認） | —（解消） |
+| 1 | ~~**`.txt` 入力は必ず失敗する。**~~ ✅ **修正済み（2026-09-25）** | 修正前は `.txt` をそのまま `QAPipeline` へ渡し、`QAPipeline.load_data()` が `.csv` しか受け付けないため `ValueError: 未対応のファイル形式: .txt` → **終了コード 1** だった。現在は `chunk_text_file()` で先にチャンク化する（§3.1 の 2。`tests/test_make_qa_register_qdrant_txt_input.py` で固定。修正前の実装で fail することを確認） | —（解消） |
+| 2 | ~~**Qdrant 登録が失敗しても終了コードは 0。**~~ ✅ **修正済み（2026-09-25）** | 修正前は `run_registration()` が `False` を返しても `main()` はエラーログを出すだけで、Q/A 列ありの CSV を Qdrant 未起動の環境で渡すと**終了コード 0** だった。現在は `sys.exit(1)` で止まる（`tests/test_make_qa_register_qdrant_exit_code.py` で固定。修正前の実装で fail することを確認） | —（解消） |
+| 3 | ~~**`--provider` は効かない。**~~ ✅ **修正済み（2026-09-25）** | 修正前は `run_registration(provider=...)` が受け取るだけで使わず、`embed_texts_for_qdrant()` は常に Gemini で Embedding していた（`--provider openai` でも黙って Gemini・3072 次元）。Embedding は Gemini だけという方針（CLAUDE.md §3）に合わせ、`choices=["gemini"]` にして他の値は argparse が**終了コード 2** で拒否する。`provider` は登録開始ログに出すだけ（`tests/test_make_qa_register_qdrant_startup_checks.py` で固定。修正前の実装で fail することを確認） | —（解消） |
+| 4 | ~~**`--text-column` は Q/A 生成に渡らない。**~~ ✅ **修正済み（2026-09-25）** | 修正前は `main()` が判定にだけ使い、`QAPipeline` は `text` → `Combined_Text` → `content` → `chunk_text` の順で**自分で**列を探していた（独自の列名だけの CSV は生成で ValueError、`text` もある CSV は指定を無視）。`QAPipeline` に `text_column` 引数を足し、判定に使った列を渡す。`QAPipeline` の既定 `None` は従来の自動検出なので、データ管理タブ・`make_qa.py` は変わらない（`tests/test_qa_pipeline_text_column.py` で固定。修正前の実装で fail することを確認） | —（解消） |
+| 5 | ~~起動時に `ANTHROPIC_API_KEY` を確かめない。~~ ✅ **修正済み（2026-09-25）** | 修正前は `.txt` 入力のチャンク化の前だけ確かめ、チャンク済み CSV・`--dataset` からの Q/A 生成は LLM を最初に呼ぶまで失敗しなかった。現在は Q/A を生成する経路（§3.1 の 1・2・4）で `require_anthropic_key()` が生成の前に確かめ、無ければ**終了コード 1**。Q/A 済み CSV の登録（§3.1 の 3）では確かめない（`tests/test_make_qa_register_qdrant_startup_checks.py` で固定。修正前の実装で fail することを確認） | —（解消） |
 
 > 📝 `normalize_source_filename()` の docstring は「UI（agent_rag.py）での参照を安定させるため」と書くが、
 > `agent_rag.py` は本リポジトリに存在しない（CLAUDE.md §9.4）。現在は、データ管理タブの「③ Qdrant 登録」の
@@ -619,11 +619,11 @@ normalize_source_filename   # 日時サフィックスの除去
 ```
 
 > 📌 本モジュールを直接 import しているコードはリポジトリ内に無い（2026-09-25 grep。参照はコメント・docstring のみ）。
-> テストは `backend/tests/test_make_qa_register_qdrant_exit_code.py`（2 件・登録の成否と終了コード）、
-> `backend/tests/test_make_qa_register_qdrant_txt_input.py`（3 件・`.txt` のチャンク化とその失敗系）、
-> `backend/tests/test_make_qa_register_qdrant_startup_checks.py`（4 件・`ANTHROPIC_API_KEY` の事前確認と `--provider` の拒否）、
-> `backend/tests/test_qa_pipeline_text_column.py`（6 件・`--text-column` が `QAPipeline` へ渡ること）、
-> `backend/tests/test_model_table_coverage.py`（CLI `--model` の既定値が単価・上限表に載っているか）がある。
+> テストは `tests/test_make_qa_register_qdrant_exit_code.py`（2 件・登録の成否と終了コード）、
+> `tests/test_make_qa_register_qdrant_txt_input.py`（3 件・`.txt` のチャンク化とその失敗系）、
+> `tests/test_make_qa_register_qdrant_startup_checks.py`（4 件・`ANTHROPIC_API_KEY` の事前確認と `--provider` の拒否）、
+> `tests/test_qa_pipeline_text_column.py`（6 件・`--text-column` が `QAPipeline` へ渡ること）、
+> `tests/test_model_table_coverage.py`（CLI `--model` の既定値が単価・上限表に載っているか）がある。
 
 ---
 
@@ -643,6 +643,7 @@ normalize_source_filename   # 日時サフィックスの除去
 | 1.9 | 2026-10-08 | Q/A 生成の既定モデルがコード側で `config.py::ModelConfig.DEFAULT_MODEL` 参照になったのに追随し、既定の記述を `claude-sonnet-5` → `claude-sonnet-5-5` へ是正（概要・引数表）（2026-10-08） |
 | 1.10 | 2026-10-08 | チャンキングの既定を、回答生成・Q/A 生成の `ModelConfig.DEFAULT_MODEL` から分けた `config.py::ModelConfig.CHUNKING_MODEL`（`claude-haiku-5-5`）の 1 箇所で決めるようにしたのに追随（2026-10-08） |
 | 1.11 | 2026-10-09 | §6.1 の引数表から `--batch-chunks` を削除（処理に使われていなかった）。`-c/--concurrency` はログ表示用で、実際の並列数は `start_celery.sh -c` で決まることを明記（2026-10-09） |
+| 1.12 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |
 
 ---
 
