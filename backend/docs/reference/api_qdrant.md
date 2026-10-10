@@ -1,6 +1,6 @@
 # api/qdrant.py - Qdrant 参照 API ドキュメント
 
-**Version 1.2** | 最終更新: 2026-09-16
+**Version 1.3** | 最終更新: 2026-10-10
 
 > **本書の位置づけ**: `backend/app/api/qdrant.py`（Qdrant 参照系（読み取り専用）と入力ファイル一覧）の **IPO リファレンス**。
 > 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。
@@ -49,13 +49,11 @@ HITL CONFIRM を経由するため、別ルータ（[`api/data.py`](./api_data.m
 
 ### 各責務対応のモジュール
 
-| # | 責務 | 対応モジュール |
-|---|------|--------------|
-| 1 | 稼働確認 | `services/qdrant_service.py` :: `QdrantHealthChecker` |
-| 2 | コレクション取得 | `services/qdrant_service.py` :: `get_all_collections` / `QdrantDataFetcher` |
-| 3 | 整形（DataFrame → JSON） | `services/data_pipeline_service.py` :: `dataframe_to_records` / `collection_columns` |
-| 4 | 入力ファイル列挙 | `services/data_pipeline_service.py` :: `list_input_files` / `ALLOWED_INPUT_DIRS` |
-| 5 | クライアント生成 | `qdrant_client_wrapper.py` :: `get_qdrant_client` |
+| # | 責務 | 対応モジュール | 説明 |
+|---|------|--------------|------|
+| 1 | Qdrant の稼働確認（落ちていても 200） | `services/qdrant_service.py::QdrantHealthChecker` | `GET /api/qdrant/health`。接続失敗は例外にせず `QdrantHealth` の中身で返す |
+| 2 | コレクション一覧・詳細・ポイントのプレビュー | `services/qdrant_service.py::get_all_collections` / `QdrantDataFetcher` | クライアントは `qdrant_client_wrapper.py::get_qdrant_client`（`_get_client()` 経由）。ポイントの DataFrame は `services/data_pipeline_service.py::dataframe_to_records` / `collection_columns` で JSON へ整形 |
+| 3 | 入力ファイル候補の列挙 | `services/data_pipeline_service.py::list_input_files` / `ALLOWED_INPUT_DIRS` | `GET /api/files?dir=`。許可ディレクトリ外は 400（`PathNotAllowedError`） |
 
 ### 主要機能一覧
 
@@ -328,8 +326,9 @@ curl 'http://localhost:8000/api/files?dir=OUTPUT'
 
 ## 6. 変更履歴
 
-| バージョン | 変更内容 |
-|-----------|---------|
-| 1.2 | 2026-09-16 | 3 階建て再編（`reference/` へ移設）に伴い、冒頭へ**位置づけと上位文書への導線**を追加した |
-| 1.1 | **§3.1「使用例」を新設**（2026-09-15）。ドキュメント規約 `a_class_method_md_format.md` §6.1 が IPO 詳細セクションの冒頭に必須としている代表ワークフローが欠落していた。疎通確認 → コレクション一覧（未起動でも 200 が返ること）、コレクションの中身をのぞく 2 本を追加し、**実行して出力を確認した**（外部依存が要る例はその旨を明記）。旧 §3.1〜§3.6 は §3.2〜§3.7 へ繰り下げ |
-| 1.0 | 初版作成。`backend/app/api/qdrant.py`（200 行）の 6 関数を IPO 形式で記述。「health だけ 200 を返す」設計理由、`get_qdrant_client()` が生成時に接続確認をしないため 503 変換が要ること、`fetch_*` が例外ではなく `{"error": ...}` を返すこと、`columns` を別に返す理由、許可ディレクトリのホワイトリストを実コードのコメントから起こして記載 |
+| バージョン | 日付 | 変更内容 |
+|---|---|---|
+| 1.0 | — | 初版作成。`backend/app/api/qdrant.py`（200 行）の 6 関数を IPO 形式で記述。「health だけ 200 を返す」設計理由、`get_qdrant_client()` が生成時に接続確認をしないため 503 変換が要ること、`fetch_*` が例外ではなく `{"error": ...}` を返すこと、`columns` を別に返す理由、許可ディレクトリのホワイトリストを実コードのコメントから起こして記載 |
+| 1.1 | 2026-09-15 | **§3.1「使用例」を新設**（2026-09-15）。ドキュメント規約 `a_class_method_md_format.md` §6.1 が IPO 詳細セクションの冒頭に必須としている代表ワークフローが欠落していた。疎通確認 → コレクション一覧（未起動でも 200 が返ること）、コレクションの中身をのぞく 2 本を追加し、**実行して出力を確認した**（外部依存が要る例はその旨を明記）。旧 §3.1〜§3.6 は §3.2〜§3.7 へ繰り下げ |
+| 1.2 | 2026-09-16 | 2026-09-16 | 3 階建て再編（`reference/` へ移設）に伴い、冒頭へ**位置づけと上位文書への導線**を追加した |
+| 1.3 | 2026-10-10 | 概要の「各責務対応のモジュール」を「主な責務」（3 項目）と 1:1 に揃えた（「整形」「クライアント生成」は責務 2 の説明へ移し、説明列を足した）。変更履歴を 3 列へ移した |

@@ -1,6 +1,6 @@
 # api/meta.py - メタ情報 API ドキュメント
 
-**Version 1.9** | 最終更新: 2026-10-08
+**Version 1.10** | 最終更新: 2026-10-10
 
 > **本書の位置づけ**: `backend/app/api/meta.py`（モデル一覧 / 業界プロファイル / ルールセット一覧・ヘルスチェック）の **IPO リファレンス**。
 > 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。
@@ -54,12 +54,11 @@ LLM は Anthropic Claude（`ANTHROPIC_API_KEY`）、Embedding は Gemini（`GOOG
 
 | # | 責務 | 対応モジュール | 説明 |
 |---|------|--------------|------|
-| 1 | プロファイル一覧 | `api/meta.py` → `core/verticals.py` | `PROFILES` を `VerticalInfo` へ整形 |
-| 1b | ルールセット一覧 | `api/meta.py` → `core/rulesets.py` | `RULESETS` を `RuleSetInfo` へ整形 |
-| 2 | ヘルスチェック | `api/meta.py` | `os.getenv` でキー設定有無を返す |
-| 3 | 出力スキーマ | `backend/app/schemas.py` | `VerticalInfo` / `RuleSetInfo` / `ModelChoice` / `ModelInfo` |
-| 4 | モデル選択肢 | `api/meta.py` → `config.py` | `get_selectable_models()` に単価・上限を添える |
-| 5 | 既定モデル | `api/meta.py` → `grace/config.py` | 解決後の `llm.*` とスキーマ既定値を返す |
+| 1 | 組み込み業界プロファイル一覧の提供 | `api/meta.py::list_verticals` → `core/verticals.py` | `PROFILES` を `VerticalInfo`（`schemas.py`）へ整形 |
+| 2 | 組み込みルールセット一覧の提供 | `api/meta.py::list_rulesets` → `core/rulesets.py` | `RULESETS` を `RuleSetInfo`（`schemas.py`）へ整形。ルール本文は返さず件数と対象法令だけを出す |
+| 3 | 稼働確認と API キー設定有無の可視化 | `api/meta.py::health` | `os.getenv` で `ANTHROPIC_API_KEY` / `GOOGLE_API_KEY` の有無を返す（スキーマなしの dict） |
+| 4 | モデルセレクタの選択肢の提供 | `api/meta.py::list_models` → `config.py` | `get_selectable_models()` に単価・上限を添えて `ModelChoice`（`schemas.py`）で返す |
+| 5 | 既定モデルの解決結果の提供 | `api/meta.py::current_model` → `grace/config.py` | 解決後の `llm.*` と、チャンキング・Q/A 生成のスキーマ既定値を `ModelInfo`（`schemas.py`）で返す |
 
 ### 主要機能一覧
 
@@ -493,17 +492,18 @@ router  # APIRouter(prefix="/api", tags=["meta"])
 ## 7. 変更履歴
 
 | バージョン | 日付 | 変更内容 |
-|-----------|------|---------|
-| 1.9 | 2026-10-08 | `GET /api/models` / `GET /api/model` の戻り値例とワークフロー例の既定・選択肢を実装どおり `claude-sonnet-5` → `claude-sonnet-5-5` へ是正。選択肢に出ない旧既定に `claude-sonnet-5` を追記 |
-| 1.8 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随 |
-| 1.7 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
-| 1.6 | 2026-09-26 | Embedding を `gemini-embedding-2` へ変更し、モデル名の定義を `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所へ集約（2026-09-26）。`GET /api/model` の戻り値に `embedding_model` / `embedding_dims` を追加（データ管理タブ「③ Qdrant 登録」の注記に実名を出すため。選択肢ではない） |
-| 1.5 | 2026-09-23 | `GET /api/models` の戻り値例を 4 件へ更新（`claude-fable-5-1` / `claude-opus-5-5` を追加、`claude-opus-5` を外した） |
-| 1.4 | 2026-09-16 | `GET /api/models` / `GET /api/model` を追加（モデルセレクタ）。構成図・一覧表・IPO 詳細・使用例を追随させた |
-| 1.3 | 2026-09-16 | 3 階建て再編（`reference/` へ移設）に伴い、冒頭へ**位置づけと上位文書への導線**を追加した |
-| 1.2 | 2026-09-15 | **§4.1「使用例」を新設**（2026-09-15）。ドキュメント規約 `a_class_method_md_format.md` §6.1 が IPO 詳細セクションの冒頭に必須としている代表ワークフローが欠落していた。起動確認（health / verticals / rulesets）とプロファイル 1 件のフィールド確認の 2 本を追加し、**実行して出力を確認した**（外部依存が要る例はその旨を明記）。旧 §4.1 は §4.2 へ繰り下げ |
-| 1.0 | 2026-07-15 | 初版作成（GET /verticals・GET /health の IPO ドキュメント） |
+|---|---|---|
 | 1.1 | 2026-07-29 | `GET /api/rulesets` を追加（PR #41）。既存 2 エンドポイントは無変更 |
+| 1.0 | 2026-07-15 | 初版作成（GET /verticals・GET /health の IPO ドキュメント） |
+| 1.2 | 2026-09-15 | **§4.1「使用例」を新設**（2026-09-15）。ドキュメント規約 `a_class_method_md_format.md` §6.1 が IPO 詳細セクションの冒頭に必須としている代表ワークフローが欠落していた。起動確認（health / verticals / rulesets）とプロファイル 1 件のフィールド確認の 2 本を追加し、**実行して出力を確認した**（外部依存が要る例はその旨を明記）。旧 §4.1 は §4.2 へ繰り下げ |
+| 1.3 | 2026-09-16 | 3 階建て再編（`reference/` へ移設）に伴い、冒頭へ**位置づけと上位文書への導線**を追加した |
+| 1.4 | 2026-09-16 | `GET /api/models` / `GET /api/model` を追加（モデルセレクタ）。構成図・一覧表・IPO 詳細・使用例を追随させた |
+| 1.5 | 2026-09-23 | `GET /api/models` の戻り値例を 4 件へ更新（`claude-fable-5-1` / `claude-opus-5-5` を追加、`claude-opus-5` を外した） |
+| 1.6 | 2026-09-26 | Embedding を `gemini-embedding-2` へ変更し、モデル名の定義を `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所へ集約（2026-09-26）。`GET /api/model` の戻り値に `embedding_model` / `embedding_dims` を追加（データ管理タブ「③ Qdrant 登録」の注記に実名を出すため。選択肢ではない） |
+| 1.7 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
+| 1.8 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随 |
+| 1.9 | 2026-10-08 | `GET /api/models` / `GET /api/model` の戻り値例とワークフロー例の既定・選択肢を実装どおり `claude-sonnet-5` → `claude-sonnet-5-5` へ是正。選択肢に出ない旧既定に `claude-sonnet-5` を追記 |
+| 1.10 | 2026-10-10 | 概要の「各責務対応のモジュール」を「主な責務」と 1:1 に揃えた（枝番 `1b` と、責務でない「出力スキーマ」行をやめ、スキーマは各行の説明へ移した）。変更履歴を 3 列へ移した |
 
 ---
 

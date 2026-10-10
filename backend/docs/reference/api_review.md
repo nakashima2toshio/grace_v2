@@ -1,6 +1,6 @@
 # api/review.py - 文書レビュー API ドキュメント
 
-**Version 1.3** | 最終更新: 2026-10-08
+**Version 1.4** | 最終更新: 2026-10-10
 
 > **本書の位置づけ**: `backend/app/api/review.py`（Review のジョブ起動 / SSE / HITL / 結果取得）の **IPO リファレンス**。
 > 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。
@@ -51,12 +51,11 @@
 
 | # | 責務 | 対応モジュール | 説明 |
 |---|------|--------------|------|
-| 1 | ジョブ起動 | `api/review.py` → `core/jobs.py` | `job_manager.start(ReviewParams)` |
-| 2 | SSE 進捗配信 | `api/review.py` → `core/jobs.py` | `job.stream_events()` を SSE 整形 |
-| 3 | HITL 応答注入 | `api/review.py` → `core/jobs.py` | `job_manager.confirm(...)` |
-| 4 | 結果取得 | `api/review.py` → `core/jobs.py` | `job_manager.get(job_id)` |
-| 5 | 入出力スキーマ | `backend/app/schemas.py` | `ReviewRequest` / `ReviewJobStatusResponse` |
-| 6 | パイプライン実行 | `core/review_agent.py` | `run_review_agent_core` |
+| 1 | レビュージョブの起動 | `api/review.py::submit_document` → `core/jobs.py` | `ReviewRequest`（`schemas.py`）を `ReviewParams` にして `job_manager.start(...)`。実行するのは `core/review_agent.py::run_review_agent_core` |
+| 2 | ステップ進捗の SSE 配信 | `api/review.py::stream_events` → `core/jobs.py` | `job.stream_events()` を SSE 整形（keepalive は `SSE_KEEPALIVE`） |
+| 3 | HITL CONFIRM 応答の注入 | `api/review.py::confirm_intervention` → `core/jobs.py` | `job_manager.confirm(...)` |
+| 4 | ジョブ状態・最終結果の取得 | `api/review.py::get_result` → `core/jobs.py` | `job_manager.get(job_id)` を `ReviewJobStatusResponse`（`schemas.py`）で返す |
+| 5 | 存在しないジョブへの 404 応答 | `api/review.py` | stream / confirm / result の 3 つで、ジョブが無ければ `HTTPException(404, "job not found")` |
 
 ### 主要機能一覧
 
@@ -534,11 +533,12 @@ const unsubscribe = subscribeStream(
 ## 7. 変更履歴
 
 | バージョン | 日付 | 変更内容 |
-|-----------|------|---------|
-| 1.3 | 2026-10-08 | SSE の keepalive を名前付きイベントへ変更したのに追随 |
-| 1.2 | 2026-09-16 | 3 階建て再編（`reference/` へ移設）に伴い、冒頭へ**位置づけと上位文書への導線**を追加した |
-| 1.1 | 2026-09-15 | **§4.1「使用例」を新設**（2026-09-15）。ドキュメント規約 `a_class_method_md_format.md` §6.1 が IPO 詳細セクションの冒頭に必須としている代表ワークフローが欠落していた。文書投入 → SSE → 結果取得、ルールセット一覧とエラー応答の 2 本を追加し、**実行して出力を確認した**（外部依存が要る例はその旨を明記）。旧 §4.1 は §4.2 へ繰り下げ |
+|---|---|---|
 | 1.0 | 2026-07-29 | 初版作成（GRACE-Review STEP5・PR #41 に対応） |
+| 1.1 | 2026-09-15 | **§4.1「使用例」を新設**（2026-09-15）。ドキュメント規約 `a_class_method_md_format.md` §6.1 が IPO 詳細セクションの冒頭に必須としている代表ワークフローが欠落していた。文書投入 → SSE → 結果取得、ルールセット一覧とエラー応答の 2 本を追加し、**実行して出力を確認した**（外部依存が要る例はその旨を明記）。旧 §4.1 は §4.2 へ繰り下げ |
+| 1.2 | 2026-09-16 | 3 階建て再編（`reference/` へ移設）に伴い、冒頭へ**位置づけと上位文書への導線**を追加した |
+| 1.3 | 2026-10-08 | SSE の keepalive を名前付きイベントへ変更したのに追随 |
+| 1.4 | 2026-10-10 | 概要の「各責務対応のモジュール」を「主な責務」（5 項目）と 1:1 に揃えた（「入出力スキーマ」「パイプライン実行」は責務 1・4 の説明へ移し、欠けていた 404 応答の行を足した）。変更履歴を 3 列へ移した |
 
 ---
 

@@ -1,6 +1,6 @@
 # core/data_jobs.py - データ準備ジョブ runner ドキュメント
 
-**Version 1.9** | 最終更新: 2026-10-09
+**Version 1.10** | 最終更新: 2026-10-10
 
 > **本書の位置づけ**: `backend/app/core/data_jobs.py`（データ準備 4 ジョブの runner）の **IPO リファレンス**。
 > 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。
@@ -59,13 +59,12 @@ GRACE-Support・GRACE-Review と**同じジョブ基盤**（`core/jobs.py`）に
 
 ### 各責務対応のモジュール
 
-| # | 責務 | 対応モジュール |
-|---|------|--------------|
-| 1 | ジョブ基盤への登録 | `core/jobs.py` :: `register_runner` |
-| 2 | ログ横取り | `core/job_logs.py` :: `capture_logs` |
-| 3 | HITL CONFIRM | `grace/intervention.py` :: `InterventionRequest` / `InterventionLevel` |
-| 4 | イベント型 | `core/support_agent.py` :: `SupportEvent` / `EmitFn` / `ConfirmFn` |
-| 5 | 実処理 | `chunking/` `qa_generation/` `qa_qdrant/` `services/data_pipeline_service.py` |
+| # | 責務 | 対応モジュール | 説明 |
+|---|------|--------------|------|
+| 1 | 4 種のジョブパラメータ（dataclass）を定義する | `core/data_jobs.py::ChunkingParams` / `QaGenerationParams` / `RegisterParams` / `DeleteParams` | モジュール末尾の `core/jobs.py::register_runner(params_type, runner, kind)` で、params の型から runner を引けるように登録する |
+| 2 | 各 runner でステップを刻み、`step` / `log` / `error` イベントを出す | `core/data_jobs.py::_chunking_runner` / `_qa_runner` / `_register_runner` / `_delete_runner` | イベントの型は `core/support_agent.py::SupportEvent` / `EmitFn`（`_make_emitters` で組み立てる）。実処理は `chunking/` / `qa_generation/` / `qa_qdrant/` / `services/data_pipeline_service.py` |
+| 3 | 既存パッケージの `logging` 出力を `capture_logs()` で横取りして SSE へ流す | `core/job_logs.py::capture_logs` | ステップごとに `with capture_logs(emit, step=...)` で囲む |
+| 4 | 破壊的操作の前に HITL CONFIRM を通す | `core/data_jobs.py::_ask_confirmation` → `grace/intervention.py::InterventionRequest` / `InterventionLevel` | 応答は `core/support_agent.py::ConfirmFn` 経由で受ける |
 
 ### 主要機能一覧
 
@@ -493,15 +492,16 @@ register_runner(DeleteParams,   _delete_runner,   "delete")
 
 ## 7. 変更履歴
 
-| バージョン | 変更内容 |
-|-----------|---------|
-| 1.8 | `QaGenerationParams.model` の既定を実装どおり `claude-sonnet-5` → `claude-sonnet-5-5` へ是正し、注記の理由を「アプリ全体の既定に合わせる」へ直した（2026-10-08） |
-| 1.7 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
-| 1.6 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
-| 1.5 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
-| 1.4 | 2026-09-16 | 3 階建て再編（`reference/` へ移設）に伴い、冒頭へ**位置づけと上位文書への導線**を追加した |
-| 1.3 | **§4.1「使用例」を新設**（2026-09-15）。ドキュメント規約 `a_class_method_md_format.md` §6.1 が IPO 詳細セクションの冒頭に必須としている代表ワークフローが欠落していた。パラメータとステップ定義（confirm ステップの有無が破壊性を表す）、ジョブとしての起動の 2 本を追加し、**実行して出力を確認した**（外部依存が要る例はその旨を明記）。旧 §4.1〜§4.4 は §4.2〜§4.5 へ繰り下げ |
-| 1.0 | 初版作成。`backend/app/core/data_jobs.py`（547 行）の全公開要素を IPO 形式で記述。3 種のステップ定義、`jobs.py` に手を入れず `register_runner` で追加する方式、既存 3 パッケージを無改修のまま `capture_logs()` で進捗を出す方式、CONFIRM の要否（削除は常に／登録は `recreate=True` のときだけ）とその理由、`provider="gemini"` が Embedding 用途として正しいことを実コードのコメントから起こして記載 |
-| 1.1 | **Q/A 生成を追加**（`QaGenerationParams` / `_qa_runner` / `QA_STEP_IDS`）。runner は 4 種になった。出力先の既定を `qa_output` 直下にした理由（`list_input_files()` が非再帰）、入力検証を ① で完結させる理由、0 件生成を error にする理由を追記。§2・§4・§5 の節番号を繰り下げ |
-| 1.2 | `_chunking_runner` が `ChunkingAbortedError` を専用に捕捉するようになったことを追記。LLM が連続で失敗したとき、機械的分割へフォールバックして「成功」で終わらせないための中断（回帰は `test_chunking_abort.py`） |
-| 1.9 | `QaGenerationParams.batch_chunks` を削除（`QAPipeline` が一度も使っていなかった）。`concurrency` は表示用である旨を注記（2026-10-09） |
+| バージョン | 日付 | 変更内容 |
+|---|---|---|
+| 1.8 | 2026-10-08 | `QaGenerationParams.model` の既定を実装どおり `claude-sonnet-5` → `claude-sonnet-5-5` へ是正し、注記の理由を「アプリ全体の既定に合わせる」へ直した（2026-10-08） |
+| 1.7 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
+| 1.6 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
+| 1.5 | 2026-09-26 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
+| 1.4 | 2026-09-16 | 2026-09-16 | 3 階建て再編（`reference/` へ移設）に伴い、冒頭へ**位置づけと上位文書への導線**を追加した |
+| 1.3 | 2026-09-15 | **§4.1「使用例」を新設**（2026-09-15）。ドキュメント規約 `a_class_method_md_format.md` §6.1 が IPO 詳細セクションの冒頭に必須としている代表ワークフローが欠落していた。パラメータとステップ定義（confirm ステップの有無が破壊性を表す）、ジョブとしての起動の 2 本を追加し、**実行して出力を確認した**（外部依存が要る例はその旨を明記）。旧 §4.1〜§4.4 は §4.2〜§4.5 へ繰り下げ |
+| 1.0 | — | 初版作成。`backend/app/core/data_jobs.py`（547 行）の全公開要素を IPO 形式で記述。3 種のステップ定義、`jobs.py` に手を入れず `register_runner` で追加する方式、既存 3 パッケージを無改修のまま `capture_logs()` で進捗を出す方式、CONFIRM の要否（削除は常に／登録は `recreate=True` のときだけ）とその理由、`provider="gemini"` が Embedding 用途として正しいことを実コードのコメントから起こして記載 |
+| 1.1 | — | **Q/A 生成を追加**（`QaGenerationParams` / `_qa_runner` / `QA_STEP_IDS`）。runner は 4 種になった。出力先の既定を `qa_output` 直下にした理由（`list_input_files()` が非再帰）、入力検証を ① で完結させる理由、0 件生成を error にする理由を追記。§2・§4・§5 の節番号を繰り下げ |
+| 1.2 | — | `_chunking_runner` が `ChunkingAbortedError` を専用に捕捉するようになったことを追記。LLM が連続で失敗したとき、機械的分割へフォールバックして「成功」で終わらせないための中断（回帰は `test_chunking_abort.py`） |
+| 1.9 | 2026-10-09 | `QaGenerationParams.batch_chunks` を削除（`QAPipeline` が一度も使っていなかった）。`concurrency` は表示用である旨を注記（2026-10-09） |
+| 1.10 | 2026-10-10 | 概要の「各責務対応のモジュール」を「主な責務」（4 項目）と 1:1 に揃えた（責務の文言をそのまま使い、「イベント型」「実処理」は責務 2・4 の説明へ移し、説明列を足した）。変更履歴を 3 列へ移した |
