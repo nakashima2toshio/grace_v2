@@ -642,7 +642,7 @@ python -m chunking.csv_text_to_chunks_text_csv \
 
 | 領域 | 所在 |
 |---|---|
-| Python モジュール（IPO） | `<package>/docs/<module>.md` — `chunking/docs/`, `qa_generation/docs/`, `qa_qdrant/docs/`, `services/docs/`, `grace/docs/`, `grace/step_trace/docs/` |
+| Python モジュール（IPO） | `<package>/docs/<module>.md` — `chunking/docs/`, `qa_generation/docs/`, `qa_qdrant/docs/`, `services/docs/`, `grace/docs/` |
 | backend | `backend/docs/` |
 | React コンポーネント | `frontend/docs/<Component>.md` |
 | 横断/設計メモ | リポジトリ直下 `docs/` |
@@ -708,8 +708,9 @@ python -m chunking.csv_text_to_chunks_text_csv \
 grace_v2 に**存在しない**: `setup.py` / `server.py` / a-prefixed scripts
 （`a30_qdrant_registration.py` 等）/ `agent_rag.py` / `ui/` /
 リポジトリ直下の `tests/` / `test_celery_integration.py` /
-**`agent_support_example.py`** / **`grace/step_trace/s0_arg.py`〜`s9_render.py`**
-（後ろ 2 つは 2026-09-19 に削除。§1・§2 の注記を参照）。
+**`agent_support_example.py`** / **`grace/step_trace/`**
+（`agent_support_example.py` と `grace/step_trace/s0_arg.py`〜`s9_render.py` は 2026-09-19 に削除。§1・§2 の注記を参照。
+残っていた `benchmark.py` を含む `grace/step_trace/` 全体は 2026-10-10 に削除）。
 
 > ⚠️ **`start_celery.sh` は存在する**（2026-09-12 訂正）。以前この一覧に
 > 入っていたが、Q/A 生成の Celery 並列（CLI の `--use-celery` / データ管理タブの

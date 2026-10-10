@@ -1,6 +1,6 @@
 # grace_core.md - GRACE コアモジュール群（Planner 系）アーキテクチャ ドキュメント
 
-**Version 3.6** | 最終更新: 2026-10-08
+**Version 3.7** | 最終更新: 2026-10-10
 
 > **参考ドキュメント**
 > - [`grace/docs/grace.md`](./grace.md) — 設計思想（**なぜ**この形か。ReAct → Reflection → GRACE 5 段階の経緯）
@@ -151,7 +151,6 @@ class START,PLANNER,EXECUTOR,TOOLS,CONFIDENCE,CALIBRATION,INTERVENTION,REPLAN,ME
 flowchart TB
     subgraph CLIENT["クライアント層"]
         UI["React UI (frontend/)<br>← FastAPI (backend/app/) ← SSE"]
-        BENCH["ベンチマーク<br>(benchmark.py)"]
         API["API / CLI"]
     end
 
@@ -180,7 +179,6 @@ flowchart TB
     end
 
     UI --> EXECUTOR
-    BENCH --> EXECUTOR
     API --> PLANNER
     PLANNER --> EXECUTOR
     EXECUTOR --> TOOLS
@@ -201,7 +199,7 @@ flowchart TB
     TOOLS --> WEB
 classDef default fill:#000,stroke:#fff,color:#fff
 classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
-class UI,BENCH,API,PLANNER,EXECUTOR,TOOLS,CONFIDENCE,CALIBRATION,INTERVENTION,REPLAN,MEMORY,CONFIG,SCHEMAS,LLMCOMPAT,ANTHROPIC,GEMINI,QDRANT,WEB default
+class UI,API,PLANNER,EXECUTOR,TOOLS,CONFIDENCE,CALIBRATION,INTERVENTION,REPLAN,MEMORY,CONFIG,SCHEMAS,LLMCOMPAT,ANTHROPIC,GEMINI,QDRANT,WEB default
 style CLIENT fill:#1a1a1a,stroke:#fff,color:#fff
 style CORE fill:#1a1a1a,stroke:#fff,color:#fff
 style FOUND fill:#1a1a1a,stroke:#fff,color:#fff
@@ -302,7 +300,7 @@ style MEMORY fill:#1a1a1a,stroke:#fff,color:#fff
 | モジュール | 主に呼び出す相手 | 主に呼ばれる相手 |
 |-----------|----------------|----------------|
 | `planner.py` | `memory`（事前分布）, `llm_compat`, `schemas`, `services.qdrant_service` | `executor`, `replan`, UI |
-| `executor.py` | `tools`, `confidence`, `calibration`, `intervention`, `replan`, `memory` | UI, `benchmark` |
+| `executor.py` | `tools`, `confidence`, `calibration`, `intervention`, `replan`, `memory` | UI |
 | `tools.py` | Qdrant, Gemini Embedding, Web 検索, `llm_compat` | `executor` |
 | `confidence.py` | `llm_compat`（Anthropic）, Gemini Embedding | `executor` |
 | `calibration.py` | （stdlib のみ） | `executor`, 評価スクリプト |
@@ -378,7 +376,7 @@ style MEMORY fill:#1a1a1a,stroke:#fff,color:#fff
 | `Executor` | 計画実行エージェント（GRACE ネイティブ実装） |
 | `Executor.execute_plan(plan)` | ブロッキング実行で `ExecutionResult` を返す |
 | `Executor.execute_plan_generator(plan, state)` | UI 連携用ジェネレータ版（中間イベントを `yield`） |
-| `Executor.execute(plan)` | 統一エントリーポイント（benchmark 互換） |
+| `Executor.execute(plan)` | 統一エントリーポイント（Web API の入口が使う） |
 | `Executor.cancel(state)` / `resume(state)` | 実行の制御 |
 | `ExecutionState` | 実行状態（計画・ステップ結果・信頼度・制御フラグ） |
 | `create_executor(config, tool_registry, ...)` | `Executor` ファクトリ |
@@ -1049,6 +1047,7 @@ __all__ = [
 | 3.4 | 2026-10-04 | `rag_sufficient_score` の既定を 0.7 → 0.64 に追随（2026-10-04。`executor.md` v4.12）。設定表のセクション名を実体（`qdrant.`）に直した |
 | 3.5 | 2026-10-06 | 現在の既定モデルの記載 `claude-sonnet-5` を実装（`grace/config.py` の `LLMConfig.model` / `grace/llm_compat.py` の `DEFAULT_ANTHROPIC_MODEL` = `claude-sonnet-5-5`）に合わせて是正（2026-10-06。CLAUDE.md §9.3。旧既定は履歴の記述にだけ残す） |
 | 3.6 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
+| 3.7 | 2026-10-10 | `grace/step_trace/`（`benchmark.py` を含む）を 2026-10-10 にディレクトリごと削除したのに追随し、現状を述べる記述から外した（過去の経緯の記述は残す） |
 
 ---
 

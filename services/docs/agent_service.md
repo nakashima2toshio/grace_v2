@@ -1,6 +1,6 @@
 # agent_service.py - ReAct + Reflection エージェント（Anthropic Tool Use ネイティブ）ドキュメント
 
-**Version 2.6** | 最終更新: 2026-10-08
+**Version 2.7** | 最終更新: 2026-10-10
 
 ---
 
@@ -20,7 +20,7 @@
 
 ## 概要
 
-`agent_service.py` は、Anthropic Messages API の **ネイティブ Tool Use**（`generate_with_tools()` / `stop_reason == "tool_use"`）を用いた **ReAct エージェント**（`ReActAgent`）を提供するモジュールです。ユーザーの質問に対し「Thought（思考）→ Action（ツール実行）→ Observation（観察）」のサイクルを回して RAG 検索ツールを呼び出し、回答案を作成したのち **Reflection（自己評価・推敲）** フェーズで最終回答に仕上げます。進捗はジェネレータでイベントとして逐次 `yield` され、**呼び出し元がそれを配信**します。実際の呼び出し元は `grace/executor.py`（ReAct 実行経路）と `grace/step_trace/benchmark.py`（A/B 計測）の 2 つで、Web からは FastAPI（`/api/support/stream/{job_id}`）が SSE として React UI（`frontend/`）へ中継します。
+`agent_service.py` は、Anthropic Messages API の **ネイティブ Tool Use**（`generate_with_tools()` / `stop_reason == "tool_use"`）を用いた **ReAct エージェント**（`ReActAgent`）を提供するモジュールです。ユーザーの質問に対し「Thought（思考）→ Action（ツール実行）→ Observation（観察）」のサイクルを回して RAG 検索ツールを呼び出し、回答案を作成したのち **Reflection（自己評価・推敲）** フェーズで最終回答に仕上げます。進捗はジェネレータでイベントとして逐次 `yield` され、**呼び出し元がそれを配信**します。実際の呼び出し元は `grace/executor.py`（ReAct 実行経路）の 1 つだけで（A/B 計測用だった `grace/step_trace/benchmark.py` は 2026-10-10 に削除）、Web からは FastAPI（`/api/support/stream/{job_id}`）が SSE として React UI（`frontend/`）へ中継します。
 
 > 📝 **注意（Anthropic ネイティブ）**: 本モジュールの LLM は **Anthropic Claude**（既定 `claude-sonnet-5-5`、`create_llm_client("anthropic")` 経由）です。Embedding（検索）は **Gemini**（`gemini-embedding-001`）を維持します。会話履歴は Anthropic のステートレス設計に合わせ `self._messages`（dict のリスト）で自前管理し、`execute_turn()` の先頭でリセットします。GRACE 本体（Plan→Execute 型）の現行実装は `grace/executor.py` 側にあり、本 ReAct は `run_legacy_agent` ステップから内部呼び出しされることもあります。
 
@@ -106,7 +106,7 @@ style EXTERNAL fill:#1a1a1a,stroke:#fff,color:#fff
 
 ### 1.2 データフロー
 
-1. 呼び出し元（`grace/executor.py` / `grace/step_trace/benchmark.py`）が `ReActAgent(selected_collections=...)` を生成し `execute_turn(user_input)` を呼ぶ。
+1. 呼び出し元（`grace/executor.py::_execute_legacy_agent_step`。もう 1 つの呼び出し元だった `grace/step_trace/benchmark.py` は 2026-10-10 に削除）が `ReActAgent(selected_collections=...)` を生成し `execute_turn(user_input)` を呼ぶ。
 2. ReAct ループで `generate_with_tools(messages, tools, system)` を呼び、`stop_reason == "tool_use"` なら対応ツール（`agent_tools`）を実行。
 3. ツール結果（RAG 検索結果）を `tool_result` ブロックとして `self._messages` に追記し、次ループで Anthropic に再送して思考を継続。
 4. `stop_reason` が `tool_use` でなくなった（`end_turn` 等）時点の回答案を取得し、Reflection フェーズ（`tools=[]`）で推敲。
@@ -573,6 +573,7 @@ REFLECTION_INSTRUCTION
 | 2.4 | 2026-09-26 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
 | 2.5 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
 | 2.6 | 2026-10-08 | 既定モデルの記述（注記・使用例・`__init__` の引数表と Process・戻り値例・§5.3 の設定キー表）を、実装（`get_config("models.default", "claude-sonnet-5-5")` と直下 `config.yml`）どおり `claude-sonnet-5` → `claude-sonnet-5-5` へ是正（2026-10-08） |
+| 2.7 | 2026-10-10 | `grace/step_trace/`（`benchmark.py` を含む）を 2026-10-10 にディレクトリごと削除したのに追随し、現状を述べる記述から外した（過去の経緯の記述は残す） |
 
 ---
 

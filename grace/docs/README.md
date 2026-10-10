@@ -1,6 +1,6 @@
 # grace/docs 棚卸し
 
-**Version 1.16** | 最終更新: 2026-10-10
+**Version 1.17** | 最終更新: 2026-10-10
 
 `grace/` パッケージのドキュメント一覧と、実装への追随状況・残タスク・検証手順をまとめる。
 新しく文書を書く／直す前に、まずここを見る。
@@ -220,7 +220,7 @@ style BASE fill:#1a1a1a,stroke:#fff,color:#fff
 ## 2. 文書一覧
 
 `grace/docs/` は **`grace/*.py`（11 モジュール）の文書と、パッケージ横断の設計文書だけ**を持つ。
-サブパッケージ（`grace/step_trace/`）の文書はそのパッケージ配下に置く（CLAUDE.md §9.1）。
+サブパッケージ `grace/step_trace/` は 2026-10-10 に削除した（文書 `benchmark.md` も同時に削除）。
 
 区分は `grace_core.md` の依存関係図に合わせて **A（コア）/ B（基盤層）/ C（横断）** の 3 つ。
 A と B の線引きは思いつきではなく、**実測した依存の向き**に基づく（§2.4）。
@@ -233,7 +233,7 @@ A と B の線引きは思いつきではなく、**実測した依存の向き*
 | 役割 | 文書 | 対象 | 行数 | Ver | 重要度 |
 |---|---|---|---:|---|---|
 | 計画 | `planner.md` | `grace/planner.py` | 1187 | 3.12 | ★★★ |
-| 実行 | `executor.md` | `grace/executor.py` | 2345 | 4.18 | ★★★ |
+| 実行 | `executor.md` | `grace/executor.py` | 2346 | 4.19 | ★★★ |
 | 実行 | `tools.md` | `grace/tools.py`（`WebSearchTool` を含む全ツール） | 1687 | 3.7 | ★★★ |
 | 評価 | `confidence.md` | `grace/confidence.py` | 1862 | 2.10 | ★★★ |
 | 評価 | `calibration.md` | `grace/calibration.py` | 763 | 1.1 | ★★ |
@@ -310,7 +310,7 @@ A と B の線引きは思いつきではなく、**実測した依存の向き*
 
 | 文書 | 所在 | 理由 |
 |---|---|---|
-| `benchmark.md` | `grace/step_trace/docs/benchmark.md` | 対象が `grace/step_trace/benchmark.py`。サブパッケージの文書はそのパッケージ配下（CLAUDE.md §9.1）。**2026-09-14 に `grace/docs/` から移動** |
+| ~~`benchmark.md`~~ | — | **2026-10-10 に削除**（対象の `grace/step_trace/benchmark.py` をパッケージごと削除したため。2026-09-14 に `grace/docs/` から `grace/step_trace/docs/` へ移していた） |
 | ~~`s0_arg.md`〜`s9_render.md`~~ | — | **2026-09-19 に削除**（対象の `grace/step_trace/s*.py` が CLI 削除にともない不要になったため） |
 | GRACE-Support 設計 3 点 | `backend/docs/` | `backend/app/core/` の文書（2026-09-04 に移動済み・§5 タスク 4） |
 
@@ -488,7 +488,7 @@ grep -rhoE '`[a-z0-9_]+(/[a-z0-9_]+)+\.(py|sh)`' grace/docs/*.md backend/docs/*.
 **節番号を繰り下げたり見出しを言い換えたときに、目次だけが取り残される**のがこの検査で見つかる。
 
 ```bash
-python3 - <<'PY' grace/docs backend/docs frontend/docs docs grace/step_trace/docs
+python3 - <<'PY' grace/docs backend/docs frontend/docs docs
 import re, pathlib, sys
 def slug(h):                      # GitHub の見出しアンカー生成則
     out = []
@@ -587,3 +587,4 @@ PY
 | 1.14 | 2026-10-06 | `config.md` v1.12（冒頭の行番号参照 `config.py:411` をシンボル参照へ是正）に追随して §2.2 の行数・Ver を更新（2026-10-06）。grace/docs に残っていた最後の行番号参照で、grace_v2_local の `docs_audit.md` §5.2 の再測定で見つかった |
 | 1.15 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
 | 1.16 | 2026-10-10 | §3 の `executor.md` の行数・版を実測へ（2219 行・v4.16 → 2345 行・v4.18。§4.1 使用例の書き直しに追随） |
+| 1.17 | 2026-10-10 | `grace/step_trace/`（`benchmark.py` を含む）を 2026-10-10 にディレクトリごと削除したのに追随し、現状を述べる記述から外した（過去の経緯の記述は残す）。§3 の `executor.md` の行数・版を実測へ（2346 行・v4.19） |

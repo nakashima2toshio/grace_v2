@@ -1,6 +1,6 @@
 # agent_parallel_search.py - 並列検索エンジン ドキュメント
 
-**Version 1.2** | 最終更新: 2026-09-24
+**Version 1.3** | 最終更新: 2026-10-10
 
 ---
 
@@ -43,7 +43,7 @@ Embedding（Gemini）や Qdrant 依存を engine 本体から切り離し、並�
 |---|---|
 | Web 経路の RAG 検索 | `grace/tools.py::RAGSearchTool.execute()` が担当。**並列ではなく直列**で、優先順に 1 コレクションずつ検索し一次閾値（0.70）到達で `break` する。クエリベクトルは `_embed_query_once` で 1 回だけ生成して使い回す |
 | 本モジュールの呼び出し元 | `agent_tools.search_rag_knowledge_base()` / `search_rag_knowledge_base_cached()` の 2 つのみ。さらにその呼び出し元は Legacy ReAct 経路（`services/agent_service.py::ReActAgent`）だけ |
-| ReAct 経路の起動口 | `grace/step_trace/benchmark.py` の `mode="react"` / `"both"`（GRACE との横並びベンチ）のみ。`grace/schemas.py` の `run_legacy_agent` アクションを生成するプランナは存在しない |
+| ReAct 経路の起動口 | **無い**。唯一の起動口だった `grace/step_trace/benchmark.py`（`mode="react"` / `"both"`）は 2026-10-10 に削除した。`grace/schemas.py` の `run_legacy_agent` アクションを生成するプランナも存在しない |
 
 直列方式は本モジュールの劣化版ではなく、**実測バグの修正を経た意図的な設計**である
 （緩和閾値のみのヒットで打ち切って正解コレクションに到達しなかった事例、検索順が最下位スコアを
@@ -694,6 +694,7 @@ __all__ = [
 | 1.0 | — | 初版作成（`ParallelSearchEngine` / `SearchResult` / `search_all_parallel` の IPO 詳細と、ThreadPoolExecutor による並列処理の制御フロー・データフローを重点解説） |
 | 1.1 | — | 「稼働範囲」を追記（Web アプリからは未稼働・Legacy ReAct 経路専用であることを明記）。`agent_tools.py` 側の import を関数内へ遅延化 |
 | 1.2 | 2026-09-24 | 使用例を IPO 詳細の冒頭（`### 5.1 使用例`）へ移し、末尾の「使用例」章を削除（`a_class_method_md_format.md` v1.6〜 §6.1 に準拠。2026-09-24）。以降の章番号を繰り上げ（エクスポート → 7、変更履歴 → 8）、IPO の小節を 5.2〜5.4 へ繰り下げた。使用例に import と出力例を補った |
+| 1.3 | 2026-10-10 | `grace/step_trace/`（`benchmark.py` を含む）を 2026-10-10 にディレクトリごと削除したのに追随し、現状を述べる記述から外した（過去の経緯の記述は残す） |
 
 ---
 

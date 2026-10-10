@@ -1,6 +1,6 @@
 # executor.py - GRACE計画実行エージェント ドキュメント
 
-**Version 4.18** | 最終更新: 2026-10-10
+**Version 4.19** | 最終更新: 2026-10-10
 
 ---
 
@@ -84,7 +84,7 @@
 | `Executor.__init__()` | コンストラクタ（各種コンポーネントの初期化） |
 | `Executor.execute_plan_generator()` | 計画をジェネレータで実行（UI連携用） |
 | `Executor.execute_plan()` | 計画を同期実行（ブロッキング版、ジェネレータをドレイン） |
-| `Executor.execute()` | `execute_plan()` の統一エントリーポイント（benchmark互換） |
+| `Executor.execute()` | `execute_plan()` の統一エントリーポイント（Web API の入口が使う） |
 | `Executor._handle_ask_user_response()` | ask_user 出力をUIへ渡しユーザー応答を反映 |
 | `Executor._run_tool_with_timeout()` | ツールを timeout_seconds 制限付きで実行 |
 | `Executor._prefetch_parallel_searches()` | 依存関係のない後続検索ステップを並列プリフェッチ |
@@ -123,7 +123,7 @@
 flowchart TB
     subgraph CLIENT["クライアント層"]
         PLAN["ExecutionPlan (from Planner)"]
-        UI["backend/app/core/support_agent.py<br>/ grace/step_trace/benchmark.py"]
+        UI["backend/app/core/support_agent.py"]
     end
 
     subgraph MODULE["executor.py"]
@@ -343,7 +343,7 @@ style FACTORY_GRP fill:#1a1a1a,stroke:#fff,color:#fff
 
 | 処理パターン | 呼び方 | 向いている場面 | 例 |
 |---|---|---|---|
-| ブロッキング | `execute_plan(plan)` / `execute(plan)` | 結果だけ欲しい（Web API・benchmark）。CONFIRM では止まらず（コールバックがあれば確認だけ求める）、ESCALATE で止まる | 4.1.1 / 4.1.2 |
+| ブロッキング | `execute_plan(plan)` / `execute(plan)` | 結果だけ欲しい（Web API）。CONFIRM では止まらず（コールバックがあれば確認だけ求める）、ESCALATE で止まる | 4.1.1 / 4.1.2 |
 | コールバック | `create_executor(on_step_start=..., ...)` ＋ `execute_plan` | 進捗・信頼度・介入を、実行しながらその場で受け取る | 4.1.3 |
 | ジェネレータ | `execute_plan_generator(plan, state=None)` | 1 ステップごとに状態を見る・一時停止から再開する。**静的パス専用**（ReAct へは振り分けない） | 4.1.4 |
 | ReAct への自動振り分け | `execute_plan(plan)`（内部の `_dispatch_generator`） | 複雑な質問。`plan.complexity >= executor.react_complexity_threshold`（既定 0.7）なら ReAct ループになる | 4.1.5 |
@@ -971,7 +971,7 @@ print(f"{result.overall_status}: {result.final_answer}")
 
 #### メソッド: `execute`
 
-**概要**: `execute_plan()`の統一エントリーポイント（benchmark.py 互換）。
+**概要**: `execute_plan()`の統一エントリーポイント（Web API の入口 `support_agent.py` が使う）。
 
 ```python
 def execute(self, plan: ExecutionPlan) -> ExecutionResult
@@ -2209,6 +2209,7 @@ __all__ = [
 | 4.16 | 2026-10-06 | 未記載だった `_prefetch_enabled()`（最終評価の先行実行を行うかの判定）を §3.1 に追加（2026-10-06）。`_damp_support_rate` が `confidence.py::damp_support_rate` へ委譲するだけであること（Review と共用）を明記 |
 | 4.17 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
 | 4.18 | 2026-10-10 | §4.1 使用例を書き直した（2026-10-10）。冒頭に処理パターン 4 通り（ブロッキング / コールバック / ジェネレータ / ReAct への自動振り分け）の選び方の表を置き、「Web API と同じ組み立て方」（`run_support_agent_core` と同じく 1 つの config から部品を作り `execute()` で実行）と「ReAct ループが選ばれる例」を追加。**誤りを 3 点是正**: (1) ジェネレータ版は `ExecutionState` のほかにログ用の辞書 `{"type": "log"}` も流すため、旧例の `state.step_results` は辞書で落ちていた (2) 一時停止するとジェネレータはそこで終わるので、旧例の「`is_paused = False` にして同じジェネレータを回し続ける」は再開にならない。`resume()` のうえ同じ `state` を渡して作り直す形へ (3) `on_intervention_required` の `kind` は `notify` / `confirm` / `escalate` / `ask_user` の 4 種で、旧例は 2 種しか扱っていなかった（`kind` ごとの戻り値の意味を表にした）。あわせて、ESCALATE で止まっても `overall_status` が `success` になりうること、`on_replan` は保持されるだけで呼ばれないこと、§4.3 `execute_plan_generator` の使用例と Output 欄を是正。4.1.3・4.1.4 はスタブで実行して出力を確かめた |
+| 4.19 | 2026-10-10 | `grace/step_trace/`（`benchmark.py` を含む）を 2026-10-10 にディレクトリごと削除したのに追随し、現状を述べる記述から外した（過去の経緯の記述は残す） |
 
 ---
 
