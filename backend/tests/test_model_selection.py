@@ -275,10 +275,10 @@ def test_core_rejects_unknown_model(monkeypatch):
 def test_top_level_config_yml_default_matches_model_config():
     """直下 `config.yml`（経路 5）の既定が `ModelConfig` と食い違っていない。
 
-    `services/config_service.py` がこのファイルを読み、`services/agent_service.py`
-    （Legacy ReAct）は `get_config("models.default")` を既定モデルに使う。ファイルの値は
-    コード側のフォールバックより優先されるため、ここが古いと旧モデルで動く
-    （2026-09-24 に `claude-sonnet-4-6` のまま残っていたのを是正）。
+    かつて `services/agent_service.py`（Legacy ReAct）が `get_config("models.default")` を
+    既定モデルに使っていた（2026-09-24 に `claude-sonnet-4-6` のまま残っていたのを是正）。
+    同モジュールは 2026-10-10 に削除し、現在この値を読むコードは無い。値が残る以上、
+    読んだ人が旧モデルを既定と誤解しないよう `ModelConfig` と揃えておく。
     """
     from pathlib import Path
 

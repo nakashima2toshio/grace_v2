@@ -1,6 +1,6 @@
 # GRACE-Review 規程 RAG の整備 TODO
 
-**Version 3.8** | 作成日: 2026-09-30 | 最終更新: 2026-10-03 | 対象コミット: `2e9f3a3`（master）＋本 PR
+**Version 3.9** | 作成日: 2026-09-30 | 最終更新: 2026-10-10 | 対象コミット: `2e9f3a3`（master）＋本 PR
 
 ---
 
@@ -154,7 +154,7 @@ Claude の実行環境からは e-Gov などへ到達できない。記憶から
 | 2.2 | 高 | **Qdrant コレクションの整理** | 利用者 | 削除してよい: `cc_news_2per_openai`（0 件）、`cc_news_2per_ollama`・`cc_news_100_ollama`（768 次元で両リポジトリとも検索不可）。中身を数件見てから: `cc_news_2per`・`cc_news_2per_gemini`・`cc_news_2per_768`（3072 次元の小さな重複・コード参照なし）。**残す**: `*_anthropic` の 7 個（業務用）、`cc_news_2per_anthropic`（ベンチマーク）、`fineweb_edu_ja_5per`、`wikipedia_ja_5per`。手段はデータ管理タブ ④ か `python qdrant_delete_collection.py <名前>`（元に戻せない） |
 | 2.3 | 中 | **policy-01 の取引条件の行を `ec_policy_anthropic` へ足す** | 利用者 | 根拠が無関係な FAQ 5 件のまま（0.7543〜0.7222 で絞れない）。取引条件を 1 行にまとめた行を足す（付録 A の 3-3）。中身は**実際の自社規程**。`--recreate` は付けない（既存 FAQ が消える） |
 | 2.4 | 低 | yakki-02 に医薬品等適正広告基準の効能効果の項を追記 | 利用者（原文）→ Claude | 残る neutral「治療を訴求する表現である」を支持させるため。ただし yakki-02 は重大リスク語「治る」で強制 high・要確認なので、**確信度が上がっても画面の状態は変わらない** |
-| 2.5 | 低 | `config.py::AgentConfig` の古い一覧の整理（両リポジトリ） | Claude | `RAG_AVAILABLE_COLLECTIONS` に実在しない `cc_news_5per`（参照ゼロ）。`RAG_DEFAULT_COLLECTION = "wikipedia_ja_5per"`（10 件しかない）は Legacy ReAct 経路のみで、Web 画面に影響しない |
+| 2.5 | 低 | `config.py::AgentConfig` の古い一覧の整理（両リポジトリ） | Claude | `RAG_AVAILABLE_COLLECTIONS` に実在しない `cc_news_5per`（参照ゼロ）。`RAG_DEFAULT_COLLECTION = "wikipedia_ja_5per"`（10 件しかない）は Legacy ReAct 経路のみで、Web 画面に影響しない（Legacy ReAct は 2026-10-10 に削除したので現在は参照ゼロ） |
 | 2.6 | 低 | 登録スクリプトの入力上書きガード | Claude | 入力と UI 用 CSV の出力先が同じパスのとき書き込まないか警告する。今は `--no-create-ui-csv` を覚えている前提 |
 | 2.7 | 任意 | grace_v2: 並列度 8 の実験 | 利用者 | `GRACE_REVIEW_WORKERS=8 ./run_dev.sh`。③④ が全体の約 75%。429 が出たら 4 に戻す |
 | 2.8 | 任意 | grace_v2_local: ③④ の並列化の実験 | 利用者 | `OLLAMA_NUM_PARALLEL=2 ollama serve` ＋ `GRACE_REVIEW_WORKERS=2`。現状 9 分のうち約 9 分が直列の Ollama 待ち。`ollama ps` でメモリを見る。速くならなければ 1 に戻す |
@@ -242,3 +242,4 @@ class A,B,C,D,E,F,G,H default
 | 3.6 | 2026-10-03 | 2.1 の原文照合を済に（第 66 条・化粧品の効能の範囲の通知が雛形の本文と一致。`status` / `source_note` のみ更新し `answer` は不変）。2.17 / 2.18 と §0.1 #16 を PR 番号と実機確認に更新（2026-10-03） |
 | 3.7 | 2026-10-03 | 2.1 を完了に（監修者 nakashima。`status` を監修済み・`reviewer` を記入。2026-10-03） |
 | 3.8 | 2026-10-03 | §0.3.4 に 2.17 / 2.18 の後の実測（OK 例が指摘 0・抑止 1、表記漏れLP案で tokusho-01 を検出、古い結果の警告）を追加。3.3（gemma4 の判定の質）を現状に更新（2026-10-03） |
+| 3.9 | 2026-10-10 | Legacy ReAct 経路（`services/agent_service.py`・`agent_parallel_search.py`・`agent_cache.py`・`executor._execute_legacy_agent_step`・`run_legacy_agent` アクション）を 2026-10-10 に削除したのに追随 |

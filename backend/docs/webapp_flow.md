@@ -1,6 +1,6 @@
 # webapp_flow.md - GRACE-Support Web アプリ処理フロー（`run_dev.sh` 起点）ドキュメント
 
-**Version 2.9** | 最終更新: 2026-10-10
+**Version 2.10** | 最終更新: 2026-10-10
 
 > ⚠️ **`React`（フロントエンドのライブラリ）の話であって、`ReAct`（推論と行動を反復する
 > エージェントパターン）の解説書ではない。** 旧ファイル名 `react_processing_flow.md` は
@@ -541,8 +541,8 @@ style CORE fill:#1a1a1a,stroke:#fff,color:#fff
 | Prompt Chaining（逐次分割） | ①→⑥ の逐次パイプライン | `support_agent.run_support_agent_core` |
 | Plan & Execute（計画と実行の分離） | Plan（計画生成）と Execute（実行）を分離 | ② `planner.py` / ③ `executor.py` |
 | Orchestrator-Workers（中央制御・役割分担） | Executor が `ToolRegistry` を統制 | ③ `executor.py` + `tools.py`（rag_search/web_search/reasoning/ask_user） |
-| Parallelization（並列実行） | ⚠️ **Web 経路では未採用**。許可コレクションは `grace/tools.py` が優先順に**直列**検索し、一次閾値(0.70)到達で打ち切る（クエリベクトルは 1 回だけ生成して使い回す） | `grace/tools.py`（`RAGSearchTool.execute`）。`agent_parallel_search.py` は Legacy ReAct 経路専用で、Web からは呼ばれない |
-| ReAct（推論と行動の反復） | ⚠️ **Web 経路では未起動**。`run_legacy_agent` アクションを生成するプランナが存在せず、唯一の起動口だった `grace/step_trace/benchmark.py` も 2026-10-10 に削除したので、`ReActAgent` はどこからも動かない | `services/agent_service.py`（`ReActAgent`）＝ベンチ専用 |
+| Parallelization（並列実行） | ⚠️ **Web 経路では未採用**。許可コレクションは `grace/tools.py` が優先順に**直列**検索し、一次閾値(0.70)到達で打ち切る（クエリベクトルは 1 回だけ生成して使い回す） | `grace/tools.py`（`RAGSearchTool.execute`）。並列検索の `agent_parallel_search.py`（Legacy ReAct 経路専用）は 2026-10-10 に削除した |
+| ReAct（推論と行動の反復） | 複雑度 ≥ 0.7（`executor.react_complexity_threshold`）の計画を、`execute_plan` が観測駆動の ReAct ループへ自動で振り分ける。旧 `ReActAgent`（`services/agent_service.py`。Web からは起動しなかった）は 2026-10-10 に削除した | `grace/executor.py`（`_dispatch_generator` → `execute_react_generator`） |
 | Evaluator-Optimizer（評価・最適化ループ） | 信頼度評価 → 再計画 | ③ `confidence.py` + `replan.py`（閾値 0.4） |
 | Self-Reflective（自己内省） | 根拠検証・LLM 自己評価 | ④a `confidence.py`（`GroundednessVerifier`/`LLMSelfEvaluator`） |
 | Human-in-the-Loop（人間介入） | CONFIRM 承認・有人エスカレ | ⑥ `intervention.py` + `intervention_bridge.py` |
@@ -554,10 +554,10 @@ style CORE fill:#1a1a1a,stroke:#fff,color:#fff
 | # | パターン | `grace/` 担当モジュール | `backend/app/core/` 担当モジュール | 実装概要 |
 |:--:|---------|------------------------|-----------------------------------|---------|
 | 1 | Prompt Chaining（逐次フェーズ分割） | `executor.py`（ステップ連鎖） | `support_agent.py` | ①→⑥ を逐次連結し、前段の出力を次段の入力にする |
-| 2 | Parallelization（並列実行） | `tools.py`（複数コレクション検索） | — | 許可コレクションを横断検索。ただし⚠️ **直列**（優先順に 1 つずつ検索し一次閾値0.70で break）。`ParallelSearchEngine`（`agent_parallel_search.py`）は**使っていない** |
+| 2 | Parallelization（並列実行） | `tools.py`（複数コレクション検索） | — | 許可コレクションを横断検索。ただし⚠️ **直列**（優先順に 1 つずつ検索し一次閾値0.70で break）。並列検索の `ParallelSearchEngine`（`agent_parallel_search.py`）は 2026-10-10 に削除した |
 | 3 | Evaluator-Optimizer（評価・最適化ループ） | `confidence.py` / `replan.py` / `calibration.py` | — | 信頼度評価 → 閾値0.4未満で再計画、較正（ECE 縮小） |
 | 4 | Orchestrator-Workers（中央制御・役割分担） | `executor.py` / `tools.py`（`ToolRegistry`） | `support_agent.py` / `jobs.py` | Executor が rag/web/reasoning/ask_user を統制、Job が実行を編成 |
-| 5 | ReAct（推論と行動の反復） | `executor.py`（動的経路） / `tools.py` | — | 複雑度 ≥ 0.7 で推論→行動→観測を反復（`services/agent_service.ReActAgent`） |
+| 5 | ReAct（推論と行動の反復） | `executor.py`（動的経路） / `tools.py` | — | 複雑度 ≥ 0.7 で推論→行動→観測を反復（`Executor.execute_react_generator`） |
 | 6 | Self-Reflective（自己内省） | `confidence.py`（`GroundednessVerifier`/`LLMSelfEvaluator`） / `calibration.py` | `gates.py`（情報なし検知） | 生成回答を自己検証（根拠・自己評価・較正） |
 | 7 | Plan & Execute（計画と実行の分離） | `planner.py` / `executor.py` / `schemas.py` | `support_agent.py` | 計画生成（Plan）と実行（Execute）を分離し `ExecutionPlan` で受け渡す |
 | 8 | Human-in-the-Loop（人間介入） | `intervention.py` | `intervention_bridge.py` / `gates.py` / `support_agent.py` | CONFIRM 承認・強制エスカレ・有人引き継ぎ |
@@ -588,8 +588,8 @@ GRACE-Support は単一パターンではなく、以下を段階的に重ねて
 |:--:|---------------------|-------------------------------------|------|
 | 骨格 | Plan & Execute | `grace/planner.py` + `grace/executor.py` + `core/support_agent.py` | 計画（Plan）と実行（Execute）を分離した基本骨格 |
 | 実行編成 | Orchestrator-Workers | `grace/executor.py` + `grace/tools.py`（`ToolRegistry`） / `core/jobs.py` | Executor がツール群を統制、Job が実行を編成 |
-| 検索 | RAG（直列フォールバック） | `grace/tools.py`（`rag_search`） / `qdrant_client_wrapper.py` | 許可コレクションを優先順に**直列**検索し、一次閾値(0.70)に届いた時点で打ち切って内部根拠を取得（`agent_parallel_search.py` は不使用） |
-| 複雑クエリ | 複雑度による計画切替 | `grace/planner.py`（`estimate_complexity` / `_should_use_llm_plan`） | 複雑度がしきい値未満ならルールベース計画、超えれば LLM 計画。⚠️ ReAct（`services/agent_service.py`）への分岐では**ない** |
+| 検索 | RAG（直列フォールバック） | `grace/tools.py`（`rag_search`） / `qdrant_client_wrapper.py` | 許可コレクションを優先順に**直列**検索し、一次閾値(0.70)に届いた時点で打ち切って内部根拠を取得 |
+| 複雑クエリ | 複雑度による計画切替 | `grace/planner.py`（`estimate_complexity` / `_should_use_llm_plan`） | 複雑度がしきい値未満ならルールベース計画、超えれば LLM 計画。ReAct ループへの振り分けは別の判定（`Executor._dispatch_generator`・複雑度 ≥ 0.7） |
 | 品質ループ | Evaluator-Optimizer ＋ Self-Reflective | `grace/confidence.py` + `grace/replan.py` + `grace/calibration.py` | 信頼度評価・根拠検証・較正 → 閾値未達で再計画 |
 | 安全弁 | Guardrails | `core/gates.py` + `grace/schemas.py` + groundedness ゲート | しきい値・型・根拠・情報なし検知で回答を守る |
 | 人間協調 | Human-in-the-Loop | `grace/intervention.py` + `core/intervention_bridge.py` | 副作用アクションの承認・有人エスカレ |
@@ -603,7 +603,7 @@ GRACE-Support は単一パターンではなく、以下を段階的に重ねて
 |---------|------|-------------------|
 | ブレイン | 推論・判断の中核（LLM） | Anthropic Claude（`claude-sonnet-5-5` / 軽量 `claude-haiku-5-5`） |
 | プランニング | タスク分解・計画策定 | `grace/planner.py`（複雑度推定・計画生成） |
-| メモリ | 短期（コンテキスト）/ 長期（DB） | `grace/memory.py`（`ExecutionMemory`・永続 JSONL）・`Scratchpad`・Qdrant。⚠️ `agent_cache.py` は Legacy ReAct 経路専用で Web 経路では稼働しない |
+| メモリ | 短期（コンテキスト）/ 長期（DB） | `grace/memory.py`（`ExecutionMemory`・永続 JSONL）・`Scratchpad`・Qdrant（Legacy ReAct 専用だった `agent_cache.py` は 2026-10-10 に削除） |
 | ツール | API・DB・外部サービス連携 | `grace/tools.py`（`ToolRegistry`: rag_search/web_search/reasoning/ask_user） |
 
 ---
@@ -670,6 +670,7 @@ sequenceDiagram
 | 2.7 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
 | 2.8 | 2026-10-08 | 現在の既定 LLM の記述を `claude-sonnet-5` から実装（`config.py::ModelConfig.DEFAULT_MODEL` / `config/grace_config.yml` の `llm.model`）どおり `claude-sonnet-5-5` へ是正（概要・用語表）（2026-10-08） |
 | 2.9 | 2026-10-10 | `grace/step_trace/`（`benchmark.py` を含む）を 2026-10-10 にディレクトリごと削除したのに追随し、現状を述べる記述から外した（過去の経緯の記述は残す） |
+| 2.10 | 2026-10-10 | Legacy ReAct 経路（`services/agent_service.py`・`agent_parallel_search.py`・`agent_cache.py`・`executor._execute_legacy_agent_step`・`run_legacy_agent` アクション）を 2026-10-10 に削除したのに追随 |
 
 ---
 

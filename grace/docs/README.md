@@ -1,6 +1,6 @@
 # grace/docs 棚卸し
 
-**Version 1.17** | 最終更新: 2026-10-10
+**Version 1.18** | 最終更新: 2026-10-10
 
 `grace/` パッケージのドキュメント一覧と、実装への追随状況・残タスク・検証手順をまとめる。
 新しく文書を書く／直す前に、まずここを見る。
@@ -233,7 +233,7 @@ A と B の線引きは思いつきではなく、**実測した依存の向き*
 | 役割 | 文書 | 対象 | 行数 | Ver | 重要度 |
 |---|---|---|---:|---|---|
 | 計画 | `planner.md` | `grace/planner.py` | 1187 | 3.12 | ★★★ |
-| 実行 | `executor.md` | `grace/executor.py` | 2346 | 4.19 | ★★★ |
+| 実行 | `executor.md` | `grace/executor.py` | 2300 | 4.20 | ★★★ |
 | 実行 | `tools.md` | `grace/tools.py`（`WebSearchTool` を含む全ツール） | 1687 | 3.7 | ★★★ |
 | 評価 | `confidence.md` | `grace/confidence.py` | 1862 | 2.10 | ★★★ |
 | 評価 | `calibration.md` | `grace/calibration.py` | 763 | 1.1 | ★★ |
@@ -250,7 +250,7 @@ A と B の線引きは思いつきではなく、**実測した依存の向き*
 | 文書 | 対象 | 行数 | Ver | 重要度 |
 |---|---|---:|---|---|
 | `config.md` | `grace/config.py` | 986 | 1.12 | ★★★ |
-| `schemas.md` | `grace/schemas.py` | 1326 | 2.2 | ★★★ |
+| `schemas.md` | `grace/schemas.py` | 1327 | 2.3 | ★★★ |
 | `llm_compat.md` | `grace/llm_compat.py` | 866 | 1.9 | ★★★ |
 
 ### 2.3 C. 横断・アーキテクチャ文書（4）
@@ -263,7 +263,7 @@ A と B の線引きは思いつきではなく、**実測した依存の向き*
 | `grace.md` | **WHY** | 設計思想。ReAct → Reflection → GRACE の経緯と **5 段階設計の定義（正本）** | 373 | 2.1 | ★★★ |
 | `grace_core.md` | **WHAT** | 実装アーキテクチャ。**構成図・依存関係・モジュール役割サマリー（§3.0）の正本**。§4 に実行メモリの実例、§7 に最小実行サンプル | 1114 | 3.5 | ★★★ |
 | `grace_runtime.md` | **HOW** | 実行時に発行される API とプロンプト全文（**正本**）。旧 `grace_core_flow.md` | 483 | 3.5 | ★★★ |
-| `confidence_calibration.md` | — | `confidence.py` × `calibration.py` の処理順 | 369 | 1.5 | ★★ |
+| `confidence_calibration.md` | — | `confidence.py` × `calibration.py` の処理順 | 371 | 1.7 | ★★ |
 
 **どこに何を書くか**（迷ったらこの表を見る）:
 
@@ -364,7 +364,7 @@ EOF
 | `calibration.md` | 15 | 0 |
 | `confidence.md` | 57 | 0（2026-10-06 に 3 件を追加: `ABSENCE_CLAIM_SOURCE_WORDS` / `ABSENCE_CLAIM_MARKERS` / `damp_support_rate`） |
 | `config.md` | 30 | 0 |
-| `executor.md` | 58 | 0（2026-10-06 に `_prefetch_enabled` を追加） |
+| `executor.md` | 57 | 0（2026-10-06 に `_prefetch_enabled` を追加。2026-10-10 に Legacy ReAct の `_execute_legacy_agent_step` / `LEGACY_AGENT_AVAILABLE` を削除して 58 → 57） |
 | `intervention.md` | 39 | 0 |
 | `llm_compat.md` | 25 | 0（2026-10-06 に `_ALWAYS_THINKING_MIN_TOKENS` / `_stop_category` を追加） |
 | `memory.md` | 17 | 0 |
@@ -588,3 +588,4 @@ PY
 | 1.15 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
 | 1.16 | 2026-10-10 | §3 の `executor.md` の行数・版を実測へ（2219 行・v4.16 → 2345 行・v4.18。§4.1 使用例の書き直しに追随） |
 | 1.17 | 2026-10-10 | `grace/step_trace/`（`benchmark.py` を含む）を 2026-10-10 にディレクトリごと削除したのに追随し、現状を述べる記述から外した（過去の経緯の記述は残す）。§3 の `executor.md` の行数・版を実測へ（2346 行・v4.19） |
+| 1.18 | 2026-10-10 | Legacy ReAct 経路の削除（2026-10-10）に追随し、§3 の `executor.md`（2300 行・v4.20）・`schemas.md`（v2.3）・`confidence_calibration.md`（v1.7）の行数・版と、§3.1 の `executor.md` の公開シンボル数（58 → 57）を実測へ |

@@ -1,6 +1,6 @@
 # エージェント階層（L0〜L4）— 一般用語と grace_v2 実装の対応
 
-**Version 1.3** | 最終更新: 2026-10-10
+**Version 1.4** | 最終更新: 2026-10-10
 
 ---
 
@@ -332,7 +332,6 @@ dev: `:5173` / FastAPI dev: `:8000`）。
 | `backend/app/core/job_logs.py::JobLogHandler` | `logging.Handler` を継承しログを SSE イベント化 | Log forwarding |
 | `backend/app/core/data_jobs.py` | チャンク化 / Q&A 生成 / Qdrant 登録 / 削除の 4 ランナー | ETL jobs |
 | `celery_config.py` / `celery_tasks.py` | `generate_qa_for_chunk_task` をチャンク単位で fan-out | Distributed task queue |
-| `agent_cache.py` | コレクション選択キャッシュ（⚠️ Legacy ReAct 経路専用。Web 経路のコレクション優先度は `grace/memory.py::ExecutionMemory` が担う） | Cache layer |
 | `qdrant_client_wrapper.py` ＋ `docker-compose/` | ベクトル DB | Vector store |
 
 > **`InterventionBridge` が L3 と L4 の境界そのもの。** `grace/intervention.py` は
@@ -413,3 +412,4 @@ dev: `:5173` / FastAPI dev: `:8000`）。
 | 1.1 | 2026-09-24 | `a_cross_doc_md_format.md`（横断文書・種別 A）に準拠（2026-09-24）。概要（主な責務／各責務対応のモジュール／3 層へ畳んだアーキテクチャ構成図）を追加し、冒頭の説明文を概要へ移した。§6 の API ルート表記を実装どおり `/api/support/query` へ是正。本文の章番号は変えていない |
 | 1.2 | 2026-10-10 | §8.1 から削除済みの `a_pages_md_format.md` への言及を外した（Streamlit 用フォーマット仕様をスキル資材から削除したため）。変更履歴を 3 列（`バージョン \| 日付 \| 変更内容`）へ移した |
 | 1.3 | 2026-10-10 | `grace/step_trace/`（`benchmark.py` を含む）を 2026-10-10 にディレクトリごと削除したのに追随し、現状を述べる記述から外した（過去の経緯の記述は残す） |
+| 1.4 | 2026-10-10 | Legacy ReAct 経路（`services/agent_service.py`・`agent_parallel_search.py`・`agent_cache.py`・`executor._execute_legacy_agent_step`・`run_legacy_agent` アクション）を 2026-10-10 に削除したのに追随 |

@@ -1,6 +1,6 @@
 # confidence.py × calibration.py - 信頼度測定と較正 ドキュメント
 
-**Version 1.6** | 最終更新: 2026-10-08
+**Version 1.7** | 最終更新: 2026-10-10
 
 `grace/` のコアである信頼度測定を、`confidence.py`（多軸の信頼度算出・根拠妥当性検証）と
 `calibration.py`（温度スケーリングによる事後較正）の 2 モジュールにまたがって整理した資料。
@@ -141,7 +141,7 @@ style EXTERNAL fill:#1a1a1a,stroke:#fff,color:#fff
 |:--:|------|------|------|
 | 0 | 較正器ロード（起動時 1 回） | `Calibrator.load(calibration_path)` | `config/calibration.json` が無ければ恒等（T=1.0） |
 | 1 | ステップ信頼度収集 | `ConfidenceCalculator.calculate()` | 各ステップの `ConfidenceScore`（検索品質・ツール等） |
-| 2 | 最終回答の特定 | executor | 最後の `reasoning`/`run_legacy_agent` の成功出力 |
+| 2 | 最終回答の特定 | executor | 最後の `reasoning` の成功出力 |
 | 3 | 明確化(ask_user)判定 | executor | 最終回答なし＋`ask_user` あり → 低信頼固定（`clarification_confidence`=0.3） |
 | 4 | 最終回答の自己評価＋網羅度 | `LLMSelfEvaluator.evaluate_final()` | 1 回の LLM 呼び出しで `self_eval_score` / `coverage_score` |
 | 5 | 補助スコア集約 | `ConfidenceAggregator.aggregate(method="weighted")` | 検索ステップ等を含む「補助」集約値 |
@@ -368,3 +368,4 @@ calib.save("config/calibration.json")   # 実行時に executor が load して�
 | 1.4 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
 | 1.5 | 2026-10-06 | 現在の既定モデルの記載 `claude-sonnet-5` を実装（`grace/config.py` の `LLMConfig.model` = `claude-sonnet-5-5`）に合わせて是正（2026-10-06） |
 | 1.6 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
+| 1.7 | 2026-10-10 | Legacy ReAct 経路（`services/agent_service.py`・`agent_parallel_search.py`・`agent_cache.py`・`executor._execute_legacy_agent_step`・`run_legacy_agent` アクション）を 2026-10-10 に削除したのに追随 |

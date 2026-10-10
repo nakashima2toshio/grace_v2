@@ -53,7 +53,7 @@ Support のつもりで触った変更が Review を壊す。
 | Support コア | `backend/app/core/support_agent.py`、ゲートは `core/gates.py`、業界定義は `core/verticals.py` |
 | Review コア | `backend/app/core/review_agent.py`、ゲートは `core/review_gates.py`、ルール定義は `core/rulesets.py` |
 | 自律エージェント基盤 | `grace/` — planner / executor / confidence / intervention / replan / tools |
-| ツール・検索 | `agent_tools.py`, `qdrant_client_wrapper.py`（`agent_parallel_search.py` / `agent_cache.py` は **Legacy ReAct 経路専用**。Web 経路では未稼働・§9.4 の注記を参照） |
+| ツール・検索 | `agent_tools.py`, `qdrant_client_wrapper.py`（Legacy ReAct 経路専用だった `agent_parallel_search.py` / `agent_cache.py` は 2026-10-10 に削除・§9.4） |
 | アクション実行 | `support_actions.py`（`ActionBackend`。**Support / Review 共用**） |
 | データ準備（CLI） | `chunking/`, `qa_generation/`, `qa_qdrant/` |
 | データ準備（Web） | `backend/app/api/data.py` / `api/qdrant.py`、`backend/app/core/data_jobs.py`、`services/data_pipeline_service.py` |
@@ -277,7 +277,7 @@ GRACE_E2E=1 GRACE_E2E_REPEAT=3 uv run --no-sync pytest backend/tests/e2e -m e2e 
 | 2 | **モジュール定数** | `backend/app/core/verticals.py::INTENT_MODEL`（リテラル） | 判定系（意図分類・情報なし判定）。**yml を一切見ない** |
 | 3 | **Python 定数** | `config.py::ModelConfig.DEFAULT_MODEL` | 上記以外（Q&A 生成の CLI・`QAPipeline`・`SmartQAGenerator`・`helper_rag_qa` の生成器の既定）。**ここでは文字列を直書きせず `ModelConfig.DEFAULT_MODEL` を参照する**（2026-10-08 まで旧既定 `claude-sonnet-5` が直書きで残り、画面と CLI で Q&A 生成のモデルが割れていた。`backend/tests/test_qa_default_model.py` が検査）。**チャンキングは分けて `ModelConfig.CHUNKING_MODEL`（`claude-haiku-5-5`）** を参照する（`ChunkingRequest` / `ChunkingParams` / `chunks_all_async` / チャンク化 CLI の `--model` / `CHUNK_DEFAULT_MODEL` / `AsyncAPIClient`。`backend/tests/test_chunking_default_model.py` が検査）。`DEFAULT_MODEL` を変えてもチャンキングは変わらない |
 | 4 | **リクエスト単位の上書き** | UI のモデルセレクタ → `QueryRequest.model` / `ReviewRequest.model` → コアが `config.llm.model` を差し替え | その 1 リクエストの生成・推論・根拠検証・③ Detect |
-| 5 | **直下 `config.yml`** | `config.yml` の `models.default`（`services/config_service.py` が読む） | `services/agent_service.py`（Legacy ReAct）。**ファイルの値がコード側のフォールバックより優先される**。2026-09-24 まで `claude-sonnet-4-6` のまま残っていた（`backend/tests/test_model_selection.py` が経路 3 との一致を検査） |
+| 5 | **直下 `config.yml`** | `config.yml` の `models.default`（`services/config_service.py` が読める） | **読むコードは無い**（唯一の読み手だった `services/agent_service.py`〔Legacy ReAct〕は 2026-10-10 に削除）。読んだ人が旧モデルを既定と誤解しないよう、値は経路 3 とそろえておく（`backend/tests/test_model_selection.py` が一致を検査）。2026-09-24 まで `claude-sonnet-4-6` のまま残っていた |
 
 **経路 4 は経路 1 を「そのリクエストだけ」上書きする**（`copy.deepcopy(get_config())` の
 コピーに対して行うので、他のジョブへは漏れない）。選択肢は
@@ -352,7 +352,7 @@ GRACE_E2E=1 GRACE_E2E_REPEAT=3 uv run --no-sync pytest backend/tests/e2e -m e2e 
   `provider:` セクション（`default_llm: "gemini"`）— **読み手ゼロ**（2026-09-25 grep 実測）。`config.yml` を読むのは
   `services/config_service.py` だけで、コードが引くキーは `models.default` / `agent.*` / `cache.*` / `api.*` のみ
   （`model_pricing:` / `samples:` / `audio:` も同様に未参照）。上と同じ理由で**触らなくてよい**。
-  経路 5（`models.default`）だけは読まれるので §3.1 の検査対象。
+  経路 5（`models.default`）も 2026-10-10 以降は読み手が無いが、値は §3.1 の検査対象として残している。
 
 ---
 
@@ -378,8 +378,8 @@ GRACE_E2E=1 GRACE_E2E_REPEAT=3 uv run --no-sync pytest backend/tests/e2e -m e2e 
 
 `[tool.ruff.lint.isort] known-first-party` にトップレベルモジュールを列挙している。
 **新規トップレベルモジュールを足したらここにも追記する**（現在は `scripts` /
-`qdrant_delete_collection` を含む全 20 個。`agent_support_example` は
-2026-09-19 の削除にあわせて外した）。
+`qdrant_delete_collection` を含む全 18 個。`agent_support_example` は
+2026-09-19、`agent_cache` / `agent_parallel_search` は 2026-10-10 の削除にあわせて外した）。
 
 > ⚠️ **この設定の効き目を過大評価しないこと（2026-09-13 実測）。**
 > `known-first-party` を丸ごとコメントアウトして `ruff 0.12.11 check .` を回しても
@@ -711,6 +711,8 @@ grace_v2 に**存在しない**: `setup.py` / `server.py` / a-prefixed scripts
 **`agent_support_example.py`** / **`grace/step_trace/`**
 （`agent_support_example.py` と `grace/step_trace/s0_arg.py`〜`s9_render.py` は 2026-09-19 に削除。§1・§2 の注記を参照。
 残っていた `benchmark.py` を含む `grace/step_trace/` 全体は 2026-10-10 に削除）。
+**`services/agent_service.py`**（`ReActAgent`）/ **`agent_parallel_search.py`** / **`agent_cache.py`** も存在しない
+（Legacy ReAct 経路。2026-10-10 に削除。経緯は `services/docs/README.md` §4）。
 
 > ⚠️ **`start_celery.sh` は存在する**（2026-09-12 訂正）。以前この一覧に
 > 入っていたが、Q/A 生成の Celery 並列（CLI の `--use-celery` / データ管理タブの
