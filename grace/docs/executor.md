@@ -1,6 +1,6 @@
 # executor.py - GRACE計画実行エージェント ドキュメント
 
-**Version 4.21** | 最終更新: 2026-10-10
+**Version 4.23** | 最終更新: 2026-10-10
 
 ---
 
@@ -344,7 +344,7 @@ style FACTORY_GRP fill:#1a1a1a,stroke:#fff,color:#fff
 | ジェネレータ | `execute_plan_generator(plan, state=None)` | 1 ステップごとに状態を見る・一時停止から再開する。**静的パス専用**（ReAct へは振り分けない） | 4.1.4 |
 | ReAct への自動振り分け | `execute_plan(plan)`（内部の `_dispatch_generator`） | 複雑な質問。`plan.complexity >= executor.react_complexity_threshold`（既定 0.7）なら ReAct ループになる | 4.1.5 |
 
-> 📝 ツール・信頼度計算をスタブに差し替えて（LLM・Qdrant なし）、4.1.2 は組み立てまで、4.1.3・4.1.4 は実行まで動かし、挙動と出力を確かめてある（2026-10-10）。4.1.5 は振り分けの条件をコードで確認しただけで、実行はしていない。
+> 📝 ツール・信頼度計算をスタブに差し替えて（LLM・Qdrant なし）、4.1.2 は組み立てまで、4.1.1・4.1.3・4.1.4 は実行まで動かし、挙動と出力を確かめてある（2026-10-10）。4.1.5 は LLM（複雑度の採点と ReAct の次の 1 手）もスタブにして実行し、ReAct ループへ振り分けられることを確かめた（2026-10-10）。
 > 出力例の値は例示で、実行ごとに変わる。
 
 #### 4.1.1 基本的なワークフロー
@@ -527,11 +527,9 @@ from grace.executor import create_executor
 from grace.planner import create_planner
 
 planner = create_planner()
-# 複数の事項をまたぐ複雑な質問ほど、Planner は complexity を高く見積もる
-plan = planner.create_plan(
-    "住民票の写しの取り方と、それに必要な手数料と、代理人が申請する場合の"
-    "追加書類をすべて教えてください"
-)
+# 「比較」「違い」「理由」「手順」「詳しく」などで複雑度のヒューリスティックが 0.7 以上になると LLM 計画になり、
+# そのときの plan.complexity は LLM が 0.0〜1.0 で採点した値になる
+plan = planner.create_plan("生成AIとRAGの違いを比較して、理由と手順を詳しく教えて")
 
 executor = create_executor()
 
@@ -539,7 +537,13 @@ executor = create_executor()
 # execute_plan() は内部で execute_react_generator() を選ぶ（呼び出し側は 4.1.1 と同じ）
 print(f"complexity: {plan.complexity:.2f}")
 result = executor.execute_plan(plan)
-print(result.overall_status, result.replan_count)
+print(result.overall_status, [r.step_id for r in result.step_results])
+print(result.final_answer)
+
+# 出力例（複雑度・手の選び方・回答は LLM による）:
+# complexity: 0.80
+# success [3, 4]      ← ReAct が追加したステップ（計画の最大 ID の次から振る）
+# 生成AIと RAG の違いは……（生成された回答）
 ```
 
 > 📝 振り分けるのは `execute_plan()` / `execute()` だけ。`execute_plan_generator()` を直接呼ぶと、
@@ -2125,6 +2129,59 @@ executor = create_executor(on_step_complete=on_step_complete)
 | `confidence.search_aux_weight` | float | 0.2 | 検索ベース集約値（補助）の重み |
 | `confidence.calibration_path` | str | `"config/calibration.json"` | 温度較正パラメータの保存先 |
 
+### 5.3 プロンプト
+
+**`Executor.REACT_PROMPT`**（ReAct ループの「次の 1 手」。`_decide_next_action` が `AgentThought` を構造化出力で求める）。
+`grace/executor.py` の定数をそのまま書き出した（2026-10-10）:
+
+```text
+あなたは観測駆動の調査エージェントです。
+これまでの観測（Scratchpad）を踏まえ、ユーザーの質問に答えるための
+「次の1手」を1つだけ決めてください。
+
+# ユーザーの質問
+{query}
+
+# 初期計画（仮説。従う必要はない）
+{plan_hint}
+
+# これまでの観測（Scratchpad）
+{scratchpad}
+
+# 選べるアクション
+- rag_search : 社内ナレッジ（Qdrant）を検索する。query を必ず指定。
+- web_search : Web を検索する。query を必ず指定。
+- reasoning  : これまでの観測を統合して最終回答を生成する。
+- ask_user   : 情報不足でユーザーに確認が必要なとき。
+- finish     : 既に十分な回答が得られ、これ以上の行動が不要なとき。
+
+# 判断指針
+- まだ根拠が不足していれば検索（rag_search / web_search）を選ぶ。
+- 十分な根拠が揃ったら reasoning で回答を生成し is_final=true とする。
+- reasoning 済みで回答が確定していれば finish を選ぶ。
+- 無駄な繰り返しは避け、最短で回答に到達すること。
+```
+
+**RAG の適合性の判定**（`_evaluate_rag_relevance`。RAG のスコアが `qdrant.rag_sufficient_score` 以上のときだけ、軽量モデルで発行）。
+定数ではなくメソッドの中で組み立てるので、1 回実行したときに実際に送られた文面を載せる（2026-10-10・検索結果 1 件のスタブ。値は例示）:
+
+```text
+以下の【検索結果】が、【ユーザーの質問】に答えるための根拠として使えるかを判定してください。
+
+【判定基準】
+- 質問が複数の事項を尋ねている場合は、事項ごとに判定する
+- 判定対象の事項について、回答の根拠になる情報が検索結果に含まれていれば使える
+- 判定対象の事項に対して、主題が異なる・根拠にならない場合は使えない
+
+【ユーザーの質問】
+住民票の写しの取り方は？
+
+【検索結果】
+[{'score': 0.82, 'collection': 'gov_faq_anthropic', 'payload': {'question': 'q', 'answer': '住民票の写しは窓口で請求できます', 'source': 'faq.csv'}}]
+
+判定対象の事項をすべて満たせる場合は YES、満たせない事項が残る場合は NO とだけ回答してください。
+```
+
 ---
 
 ## 6. エクスポート
@@ -2171,6 +2228,8 @@ __all__ = [
 | 4.19 | 2026-10-10 | `grace/step_trace/`（`benchmark.py` を含む）を 2026-10-10 にディレクトリごと削除したのに追随し、現状を述べる記述から外した（過去の経緯の記述は残す） |
 | 4.20 | 2026-10-10 | Legacy ReAct 経路（`services/agent_service.py`・`agent_parallel_search.py`・`agent_cache.py`・`executor._execute_legacy_agent_step`・`run_legacy_agent` アクション）を 2026-10-10 に削除したのに追随 |
 | 4.21 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |
+| 4.22 | 2026-10-10 | 旧 `grace_runtime.md`（現 `grace_data_flow.md`）にあったプロンプトの全文を、実装から書き出して §5 へ移した（`grace/docs/` の構成整理。所在の一覧は `grace_data_flow.md` §3.4） |
+| 4.23 | 2026-10-10 | §4.1.5 の例を、実際に ReAct ループへ振り分けられる質問に直し、スタブで実行して確かめた（旧例の質問は複雑度 0.50 で静的パスになり、ReAct の例になっていなかった） |
 
 ---
 

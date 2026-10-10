@@ -1,6 +1,6 @@
 # エージェント階層（L0〜L4）— 一般用語と grace_v2 実装の対応
 
-**Version 1.6** | 最終更新: 2026-10-10
+**Version 1.7** | 最終更新: 2026-10-10
 
 ---
 
@@ -398,7 +398,7 @@ dev: `:5173` / FastAPI dev: `:8000`）。
 | [`reasoning_flow.md`](reasoning_flow.md) | 生成の 2 ステップ（reasoning / detect）のプロンプト構造 |
 | [`performance_levers.md`](performance_levers.md) | 品質・レイテンシ・コストを決める箇所 |
 | [`../backend/docs/README.md`](../backend/docs/README.md) | `backend/app/**` の IPO 索引 |
-| [`../grace/docs/README.md`](../grace/docs/README.md) | `grace/**` の IPO 索引 |
+| [`../grace/docs/README_grace.md`](../grace/docs/README_grace.md) | `grace/**` の概要と IPO 索引 |
 | [`../frontend/docs/README.md`](../frontend/docs/README.md) | React コンポーネント索引 |
 
 ---
@@ -414,3 +414,4 @@ dev: `:5173` / FastAPI dev: `:8000`）。
 | 1.4 | 2026-10-10 | Legacy ReAct 経路（`services/agent_service.py`・`agent_parallel_search.py`・`agent_cache.py`・`executor._execute_legacy_agent_step`・`run_legacy_agent` アクション）を 2026-10-10 に削除したのに追随 |
 | 1.5 | 2026-10-10 | **Tool Use（`generate_with_tools()`）の削除に追随。** L0 の表と逆引き表から外し、「Function calling / Tool use」は ReAct が構造化出力（`AgentThought`）で次のツールを選ぶ `_decide_next_action` を指すように直した |
 | 1.6 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |
+| 1.7 | 2026-10-10 | `grace/docs/` の構成整理（`README.md` → `README_grace.md`、`grace.md` / `grace_core.md` / `grace_runtime.md` / `confidence_calibration.md` を `README_grace.md` / `grace_process_flow.md` / `grace_data_flow.md` へ統合）に合わせてリンクを直した |

@@ -1,6 +1,6 @@
 # tools.py - ツール定義モジュール ドキュメント
 
-**Version 3.7** | 最終更新: 2026-10-06
+**Version 3.9** | 最終更新: 2026-10-10
 
 ---
 
@@ -333,52 +333,163 @@ style REG fill:#1a1a1a,stroke:#fff,color:#fff
 
 ### 4.1 使用例
 
-#### 4.1.1 基本的なワークフロー
+ツールは**必ず `ToolRegistry` から名前で呼ぶ**（`executor` も GRACE-Review も同じ）。使い方は次の 4 通り。
+
+| 処理パターン | 呼び方 | 向いている場面 | 例 |
+|---|---|---|---|
+| 検索 → 推論 | `registry.execute("rag_search", query=...)` → `registry.execute("reasoning", query=..., sources=...)` | ツール単体で、計画を作らずに答えを出す | 4.1.1 |
+| 検索の範囲を絞る | `rag_search` に `allowed_collections` / `collection` / `limit` / `score_threshold` | 業界プロファイル・ルールセットの範囲だけを検索する（GRACE-Review の ② と同じ） | 4.1.2 |
+| Web 検索と ask_user | `registry.execute("web_search", ...)` / `registry.execute("ask_user", question=..., reason=...)` | 内部 RAG で足りないときの手当て（executor は自動で挿入する） | 4.1.3 |
+| ツールを足す | `BaseTool` を継承して `registry.register(tool)`／`code_execute` は `tools.enabled` に足す | 独自のツールを計画から呼べるようにする | 4.1.4 |
+
+> 📝 4 本とも、Qdrant・Web 検索・LLM をスタブに差し替えて**そのまま実行し**、出力を確かめてある（2026-10-10）。
+> 4.1.4 の `code_execute` は本物のサンドボックス（別プロセスの Python）で実行した。検索のヒットと回答の文面はスタブの例示。
+
+#### 4.1.1 基本的なワークフロー（検索 → 推論）
 
 ```python
 from grace.tools import create_tool_registry
 
-# 1. レジストリ生成（デフォルトツールを自動登録）
+# 1. レジストリを作る（config.tools.enabled のツールを登録する。既定は rag_search / web_search / reasoning / ask_user）
 registry = create_tool_registry()
+print(registry.list_tools())
 
-# 2. RAG 検索
-rag_result = registry.execute("rag_search", query="退職手続きについて教えて")
+# 2. RAG 検索（クエリは 1 回だけベクトル化され、許可されたコレクションを順に検索する）
+query = "『金色夜叉』の作者は誰ですか？"
+rag = registry.execute("rag_search", query=query)
+print(rag.success, rag.confidence_factors.get("max_score"), rag.confidence_factors.get("used_collection"))
 
-# 3. 検索結果を使って推論
-if rag_result.success:
-    answer = registry.execute(
-        "reasoning",
-        query="退職手続きについて教えて",
-        sources=rag_result.output,
-    )
+# 3. 検索結果（ヒットのリスト）をそのまま sources に渡して回答を作る
+if rag.success and rag.output:
+    answer = registry.execute("reasoning", query=query, sources=rag.output)
     print(answer.output)
 ```
 
-#### 4.1.2 応用的なワークフロー（フォールバック）
+```
+# 出力例:
+# ['rag_search', 'web_search', 'reasoning', 'ask_user']
+# True 0.82 wikipedia_ja
+# 『金色夜叉』の作者は尾崎紅葉です。
+```
+
+> 📝 **見るべきスコアは `max_score`**（正準キー）。`executor` は `max_score` が `qdrant.rag_sufficient_score`（0.64）未満なら Web 検索を挿入する。
+> 旧キー `top_score` / `score_spread` も互換のために入っている。
+
+#### 4.1.2 検索の範囲を絞る（`allowed_collections`）
+
+```python
+import copy
+
+from grace.config import get_config
+from grace.tools import create_tool_registry
+
+config = copy.deepcopy(get_config())
+registry = create_tool_registry(config)
+
+res = registry.execute(
+    "rag_search",
+    query="「業界No.1」と表示してよいか",
+    allowed_collections=["ec_ad_rules_anthropic"],   # この範囲だけを検索する（明示指定・フォールバックにも効く）
+    limit=5,
+)
+for hit in res.output or []:
+    print(f"{hit['score']:.2f} {hit['collection']} {hit['payload'].get('question')}")
+```
+
+```
+# 出力例（スタブのヒット）:
+# 0.82 wikipedia_ja 『金色夜叉』の作者は？
+```
+
+> 📝 `allowed_collections` を省略すると `config.qdrant.allowed_collections`（業界プロファイルが注入する。空なら制限なし）を使う。
+> `collection` を指定しても、そこで見つからなければ他のコレクションを自動で試す（許可リストの範囲内で）。
+
+#### 4.1.3 Web 検索と ask_user（内部 RAG で足りないとき）
 
 ```python
 from grace.tools import create_tool_registry
 
 registry = create_tool_registry()
+query = "明日の東京の天気は？"
 
-# RAG が不十分なら Web 検索へフォールバック
-rag = registry.execute("rag_search", query="最新の為替レート")
-if not rag.success or rag.confidence_factors.get("avg_score", 0) < 0.7:
-    web = registry.execute("web_search", query="最新の為替レート")
-    sources = web.output
+rag = registry.execute("rag_search", query=query)
+if not rag.output or rag.confidence_factors.get("max_score", 0.0) < 0.64:
+    # 1. Web 検索（DuckDuckGo / Google CSE / SerpAPI を設定に従って順に試す）
+    web = registry.execute("web_search", query=query)
+    sources = web.output if web.success else []
 else:
     sources = rag.output
 
-# それでも曖昧ならユーザーに確認（HITL）
+# 2. それでも根拠が無ければ、ユーザーに聞く（ask_user は質問を組み立てて返すだけ。回答の受け取りは executor / UI）
 if not sources:
     ask = registry.execute(
         "ask_user",
-        question="どの通貨ペアの為替レートですか？",
+        question="どの地点の天気ですか？",
         reason="検索結果が見つからなかったため",
-        urgency="blocking",
-        options=["USD/JPY", "EUR/JPY"],
+        options=["東京23区", "多摩地域"],
     )
+    print(ask.output)
+else:
+    print(f"根拠 {len(sources)} 件: {sources[0]['payload'].get('source')}")
 ```
+
+```
+# 出力例（スタブの RAG は 0.82 なので Web 検索に進まない）:
+# 根拠 1 件: wiki.csv
+```
+
+> ⚠️ **このフォールバックは executor が自動で行う**（`grace_process_flow.md` §3.2）。ツールを直接呼ぶときだけ自前で書く。
+> `config.tools.disabled` に `web_search` を入れても**レジストリには登録されたまま**で、止めるのは executor の `_web_search_allowed()` である。
+> ツールを直接呼ぶ場合は、呼び出し側で `disabled` を見ること。
+
+#### 4.1.4 ツールを足す（独自ツール・`code_execute`）
+
+```python
+import copy
+
+from grace.config import get_config
+from grace.tools import BaseTool, ToolResult, create_tool_registry
+
+
+class EchoTool(BaseTool):
+    """受け取った文字列をそのまま返す最小のツール"""
+
+    name = "echo"
+    description = "入力をそのまま返す"
+
+    def execute(self, query: str = "", **kwargs) -> ToolResult:
+        return ToolResult(success=True, output=query, confidence_factors={"result_count": 1})
+
+
+# 1. 独自ツールを登録する（name が呼び出し名になる）
+registry = create_tool_registry()
+registry.register(EchoTool())
+print(registry.execute("echo", query="こんにちは").output)
+
+# 2. 登録していない名前は例外ではなく失敗の ToolResult になる
+print(registry.execute("unknown").error)
+
+# 3. code_execute は opt-in。tools.enabled に足したレジストリでだけ使える
+config = copy.deepcopy(get_config())
+config.tools.enabled = [*config.tools.enabled, "code_execute"]
+sandbox = create_tool_registry(config)
+print(sandbox.execute("code_execute", code="print(sum(range(10)))").output)
+```
+
+```
+# 出力例:
+# こんにちは
+# Unknown tool: unknown
+# 45
+```
+
+> ⚠️ 計画（`PlanStep.action`）で使えるのは `rag_search` / `web_search` / `reasoning` / `ask_user` / `code_execute` の 5 つだけ（`schemas.py` の `Literal`）。
+> 独自ツールを executor から呼ぶには、`PlanStep.action` の型も広げる必要がある。
+>
+> ⚠️ `code_execute` は別プロセス・資源制限・危険な import の拒否による**ベストエフォートの隔離**で、セキュリティ境界ではない。
+> 信頼できないコードには、コンテナ等の外部の境界を併用する。
+
+---
 
 ### 4.2 ToolResult データクラス
 
@@ -1588,6 +1699,53 @@ result = registry.execute("reasoning", query="...", sources=[...])
 | Dynamic Thresholding | `top_score >= 0.98` | 1位スコアが 0.98 以上かつ複数件のとき、上位1件のみ残す |
 
 
+### 5.4 推論プロンプト（`ReasoningTool._build_prompt`）
+
+`reasoning` ステップで Anthropic に送るプロンプト。定数ではなくメソッドの中で次の順に組み立てる:
+システム指示 → 【現在日時】 → 【業務方針（遵守）】（`llm.prompt_addendum` があるときだけ）→ 【参照情報】（検索のヒットごとに
+「情報源 i」の見出し・Q / A〔Q/A が無ければ本文の先頭 1000 字〕・出典）→ 【補足コンテキスト】（他ステップの出力があるときだけ）→
+【ユーザーの質問】 → 【回答の構成ルール（最重要）】。
+
+次は、質問「住民票の写しの取り方は？」・検索結果 1 件のスタブで 1 回実行したときに実際に送られた文面（2026-10-10。日時・情報源は例示）:
+
+```text
+あなたは社内ドキュメント検索システムと連携した「ハイブリッド・ナレッジ・エージェント」です。
+提供された【参照情報】を元に、ユーザーの質問に対して正確で誠実な回答を生成してください。
+
+
+### 【現在日時】
+今日は 2026年10月10日（土曜日）15:59 です。
+「明日」は 2026年10月11日（日曜日）を指します。
+質問に「明日」「今週」「先月」などの相対的な日付表現が含まれる場合は、上記を基準に具体的な日付へ読み替えて参照情報を解釈してください。
+
+
+### 【参照情報】
+
+--- 情報源 1 【社内】 (信頼度: 0.82, コレクション: gov_faq_anthropic) ---
+Q: q
+A: 住民票の写しは窓口で請求できます
+出典: faq.csv
+
+### 【ユーザーの質問】
+住民票の写しの取り方は？
+
+### 【回答の構成ルール（最重要）】
+1. **正確性と誠実さ**: 参照情報にある事実のみを述べてください。情報がない場合は「提供された情報源には見当たりませんでした」と正直に回答してください。
+2. **判明した事実を優先**: 質問に対する直接的な回答が見つかった場合は、それを最初に簡潔に述べてください。
+3. **出典の明示（種別を偽らない）**: 各情報源の見出しにある種別を必ずそのまま使ってください。
+   - 【社内】の情報源 → 「社内ナレッジ（出典ファイル名）によると...」
+   - 【Web】の情報源 → 「Web 検索結果（URL）によると...」
+   ⚠️ Web で得た情報を「社内ナレッジ」と書いてはいけません。逆も同様です。
+4. **出典は引用元から書き写す（記憶で書かない）**: 1 つの記述には、その内容が実際に載っている情報源を 1 つだけ対応させ、その情報源の「出典:」行を**そのまま省略せずに**書き写してください。
+   ⚠️ 複数の情報源の内容を 1 つの箇条書きに混ぜないでください。
+   ⚠️ サイト名やドメインを記憶から補わないでください。「出典:」行に無い URL・ドメイン名を書くことは捏造にあたります。
+5. **情報源番号を書かない**: 「情報源 1」「情報源 7」のような番号はこちらの内部の通し番号です。回答を読む人には見えないので、本文で参照しないでください（代わりに出典の URL やファイル名を書きます）。
+6. **丁寧な日本語**: です・ます調で、読みやすく構造化（箇条書き等）して回答してください。
+7. **捏造禁止**: あなた自身の事前知識で情報を補完したり、勝手な推測で回答を作成したりしないでください。
+
+上記のルールに従い、プロフェッショナルな回答を生成してください。
+```
+
 ---
 
 ## 6. エクスポート
@@ -1642,6 +1800,8 @@ __all__ = [
 | 3.5 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
 | 3.6 | 2026-09-29 | Qdrant 到達不能なら RAG 検索を**即失敗**にした（2026-09-29）。`RAGSearchTool._get_all_collections_dynamic` は接続エラーのとき `None` を返し、`execute` は Embedding・Sparse モデル読み込み・全コレクション検索をせず失敗の `ToolResult`（起動コマンドの案内つき）を返す。従来は既定の候補へ倒れ、約 4 秒の無駄（Gemini 埋め込み・500MB 超の Sparse モデル読み込み・接続エラー ×N）を払っていた。接続エラー以外は従来どおり既定の候補へ倒れる。あわせて緩和閾値の下限を首位スコアからの相対マージンにした（`agent_tools.select_by_similarity`、`docs/performance_levers.md` P-04） |
 | 3.7 | 2026-10-06 | 現在の既定モデルの記載 `claude-sonnet-5` を実装（`grace/config.py` の `LLMConfig.model` / `grace/llm_compat.py` の `DEFAULT_ANTHROPIC_MODEL` = `claude-sonnet-5-5`）に合わせて是正（2026-10-06。CLAUDE.md §9.3。旧既定は履歴の記述にだけ残す） |
+| 3.8 | 2026-10-10 | 旧 `grace_runtime.md`（現 `grace_data_flow.md`）にあったプロンプトの全文を、実装から書き出して §5 へ移した（`grace/docs/` の構成整理。所在の一覧は `grace_data_flow.md` §3.4） |
+| 3.9 | 2026-10-10 | §4.1 使用例を処理パターン 4 通り（検索 → 推論・検索の範囲を絞る・Web 検索と ask_user・ツールを足す）に書き直し、外部をスタブにして実行して出力を確かめた（`code_execute` は本物のサンドボックスで実行）。見るべきスコアを `avg_score` から実装どおり `max_score` に直し、`tools.disabled` がレジストリの登録には効かないことを注記した |
 
 ---
 

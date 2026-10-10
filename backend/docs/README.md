@@ -1,6 +1,6 @@
 # backend/docs — 文書の地図
 
-**Version 2.9** | 最終更新: 2026-10-10
+**Version 2.10** | 最終更新: 2026-10-10
 
 ---
 
@@ -12,7 +12,7 @@
 > Gemini `gemini-embedding-001`（3072 次元・`GOOGLE_API_KEY`）。姉妹リポジトリ
 > `grace_v2_local` は Ollama 版で**表記が逆**なので、あちらの文書を持ち込まない。
 
-> **関連**: `grace/` 側は [`grace/docs/README.md`](../../grace/docs/README.md)、
+> **関連**: `grace/` 側は [`grace/docs/README_grace.md`](../../grace/docs/README_grace.md)、
 > フロントは [`frontend/docs/README.md`](../../frontend/docs/README.md)、
 > 横断の設計メモは [`docs/README.md`](../../docs/README.md)。
 
@@ -198,3 +198,4 @@ reference/*.md             引く（通読しない）
 | 2.7 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随 |
 | 2.8 | 2026-10-08 | 現在の既定 LLM の記述を `claude-sonnet-5` から実装（`config.py::ModelConfig.DEFAULT_MODEL` / `config/grace_config.yml` の `llm.model`）どおり `claude-sonnet-5-5` へ是正（冒頭の注記） |
 | 2.9 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |
+| 2.10 | 2026-10-10 | `grace/docs/` の構成整理（`README.md` → `README_grace.md`、`grace.md` / `grace_core.md` / `grace_runtime.md` / `confidence_calibration.md` を `README_grace.md` / `grace_process_flow.md` / `grace_data_flow.md` へ統合）に合わせてリンクを直した |

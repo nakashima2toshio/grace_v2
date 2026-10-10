@@ -1,6 +1,6 @@
 # config.py - GRACE 設定管理 ドキュメント
 
-**Version 1.14** | 最終更新: 2026-10-10
+**Version 1.15** | 最終更新: 2026-10-10
 
 > 📌 **`config.GeminiConfig` の LLM モデル一覧は後方互換である。**
 > `config.py::GeminiConfig` の docstring にあるとおり、`GeminiConfig` は
@@ -254,42 +254,133 @@ style LOGGING fill:#1a1a1a,stroke:#fff,color:#fff
 
 ### 4.1 使用例
 
-#### 4.1.1 基本的なワークフロー
+設定は「yml → 環境変数（`GRACE_`）→ pydantic で検証」の 3 段で作られ、`get_config()` が**プロセス全体で 1 つ**の
+`GraceConfig` を返す。使い方は次の 4 通り。
+
+| 処理パターン | 呼び方 | 向いている場面 | 例 |
+|---|---|---|---|
+| 読む | `get_config()` | 設定値を参照する（全モジュールの既定） | 4.1.1 |
+| リクエスト単位で書き換える | `copy.deepcopy(get_config())` を書き換えて各部品へ渡す | Web API と同じ使い方。業界プロファイル・モデルの選択・Web 検索の ON/OFF | 4.1.2 |
+| 環境変数で上書きする | `GRACE_<SECTION>_<KEY>` → `reset_config()` → `get_config()` | 1 回だけ別のモデル・値で動かす | 4.1.3 |
+| モデルの層を解決する | `resolve_heavy_model(config)` / `heavy_thinking_budget(config)` | 計画・推論・根拠検証が使うモデルと思考の予算を知る | 4.1.4 |
+
+> 📝 4 本とも**そのまま実行し**、出力を確かめてある（2026-10-10。リポジトリの `config/grace_config.yml` を読んだ値。外部は使わない）。
+
+#### 4.1.1 基本的なワークフロー（読む）
 
 ```python
 from grace.config import get_config
 
-# 1. 設定取得（シングルトン）
-config = get_config()
+config = get_config()   # 初回だけ config/grace_config.yml を読み、以後は同じオブジェクトを返す
 
-# 2. LLM/Embedding 設定の参照
-print(config.llm.model)          # claude-sonnet-5-5
-print(config.embedding.model)    # gemini-embedding-001（config.py::ModelConfig.EMBEDDING_MODEL）
-
-# 3. Qdrant設定の参照
-print(config.qdrant.url)         # http://localhost:6333
-print(config.qdrant.search_limit)  # 5
+print(config.llm.provider, config.llm.model, config.llm.light_model)
+print(config.embedding.model, config.embedding.dimensions)   # 定義は config.py::ModelConfig の 1 箇所
+print(config.qdrant.url, config.qdrant.rag_sufficient_score)
+print(config.confidence.thresholds)
+print(get_config() is config)
 ```
 
-#### 4.1.2 応用的なワークフロー
+```
+# 出力例:
+# anthropic claude-sonnet-5-5 claude-haiku-5-5
+# gemini-embedding-001 3072
+# http://localhost:6333 0.64
+# silent=0.9 notify=0.7 confirm=0.4
+# True
+```
+
+#### 4.1.2 リクエスト単位で書き換える（Web API と同じ使い方）
+
+```python
+import copy
+
+from grace.config import get_config
+
+# 1. 共有の設定をコピーしてから書き換える（get_config() の戻り値を直接書き換えると、他のジョブへ漏れる）
+config = copy.deepcopy(get_config())
+config.llm.model = "claude-opus-5-5"                                   # 画面のモデル選択（このリクエストだけ）
+config.qdrant.allowed_collections = ["gov_faq_anthropic", "gov_laws_anthropic"]   # 業界プロファイルの検索範囲
+config.llm.prompt_addendum = "自治体の手続きに限って答える"               # 業界プロファイルの方針
+config.tools.disabled = [*(config.tools.disabled or []), "web_search"]  # 「Web フォールバック OFF」
+
+# 2. 共有の設定は変わっていない
+print(get_config().llm.model, "/", config.llm.model)
+print(get_config().tools.disabled, "/", config.tools.disabled)
+
+# 3. この config を planner / executor / tool_registry に渡す（executor.md §4.1.2）
+```
+
+```
+# 出力例:
+# claude-sonnet-5-5 / claude-opus-5-5
+# [] / ['web_search']
+```
+
+> ⚠️ **`llm.light_model` はリクエスト単位でも上書きしない**（判定系は軽量モデルのまま。理由は
+> `backend/docs/config_and_providers.md` §3.1）。画面で選べるモデルは `config.py::ModelConfig.SELECTABLE_MODELS` の 1 箇所で決まる。
+
+#### 4.1.3 環境変数で上書きする（`GRACE_`）
 
 ```python
 import os
-from grace.config import get_config, reset_config, reload_config
 
-# 環境変数で軽量モデルに切り替え
+from grace.config import get_config, reset_config
+
+# 1. GRACE_<セクション>_<キー>。セクション名の後の部分がキーになる（LIGHT_MODEL → light_model）
 os.environ["GRACE_LLM_MODEL"] = "claude-haiku-5-5"
-os.environ["GRACE_QDRANT_SEARCH_LIMIT"] = "10"
+os.environ["GRACE_QDRANT_SEARCH_LIMIT"] = "10"          # 数値・true/false・カンマ区切りのリストは型を変換する
 
-# 既存シングルトンをリセットして再構築
+# 2. シングルトンを作り直す（環境変数は読み込むときにだけ効く）
 reset_config()
 config = get_config()
-print(config.llm.model)          # claude-haiku-5-5
-print(config.qdrant.search_limit)  # 10
+print(config.llm.model, config.qdrant.search_limit)
 
-# 設定ファイル変更後に再読み込み
-config = reload_config()
+# 3. 片付け（環境変数を消して作り直す）
+for key in ("GRACE_LLM_MODEL", "GRACE_QDRANT_SEARCH_LIMIT"):
+    del os.environ[key]
+reset_config()
+print(get_config().llm.model)
 ```
+
+```
+# 出力例:
+# claude-haiku-5-5 10
+# claude-sonnet-5-5
+```
+
+> ⚠️ **セクション名に `_` を含む設定（`code_execute` / `web_search`）は環境変数で上書きできない**（最初の `_` で区切るので
+> `GRACE_CODE_EXECUTE_TIMEOUT_SECONDS` は `code.execute_timeout_seconds` になる）。
+>
+> 📝 `reload_config()` は同じ設定ファイルを読み直す。`get_config(config_path)` のパスが効くのは**最初の 1 回だけ**
+> （2 回目以降は作成済みのシングルトンを返す）。別のファイルを読ませたいときは `reset_config()` してから渡す。
+
+#### 4.1.4 モデルの層を解決する
+
+```python
+import copy
+
+from grace.config import get_config, heavy_thinking_budget, resolve_heavy_model
+
+config = copy.deepcopy(get_config())
+print(resolve_heavy_model(config), heavy_thinking_budget(config))   # heavy_model が空 → llm.model・思考なし
+
+# 論理層（計画・推論・根拠検証・ReAct）だけを上位モデルにして、思考を許す
+config.llm.heavy_model = "claude-opus-5-5"
+config.llm.heavy_thinking_budget_tokens = 4096
+print(resolve_heavy_model(config), heavy_thinking_budget(config))
+```
+
+```
+# 出力例:
+# claude-sonnet-5-5 0
+# claude-opus-5-5 4096
+```
+
+> 📝 モデルは 3 層で使い分ける: 論理層（`heavy_model`。空なら `llm.model`）＝計画・推論・根拠検証・ReAct、
+> 標準層（`llm.model`）＝自己評価・網羅度など、軽量層（`llm.light_model`）＝ステップ信頼度・RAG の適合性・判定系。
+> `heavy_model` を設定していない間は思考の予算は 0（モデルを上げていないのに思考のコストだけ増えるのを防ぐ）。
+
+---
 
 ### 4.2 GraceConfig クラス
 
@@ -947,6 +1038,7 @@ __all__ = [
 | 1.12 | 2026-10-06 | 冒頭の注記にあった行番号参照 `config.py:411` を、シンボル参照 `config.py::GeminiConfig` の docstring へ改めた。行 411 は現在 `get_dataset_dict` の位置で、参照先とずれていた（行番号は書かない規則。grace_v2_local の `backend/docs/docs_audit.md` §5.2 の再測定で発見） |
 | 1.13 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随 |
 | 1.14 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |
+| 1.15 | 2026-10-10 | §4.1 使用例を処理パターン 4 通り（読む・リクエスト単位で書き換える・環境変数で上書き・モデルの層の解決）に書き直し、実行して出力を確かめた。セクション名に `_` を含む設定は環境変数で上書きできないこと、`get_config(config_path)` のパスは最初の 1 回だけ効くことを注記した |
 
 ---
 

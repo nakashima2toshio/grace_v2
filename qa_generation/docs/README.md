@@ -1,9 +1,9 @@
 # qa_generation/ - Q/A 生成パッケージ（データ準備 ②）ドキュメント
 
-**Version 2.2** | 最終更新: 2026-10-10
+**Version 2.3** | 最終更新: 2026-10-10
 
 > 📎 **姉妹版**: [`docs/README.md`](../../docs/README.md)（直下・配置の境界） /
-> [`grace/docs/README.md`](../../grace/docs/README.md) /
+> [`grace/docs/README_grace.md`](../../grace/docs/README_grace.md) /
 > [`backend/docs/README.md`](../../backend/docs/README.md) /
 > [`chunking/docs/README.md`](../../chunking/docs/README.md) /
 > [`qa_qdrant/docs/README.md`](../../qa_qdrant/docs/README.md) /
@@ -942,6 +942,7 @@ __all__ = [
 | 2.0 | 2026-10-08 | **`a_class_method_md_format.md`（IPO 形式）で全面改訂。** 概要に主な責務 7 件・各責務対応のモジュール・主要機能一覧を新設し、3 層のアーキテクチャ構成図＋データフロー、モジュール構成図、クラス・関数一覧表、IPO 詳細（冒頭の使用例 3 本＋`QAPipeline` / `SmartQAGenerator` / `load_uploaded_file` / `save_results` / `analyze_coverage`）、設定・定数、エクスポート、付録の依存関係図を追加。旧 §1〜§6 の索引（目的別の入口・一覧・カバレッジ・書き分け）は §3、棚卸しと残タスクは §4 へ移した。§3.2 の行数・Ver を再実測（`smart_qa_generator.py` 301 行、`pipeline.md` 813 行 v1.6、`smart_qa_generator.md` 573 行 v1.3、`data_io.md` 483 行 v1.3）。§8 のテストを 6 → 10 ファイルへ更新し件数を実測（`test_qa_pipeline_dataset_type.py` / `test_qa_default_model.py` / `test_celery_worker_init.py` / `test_qa_qdrant_package_init.py` を追加）。棚卸しに 2 件を追加（6: `celery_config.py` の `__main__` が削除済みの `qa_generation.generation` を見ている、7: `QAPipeline` の `client` / `batch_chunks` / `concurrency` が処理に効かない）、残タスク 6〜8 を登録 |
 | 2.1 | 2026-10-09 | **残タスク 6〜8 を完了し、残タスク 0 件。** 6: `celery_config.py` の `__main__` の import 確認を `qa_generation.smart_qa_generator` へ直した（`test_celery_worker_init.py` に 1 件追加・修正前は fail）。7: `QAPipeline` の効かない引数のうち `client` / `batch_chunks` を、`QAPipeline`・`run_qa_generation_sync`・API・画面・CLI（`--batch-chunks`）から削除し、`concurrency` は表示用と明記（§5・§6.2 のシグネチャと引数表を更新）。8: `test_qa_generation_core.py`（12 件）を追加。§3.2 の `pipeline` 行と §8 のテスト一覧（11 ファイル）を再実測 |
 | 2.2 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |
+| 2.3 | 2026-10-10 | `grace/docs/` の構成整理（`README.md` → `README_grace.md`、`grace.md` / `grace_core.md` / `grace_runtime.md` / `confidence_calibration.md` を `README_grace.md` / `grace_process_flow.md` / `grace_data_flow.md` へ統合）に合わせてリンクを直した |
 
 > v1.x の変更履歴にある節番号（§2〜§7）は旧構成のもの。v2.0 では §2 → §3.2、§3 → §3.3、§4 → §4.1、§5 → §3.4、§6 → §4.2、§7 → §8 に対応する。
 

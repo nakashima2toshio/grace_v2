@@ -1,6 +1,6 @@
 # GRACE-Support 処理フローと設計 ドキュメント
 
-**Version 3.8** | 最終更新: 2026-10-10
+**Version 3.9** | 最終更新: 2026-10-10
 
 > **本書の位置づけ**: GRACE-Support（問い合わせ → 回答）の**処理フロー（HOW）と
 > 設計判断（WHY）を 1 本にまとめた正本**。v3.0 で `support_spec.md` を統合した。
@@ -292,7 +292,7 @@ style BRIDGE fill:#1a1a1a,stroke:#fff,color:#fff
 ### 3.2 信頼度フローの比較（`grace/` と `backend/app/`）
 
 > 📝 旧 `confidence_flow_grace_vs_backend.md`（v1.1）を統合した節。
-> 測定の詳細は [`grace/docs/confidence_calibration.md`](../../grace/docs/confidence_calibration.md)、
+> 測定の詳細は [`grace/docs/grace_process_flow.md` §2.2](../../grace/docs/grace_process_flow.md#22-全体信頼度の算出)、
 > 判定の詳細は [`core_gates.md`](./reference/core_gates.md) が正本。
 
 **測定の心臓部（`GroundednessVerifier` による支持率）は両者で共有**している。違うのは
@@ -323,7 +323,7 @@ backend は独自に信頼度検証器を持たず、**grace の `GroundednessVe
 #### grace/ の信頼度フロー
 
 `grace/executor.py::_calculate_overall_confidence()` が統括（詳細は
-`grace/docs/confidence_calibration.md`）。
+`grace/docs/grace_process_flow.md` §2.2）。
 
 ```
 ① 各ステップ ConfidenceScore（ConfidenceCalculator, 5軸）
@@ -1713,6 +1713,7 @@ InterventionBridge
 | 3.6 | 2026-10-08 | 現在の既定 LLM の記述を `claude-sonnet-5` から実装（`config.py::ModelConfig.DEFAULT_MODEL` / `config/grace_config.yml` の `llm.model`）どおり `claude-sonnet-5-5` へ是正（依存表・§9.2 実行コストの目安。「指示に従うかはモデル次第」の 2026-08-29 実測表は当時の記録なので変えていない）（2026-10-08） |
 | 3.7 | 2026-10-09 | 「指示に従うかはモデル次第」の 2026-08-29 実測表のモデル名を `claude-sonnet-5` → 当時の既定 `claude-sonnet-4-6` へ戻した。2026-09-16 の既定変更の一括置換で、計測していないモデル名に書き換わっていた（`gates.py` / `test_multi_question.py` の同じ表は `claude-sonnet-4-6` のまま正しかった）。現在の既定 `claude-sonnet-5-5` では未計測であること、コード側の担保はモデルに依存しないことを注記（2026-10-09） |
 | 3.8 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |
+| 3.9 | 2026-10-10 | `grace/docs/` の構成整理（`README.md` → `README_grace.md`、`grace.md` / `grace_core.md` / `grace_runtime.md` / `confidence_calibration.md` を `README_grace.md` / `grace_process_flow.md` / `grace_data_flow.md` へ統合）に合わせてリンクを直した |
 
 > 統合元 `support_spec.md` の変更履歴（v1.0〜v1.2）と、さらにその統合元 3 文書の履歴は
 > git で追える（`git log --follow --all -- backend/docs/support_flow.md`）。

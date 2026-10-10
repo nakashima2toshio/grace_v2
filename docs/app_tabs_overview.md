@@ -1,6 +1,6 @@
 # app_tabs_overview.md - 処理 3 タブ（基本版 / GRACE-Support / GRACE-Review）の概要
 
-**Version 1.2** | 最終更新: 2026-10-07
+**Version 1.3** | 最終更新: 2026-10-10
 
 ---
 
@@ -329,18 +329,17 @@ Retrieve・Ground・誤検知抑止・Action は Support と同じ機構を再�
   `intervention`（承認）・`llm_compat`（LLM 判定）を**直接**呼ぶ
 
 **ステップごとにどのモジュール（シンボル）が効くかの表と、Support / Review の比較表の正本は
-[`grace/docs/README.md`「概要」](../grace/docs/README.md#概要) にある**（本書には同じ表を置かない）。
+[`grace/docs/grace_process_flow.md` §2.3](../grace/docs/grace_process_flow.md#23-grace-support--grace-review-での使われ方) にある**（本書には同じ表を置かない）。
 
 基盤モジュールは `config.py`（設定）/ `schemas.py`（データ契約）/ `llm_compat.py`（Anthropic 呼び出しの薄いアダプタ）。
 
-grace 全体を読むときの入口は次の 4 本（索引は [`grace/docs/README.md`](../grace/docs/README.md)）。
+grace 全体を読むときの入口は次の 3 本（索引は [`grace/docs/README_grace.md`](../grace/docs/README_grace.md)）。
 
 | 文書 | 何が書いてあるか |
 |---|---|
-| [`grace/docs/README.md`](../grace/docs/README.md) | grace/docs の索引。冒頭の「概要」に **Support / Review が使う grace モジュールの対応表と比較**、§2.3 に「横断・アーキテクチャ文書」の一覧 |
-| [`grace/docs/grace.md`](../grace/docs/grace.md) | **WHY** — 設計思想と 5 段階設計（Plan / Execute / Confidence / Intervention / Replan） |
-| [`grace/docs/grace_core.md`](../grace/docs/grace_core.md) | **WHAT** — 構成図・依存関係・モジュール役割サマリー |
-| [`grace/docs/grace_runtime.md`](../grace/docs/grace_runtime.md) | **HOW** — 実行時に発行される API とプロンプト全文（旧 `grace_core_flow.md`） |
+| [`grace/docs/README_grace.md`](../grace/docs/README_grace.md) | grace/ の概要。設計の考え方（ReAct → Reflection → 5 段階設計）・構成図・モジュール索引・使い方・公開 API |
+| [`grace/docs/grace_process_flow.md`](../grace/docs/grace_process_flow.md) | 1 クエリの処理の流れ・分岐。§2.3 に **Support / Review が使う grace モジュールの対応表と比較** |
+| [`grace/docs/grace_data_flow.md`](../grace/docs/grace_data_flow.md) | 外部 API に渡るデータ・プロンプトの所在・実行メモリと較正ファイル |
 
 ---
 
@@ -353,7 +352,7 @@ grace 全体を読むときの入口は次の 4 本（索引は [`grace/docs/REA
 | 基本版と GRACE-Support は別実装 | **同じ関数**（`run_support_agent_core`）。画面も同じ `SupportPanel` を `variant` で切り替えている |
 | Review の番号順 ＝ 実行順 | 違う。⑥ Web 裏取りは ⑤ Severity より**先**に実行される（番号は Support との対応を示す呼称） |
 | `tools.py` は共通モジュール | grace のコアモジュール **8 つ目**（ツール実行）として数える。共通（基盤）は `config.py` / `schemas.py` / `llm_compat.py` |
-| `grace/docs/grace_core_flow.md` を読む | 2026-09-14 に **`grace_runtime.md` へ改称**済み。旧名のファイルは無い |
+| `grace/docs/grace.md` / `grace_core.md` / `grace_runtime.md` を読む | 2026-10-10 に **`README_grace.md` / `grace_process_flow.md` / `grace_data_flow.md` へ統合**済み。旧名のファイルは無い（`grace_core_flow.md` は 2026-09-14 に `grace_runtime.md` へ改称されていた） |
 
 ---
 
@@ -367,7 +366,7 @@ grace 全体を読むときの入口は次の 4 本（索引は [`grace/docs/REA
 | [`../README.md`](../README.md) | 画面・操作とプログラムの対応、スクリーンショット |
 | [`../backend/docs/review_flow.md`](../backend/docs/review_flow.md) | GRACE-Review の設計 |
 | [`../backend/docs/data_pipeline.md`](../backend/docs/data_pipeline.md) | データ管理タブ（チャンク化 → 登録） |
-| [`../grace/docs/grace_core.md`](../grace/docs/grace_core.md) | grace コアモジュールの構成と役割 |
+| [`../grace/docs/README_grace.md`](../grace/docs/README_grace.md) | grace コアモジュールの構成と役割 |
 
 ---
 
@@ -378,3 +377,4 @@ grace 全体を読むときの入口は次の 4 本（索引は [`grace/docs/REA
 | 1.0 | 2026-10-06 | 初版作成（2026-10-06）。処理 3 タブ（基本版 / GRACE-Support / GRACE-Review）を「業界特化・処理フロー・回答」の 3 点で、画面の実行例つきでまとめた。ステップ対照表などの正本は `pipelines.md` に残し、本書は入口として各タブの見え方とそれを支える grace コアモジュールの対応を持つ |
 | 1.1 | 2026-10-06 | §5 のステップ × モジュール表を `grace/docs/README.md`「概要」へ移して正本をそちらに一本化し、本書はリンクと要点だけにした（2026-10-06。同じ表を 2 箇所に置かないため）。§4.3 の ⑦ Action の説明を実装に合わせて是正（high の指摘は承認なしで `escalate_to_human`、それ以外は承認後に `create_ticket`） |
 | 1.2 | 2026-10-07 | §3.3・§4.3 に E2E の実行例（Support 4 ケース・Review 3 例文を各 3 回・2026-10-07 実測）の表を追加。元ログは `backend/docs/GRACE-Support_例文4件.txt` / `GRACE-Review_例文3件.txt` |
+| 1.3 | 2026-10-10 | `grace/docs/` の構成整理（`README.md` → `README_grace.md`、`grace.md` / `grace_core.md` / `grace_runtime.md` / `confidence_calibration.md` を `README_grace.md` / `grace_process_flow.md` / `grace_data_flow.md` へ統合）に合わせてリンクを直した |
