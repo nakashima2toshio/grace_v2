@@ -1,6 +1,6 @@
 # GRACE（grace_v2）- 業界特化・自律型エージェント基盤 ドキュメント
 
-**Version 4.3** | 最終更新: 2026-10-10
+**Version 4.4** | 最終更新: 2026-10-10
 
 > 日本語 RAG に、根拠検証（groundedness）・Web 裏取り・HITL（Human-In-The-Loop）承認を組み合わせた、
 > 業界特化の自律型エージェント。`./run_dev.sh` で起動し、ブラウザ（http://localhost:5173）の 4 タブから使う。
@@ -513,7 +513,7 @@ python qa_qdrant/register_to_qdrant.py                # 3. 登録のみ
 | モジュール | 役割 | 詳細 |
 |---|---|---|
 | `grace/` | 自律エージェント基盤。コア 8 つ：`planner`（計画）/ `executor`（実行）/ `confidence`（根拠検証 `GroundednessVerifier`）/ `calibration`（信頼度の較正）/ `memory`（実行メモリ）/ `intervention`（HITL）/ `replan`（再計画）/ `tools`（RAG 検索・Web 検索）。基盤は `config.py`（設定の読み込み・検証）/ `schemas.py`（データ契約）/ `llm_compat.py`（Claude 呼び出しの薄いアダプタ） | [`grace/docs/README_grace.md`](grace/docs/README_grace.md) |
-| `services/` | アプリ横断のサービス層。データ管理タブが使う `data_pipeline_service.py`（入力ファイル解決・チャンク化・コレクション削除）と `qdrant_service.py`（コレクション一覧・健全性）、Q/A 生成の `qa_service.py`、トークン計数の `token_service.py` ほか | [`services/docs/README.md`](services/docs/README.md) |
+| `services/` | アプリ横断のサービス層。データ管理タブが使う `data_pipeline_service.py`（入力ファイル解決・チャンク化・コレクション削除）と `qdrant_service.py`（コレクション一覧・健全性）、Q/A 生成の `qa_service.py`、トークン計数の `token_service.py` ほか | [`services/docs/README_services.md`](services/docs/README_services.md) |
 | `config.py` | アプリ全体の定数。`ModelConfig`（既定モデル・選択肢・単価・上限・Embedding の定義）/ `GeminiConfig`（Embedding 用途）/ `QdrantConfig` | [`backend/docs/config_and_providers.md`](backend/docs/config_and_providers.md) |
 
 使い方は 2 つのエージェントで違う。**基本版・GRACE-Support** は `planner` → `executor` の計画→実行ループを
@@ -731,7 +731,7 @@ cd frontend && npm run lint && npm test && npm run build # frontend
 | [`backend/docs/README.md`](backend/docs/README.md) | backend の索引（`support_flow.md` / `review_flow.md` / `data_pipeline.md` / `api_contract.md` ほか） |
 | [`grace/docs/README_grace.md`](grace/docs/README_grace.md) | grace の概要・設計の考え方・モジュール索引・使い方（Support / Review が使うモジュールの対応表は `grace_process_flow.md` §2.3） |
 | [`frontend/docs/README.md`](frontend/docs/README.md) | 画面部品の索引（各コンポーネントの props・状態・SSE） |
-| [`chunking/docs/README.md`](chunking/docs/README.md) ・ [`qa_generation/docs/README.md`](qa_generation/docs/README.md) ・ [`qa_qdrant/docs/README.md`](qa_qdrant/docs/README.md) ・ [`services/docs/README.md`](services/docs/README.md) | データ準備とサービス層の各モジュール（IPO） |
+| [`chunking/docs/README.md`](chunking/docs/README.md) ・ [`qa_generation/docs/README.md`](qa_generation/docs/README.md) ・ [`qa_qdrant/docs/README.md`](qa_qdrant/docs/README.md) ・ [`services/docs/README_services.md`](services/docs/README_services.md) | データ準備とサービス層の各モジュール（IPO） |
 | [`CLAUDE.md`](CLAUDE.md) | 開発の指針（プロバイダ方針・モデル名の解決経路・CI・姉妹リポジトリとの関係） |
 
 姉妹リポジトリ `grace_v2_local` は同じ構造で、LLM をローカルの Ollama に置き換えた版である（Embedding と Qdrant は共用）。
@@ -768,3 +768,4 @@ cd frontend && npm run lint && npm test && npm run build # frontend
 | 4.1 | 2026-10-10 | Legacy ReAct 経路（`services/agent_service.py`・`agent_parallel_search.py`・`agent_cache.py`・`executor._execute_legacy_agent_step`・`run_legacy_agent` アクション）を 2026-10-10 に削除したのに追随 |
 | 4.2 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |
 | 4.3 | 2026-10-10 | `grace/docs/` の構成整理（`README.md` → `README_grace.md`、`grace.md` / `grace_core.md` / `grace_runtime.md` / `confidence_calibration.md` を `README_grace.md` / `grace_process_flow.md` / `grace_data_flow.md` へ統合）に合わせてリンクを直した |
+| 4.4 | 2026-10-10 | `services/docs/` の構成整理（`README.md` → `README_services.md`、`__init__.md` を統合）に合わせてリンクを直した |

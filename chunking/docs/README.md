@@ -1,11 +1,11 @@
 # chunking/docs/ 棚卸し
 
-**Version 1.5** | 最終更新: 2026-10-10
+**Version 1.6** | 最終更新: 2026-10-10
 
 > 📎 **姉妹版**: [`docs/README.md`](../../docs/README.md)（直下・配置の境界） /
 > [`qa_generation/docs/README.md`](../../qa_generation/docs/README.md) /
 > [`qa_qdrant/docs/README.md`](../../qa_qdrant/docs/README.md) /
-> [`services/docs/README.md`](../../services/docs/README.md)
+> [`services/docs/README_services.md`](../../services/docs/README_services.md)
 
 `chunking/docs/` 配下のドキュメントを一覧化する。**目的から入口を引ける**ようにするのが狙い。
 新しく文書を書く／直す前に、まずここを見る。
@@ -136,3 +136,4 @@ uv run --no-sync pytest tests/test_chunking_abort.py -q
 | 1.3 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随して `csv_text_to_chunks_text_csv.md` v1.8（入力上限 8192 → 2048）の行数・Ver を再実測 |
 | 1.4 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随 |
 | 1.5 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |
+| 1.6 | 2026-10-10 | `services/docs/` の構成整理（`README.md` → `README_services.md`、`__init__.md` を統合）に合わせてリンクを直した |

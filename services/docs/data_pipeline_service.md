@@ -1,6 +1,6 @@
 # data_pipeline_service.py - データ準備パイプラインの Web 向けラッパ層 ドキュメント
 
-**Version 1.4** | 最終更新: 2026-10-09
+**Version 1.5** | 最終更新: 2026-10-10
 
 ---
 
@@ -228,50 +228,188 @@ API 層はこれを 400 / error イベントへ変換する。
 
 ### 4.1 使用例
 
-#### 4.1.1 基本的なワークフロー（ファイル選択 → チャンク化）
+`data_pipeline_service` は、データ管理タブ（Web）と CLI が**同じ処理を呼ぶための薄い層**である。中身（チャンク化・Q/A 生成・Qdrant 操作）は
+`chunking/` / `qa_generation/` / `qdrant_service.py` が持ち、ここは引数の詰め替え・同期化・パスの検証・JSON 化だけを行う。
+呼び出し元は `backend/app/core/data_jobs.py`（ジョブのワーカースレッド）・`backend/app/api/qdrant.py`・`qa_qdrant/make_qa_register_qdrant.py`。使い方は次の 4 通り。
+
+| 処理パターン | 呼び方 | 向いている場面 | 例 |
+|---|---|---|---|
+| 入力ファイルを選ぶ | `list_input_files(dir)` → `resolve_input_file("dir/name")` | 画面に候補を出し、選ばれたパスを検証して実パスへ戻す | 4.1.1 |
+| チャンク化を同期で呼ぶ | `load_input_text(path)` → `run_chunking_sync(text, ...)` | ワーカースレッドから async のチャンク化を呼ぶ（データ管理タブ「① チャンキング」） | 4.1.2 |
+| Q/A 生成を同期で呼ぶ | `run_qa_generation_sync(input_file, ...)` | チャンク済み CSV から Q/A を作る（「② Q/A 作成」・CLI の Phase 1） | 4.1.3 |
+| コレクションを確かめて消す・表示用に直す | `collection_exists` / `delete_collection` / `dataframe_to_records` / `collection_columns` | 「④ コレクション管理」の一覧・中身・削除 | 4.1.4 |
+
+> 📝 4 本とも**別プロセスでそのまま実行し**、出力を確かめてある（2026-10-10。カレントは一時ディレクトリ）。4.1.2 はチャンク化本体（`chunks_all_async`）を、
+> 4.1.3 は `QAPipeline` をスタブにした（LLM を呼ばない。この層が引数を渡して戻り値を返すところまでを確かめた）。4.1.4 は**本物の Qdrant**（docker-compose）を使った。
+
+#### 4.1.1 基本的なワークフロー（入力ファイルを選ぶ）
 
 ```python
+from pathlib import Path
+
+import pandas as pd
+
 from services.data_pipeline_service import (
+    ALLOWED_INPUT_DIRS,
+    PathNotAllowedError,
     list_input_files,
-    load_input_text,
     resolve_input_file,
-    run_chunking_sync,
 )
 
-# 画面に出す候補
+# 用意: OUTPUT/ に入力 CSV を置く（基点はカレントディレクトリ＝リポジトリ直下の想定）
+Path("OUTPUT").mkdir(exist_ok=True)
+pd.DataFrame({"text": ["住民票の写しは市民課で請求できる。", "印鑑登録には本人確認書類が要る。"]}).to_csv("OUTPUT/gov_docs.csv", index=False)
+
+# 1. 画面に出す候補（更新日時の新しい順。絶対パスは出さない）
 files = list_input_files("OUTPUT")
-print(files[0]["path"])          # 'OUTPUT/cc_news_1per.csv'
+print(ALLOWED_INPUT_DIRS, [(f["path"], f["suffix"]) for f in files])
+print(list_input_files("datasets"))                 # 許可されていてもディレクトリが無ければ空
 
-# ジョブ側（ワーカースレッド）
-path = resolve_input_file("OUTPUT/cc_news_1per.csv")
-text = load_input_text(path, text_column=None, max_rows=20)
-chunks = run_chunking_sync(
-    text,
-    model="claude-haiku-5-5",
-    max_workers=8,
-    block_size=1000,
-    output_file="output_chunked/cc_news_1per_chunks.csv",
-    dataset_type="cc_news_1per",
-)
-print(len(chunks))
+# 2. 選ばれた 'ディレクトリ/ファイル名' を検証して実パスへ戻す
+print(resolve_input_file("OUTPUT/gov_docs.csv").name)
+for bad in ("../etc/passwd", "OUTPUT/../config.yml", "logs/app.log"):
+    try:
+        resolve_input_file(bad)
+    except PathNotAllowedError as e:
+        print("拒否:", e)
 ```
 
-#### 4.1.2 応用ワークフロー（チャンク済み CSV → Q/A 生成）
+```
+# 出力例:
+# ('OUTPUT', 'output_chunked', 'qa_output', 'datasets') [('OUTPUT/gov_docs.csv', '.csv')]
+# []
+# gov_docs.csv
+# 拒否: 入力パスは 'ディレクトリ名/ファイル名' の形式で指定してください: '../etc/passwd'
+# 拒否: 入力パスは 'ディレクトリ名/ファイル名' の形式で指定してください: 'OUTPUT/../config.yml'
+# 拒否: 許可されていないディレクトリです: 'logs'（許可: ['OUTPUT', 'output_chunked', 'qa_output', 'datasets']）
+```
+
+> 📝 **ホワイトリスト（4 ディレクトリ）と `resolve()` の二段で検証する**。形式は `ディレクトリ名/ファイル名` の 1 段だけで、入れ子は受け付けない
+> （`list_input_files` もサブディレクトリを見ない）。ファイルが無ければ `FileNotFoundError`。基点は `base=` で変えられる（省略時はカレント）。
+
+#### 4.1.2 チャンク化を同期で呼ぶ（`run_chunking_sync`）
+
+```python
+import asyncio
+from pathlib import Path
+
+import pandas as pd
+
+from services.data_pipeline_service import load_input_text, resolve_input_file, run_chunking_sync
+
+Path("OUTPUT").mkdir(exist_ok=True)
+pd.DataFrame({"text": ["住民票の写しは市民課で請求できる。", "", "印鑑登録には本人確認書類が要る。"]}).to_csv("OUTPUT/gov_docs.csv", index=False)
+
+# 1. CSV はテキスト列（text / content / Combined_Text ... の順に探す）の空でない行を空行区切りで 1 本にする。CSV 以外は素読み
+path = resolve_input_file("OUTPUT/gov_docs.csv")
+text = load_input_text(path, max_rows=100)
+print(repr(text))
+
+# 2. async の chunks_all_async を、ワーカースレッドから同期で呼ぶ（中で asyncio.run する）
+chunks = run_chunking_sync(
+    text,
+    model="claude-haiku-5-5",            # 画面の既定は config.py::ModelConfig.CHUNKING_MODEL
+    max_workers=4,
+    block_size=1000,
+    output_file="output_chunked/gov_docs_chunks.csv",
+    dataset_type="gov_docs",
+    source_file=str(path),
+)
+print(len(chunks), Path("output_chunked/gov_docs_chunks.csv").exists())
+
+
+# 3. ⚠️ イベントループの中（FastAPI の async ハンドラ等）から呼ぶと RuntimeError
+async def handler():
+    return run_chunking_sync(text, model="claude-haiku-5-5", max_workers=1, block_size=1000,
+                             output_file="output_chunked/x.csv", dataset_type="x")
+
+try:
+    asyncio.run(handler())
+except RuntimeError as e:
+    print("RuntimeError:", str(e).split(" from ")[0])
+```
+
+```
+# 出力例（チャンクの切り方は LLM による。ここではスタブ）:
+# '住民票の写しは市民課で請求できる。\n\n印鑑登録には本人確認書類が要る。'
+# 2 True
+# RuntimeError: asyncio.run() cannot be called
+```
+
+> ⚠️ **必ずジョブのワーカースレッド（イベントループの無いスレッド）から呼ぶ。** `data_jobs.py` はそうしている。
+> 途中経過は `./checkpoints/<job_id>/` に保存され（`CheckpointManager`）、`job_id` を渡すと同じジョブを続きから再開できる。
+
+#### 4.1.3 Q/A 生成を同期で呼ぶ（`run_qa_generation_sync`）
 
 ```python
 from services.data_pipeline_service import run_qa_generation_sync
 
 result = run_qa_generation_sync(
-    "output_chunked/cc_news_1per_chunks.csv",
-    model="claude-sonnet-5-5",
-    output_dir="qa_output",      # ← 入れ子にしない（§4.2 の list_input_files 参照）
+    "output_chunked/gov_docs_chunks.csv",   # text / Combined_Text / content / chunk_text のどれかの列が要る
+    model="claude-sonnet-5-5",              # 画面の既定は config.py::ModelConfig.DEFAULT_MODEL
+    output_dir="qa_output",                 # ⚠️ 入れ子にしない（Qdrant 登録の画面が qa_output/ 直下しか見ない）
     max_docs=50,
     analyze_coverage=True,
 )
-
-if result.get("qa_count"):
-    print(result["saved_files"]["qa_csv"])   # そのまま Qdrant 登録の入力になる
+print(result["success"], result["qa_count"], result["saved_files"]["qa_csv"])
 ```
+
+```
+# 出力例（件数・ファイル名は QAPipeline による。ここではスタブ）:
+# True 6 qa_output/qa_pairs_chunks.csv
+```
+
+> 📝 `QAPipeline(...).run(...)` の戻り値をそのまま返す（`saved_files` / `qa_count` / `coverage_results` / `success`）。CLI の
+> `make_qa_register_qdrant.py` の Phase 1 と同じ経路なので、CLI と画面で結果が食い違わない。
+>
+> ⚠️ `use_celery=True` は Celery ワーカーが起動していないと**例外になる**（`check_celery_workers`）。呼び出し側で握ってエラーとして返す
+> （`data_jobs.py` は error イベントにする）。並列数はワーカー起動時の `-c` で決まり、`concurrency` はログ表示用。
+
+#### 4.1.4 コレクションを確かめて消す・表示用に直す
+
+```python
+from qdrant_client import QdrantClient
+from qdrant_client.http import models
+
+from services.data_pipeline_service import (
+    collection_columns,
+    collection_exists,
+    dataframe_to_records,
+    delete_collection,
+)
+from services.qdrant_service import QdrantDataFetcher
+
+client = QdrantClient(url="http://localhost:6333")
+name = "doc_example_pipeline"
+client.create_collection(name, vectors_config=models.VectorParams(size=4, distance=models.Distance.COSINE))
+client.upsert(name, points=[
+    models.PointStruct(id=1, vector=[1.0, 0, 0, 0], payload={"question": "住民票は？", "answer": "窓口です"}),
+    models.PointStruct(id=2, vector=[0, 1.0, 0, 0], payload={"question": "印鑑登録は？", "chunk_id": "c-7"}),
+])
+
+# 1. 中身を JSON にできる形へ（DataFrame → list[dict]。欠けた値は NaN ではなく None）
+records = dataframe_to_records(QdrantDataFetcher(client).fetch_collection_points(name, limit=10))
+print(collection_columns(records))         # 最初に現れた順の列名（payload のキーはコレクションごとに違う）
+print(records[1])
+
+# 2. 消す前に存在を確かめる。削除は確認を挟まない（承認は呼び出し側＝Web は HITL CONFIRM）
+print(collection_exists(client, name), delete_collection(client, name), collection_exists(client, name))
+print(delete_collection(client, name))     # ⚠️ もう無くても True
+```
+
+```
+# 出力例:
+# ['ID', 'question', 'answer', 'chunk_id']
+# {'ID': 2, 'question': '印鑑登録は？', 'answer': None, 'chunk_id': 'c-7'}
+# True True False
+# True
+```
+
+> ⚠️ **`delete_collection` は、コレクションが無くても `True` を返す**（qdrant-client の `delete_collection` が例外にせず `False` を返すのを見ていない。
+> 関数の docstring は「存在しない場合は False」と書いているが、実装と違う。2026-10-10 に本物の Qdrant で確認）。`False` になるのは接続できない等で例外が出たときだけ。
+> 消したかどうかは、前後で `collection_exists` を見る（`backend/app/api/qdrant.py` も先に存在を確かめている）。
+
+---
 
 ### 4.2 パス検証
 
@@ -481,6 +619,7 @@ run_chunking_sync, run_qa_generation_sync, load_input_text
 | 1.2 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
 | 1.3 | 2026-10-08 | 使用例の `model` を現行の既定 `claude-sonnet-5-5`（`data_jobs.QaGenerationParams.model` と同じ）へ（2026-10-08） |
 | 1.4 | 2026-10-09 | `run_qa_generation_sync()` から処理に効いていなかった `batch_chunks` を削除。`concurrency` はログ表示用で実際の並列数はワーカーの `-c` で決まること、並列化は Celery の中だけ（`ThreadPoolExecutor` は使っていない）であることへ記述を是正（2026-10-09） |
+| 1.5 | 2026-10-10 | §4.1 使用例を処理パターン別（入力ファイルを選ぶ／チャンク化を同期で呼ぶ／Q/A 生成を同期で呼ぶ／コレクションを確かめて消す・表示用に直す）の 4 本に書き直した（2026-10-10。`grace/docs/executor.md` §4.1 を手本に、処理パターンの表 → パターンごとの例 → 落とし穴の注記の形にし、別プロセスで全例を実行して出力を確かめた）。4.1.4 は本物の Qdrant を使い、`delete_collection` がコレクションが無くても `True` を返すこと（docstring と違う）を見つけて注記。イベントループの中から `run_chunking_sync` を呼ぶと `RuntimeError` になることを例で示した |
 
 ---
 
