@@ -851,15 +851,15 @@ __all__ = [
 
 ## 7. 変更履歴
 
-| バージョン | 変更内容 |
-|-----------|---------|
-| 1.6 | 現在の既定 LLM の記述（冒頭の表・概要・`get_model_limits()` の使用例）を `claude-sonnet-5` から実装どおり `claude-sonnet-5-5` へ是正し、§5 の各表に実装にある `claude-sonnet-5-5` の行を追加（`claude-sonnet-5` は旧既定として残す）（2026-10-08） |
-| 1.5 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
-| 1.4 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`）。単価表・使用例を 001（0.0001）へ戻し、`gemini-embedding-2` は切り替え候補として残した（コードの `EMBEDDING_PRICING` と同じ） |
-| 1.3 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所）。§5.4 `EMBEDDING_PRICING` は `ModelConfig.EMBEDDING_PRICING` を参照する形になったので表と単価例（0.0002）を実装に合わせた |
-| 1.2 | 使用例を IPO 詳細の冒頭（`### 4.1 使用例`）へ移し、末尾の「## 6. 使用例」章を削除（基本フォーマット `a_class_method_md_format.md` v1.6〜 §6.1 に準拠。2026-09-24）。IPO の小節を 4.2 以降へ繰り下げ、後続の章番号を 1 つ繰り上げた。文書内の `§4.x` 参照も追随。あわせて`MODEL_ENCODINGS` / `LLM_PRICING` / `MODEL_LIMITS` の Claude 行を実装に同期（`claude-sonnet-5` など 5 モデルが欠落、`claude-haiku-4-5-20251001` の上限が 8192 のままだった）。2026-09-12 に解消済みの `claude-haiku-4-5` 欠落の警告を「解消済み」へ更新 |
-| 1.1 | 本モジュールが**トークン計算の互換テーブル**であることを冒頭に明記。表に並ぶ `gpt-4o` / `gemini-*` / `text-embedding-3-*` は実装どおりで変更していない（プロジェクトの既定 LLM は `claude-sonnet-4-6`）（2026-09-12） |
-| 1.0 | 初版作成（2026-06-17） |
+| バージョン | 日付 | 変更内容 |
+|---|---|---|
+| 1.0 | 2026-06-17 | 初版作成（2026-06-17） |
+| 1.1 | 2026-09-12 | 本モジュールが**トークン計算の互換テーブル**であることを冒頭に明記。表に並ぶ `gpt-4o` / `gemini-*` / `text-embedding-3-*` は実装どおりで変更していない（プロジェクトの既定 LLM は `claude-sonnet-4-6`）（2026-09-12） |
+| 1.2 | 2026-09-24 | 使用例を IPO 詳細の冒頭（`### 4.1 使用例`）へ移し、末尾の「## 6. 使用例」章を削除（基本フォーマット `a_class_method_md_format.md` v1.6〜 §6.1 に準拠。2026-09-24）。IPO の小節を 4.2 以降へ繰り下げ、後続の章番号を 1 つ繰り上げた。文書内の `§4.x` 参照も追随。あわせて`MODEL_ENCODINGS` / `LLM_PRICING` / `MODEL_LIMITS` の Claude 行を実装に同期（`claude-sonnet-5` など 5 モデルが欠落、`claude-haiku-4-5-20251001` の上限が 8192 のままだった）。2026-09-12 に解消済みの `claude-haiku-4-5` 欠落の警告を「解消済み」へ更新 |
+| 1.3 | 2026-09-26 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所）。§5.4 `EMBEDDING_PRICING` は `ModelConfig.EMBEDDING_PRICING` を参照する形になったので表と単価例（0.0002）を実装に合わせた |
+| 1.4 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`）。単価表・使用例を 001（0.0001）へ戻し、`gemini-embedding-2` は切り替え候補として残した（コードの `EMBEDDING_PRICING` と同じ） |
+| 1.5 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
+| 1.6 | 2026-10-08 | 現在の既定 LLM の記述（冒頭の表・概要・`get_model_limits()` の使用例）を `claude-sonnet-5` から実装どおり `claude-sonnet-5-5` へ是正し、§5 の各表に実装にある `claude-sonnet-5-5` の行を追加（`claude-sonnet-5` は旧既定として残す）（2026-10-08） |
 
 ---
 

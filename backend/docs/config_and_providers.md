@@ -335,16 +335,16 @@ class Yml,Env,Loader,Validated,Users,Dotenv,Runtime default
 
 ## 7. 変更履歴
 
-| Version | 日付 | 変更内容 |
+| バージョン | 日付 | 変更内容 |
 |---|---|---|
-| 1.10 | 2026-10-08 | チャンキングの既定を、回答生成・Q/A 生成の `ModelConfig.DEFAULT_MODEL` から分けた `config.py::ModelConfig.CHUNKING_MODEL`（`claude-haiku-5-5`）の 1 箇所で決めるようにしたのに追随 |
-| 1.9 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随 |
-| 1.8 | 2026-09-29 | `httpx` / `httpcore` の INFO ログを WARNING に絞る（`config.quiet_noisy_loggers()`。`config` の import 時に効く）。1 回の Qdrant 検索でコンソールが `HTTP Request: GET …` の数十行で埋まっていた。環境変数 `GRACE_HTTP_LOG_LEVEL`（例 `INFO`）で戻せる。起動コマンドの案内を `docker compose`（プラグイン版）へ更新 |
-| 1.7 | 2026-09-29 | Sonnet 5.5 のプロンプトガイドの要点（`between_tools`・JSON 推論タスクの扱い）を §3.1 に追記 |
-| 1.6 | 2026-09-29 | 既定を `claude-sonnet-5-5` へ変更したのに追随。`claude-sonnet-5-5` は思考を無効化できない（`{"type": "disabled"}` が 400）ので `ALWAYS_THINKING_MODELS` に載せる旨を追記（実機の 400 で判明。Sonnet 5 と同じ扱いにした当初の仮定が誤りだった） |
-| 1.5 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
-| 1.4 | 2026-09-26 | Embedding を `gemini-embedding-2` へ変更し、モデル名の定義を `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所へ集約（2026-09-26）。§3 の表と「Embedding は対象外」を追随 |
-| 1.3 | 2026-09-24 | `a_cross_doc_md_format.md` v1.1（種別 A）に準拠（2026-09-24）。概要（主な責務／各責務対応のモジュール／3 層のアーキテクチャ構成図）を追加し、冒頭の説明文を概要へ移した。本文の章番号は変えていない。ヘッダーの Version と変更履歴の最新版の食い違いも解消した |
-| 1.2 | 2026-09-23 | 選択肢を 4 件へ変更（`claude-fable-5-1` / `claude-opus-5-5` を追加、`claude-opus-5` を外した）。「モデル世代で API への送り方が違う」を追加 |
-| 1.1 | 2026-09-16 | 既定を `claude-sonnet-5` へ変更。§3.1（UI からのモデル選択・上書き範囲・Embedding が対象外である理由）を追加 |
 | 1.0 | 2026-09-16 | 新規作成。3 本の解決経路・2 つの解決関数・キーのガード位置を実装から整理した |
+| 1.1 | 2026-09-16 | 既定を `claude-sonnet-5` へ変更。§3.1（UI からのモデル選択・上書き範囲・Embedding が対象外である理由）を追加 |
+| 1.2 | 2026-09-23 | 選択肢を 4 件へ変更（`claude-fable-5-1` / `claude-opus-5-5` を追加、`claude-opus-5` を外した）。「モデル世代で API への送り方が違う」を追加 |
+| 1.3 | 2026-09-24 | `a_cross_doc_md_format.md` v1.1（種別 A）に準拠（2026-09-24）。概要（主な責務／各責務対応のモジュール／3 層のアーキテクチャ構成図）を追加し、冒頭の説明文を概要へ移した。本文の章番号は変えていない。ヘッダーの Version と変更履歴の最新版の食い違いも解消した |
+| 1.4 | 2026-09-26 | Embedding を `gemini-embedding-2` へ変更し、モデル名の定義を `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所へ集約（2026-09-26）。§3 の表と「Embedding は対象外」を追随 |
+| 1.5 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
+| 1.6 | 2026-09-29 | 既定を `claude-sonnet-5-5` へ変更したのに追随。`claude-sonnet-5-5` は思考を無効化できない（`{"type": "disabled"}` が 400）ので `ALWAYS_THINKING_MODELS` に載せる旨を追記（実機の 400 で判明。Sonnet 5 と同じ扱いにした当初の仮定が誤りだった） |
+| 1.7 | 2026-09-29 | Sonnet 5.5 のプロンプトガイドの要点（`between_tools`・JSON 推論タスクの扱い）を §3.1 に追記 |
+| 1.8 | 2026-09-29 | `httpx` / `httpcore` の INFO ログを WARNING に絞る（`config.quiet_noisy_loggers()`。`config` の import 時に効く）。1 回の Qdrant 検索でコンソールが `HTTP Request: GET …` の数十行で埋まっていた。環境変数 `GRACE_HTTP_LOG_LEVEL`（例 `INFO`）で戻せる。起動コマンドの案内を `docker compose`（プラグイン版）へ更新 |
+| 1.9 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随 |
+| 1.10 | 2026-10-08 | チャンキングの既定を、回答生成・Q/A 生成の `ModelConfig.DEFAULT_MODEL` から分けた `config.py::ModelConfig.CHUNKING_MODEL`（`claude-haiku-5-5`）の 1 箇所で決めるようにしたのに追随 |

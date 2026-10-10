@@ -667,26 +667,26 @@ npm run build    # 本番ビルド
 
 ## 14. 変更履歴
 
-| 版 | 日付 | 変更内容 |
+| バージョン | 日付 | 変更内容 |
 |---|---|---|
-| 3.1 | 2026-10-08 | **SSE の張り直し**を grace_v2_local から移植したのに追随。`api/client.ts::subscribeStream` が切断・無音（60 秒）で張り直し、リプレイ分を `seq` で読み飛ばすようにした（local でチャンク化の長い無音中に画面だけ固まった件）。§3 の `client.ts` を 369 行、§6.1・§6.3 を更新、§10 に `streamWatch.ts`（22 モジュール）、§11 のテスト件数を **26 ファイル / 346 件**（実測・`streamWatch.test.ts` 8 件・`api/client.test.ts` 6 件を追加）へ更新 |
-| 3.0 | 2026-10-03 | GRACE-Review の結果が古いことを表示する `state/staleResult.ts`（6 件）を追加したのに追随。§8 の `ReviewPanel.md` 1.6 / 219 行・`ReviewForm.md` 1.9 / 264 行、§10 に `staleResult.ts`、§11 のテスト件数を **24 ファイル / 332 件**（実測）へ更新 |
-| 2.9 | 2026-10-02 | 原文ペインの見出しを `state/highlight.ts::documentViewHeading` へ切り出したのに追随。§8 の `DocumentView.md` を 1.4、§10 の `highlight.ts` を 117 行、§11 のテスト件数を **23 ファイル / 326 件**（実測・`highlight.test.ts` 13 → 18）へ更新 |
-| 2.8 | 2026-09-27 | §1 の冒頭に frontend / backend の役割分担の要約（全体像の図・frontend の役割表・持たないもの・1 回の問い合わせの流れ・分担のルール）を追加した。§1.1 / §1.2 の詳細表と章番号は変えていない |
-| 2.7 | 2026-09-26 | §8.2 の `QueryForm.md` の版を 1.8 へ更新（dry-run の既定が OFF になった現状に合わせて、formMemory の説明の言い回しを直した） |
-| 2.6 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随して `DataJobPanel.md` の Ver を 1.8 へ更新（実装行数は変化なし）。テスト件数 321 件は変化なし |
-| 2.5 | 2026-09-26 | Embedding のモデル名を画面に直書きするのをやめ、`GET /api/model` の `embedding_model` / `embedding_dims` から出すようにしたのに追随。§8 の版・実装行数（`App` 1.7 / 174・`DataPanel` 1.5 / 111・`DataJobPanel` 1.7 / 751・`modelLabel.ts` 42）、§11 のテスト件数を **23 ファイル / 321 件**（実測）へ更新 |
-| 2.4 | 2026-09-26 | §13 残タスク 1（スクリーンショット残り 14 枚）を完了へ。PR #210（D-05〜D-08）と PR #211（残り 10 枚）で全 31 枚を撮影・掲載したのに、本表だけ未完のまま残っていた |
-| 2.3 | 2026-09-24 | `AnswerCard.md` の Props を実装に追随させたのにあわせ §8 の版を更新（1.4）。§8 の本書自身の版（2.1 のままだった）も更新。§11 のテスト件数は `npx vitest run` で再実測し、記載どおり（23 ファイル / 318 件）であることを確認 |
-| 2.2 | 2026-09-24 | コンポーネント文書 20 件を `a_react_page_md_format.md` v1.1 へ追随させた（2026-09-24）。§8 の版列を実測へ更新し、§13 の完了済みに追記 |
-| 2.1 | 2026-09-24 | **a11y 3 点を grace_v2_local から移植したのに追随**（残タスク #2 を完了）。`state/focusTrap.ts` / `selectionKeys.ts` を §3・§5.4・§10 へ追加（21 モジュール）、§8 の版・行数を更新（`ConfirmModal` 1.2 / 142・`DocumentView` 1.2 / 62・`FindingList` 1.2 / 141・`ReviewForm` 1.6 / 254・`review_ui` 1.6）、テスト件数を **23 ファイル / 318 件**（実測）へ更新。§13 には `ConfirmModal` の判断済み未対応 2 件を残した |
-| 2.0 | 2026-09-24 | **棚卸し索引から frontend の入口文書へ再構成**（grace_v2_local 側 README v2.0 と同じ構成）。§1 責務（やること / やらないこと）・§2 技術スタックとビルド構成・§3 ディレクトリ構成・§4 レイヤー構造と依存の向き（Mermaid）・§5 画面構成（タブ・ヘッダーのモデル選択と単価つきラベル・コンポーネントツリー・共用部品）・§6 バックエンドとの通信（SSE シーケンス図・エンドポイント一覧・取得失敗時の方針）・§7 状態管理の設計方針を新設。§8 の版・行数を実測で更新（`ReviewForm` 1.5・`review_ui` 1.5・`DataJobPanel` 1.5 / 739 行・`dataParams.ts` 201 行・`queryParams.ts` 128 行・`formMemory.ts` 120 行・`citations.ts` 76 行・`types.ts` 431 行・`api/client.ts` 301 行）。§10 を役割別に分類。§11 のテスト件数を再実測（**21 ファイル / 297 件**・変化なし）。§13 に grace_v2_local との a11y 差分（低優先）を追記し、完了済みを折りたたみへ移動。旧 §3.1（日付遅れ 6 件の検証記録）は §9 の注記へ要約 |
-| 1.8 | 2026-09-23 | **`modelLabel.ts` の未使用関数を削除**（`formatModelLabel` / `defaultOptionLabel` / `DEFAULT_OPTION_FALLBACK`）。テスト件数を **21 ファイル / 297 件**（実測）へ更新 |
-| 1.7 | 2026-09-23 | **未使用になった `ModelSelect.tsx` と `ModelSelect.md` を削除**し、文書一覧・実装カバレッジから外した（残タスク 8 を完了） |
-| 1.6 | 2026-09-23 | **データ管理タブもヘッダーでモデルを選ぶ変更に追随。** `App.md` v1.5 / `DataPanel.md` v1.3 / `DataJobPanel.md` v1.4 / `ModelSelect.md` v1.3（**未使用**になった）の版と実装行数を更新。テスト件数を **21 ファイル / 304 件**（実測）へ更新 |
-| 1.5 | 2026-09-23 | **モデル選択をヘッダー（`App`）へ移した変更に追随。** `App.md` v1.4 / `SupportPanel.md` v1.6 / `ReviewPanel.md` v1.4 / `QueryForm.md` v1.5 / `ReviewForm.md` v1.4 / `ModelSelect.md` v1.2 の版と実装行数を更新。`state/headerModel.ts` を §4 へ追加し、テスト件数を **21 ファイル / 301 件**（実測）へ更新 |
-| 1.4 | 2026-09-16 | **モデルセレクタの追加に追随。** `ModelSelect.md` を新規作成し §2.2 へ追加。`QueryForm.md` v1.3 / `ReviewForm.md` v1.2 の版と実装行数を更新。`state/modelLabel.ts` を §4 へ追加し、テスト件数を **20 ファイル / 288 件**（実測）へ更新 |
-| 1.3 | 2026-09-12 | 残タスク 7（`CollectionPanel` の中止バナー）を完了し、**banner 系 9 箇所すべてに `role` が付いた**。あわせて `SupportPanel.md` / `ReviewPanel.md` の「実行中であることが伝わるか ❌」を訂正（`Timeline` の `aria-live` が読み上げており、バナーに足すと二重読み上げになる） |
-| 1.2 | 2026-09-12 | **アクセシビリティ改善に追随。** `ReviewForm` v1.1（`.sr-only` ラベル・`aria-invalid`・ライブ領域）と `ReviewPanel` v1.1（`role="alert"`）を反映。`state/documentLimit.ts`（純関数・10 件）を一覧へ追加し、テスト件数を 19 ファイル / 276 件へ更新。残タスクに `CollectionPanel` の同種 1 件を追加 |
-| 1.1 | 2026-09-12 | 欠落 4 件（`ReviewPanel` / `ReviewForm` / `JobClock` / `MetaErrorBanner`）を新規作成して解消。ヘッダー日付が遅れていた 6 件を実装と突き合わせ、**差分が無いことを確認**。`review_ui.md` を横断文書として位置づけ直し。残タスクにアクセシビリティの 2 件を追加 |
 | 1.0 | 2026-09-12 | 初版作成。文書一覧・実装カバレッジ（欠落 4 件）・state 純関数 16 件・テスト件数（`npm test` の実測 18 ファイル / 266 件）を記載 |
+| 1.1 | 2026-09-12 | 欠落 4 件（`ReviewPanel` / `ReviewForm` / `JobClock` / `MetaErrorBanner`）を新規作成して解消。ヘッダー日付が遅れていた 6 件を実装と突き合わせ、**差分が無いことを確認**。`review_ui.md` を横断文書として位置づけ直し。残タスクにアクセシビリティの 2 件を追加 |
+| 1.2 | 2026-09-12 | **アクセシビリティ改善に追随。** `ReviewForm` v1.1（`.sr-only` ラベル・`aria-invalid`・ライブ領域）と `ReviewPanel` v1.1（`role="alert"`）を反映。`state/documentLimit.ts`（純関数・10 件）を一覧へ追加し、テスト件数を 19 ファイル / 276 件へ更新。残タスクに `CollectionPanel` の同種 1 件を追加 |
+| 1.3 | 2026-09-12 | 残タスク 7（`CollectionPanel` の中止バナー）を完了し、**banner 系 9 箇所すべてに `role` が付いた**。あわせて `SupportPanel.md` / `ReviewPanel.md` の「実行中であることが伝わるか ❌」を訂正（`Timeline` の `aria-live` が読み上げており、バナーに足すと二重読み上げになる） |
+| 1.4 | 2026-09-16 | **モデルセレクタの追加に追随。** `ModelSelect.md` を新規作成し §2.2 へ追加。`QueryForm.md` v1.3 / `ReviewForm.md` v1.2 の版と実装行数を更新。`state/modelLabel.ts` を §4 へ追加し、テスト件数を **20 ファイル / 288 件**（実測）へ更新 |
+| 1.5 | 2026-09-23 | **モデル選択をヘッダー（`App`）へ移した変更に追随。** `App.md` v1.4 / `SupportPanel.md` v1.6 / `ReviewPanel.md` v1.4 / `QueryForm.md` v1.5 / `ReviewForm.md` v1.4 / `ModelSelect.md` v1.2 の版と実装行数を更新。`state/headerModel.ts` を §4 へ追加し、テスト件数を **21 ファイル / 301 件**（実測）へ更新 |
+| 1.6 | 2026-09-23 | **データ管理タブもヘッダーでモデルを選ぶ変更に追随。** `App.md` v1.5 / `DataPanel.md` v1.3 / `DataJobPanel.md` v1.4 / `ModelSelect.md` v1.3（**未使用**になった）の版と実装行数を更新。テスト件数を **21 ファイル / 304 件**（実測）へ更新 |
+| 1.7 | 2026-09-23 | **未使用になった `ModelSelect.tsx` と `ModelSelect.md` を削除**し、文書一覧・実装カバレッジから外した（残タスク 8 を完了） |
+| 1.8 | 2026-09-23 | **`modelLabel.ts` の未使用関数を削除**（`formatModelLabel` / `defaultOptionLabel` / `DEFAULT_OPTION_FALLBACK`）。テスト件数を **21 ファイル / 297 件**（実測）へ更新 |
+| 2.0 | 2026-09-24 | **棚卸し索引から frontend の入口文書へ再構成**（grace_v2_local 側 README v2.0 と同じ構成）。§1 責務（やること / やらないこと）・§2 技術スタックとビルド構成・§3 ディレクトリ構成・§4 レイヤー構造と依存の向き（Mermaid）・§5 画面構成（タブ・ヘッダーのモデル選択と単価つきラベル・コンポーネントツリー・共用部品）・§6 バックエンドとの通信（SSE シーケンス図・エンドポイント一覧・取得失敗時の方針）・§7 状態管理の設計方針を新設。§8 の版・行数を実測で更新（`ReviewForm` 1.5・`review_ui` 1.5・`DataJobPanel` 1.5 / 739 行・`dataParams.ts` 201 行・`queryParams.ts` 128 行・`formMemory.ts` 120 行・`citations.ts` 76 行・`types.ts` 431 行・`api/client.ts` 301 行）。§10 を役割別に分類。§11 のテスト件数を再実測（**21 ファイル / 297 件**・変化なし）。§13 に grace_v2_local との a11y 差分（低優先）を追記し、完了済みを折りたたみへ移動。旧 §3.1（日付遅れ 6 件の検証記録）は §9 の注記へ要約 |
+| 2.1 | 2026-09-24 | **a11y 3 点を grace_v2_local から移植したのに追随**（残タスク #2 を完了）。`state/focusTrap.ts` / `selectionKeys.ts` を §3・§5.4・§10 へ追加（21 モジュール）、§8 の版・行数を更新（`ConfirmModal` 1.2 / 142・`DocumentView` 1.2 / 62・`FindingList` 1.2 / 141・`ReviewForm` 1.6 / 254・`review_ui` 1.6）、テスト件数を **23 ファイル / 318 件**（実測）へ更新。§13 には `ConfirmModal` の判断済み未対応 2 件を残した |
+| 2.2 | 2026-09-24 | コンポーネント文書 20 件を `a_react_page_md_format.md` v1.1 へ追随させた（2026-09-24）。§8 の版列を実測へ更新し、§13 の完了済みに追記 |
+| 2.3 | 2026-09-24 | `AnswerCard.md` の Props を実装に追随させたのにあわせ §8 の版を更新（1.4）。§8 の本書自身の版（2.1 のままだった）も更新。§11 のテスト件数は `npx vitest run` で再実測し、記載どおり（23 ファイル / 318 件）であることを確認 |
+| 2.4 | 2026-09-26 | §13 残タスク 1（スクリーンショット残り 14 枚）を完了へ。PR #210（D-05〜D-08）と PR #211（残り 10 枚）で全 31 枚を撮影・掲載したのに、本表だけ未完のまま残っていた |
+| 2.5 | 2026-09-26 | Embedding のモデル名を画面に直書きするのをやめ、`GET /api/model` の `embedding_model` / `embedding_dims` から出すようにしたのに追随。§8 の版・実装行数（`App` 1.7 / 174・`DataPanel` 1.5 / 111・`DataJobPanel` 1.7 / 751・`modelLabel.ts` 42）、§11 のテスト件数を **23 ファイル / 321 件**（実測）へ更新 |
+| 2.6 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随して `DataJobPanel.md` の Ver を 1.8 へ更新（実装行数は変化なし）。テスト件数 321 件は変化なし |
+| 2.7 | 2026-09-26 | §8.2 の `QueryForm.md` の版を 1.8 へ更新（dry-run の既定が OFF になった現状に合わせて、formMemory の説明の言い回しを直した） |
+| 2.8 | 2026-09-27 | §1 の冒頭に frontend / backend の役割分担の要約（全体像の図・frontend の役割表・持たないもの・1 回の問い合わせの流れ・分担のルール）を追加した。§1.1 / §1.2 の詳細表と章番号は変えていない |
+| 2.9 | 2026-10-02 | 原文ペインの見出しを `state/highlight.ts::documentViewHeading` へ切り出したのに追随。§8 の `DocumentView.md` を 1.4、§10 の `highlight.ts` を 117 行、§11 のテスト件数を **23 ファイル / 326 件**（実測・`highlight.test.ts` 13 → 18）へ更新 |
+| 3.0 | 2026-10-03 | GRACE-Review の結果が古いことを表示する `state/staleResult.ts`（6 件）を追加したのに追随。§8 の `ReviewPanel.md` 1.6 / 219 行・`ReviewForm.md` 1.9 / 264 行、§10 に `staleResult.ts`、§11 のテスト件数を **24 ファイル / 332 件**（実測）へ更新 |
+| 3.1 | 2026-10-08 | **SSE の張り直し**を grace_v2_local から移植したのに追随。`api/client.ts::subscribeStream` が切断・無音（60 秒）で張り直し、リプレイ分を `seq` で読み飛ばすようにした（local でチャンク化の長い無音中に画面だけ固まった件）。§3 の `client.ts` を 369 行、§6.1・§6.3 を更新、§10 に `streamWatch.ts`（22 モジュール）、§11 のテスト件数を **26 ファイル / 346 件**（実測・`streamWatch.test.ts` 8 件・`api/client.test.ts` 6 件を追加）へ更新 |

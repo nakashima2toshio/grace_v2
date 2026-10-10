@@ -1628,20 +1628,20 @@ __all__ = [
 
 ## 7. 変更履歴
 
-| バージョン | 変更内容 |
-|-----------|---------|
-| 3.7 | 現在の既定モデルの記載 `claude-sonnet-5` を実装（`grace/config.py` の `LLMConfig.model` / `grace/llm_compat.py` の `DEFAULT_ANTHROPIC_MODEL` = `claude-sonnet-5-5`）に合わせて是正（2026-10-06。CLAUDE.md §9.3。旧既定は履歴の記述にだけ残す） |
-| 3.6 | Qdrant 到達不能なら RAG 検索を**即失敗**にした（2026-09-29）。`RAGSearchTool._get_all_collections_dynamic` は接続エラーのとき `None` を返し、`execute` は Embedding・Sparse モデル読み込み・全コレクション検索をせず失敗の `ToolResult`（起動コマンドの案内つき）を返す。従来は既定の候補へ倒れ、約 4 秒の無駄（Gemini 埋め込み・500MB 超の Sparse モデル読み込み・接続エラー ×N）を払っていた。接続エラー以外は従来どおり既定の候補へ倒れる。あわせて緩和閾値の下限を首位スコアからの相対マージンにした（`agent_tools.select_by_similarity`、`docs/performance_levers.md` P-04） |
-| 1.0 | 初版作成 |
-| 2.0 | WebSearchTool 追加、動的コレクションフォールバック・動的閾値の反映 |
-| 2.1 | 実ソース（v2）に整合（2026-06-16）。LLM を Anthropic Claude（`llm_compat` 経由）として正確化、`ReasoningTool`/`RAGSearchTool` の挙動・パラメータ・`confidence_factors` を実装に一致、Mermaid 図を黒背景・白文字スタイルに統一、設定・定数を `GraceConfig` 実値で更新 |
-| 3.1 | **未記載シンボル 10 件を追加**（2026-09-04）。AST 照合で `grace/tools.py` の公開シンボル 37 件中 10 件が本書に無いことが判明していた。(1) **`CodeExecuteTool` はクラスごと欠落**していたため §4.7 を新設（サンドボックス構成 5 層・`_static_check` / `_apply_limits` / `execute` の IPO・`CodeExecuteConfig` 4 フィールド）し、以降を §4.8 / §4.9 へ繰り下げ。(2) `RAGSearchTool` の 5 メソッド（`_collection_dense_dim` / `clear_collections_cache` / `_embed_query_once` / `_apply_excluded_collections` / `_apply_allowed_collections`）を追加。(3) `ReasoningTool` の 2 メソッド（`_now_text` / `_source_origin`）を追加。あわせて **§3.2 の `RAGSearchTool._calculate_confidence_factors` 行に付いていた注記が WebSearchTool 用のものだった**のを是正（RAG 側は正準キーのみを返し `backend` 引数も無い） |
-| 3.0 | **`web_search.md`（1123 行）を統合し、同ファイルを削除**（2026-09-04）。`WebSearchTool` は `grace/tools.py` 内のクラスであり、モジュール単位の文書は本書が正であるため。§4.6 に未記載だった 6 メソッド（`_search_with_backend` / `_search_ddg` / `_search_google` / `_search_serpapi` / `_parse_to_rag_format` / `_calculate_confidence_factors`）を IPO 形式で追加し、`WebSearchConfig` の全 12 フィールドとバックエンド別の必要設定表を §5.1 へ追加。`execute` の Process を実装どおり（主 → `fallback_backend` の試行連鎖）に書き直し、戻り値例の `confidence_factors` に**正準キー `max_score` / `score_variance`** を追記した（旧例は旧ログ互換の `top_score` / `score_spread` しか載せておらず、Executor が実際に読むキーが見えなかった）。⚠️ 統合は `web_search.md` からの転記ではなく**実装から書き起こした**（`grace_v2_local` で同じ統合をした際、`web_search.md` が `_calculate_confidence_factors` を修正前の姿で保存しており、転記すれば直ったバグを文書化するところだった） |
-| 2.2 | 実装（07-27）へ追随（2026-08-01）。`WebSearchTool._prefer_domains`（W-1・優先ドメインの**加点並べ替え**）とモジュール関数 `_url_host` を追加。絞り込みにすると 0 件化 → 情報なし回答 → 誤エスカレへ連鎖するため順位付けだけを変えること、スコアが 1.0 で頭打ちになるため `preferred_domain` フラグを第 1 ソートキーにしていることを明記 |
-| 3.2 | 使用例を IPO 詳細の冒頭（`### 4.1 使用例`）へ移し、末尾の「## 6. 使用例」章を削除（基本フォーマット `a_class_method_md_format.md` v1.6〜 §6.1 に準拠。2026-09-24）。IPO の小節を 4.2 以降へ繰り下げ、後続の章番号を 1 つ繰り上げた。文書内の `§4.x` 参照も追随。現在の既定モデルの記載 `claude-sonnet-4-6` を実装（`grace/config.py` の `LLMConfig.model` = `claude-sonnet-5`）に合わせて是正した（CLAUDE.md §9.3。旧既定は履歴の記述にだけ残す） |
-| 3.3 | 概要の「各責務対応のモジュール」を主な責務と 1:1 に揃えた（基本フォーマット §2.4。2026-09-24）。表にだけあった `CodeExecuteTool`（サンドボックス実行）を主な責務にも加えた |
-| 3.4 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
-| 3.5 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
+| バージョン | 日付 | 変更内容 |
+|---|---|---|
+| 1.0 | — | 初版作成 |
+| 2.0 | — | WebSearchTool 追加、動的コレクションフォールバック・動的閾値の反映 |
+| 2.1 | 2026-06-16 | 実ソース（v2）に整合（2026-06-16）。LLM を Anthropic Claude（`llm_compat` 経由）として正確化、`ReasoningTool`/`RAGSearchTool` の挙動・パラメータ・`confidence_factors` を実装に一致、Mermaid 図を黒背景・白文字スタイルに統一、設定・定数を `GraceConfig` 実値で更新 |
+| 2.2 | 2026-08-01 | 実装（07-27）へ追随（2026-08-01）。`WebSearchTool._prefer_domains`（W-1・優先ドメインの**加点並べ替え**）とモジュール関数 `_url_host` を追加。絞り込みにすると 0 件化 → 情報なし回答 → 誤エスカレへ連鎖するため順位付けだけを変えること、スコアが 1.0 で頭打ちになるため `preferred_domain` フラグを第 1 ソートキーにしていることを明記 |
+| 3.0 | 2026-09-04 | **`web_search.md`（1123 行）を統合し、同ファイルを削除**（2026-09-04）。`WebSearchTool` は `grace/tools.py` 内のクラスであり、モジュール単位の文書は本書が正であるため。§4.6 に未記載だった 6 メソッド（`_search_with_backend` / `_search_ddg` / `_search_google` / `_search_serpapi` / `_parse_to_rag_format` / `_calculate_confidence_factors`）を IPO 形式で追加し、`WebSearchConfig` の全 12 フィールドとバックエンド別の必要設定表を §5.1 へ追加。`execute` の Process を実装どおり（主 → `fallback_backend` の試行連鎖）に書き直し、戻り値例の `confidence_factors` に**正準キー `max_score` / `score_variance`** を追記した（旧例は旧ログ互換の `top_score` / `score_spread` しか載せておらず、Executor が実際に読むキーが見えなかった）。⚠️ 統合は `web_search.md` からの転記ではなく**実装から書き起こした**（`grace_v2_local` で同じ統合をした際、`web_search.md` が `_calculate_confidence_factors` を修正前の姿で保存しており、転記すれば直ったバグを文書化するところだった） |
+| 3.1 | 2026-09-04 | **未記載シンボル 10 件を追加**（2026-09-04）。AST 照合で `grace/tools.py` の公開シンボル 37 件中 10 件が本書に無いことが判明していた。(1) **`CodeExecuteTool` はクラスごと欠落**していたため §4.7 を新設（サンドボックス構成 5 層・`_static_check` / `_apply_limits` / `execute` の IPO・`CodeExecuteConfig` 4 フィールド）し、以降を §4.8 / §4.9 へ繰り下げ。(2) `RAGSearchTool` の 5 メソッド（`_collection_dense_dim` / `clear_collections_cache` / `_embed_query_once` / `_apply_excluded_collections` / `_apply_allowed_collections`）を追加。(3) `ReasoningTool` の 2 メソッド（`_now_text` / `_source_origin`）を追加。あわせて **§3.2 の `RAGSearchTool._calculate_confidence_factors` 行に付いていた注記が WebSearchTool 用のものだった**のを是正（RAG 側は正準キーのみを返し `backend` 引数も無い） |
+| 3.2 | 2026-09-24 | 使用例を IPO 詳細の冒頭（`### 4.1 使用例`）へ移し、末尾の「## 6. 使用例」章を削除（基本フォーマット `a_class_method_md_format.md` v1.6〜 §6.1 に準拠。2026-09-24）。IPO の小節を 4.2 以降へ繰り下げ、後続の章番号を 1 つ繰り上げた。文書内の `§4.x` 参照も追随。現在の既定モデルの記載 `claude-sonnet-4-6` を実装（`grace/config.py` の `LLMConfig.model` = `claude-sonnet-5`）に合わせて是正した（CLAUDE.md §9.3。旧既定は履歴の記述にだけ残す） |
+| 3.3 | 2026-09-24 | 概要の「各責務対応のモジュール」を主な責務と 1:1 に揃えた（基本フォーマット §2.4。2026-09-24）。表にだけあった `CodeExecuteTool`（サンドボックス実行）を主な責務にも加えた |
+| 3.4 | 2026-09-26 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
+| 3.5 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
+| 3.6 | 2026-09-29 | Qdrant 到達不能なら RAG 検索を**即失敗**にした（2026-09-29）。`RAGSearchTool._get_all_collections_dynamic` は接続エラーのとき `None` を返し、`execute` は Embedding・Sparse モデル読み込み・全コレクション検索をせず失敗の `ToolResult`（起動コマンドの案内つき）を返す。従来は既定の候補へ倒れ、約 4 秒の無駄（Gemini 埋め込み・500MB 超の Sparse モデル読み込み・接続エラー ×N）を払っていた。接続エラー以外は従来どおり既定の候補へ倒れる。あわせて緩和閾値の下限を首位スコアからの相対マージンにした（`agent_tools.select_by_similarity`、`docs/performance_levers.md` P-04） |
+| 3.7 | 2026-10-06 | 現在の既定モデルの記載 `claude-sonnet-5` を実装（`grace/config.py` の `LLMConfig.model` / `grace/llm_compat.py` の `DEFAULT_ANTHROPIC_MODEL` = `claude-sonnet-5-5`）に合わせて是正（2026-10-06。CLAUDE.md §9.3。旧既定は履歴の記述にだけ残す） |
 
 ---
 

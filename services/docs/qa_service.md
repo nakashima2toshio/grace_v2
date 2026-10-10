@@ -486,12 +486,12 @@ QAPairsResponse              # Q/Aペア生成レスポンスモデル
 
 ## 7. 変更履歴
 
-| バージョン | 変更内容 |
-|-----------|---------|
-| 1.0 | 初版作成（2026-06-17） |
-| 1.1 | `run_advanced_qa_generation()` の削除に追随（存在しない `qa_generator_runner` を import する死にコードだった）。Streamlit UI の記述を削除し、Q/A 生成パイプラインの実際の実行口（CLI / `run_qa_generation_sync()`）を明記（2026-09-12） |
-| 1.2 | 使用例を IPO 詳細の冒頭（`### 4.1 使用例`）へ移し、末尾の「## 6. 使用例」章を削除（基本フォーマット `a_class_method_md_format.md` v1.6〜 §6.1 に準拠。2026-09-24）。IPO の小節を 4.2 以降へ繰り下げ、後続の章番号を 1 つ繰り上げた。文書内の `§4.x` 参照も追随。あわせて`generate_qa_pairs()` の `model` 既定値を実装（`claude-sonnet-5`）に合わせた |
-| 1.3 | Q/A 生成の既定モデルがコード側で `config.py::ModelConfig.DEFAULT_MODEL` 参照になったのに追随し、既定の記述を `claude-sonnet-5` → `claude-sonnet-5-5` へ是正（概要・構成図・`generate_qa_pairs()` のシグネチャ・引数表・IPO・使用例・設定表）（2026-10-08） |
+| バージョン | 日付 | 変更内容 |
+|---|---|---|
+| 1.0 | 2026-06-17 | 初版作成（2026-06-17） |
+| 1.1 | 2026-09-12 | `run_advanced_qa_generation()` の削除に追随（存在しない `qa_generator_runner` を import する死にコードだった）。Streamlit UI の記述を削除し、Q/A 生成パイプラインの実際の実行口（CLI / `run_qa_generation_sync()`）を明記（2026-09-12） |
+| 1.2 | 2026-09-24 | 使用例を IPO 詳細の冒頭（`### 4.1 使用例`）へ移し、末尾の「## 6. 使用例」章を削除（基本フォーマット `a_class_method_md_format.md` v1.6〜 §6.1 に準拠。2026-09-24）。IPO の小節を 4.2 以降へ繰り下げ、後続の章番号を 1 つ繰り上げた。文書内の `§4.x` 参照も追随。あわせて`generate_qa_pairs()` の `model` 既定値を実装（`claude-sonnet-5`）に合わせた |
+| 1.3 | 2026-10-08 | Q/A 生成の既定モデルがコード側で `config.py::ModelConfig.DEFAULT_MODEL` 参照になったのに追随し、既定の記述を `claude-sonnet-5` → `claude-sonnet-5-5` へ是正（概要・構成図・`generate_qa_pairs()` のシグネチャ・引数表・IPO・使用例・設定表）（2026-10-08） |
 
 ---
 

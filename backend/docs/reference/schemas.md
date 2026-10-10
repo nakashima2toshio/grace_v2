@@ -1094,9 +1094,9 @@ ReviewResultModel, ReviewJobStatusResponse, RuleSetInfo
 | 1.1 | 2026-07-29 | GRACE-Review のスキーマ 7 モデル＋`MAX_DOCUMENT_CHARS` を追加（PR #41）。Support 側のモデルは無変更 |
 | 1.2 | 2026-08-01 | `QueryRequest` に `identity`（本人確認の識別子・CLI の `--identity` 相当）を追加。実際に照合される条件（`ec` ＋ `dry_run=False` ＋ `SUPPORT_IDENTITY_FILE`）を注記 |
 | 1.4 | 2026-09-12 | `QaGenerationRequest` を追加（`POST /api/qa/generate`）。`DataJobStatusResponse` の `kind` が 4 種になったことを反映 |
-| 1.7 | 2026-09-16 | モデルセレクタ対応。`QueryRequest` / `ReviewRequest` に `model` を追加、`ModelChoice` / `ModelInfo` を新設、`model` 用バリデータ 2 本（§3.2）を追記。Q/A 生成の既定を `claude-sonnet-5` へ更新 |
-| 1.6 | 2026-09-16 | 3 階建て再編（`reference/` へ移設）に伴い、冒頭へ**位置づけと上位文書への導線**を追加した |
 | 1.5 | 2026-09-12 | 3 つの状態レスポンス（`JobStatusResponse` / `ReviewJobStatusResponse` / `DataJobStatusResponse`）に `created_at` / `finished_at`（サーバ時計・エポック秒）を追加。SSE を購読していない経路でも所要時間を出せるようにするもの |
+| 1.6 | 2026-09-16 | 3 階建て再編（`reference/` へ移設）に伴い、冒頭へ**位置づけと上位文書への導線**を追加した |
+| 1.7 | 2026-09-16 | モデルセレクタ対応。`QueryRequest` / `ReviewRequest` に `model` を追加、`ModelChoice` / `ModelInfo` を新設、`model` 用バリデータ 2 本（§3.2）を追記。Q/A 生成の既定を `claude-sonnet-5` へ更新 |
 | 1.8 | 2026-09-24 | 使用例を IPO 詳細の冒頭（`### 4.1 使用例`）へ移し、末尾の「## 5. 使用例」章を削除（基本フォーマット `a_class_method_md_format.md` v1.6〜 §6.1 に準拠。2026-09-24）。IPO の小節を 4.2 以降へ繰り下げ、後続の章番号を 1 つ繰り上げた。文書内の `§4.x` 参照も追随 |
 | 1.9 | 2026-09-26 | Embedding を `gemini-embedding-2` へ変更し、モデル名の定義を `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所へ集約（2026-09-26）。`ModelInfo` に `embedding_model` / `embedding_dims` を追加 |
 | 1.10 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |

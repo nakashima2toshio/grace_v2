@@ -657,18 +657,18 @@ sequenceDiagram
 
 ## 7. 変更履歴
 
-| バージョン | 変更内容 |
-|-----------|---------|
-| 1.0 | 初版作成（run_dev.sh 起点の React 処理フロー：起動〜フロント初期化〜ジョブ〜コア①〜⑥〜描画〜HITL、エージェントパターン対応を追加） |
-| 2.2 | **`*_spec.md` 統合への追随**（2026-09-16）。§0 の「WHY / WHAT」2 列を 1 列へ統合し、業界プロファイル / ルールセットの参照先を [`verticals_and_rulesets.md`](./verticals_and_rulesets.md) に張り替えた |
-| 2.1 | **§0「タブ ↔ 文書の対応」を追加**（2026-09-15）。4 タブ（基本版 / GRACE-Support / GRACE-Review / データ管理）それぞれの画面コンポーネント・コア関数・WHY / WHAT 文書の対応表を新設し、「基本版に専用文書を作らない理由」「データ管理を 1 本にしている理由」を明記した。本書の §1 以降が `basic` / `support` タブの経路だけを扱う旨も追記 |
-| 2.0 | **`react_processing_flow.md` → `webapp_flow.md` へ改称**（2026-09-15）。`React`（フロントエンド）と `ReAct`（エージェントパターン）の取り違えを誘発しており、`backend/docs/README.md` も本書を「ReAct の処理フロー」と誤って説明していた。内容は変更せず、冒頭に位置づけ（end-to-end フロー）と正本リンクを追加した。§5「エージェントパターン対応」は本書に残し、[`../../docs/pipelines.md`](../../docs/pipelines.md) と相互リンクした |
-| 2.3 | 概要の「各責務対応のモジュール」を主な責務と 1:1（7 行）に揃えた（8 行で、1 つの責務が複数行に割れていた。基本フォーマット §2.4。2026-09-24） |
-| 2.4 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
-| 2.5 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
-| 2.6 | SSE の keepalive を名前付きイベントへ変更したのに追随（2026-10-08） |
-| 2.7 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
-| 2.8 | 現在の既定 LLM の記述を `claude-sonnet-5` から実装（`config.py::ModelConfig.DEFAULT_MODEL` / `config/grace_config.yml` の `llm.model`）どおり `claude-sonnet-5-5` へ是正（概要・用語表）（2026-10-08） |
+| バージョン | 日付 | 変更内容 |
+|---|---|---|
+| 1.0 | — | 初版作成（run_dev.sh 起点の React 処理フロー：起動〜フロント初期化〜ジョブ〜コア①〜⑥〜描画〜HITL、エージェントパターン対応を追加） |
+| 2.0 | 2026-09-15 | **`react_processing_flow.md` → `webapp_flow.md` へ改称**（2026-09-15）。`React`（フロントエンド）と `ReAct`（エージェントパターン）の取り違えを誘発しており、`backend/docs/README.md` も本書を「ReAct の処理フロー」と誤って説明していた。内容は変更せず、冒頭に位置づけ（end-to-end フロー）と正本リンクを追加した。§5「エージェントパターン対応」は本書に残し、[`../../docs/pipelines.md`](../../docs/pipelines.md) と相互リンクした |
+| 2.1 | 2026-09-15 | **§0「タブ ↔ 文書の対応」を追加**（2026-09-15）。4 タブ（基本版 / GRACE-Support / GRACE-Review / データ管理）それぞれの画面コンポーネント・コア関数・WHY / WHAT 文書の対応表を新設し、「基本版に専用文書を作らない理由」「データ管理を 1 本にしている理由」を明記した。本書の §1 以降が `basic` / `support` タブの経路だけを扱う旨も追記 |
+| 2.2 | 2026-09-16 | **`*_spec.md` 統合への追随**（2026-09-16）。§0 の「WHY / WHAT」2 列を 1 列へ統合し、業界プロファイル / ルールセットの参照先を [`verticals_and_rulesets.md`](./verticals_and_rulesets.md) に張り替えた |
+| 2.3 | 2026-09-24 | 概要の「各責務対応のモジュール」を主な責務と 1:1（7 行）に揃えた（8 行で、1 つの責務が複数行に割れていた。基本フォーマット §2.4。2026-09-24） |
+| 2.4 | 2026-09-26 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
+| 2.5 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
+| 2.6 | 2026-10-08 | SSE の keepalive を名前付きイベントへ変更したのに追随（2026-10-08） |
+| 2.7 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
+| 2.8 | 2026-10-08 | 現在の既定 LLM の記述を `claude-sonnet-5` から実装（`config.py::ModelConfig.DEFAULT_MODEL` / `config/grace_config.yml` の `llm.model`）どおり `claude-sonnet-5-5` へ是正（概要・用語表）（2026-10-08） |
 
 ---
 

@@ -407,15 +407,15 @@ onSubmit({
 
 ## 9. 変更履歴
 
-| 版 | 日付 | 変更内容 |
+| バージョン | 日付 | 変更内容 |
 |---|---|---|
-| 1.9 | 2026-10-03 | **`onDocumentChange` prop を追加**（任意）。入力欄の文書が変わるたびに親へ知らせ、`ReviewPanel` が「結果が前の文書のものか」を判定できるようにした（例文ボタンは入力欄を差し替えるだけで実行しないため、前回の結果を今の文書の結果と読み違えた。実測 2026-10-03） |
-| 1.8 | 2026-10-01 | **Web 裏取りの既定を OFF へ変更**（`DEFAULT_REVIEW_FORM.useWeb` とチェックボックスの表示「既定 OFF」）。API の既定（`ReviewRequest.use_web=False`）とフォームの既定が食い違っていたのも解消 |
-| 1.7 | 2026-09-24 | `a_react_page_md_format.md` v1.1 に追随（2026-09-24）。概要に「各責務対応のモジュール」（主な責務と 1:1）を追加し、`## 1.` を「アーキテクチャ構成図」として **1.1 システム全体での位置づけ（3 層）** と 1.2 コンポーネントツリー図の 2 枚構成にした。Mermaid の `classDef subgraphStyle` の欠落を補った |
-| 1.6 | 2026-09-24 | **文書 textarea に Ctrl+Enter / ⌘+Enter の送信を追加**（grace_v2_local から移植）。判定は `QueryForm` と同じ `state/submitKey.ts::isSubmitKey`（IME 変換中は送らない）。送信処理を `submitIfReady()` へ切り出して form submit とキー操作で共用し、placeholder に操作を明記した。grace_v2 にだけある `.sr-only` のタイトルラベルは温存。§8 の `headerModel.test.ts` の件数を実測（16）へ訂正 |
-| 1.5 | 2026-09-23 | **詳細ログの既定を ON へ変更**（基本版 / GRACE-Support / GRACE-Review は `DEFAULT_QUERY_FORM` / `DEFAULT_REVIEW_FORM` の `verbose`、データ管理は `DataJobPanel` の `useState`） |
-| 1.4 | 2026-09-23 | **モデルセレクタをヘッダー（`App`）へ移した。** フォーム内の `ModelSelect` と `model` state を削除し、`models` / `defaultModel` prop を `model` prop へ置き換えた。`formMemory` からも `model` を外した。`useState` は 8 → 7 個 |
-| 1.3 | 2026-09-23 | **チェックボックスの既定を変更**: Web 裏取り OFF → ON、dry-run ON → OFF（`DEFAULT_REVIEW_FORM`）。詳細ログは従来どおり OFF。API スキーマ `ReviewRequest` の既定は API 直叩き用で据え置き（UI は常に値を明示送信する） |
-| 1.2 | 2026-09-16 | **モデルセレクタを追加**（`models` / `defaultModel` prop → `ModelSelect`）。`model` は空文字＝「サーバーの既定値」で、送信時に `null` へ倒す。`formMemory` にも `model` を追加した |
-| 1.1 | 2026-09-12 | **アクセシビリティを改善。** タイトルと文書に `.sr-only` のラベルを付け、上限超過を `aria-invalid` ＋ `aria-describedby` ＋ ライブ領域で伝えるようにした。判定・文言は `state/documentLimit.ts`（純関数・vitest 10 件）へ切り出し、**超過中のアナウンス文言を長さに依存させない**ことで再読み上げを防いでいる |
 | 1.0 | 2026-09-12 | 初版作成。実装は 2026-08-20 からあったが文書が無かった（`frontend/docs/README.md` の索引が無く欠落を検知できていなかった） |
+| 1.1 | 2026-09-12 | **アクセシビリティを改善。** タイトルと文書に `.sr-only` のラベルを付け、上限超過を `aria-invalid` ＋ `aria-describedby` ＋ ライブ領域で伝えるようにした。判定・文言は `state/documentLimit.ts`（純関数・vitest 10 件）へ切り出し、**超過中のアナウンス文言を長さに依存させない**ことで再読み上げを防いでいる |
+| 1.2 | 2026-09-16 | **モデルセレクタを追加**（`models` / `defaultModel` prop → `ModelSelect`）。`model` は空文字＝「サーバーの既定値」で、送信時に `null` へ倒す。`formMemory` にも `model` を追加した |
+| 1.3 | 2026-09-23 | **チェックボックスの既定を変更**: Web 裏取り OFF → ON、dry-run ON → OFF（`DEFAULT_REVIEW_FORM`）。詳細ログは従来どおり OFF。API スキーマ `ReviewRequest` の既定は API 直叩き用で据え置き（UI は常に値を明示送信する） |
+| 1.4 | 2026-09-23 | **モデルセレクタをヘッダー（`App`）へ移した。** フォーム内の `ModelSelect` と `model` state を削除し、`models` / `defaultModel` prop を `model` prop へ置き換えた。`formMemory` からも `model` を外した。`useState` は 8 → 7 個 |
+| 1.5 | 2026-09-23 | **詳細ログの既定を ON へ変更**（基本版 / GRACE-Support / GRACE-Review は `DEFAULT_QUERY_FORM` / `DEFAULT_REVIEW_FORM` の `verbose`、データ管理は `DataJobPanel` の `useState`） |
+| 1.6 | 2026-09-24 | **文書 textarea に Ctrl+Enter / ⌘+Enter の送信を追加**（grace_v2_local から移植）。判定は `QueryForm` と同じ `state/submitKey.ts::isSubmitKey`（IME 変換中は送らない）。送信処理を `submitIfReady()` へ切り出して form submit とキー操作で共用し、placeholder に操作を明記した。grace_v2 にだけある `.sr-only` のタイトルラベルは温存。§8 の `headerModel.test.ts` の件数を実測（16）へ訂正 |
+| 1.7 | 2026-09-24 | `a_react_page_md_format.md` v1.1 に追随（2026-09-24）。概要に「各責務対応のモジュール」（主な責務と 1:1）を追加し、`## 1.` を「アーキテクチャ構成図」として **1.1 システム全体での位置づけ（3 層）** と 1.2 コンポーネントツリー図の 2 枚構成にした。Mermaid の `classDef subgraphStyle` の欠落を補った |
+| 1.8 | 2026-10-01 | **Web 裏取りの既定を OFF へ変更**（`DEFAULT_REVIEW_FORM.useWeb` とチェックボックスの表示「既定 OFF」）。API の既定（`ReviewRequest.use_web=False`）とフォームの既定が食い違っていたのも解消 |
+| 1.9 | 2026-10-03 | **`onDocumentChange` prop を追加**（任意）。入力欄の文書が変わるたびに親へ知らせ、`ReviewPanel` が「結果が前の文書のものか」を判定できるようにした（例文ボタンは入力欄を差し替えるだけで実行しないため、前回の結果を今の文書の結果と読み違えた。実測 2026-10-03） |

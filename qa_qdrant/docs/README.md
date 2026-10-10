@@ -202,17 +202,17 @@ uv run --no-sync pytest backend/tests/test_qa_qdrant_package_init.py -q
 
 ## 8. 変更履歴
 
-| Version | 日付 | 変更 |
+| バージョン | 日付 | 変更内容 |
 |---|---|---|
-| 1.11 | 2026-10-08 | Q/A 生成の既定モデルがコード側で `config.py::ModelConfig.DEFAULT_MODEL` 参照になったのに追随し、既定の記述を `claude-sonnet-5` → `claude-sonnet-5-5` へ是正（冒頭の注記） |
-| 1.10 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`）。同じ改訂の 6 文書の行数・Ver を再実測 |
-| 1.9 | 2026-09-26 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所）。あわせて同じ改訂の 6 文書の行数・Ver と、PR #216 で変わった `register_to_qdrant.py` の実装行数（588）を再実測 |
-| 1.8 | 2026-09-26 | `make_qa_register_qdrant_ipo.md` v1.5（`--dataset` の種別が `unknown` になる問題の是正）に追随して §2.2 の行数・Ver を更新 |
-| 1.7 | 2026-09-26 | `make_qa_register_qdrant.md` v1.6（§7 の `--model` 既定を `claude-sonnet-5` へ是正）に追随。§2 の行数・Ver と残タスク 2 の注記を更新 |
-| 1.6 | 2026-09-25 | 残タスク 4 の④（`--text-column` が Q/A 生成に渡らない）を修正し、残タスク 4 を完了。§2・§3 の行数・Ver と §7 に `test_qa_pipeline_text_column.py` を追加 |
-| 1.5 | 2026-09-25 | 残タスク 4 の③（`--provider` が効かない）と⑤（`ANTHROPIC_API_KEY` を起動時に確かめない）を修正したのに追随。§2・§3 の行数・Ver と §7 に `test_make_qa_register_qdrant_startup_checks.py` を追加 |
-| 1.4 | 2026-09-25 | 残タスク 4 の①（`.txt` 入力が必ず失敗する）を修正したのに追随。§2・§3 の行数・Ver（§3 の実装行数は v1.3 で 609 のまま取り残していた）と §7 に `test_make_qa_register_qdrant_txt_input.py` を追加 |
-| 1.3 | 2026-09-25 | 残タスク 4 の②（登録失敗でも終了コード 0）を修正したのに追随。§2.2・§7 に `test_make_qa_register_qdrant_exit_code.py` を追加 |
-| 1.2 | 2026-09-25 | 残タスク 3 を完了（`make_qa_register_qdrant_ipo.md` を新設し §1・§2.2・§3 に追加）。仕様書の作成時に実測した既知の問題 5 件を残タスク 4 として記録 |
-| 1.1 | 2026-09-25 | 残タスク 1・2（既定モデルの記述・環境変数例）を完了し、§2 の行数・Ver を更新 |
 | 1.0 | 2026-09-25 | 新規作成。`qa_qdrant/docs/` には棚卸し索引が無かった（姉妹リポジトリ `grace_v2_local` にはある）。本リポジトリの実ファイルから 12 文書を形式別（手順書 / IPO / 設計・比較）に整理し、実装カバレッジ・`__init__.py` の整理の経緯・テスト件数（実測）を記載。既定モデルの表記と実装値を突き合わせ、残タスク 3 件を記録した |
+| 1.1 | 2026-09-25 | 残タスク 1・2（既定モデルの記述・環境変数例）を完了し、§2 の行数・Ver を更新 |
+| 1.2 | 2026-09-25 | 残タスク 3 を完了（`make_qa_register_qdrant_ipo.md` を新設し §1・§2.2・§3 に追加）。仕様書の作成時に実測した既知の問題 5 件を残タスク 4 として記録 |
+| 1.3 | 2026-09-25 | 残タスク 4 の②（登録失敗でも終了コード 0）を修正したのに追随。§2.2・§7 に `test_make_qa_register_qdrant_exit_code.py` を追加 |
+| 1.4 | 2026-09-25 | 残タスク 4 の①（`.txt` 入力が必ず失敗する）を修正したのに追随。§2・§3 の行数・Ver（§3 の実装行数は v1.3 で 609 のまま取り残していた）と §7 に `test_make_qa_register_qdrant_txt_input.py` を追加 |
+| 1.5 | 2026-09-25 | 残タスク 4 の③（`--provider` が効かない）と⑤（`ANTHROPIC_API_KEY` を起動時に確かめない）を修正したのに追随。§2・§3 の行数・Ver と §7 に `test_make_qa_register_qdrant_startup_checks.py` を追加 |
+| 1.6 | 2026-09-25 | 残タスク 4 の④（`--text-column` が Q/A 生成に渡らない）を修正し、残タスク 4 を完了。§2・§3 の行数・Ver と §7 に `test_qa_pipeline_text_column.py` を追加 |
+| 1.7 | 2026-09-26 | `make_qa_register_qdrant.md` v1.6（§7 の `--model` 既定を `claude-sonnet-5` へ是正）に追随。§2 の行数・Ver と残タスク 2 の注記を更新 |
+| 1.8 | 2026-09-26 | `make_qa_register_qdrant_ipo.md` v1.5（`--dataset` の種別が `unknown` になる問題の是正）に追随して §2.2 の行数・Ver を更新 |
+| 1.9 | 2026-09-26 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所）。あわせて同じ改訂の 6 文書の行数・Ver と、PR #216 で変わった `register_to_qdrant.py` の実装行数（588）を再実測 |
+| 1.10 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`）。同じ改訂の 6 文書の行数・Ver を再実測 |
+| 1.11 | 2026-10-08 | Q/A 生成の既定モデルがコード側で `config.py::ModelConfig.DEFAULT_MODEL` 参照になったのに追随し、既定の記述を `claude-sonnet-5` → `claude-sonnet-5-5` へ是正（冒頭の注記） |

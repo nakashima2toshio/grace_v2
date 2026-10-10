@@ -515,12 +515,12 @@ class S,Opt,Push,V,R,Build,Vert,Null,Sel,Act,Id,Send1,Send2 default
 
 ## 9. 変更履歴
 
-| 版 | 日付 | 変更内容 |
+| バージョン | 日付 | 変更内容 |
 |---|---|---|
 | 1.0 | 2026-08-01 | 初版作成。CLI 引数との 1:1 対応、`showVertical` による基本版 / Support の出し分け、識別子欄が「効く条件」（`ec` ＋ dry-run OFF ＋ `SUPPORT_IDENTITY_FILE` の 1 経路のみ）、判断ロジックを `state/queryParams.ts` へ出してテストしている構成を記載 |
 | 1.1 | 2026-08-05 | **タブを切り替えると入力が既定値へ戻る不具合を修正。** タブ切替はアンマウントなので `useState` が全部リセットされていた（外した dry-run が ON へ復帰する＝実行結果が変わる）。入力内容を `state/formMemory.ts` へ退避し、再マウント時に復元する。記憶は基本版 / Support で分離 |
-| 1.3 | 2026-09-16 | **モデルセレクタを追加**（`models` / `defaultModel` prop → `ModelSelect`）。`model` state は空文字＝「サーバーの既定値」で、`buildQueryParams` が `null` 化する。既定のモデル名はフロントに持たず `GET /api/model` から取る。`formMemory` にも `model` を追加（タブ切替で選択が戻らないように） |
 | 1.2 | 2026-08-25 | **基本版タブの問い合わせ欄を複数行（`<textarea>`）に変更**（grace_v2_local と同等化）。`multiline` prop で分岐し、`showVertical` からは導出しない。`<textarea>` では Enter が改行になり HTML の暗黙送信が効かなくなるため、`Ctrl+Enter` / `⌘+Enter` を送信に割り当て、判定を `state/submitKey.ts` の純関数へ分離（**IME 変換中の Enter は送信しない**）。送信経路が 3 つになったので条件判定を `submitIfReady()` へ集約 |
+| 1.3 | 2026-09-16 | **モデルセレクタを追加**（`models` / `defaultModel` prop → `ModelSelect`）。`model` state は空文字＝「サーバーの既定値」で、`buildQueryParams` が `null` 化する。既定のモデル名はフロントに持たず `GET /api/model` から取る。`formMemory` にも `model` を追加（タブ切替で選択が戻らないように） |
 | 1.4 | 2026-09-23 | **dry-run の既定を OFF へ変更**（`DEFAULT_QUERY_FORM.dryRun = false`）。ラベルも「既定 OFF」へ。詳細ログは従来どおり既定 OFF（grace_v2_local と同じ既定値） |
 | 1.5 | 2026-09-23 | **モデルセレクタをヘッダー（`App`）へ移した。** フォーム内の `ModelSelect` と `model` state を削除し、`models` / `defaultModel` prop を `model` prop（ヘッダーで選んだ値）へ置き換えた。`formMemory` からも `model` を外した（`App` はアンマウントされないので退避が要らない） |
 | 1.6 | 2026-09-23 | **詳細ログの既定を ON へ変更**（基本版 / GRACE-Support / GRACE-Review は `DEFAULT_QUERY_FORM` / `DEFAULT_REVIEW_FORM` の `verbose`、データ管理は `DataJobPanel` の `useState`） |

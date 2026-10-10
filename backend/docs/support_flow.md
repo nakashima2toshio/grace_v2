@@ -1699,19 +1699,19 @@ InterventionBridge
 
 ## 13. 変更履歴
 
-| Version | 変更内容 |
-|---|---|
-| 3.7 | 「指示に従うかはモデル次第」の 2026-08-29 実測表のモデル名を `claude-sonnet-5` → 当時の既定 `claude-sonnet-4-6` へ戻した。2026-09-16 の既定変更の一括置換で、計測していないモデル名に書き換わっていた（`gates.py` / `test_multi_question.py` の同じ表は `claude-sonnet-4-6` のまま正しかった）。現在の既定 `claude-sonnet-5-5` では未計測であること、コード側の担保はモデルに依存しないことを注記（2026-10-09） |
-| 3.6 | 現在の既定 LLM の記述を `claude-sonnet-5` から実装（`config.py::ModelConfig.DEFAULT_MODEL` / `config/grace_config.yml` の `llm.model`）どおり `claude-sonnet-5-5` へ是正（依存表・§9.2 実行コストの目安。「指示に従うかはモデル次第」の 2026-08-29 実測表は当時の記録なので変えていない）（2026-10-08） |
-| 3.5 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
-| 3.4 | `use_web=False` を「内部 RAG のみ」に揃えた（2026-10-04）。⑤ に加えて executor の Web 検索（動的挿入・計画済みステップ・並列プリフェッチ・fallback・ReAct）も止める。あわせて、回答本文で引用していない Web 出典を表示から外す（`gates.drop_uncited_web_citations`。社内の出典だけを引用し URL を 1 つも書いていない回答に限る。ゲートの後・表示用の出典だけ） |
-| 3.3 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
-| 3.2 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
-| 3.1 | 目次のリンク切れを解消（2026-09-24）。§4 は見出しの丸数字（⑥）を含むアンカーへ、付録 A・B は見出しの改名（旧 CLI 仕様・1 リクエスト実行トレース）に追随 |
-| 3.0 | **`support_spec.md`（929 行・v1.2）を統合し、処理フローと設計判断を 1 本にした**（2026-09-16）。回答ポリシー / HITL ポリシー / データ契約 / アクション実行の設計 / 設計レベルのシーケンスを **§5 設計判断**へ、0-(A) 複数質問を **§6**へ、基本版タブを **§7**へ、KPI と残タスクを **§9**へ、実装ロードマップを **§12**へ移した。業界特化（旧 `support_spec.md` §6）は [`verticals_and_rulesets.md` §1](./verticals_and_rulesets.md) へ分離。旧 §3.2「関数一覧（カテゴリ別）」は `reference/core_*.md` と 3 重管理だったため**削除してリンクに置換**した |
-| 2.0 | **`backend_flow.md` → `support_flow.md` へ改称し、3 文書を統合**（2026-09-15）。① `confidence_flow_grace_vs_backend.md`（239 行・v1.1）を **§3.3**（信頼度フローの比較・現 §3.2）へ ② `agent_support_example.md` §8（CLI 仕様）を**付録A**へ ③ `agent_support_example_flow.md`（455 行・v1.2）を**付録B**へ。あわせて**ステップ番号を `CLAUDE.md` §1 の体系（`0-(A)` `0-(B)` `①`〜`⑥` `④'`）へ統一**し、旧 `(0)`〜`(8)` との対応表を §4 冒頭に残した。**旧版に記載が無かった `0-(A)` `analyze` を §4.0 として新規追加** |
-| 1.1 | 配置を `backend/app/backend_flow.md` → **`backend/docs/backend_flow.md`** へ移設。Review 版の対応ドキュメントとして [`review_flow.md`](./review_flow.md) を新設 |
-| 1.0 | 初版作成（処理フローの (0)〜(8) を IPO 形式でステップ別に詳細化） |
+| バージョン | 日付 | 変更内容 |
+|---|---|---|
+| 1.0 | — | 初版作成（処理フローの (0)〜(8) を IPO 形式でステップ別に詳細化） |
+| 1.1 | — | 配置を `backend/app/backend_flow.md` → **`backend/docs/backend_flow.md`** へ移設。Review 版の対応ドキュメントとして [`review_flow.md`](./review_flow.md) を新設 |
+| 2.0 | 2026-09-15 | **`backend_flow.md` → `support_flow.md` へ改称し、3 文書を統合**（2026-09-15）。① `confidence_flow_grace_vs_backend.md`（239 行・v1.1）を **§3.3**（信頼度フローの比較・現 §3.2）へ ② `agent_support_example.md` §8（CLI 仕様）を**付録A**へ ③ `agent_support_example_flow.md`（455 行・v1.2）を**付録B**へ。あわせて**ステップ番号を `CLAUDE.md` §1 の体系（`0-(A)` `0-(B)` `①`〜`⑥` `④'`）へ統一**し、旧 `(0)`〜`(8)` との対応表を §4 冒頭に残した。**旧版に記載が無かった `0-(A)` `analyze` を §4.0 として新規追加** |
+| 3.0 | 2026-09-16 | **`support_spec.md`（929 行・v1.2）を統合し、処理フローと設計判断を 1 本にした**（2026-09-16）。回答ポリシー / HITL ポリシー / データ契約 / アクション実行の設計 / 設計レベルのシーケンスを **§5 設計判断**へ、0-(A) 複数質問を **§6**へ、基本版タブを **§7**へ、KPI と残タスクを **§9**へ、実装ロードマップを **§12**へ移した。業界特化（旧 `support_spec.md` §6）は [`verticals_and_rulesets.md` §1](./verticals_and_rulesets.md) へ分離。旧 §3.2「関数一覧（カテゴリ別）」は `reference/core_*.md` と 3 重管理だったため**削除してリンクに置換**した |
+| 3.1 | 2026-09-24 | 目次のリンク切れを解消（2026-09-24）。§4 は見出しの丸数字（⑥）を含むアンカーへ、付録 A・B は見出しの改名（旧 CLI 仕様・1 リクエスト実行トレース）に追随 |
+| 3.2 | 2026-09-26 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
+| 3.3 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
+| 3.4 | 2026-10-04 | `use_web=False` を「内部 RAG のみ」に揃えた（2026-10-04）。⑤ に加えて executor の Web 検索（動的挿入・計画済みステップ・並列プリフェッチ・fallback・ReAct）も止める。あわせて、回答本文で引用していない Web 出典を表示から外す（`gates.drop_uncited_web_citations`。社内の出典だけを引用し URL を 1 つも書いていない回答に限る。ゲートの後・表示用の出典だけ） |
+| 3.5 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
+| 3.6 | 2026-10-08 | 現在の既定 LLM の記述を `claude-sonnet-5` から実装（`config.py::ModelConfig.DEFAULT_MODEL` / `config/grace_config.yml` の `llm.model`）どおり `claude-sonnet-5-5` へ是正（依存表・§9.2 実行コストの目安。「指示に従うかはモデル次第」の 2026-08-29 実測表は当時の記録なので変えていない）（2026-10-08） |
+| 3.7 | 2026-10-09 | 「指示に従うかはモデル次第」の 2026-08-29 実測表のモデル名を `claude-sonnet-5` → 当時の既定 `claude-sonnet-4-6` へ戻した。2026-09-16 の既定変更の一括置換で、計測していないモデル名に書き換わっていた（`gates.py` / `test_multi_question.py` の同じ表は `claude-sonnet-4-6` のまま正しかった）。現在の既定 `claude-sonnet-5-5` では未計測であること、コード側の担保はモデルに依存しないことを注記（2026-10-09） |
 
 > 統合元 `support_spec.md` の変更履歴（v1.0〜v1.2）と、さらにその統合元 3 文書の履歴は
 > git で追える（`git log --follow --all -- backend/docs/support_flow.md`）。

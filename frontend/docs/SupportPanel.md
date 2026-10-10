@@ -563,14 +563,14 @@ class S,V,R,Go,Err,Fail,Stream,I,M,D default
 
 ## 10. 変更履歴
 
-| 版 | 日付 | 変更内容 |
+| バージョン | 日付 | 変更内容 |
 |---|---|---|
-| 1.7 | 2026-09-24 | `a_react_page_md_format.md` v1.1 に追随（2026-09-24）。概要に「各責務対応のモジュール」（主な責務と 1:1）を追加し、`## 1.` を「アーキテクチャ構成図」として **1.1 システム全体での位置づけ（3 層）** と 1.2 コンポーネントツリー図の 2 枚構成にした。Mermaid の `classDef subgraphStyle` の欠落を補った |
-| 1.6 | 2026-09-23 | **モデル選択をヘッダー（`App`）へ移した。** `models` / `modelInfo` の state と取得の副作用を削除し、`model` prop を受け取って `QueryForm` へ渡すだけにした |
-| 1.5 | 2026-09-16 | **モデルセレクタに追随。** `models` / `modelInfo` の取得（`fetchModels` / `fetchModelInfo`）を副作用へ追加し、`QueryForm` へ `models` / `defaultModel` を渡すようにした。取得失敗でバナーを出さない理由（縮退しても既定モデルで正しく走る）を明記 |
-| 1.4 | 2026-09-12 | **アクセシビリティ記述の訂正。** 「実行中であることが伝わるか」を ❌ としていたが誤りだった。`Timeline` が `sr-only` の `aria-live="polite"` で「実行中: <ステップ名>」を読み上げており（`state/timelineAnnounce.ts`）、実行中であることは支援技術へ伝わっている。`.running-banner` にライブ領域を足すと二重読み上げになるため、あえて付けない |
-| 1.3 | 2026-09-12 | **本文を実装へ追随させた（それまで §4.1 は修正前のコード `.catch(() => setVerticals([]))` を載せたままだった）。** v1.1〜1.2 で実装済みの `MetaErrorBanner` / `QuestionSelectModal` / `interventionKind` を本文（概要・ツリー図・props・状態管理・副作用・表示の出し分け）へ反映。`useJobTiming` による開始・完了行（`JobClock`）と基本版の複数行入力（`multiline`）を追記。テスト件数を `npm test` の実測値へ差し替え。版番号の重複（1.1 が 2 行）を解消 |
-| 1.2 | 2026-08-30 | **業界プロファイル取得の失敗を握りつぶしていた不具合を修正。** `.catch(() => setVerticals([]))` だとバックエンド停止時に「（なし）しか選べない」としか見えなかったため、`MetaErrorBanner` で理由と復旧手順を表示し再取得できるようにした |
+| 1.0 | 2026-08-01 | 初版作成。基本版 / GRACE-Support で共用する `variant` 方式に基づく。早期 return でもクリーンアップを返す必要があること、多重購読を 2 段で防いでいること、承認待ち中は実行中バナーを出さないことを明記 |
 | 1.1b | 2026-08-29 | 承認待ちモーダルを 2 種類に分岐（`state/interventionKind.ts` の純関数で判定）。0-(A) の主質問選択は `QuestionSelectModal`、従来のアクション承認は `ConfirmModal`。`respond` が `selectedOption` を受け取る（既定 `null` で従来呼び出しと互換） |
 | 1.1 | 2026-08-05 | エラーバナーに `role="alert"` を追加 |
-| 1.0 | 2026-08-01 | 初版作成。基本版 / GRACE-Support で共用する `variant` 方式に基づく。早期 return でもクリーンアップを返す必要があること、多重購読を 2 段で防いでいること、承認待ち中は実行中バナーを出さないことを明記 |
+| 1.2 | 2026-08-30 | **業界プロファイル取得の失敗を握りつぶしていた不具合を修正。** `.catch(() => setVerticals([]))` だとバックエンド停止時に「（なし）しか選べない」としか見えなかったため、`MetaErrorBanner` で理由と復旧手順を表示し再取得できるようにした |
+| 1.3 | 2026-09-12 | **本文を実装へ追随させた（それまで §4.1 は修正前のコード `.catch(() => setVerticals([]))` を載せたままだった）。** v1.1〜1.2 で実装済みの `MetaErrorBanner` / `QuestionSelectModal` / `interventionKind` を本文（概要・ツリー図・props・状態管理・副作用・表示の出し分け）へ反映。`useJobTiming` による開始・完了行（`JobClock`）と基本版の複数行入力（`multiline`）を追記。テスト件数を `npm test` の実測値へ差し替え。版番号の重複（1.1 が 2 行）を解消 |
+| 1.4 | 2026-09-12 | **アクセシビリティ記述の訂正。** 「実行中であることが伝わるか」を ❌ としていたが誤りだった。`Timeline` が `sr-only` の `aria-live="polite"` で「実行中: <ステップ名>」を読み上げており（`state/timelineAnnounce.ts`）、実行中であることは支援技術へ伝わっている。`.running-banner` にライブ領域を足すと二重読み上げになるため、あえて付けない |
+| 1.5 | 2026-09-16 | **モデルセレクタに追随。** `models` / `modelInfo` の取得（`fetchModels` / `fetchModelInfo`）を副作用へ追加し、`QueryForm` へ `models` / `defaultModel` を渡すようにした。取得失敗でバナーを出さない理由（縮退しても既定モデルで正しく走る）を明記 |
+| 1.6 | 2026-09-23 | **モデル選択をヘッダー（`App`）へ移した。** `models` / `modelInfo` の state と取得の副作用を削除し、`model` prop を受け取って `QueryForm` へ渡すだけにした |
+| 1.7 | 2026-09-24 | `a_react_page_md_format.md` v1.1 に追随（2026-09-24）。概要に「各責務対応のモジュール」（主な責務と 1:1）を追加し、`## 1.` を「アーキテクチャ構成図」として **1.1 システム全体での位置づけ（3 層）** と 1.2 コンポーネントツリー図の 2 枚構成にした。Mermaid の `classDef subgraphStyle` の欠落を補った |

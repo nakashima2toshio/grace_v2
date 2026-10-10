@@ -436,14 +436,14 @@ AsyncAPIClient                             # 非同期クライアント
 
 ## 7. 変更履歴
 
-| バージョン | 変更内容 |
-|-----------|---------|
-| 1.0 | 初版作成（Gemini `genai.Client` 前提）（2025-01-29） |
-| 2.0 | **実装と突き合わせて全面改訂。** v1.0 は Gemini 時代のままで、現在は存在しない `_is_valid_json()` / `_is_truncated_response()` / `genai.Client` を載せていた。あわせて `ChunkingAbortedError` と `DEFAULT_ABORT_AFTER_CONSECUTIVE_FAILURES` を追加記述（2026-09-12） |
-| 2.1 | 使用例を IPO 詳細の冒頭（`### 4.1 使用例`）へ移し、末尾の「## 6. 使用例」章を削除（基本フォーマット `a_class_method_md_format.md` v1.6〜 §6.1 に準拠。2026-09-24）。IPO の小節を 4.2 以降へ繰り下げ、後続の章番号を 1 つ繰り上げた。文書内の `§4.x` 参照も追随。あわせて「各責務対応のモジュール」を主な責務と同じ順・同じ粒度に並べ直した（行数は一致していたが、2〜5 行目の対応がずれていた） |
-| 2.2 | 既定モデルの記述（5 箇所）を実装（`async_api_client.py` の `default_model`）に合わせて旧既定 `claude-sonnet-4-6` → `claude-sonnet-5` へ是正（2026-09-25） |
-| 2.3 | 既定モデル（`default_model`）がコード側で `config.py::ModelConfig.DEFAULT_MODEL` 参照になったのに追随し、記述（5 箇所）を `claude-sonnet-5` → `claude-sonnet-5-5` へ是正（チャンク化は呼び出し側が軽量 `claude-haiku-5-5` を渡す）（2026-10-08） |
-| 2.4 | チャンキングの既定を、回答生成・Q/A 生成の `ModelConfig.DEFAULT_MODEL` から分けた `config.py::ModelConfig.CHUNKING_MODEL`（`claude-haiku-5-5`）の 1 箇所で決めるようにしたのに追随（2026-10-08） |
+| バージョン | 日付 | 変更内容 |
+|---|---|---|
+| 1.0 | 2025-01-29 | 初版作成（Gemini `genai.Client` 前提）（2025-01-29） |
+| 2.0 | 2026-09-12 | **実装と突き合わせて全面改訂。** v1.0 は Gemini 時代のままで、現在は存在しない `_is_valid_json()` / `_is_truncated_response()` / `genai.Client` を載せていた。あわせて `ChunkingAbortedError` と `DEFAULT_ABORT_AFTER_CONSECUTIVE_FAILURES` を追加記述（2026-09-12） |
+| 2.1 | 2026-09-24 | 使用例を IPO 詳細の冒頭（`### 4.1 使用例`）へ移し、末尾の「## 6. 使用例」章を削除（基本フォーマット `a_class_method_md_format.md` v1.6〜 §6.1 に準拠。2026-09-24）。IPO の小節を 4.2 以降へ繰り下げ、後続の章番号を 1 つ繰り上げた。文書内の `§4.x` 参照も追随。あわせて「各責務対応のモジュール」を主な責務と同じ順・同じ粒度に並べ直した（行数は一致していたが、2〜5 行目の対応がずれていた） |
+| 2.2 | 2026-09-25 | 既定モデルの記述（5 箇所）を実装（`async_api_client.py` の `default_model`）に合わせて旧既定 `claude-sonnet-4-6` → `claude-sonnet-5` へ是正（2026-09-25） |
+| 2.3 | 2026-10-08 | 既定モデル（`default_model`）がコード側で `config.py::ModelConfig.DEFAULT_MODEL` 参照になったのに追随し、記述（5 箇所）を `claude-sonnet-5` → `claude-sonnet-5-5` へ是正（チャンク化は呼び出し側が軽量 `claude-haiku-5-5` を渡す）（2026-10-08） |
+| 2.4 | 2026-10-08 | チャンキングの既定を、回答生成・Q/A 生成の `ModelConfig.DEFAULT_MODEL` から分けた `config.py::ModelConfig.CHUNKING_MODEL`（`claude-haiku-5-5`）の 1 箇所で決めるようにしたのに追随（2026-10-08） |
 
 ---
 

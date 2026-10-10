@@ -1036,19 +1036,19 @@ __all__ = [
 
 ## 9. 変更履歴
 
-| バージョン | 変更内容 |
-|-----------|---------|
-| 3.6 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
-| 3.5 | 現在の既定モデルの記載 `claude-sonnet-5` を実装（`grace/config.py` の `LLMConfig.model` / `grace/llm_compat.py` の `DEFAULT_ANTHROPIC_MODEL` = `claude-sonnet-5-5`）に合わせて是正（2026-10-06。CLAUDE.md §9.3。旧既定は履歴の記述にだけ残す） |
-| 3.4 | `rag_sufficient_score` の既定を 0.7 → 0.64 に追随（2026-10-04。`executor.md` v4.12）。設定表のセクション名を実体（`qdrant.`）に直した |
-| 3.3 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
-| 3.2 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
-| 3.1 | 現在の既定モデルの記載 `claude-sonnet-4-6` を実装（`grace/config.py` の `LLMConfig.model` = `claude-sonnet-5`）に合わせて是正した（CLAUDE.md §9.3。旧既定は履歴の記述にだけ残す）（2026-09-24） |
-| 3.0 | **`grace_core_flow.md` の統合先となり、図表の正本になった**（2026-09-14）。(1) **§3.0 モジュール役割サマリー**を新設——11 モジュールの 1 行サマリ表（旧 `grace_core_flow.md` §C・旧 `grace.md` 第2部）と 5 段階×担当モジュール表（旧 `grace.md` 第3部）をここへ集約し、3 本に散っていた同じ表を 1 箇所にした。(2) **§7 使用例を最小実行サンプルへ差し替え**（旧 `grace_core_flow.md` §D.1/§D.2/§D.4）。旧 §D.3 の行番号による逐行解説は、リポジトリに存在しないコード片への行番号だったため引き継いでいない。(3) §3.5 memory.py の「個別ドキュメント: （新規・本書で初出）」を `memory.md` へのリンクへ是正。(4) 冒頭に `grace.md`（WHY）/ `grace_runtime.md`（HOW）への参照を置き、本書が WHAT を受け持つことを明示 |
-| 2.1 | **Streamlit 残骸の除去。** Mermaid の UI ノードを `React UI ← FastAPI ← SSE` へ是正。`agent_rag.py` は存在しない（2026-09-12） |
-| 1.0 | 初版作成（A グループ 8 モジュールの横断まとめ。先頭にモジュール・ブロック図、3 層構成図、モジュール構成図、処理シーケンス、横断設定表を整備） |
-| 1.1 | 目次・本文の採番を整理（モジュール別サマリーのサブ番号 3.1–3.8 を本文番号と一致させ、目次を明示番号付き箇条書きに変更）。新章「4. 実行メモリが貯まるまで（planner → executor → memory）」を例データ・場合分け・黒背景シーケンス図つきで追加し、以降の章を 5〜9 に繰り下げ |
-| 2.0 | 実装との突き合わせによる訂正。(1) **行番号参照 13 件を全廃**（`planner.py:232`→実際は 254、`executor.py:991`→1026、`executor.py:432`/`:698`→463/729、`executor.py:1891`→2164、`memory.py:147`→161、`memory.py:192`→206 と、ほぼすべてズレていた）。シンボル名参照へ置換した。(2) **§4.5 の `_record_memory` が修正前のコードのままだった**ため、現行実装（`dynamic_steps` ＋ `PlanStep.dynamic` を成否判定から除外し、`_final_answer_of()` の有無も条件に入れる）へ差し替え、回帰の経緯を注記。旧記述のままでは「全ステップ success」が条件に読めるが、それは Web 障害だけで RAG コレクションに失敗が刻まれる不具合そのものだった。(3) 文書冒頭のタイトルが旧名 `grace_a.md` のままだったのを `grace_core.md` へ是正 |
+| バージョン | 日付 | 変更内容 |
+|---|---|---|
+| 1.0 | — | 初版作成（A グループ 8 モジュールの横断まとめ。先頭にモジュール・ブロック図、3 層構成図、モジュール構成図、処理シーケンス、横断設定表を整備） |
+| 1.1 | — | 目次・本文の採番を整理（モジュール別サマリーのサブ番号 3.1–3.8 を本文番号と一致させ、目次を明示番号付き箇条書きに変更）。新章「4. 実行メモリが貯まるまで（planner → executor → memory）」を例データ・場合分け・黒背景シーケンス図つきで追加し、以降の章を 5〜9 に繰り下げ |
+| 2.0 | — | 実装との突き合わせによる訂正。(1) **行番号参照 13 件を全廃**（`planner.py:232`→実際は 254、`executor.py:991`→1026、`executor.py:432`/`:698`→463/729、`executor.py:1891`→2164、`memory.py:147`→161、`memory.py:192`→206 と、ほぼすべてズレていた）。シンボル名参照へ置換した。(2) **§4.5 の `_record_memory` が修正前のコードのままだった**ため、現行実装（`dynamic_steps` ＋ `PlanStep.dynamic` を成否判定から除外し、`_final_answer_of()` の有無も条件に入れる）へ差し替え、回帰の経緯を注記。旧記述のままでは「全ステップ success」が条件に読めるが、それは Web 障害だけで RAG コレクションに失敗が刻まれる不具合そのものだった。(3) 文書冒頭のタイトルが旧名 `grace_a.md` のままだったのを `grace_core.md` へ是正 |
+| 2.1 | 2026-09-12 | **Streamlit 残骸の除去。** Mermaid の UI ノードを `React UI ← FastAPI ← SSE` へ是正。`agent_rag.py` は存在しない（2026-09-12） |
+| 3.0 | 2026-09-14 | **`grace_core_flow.md` の統合先となり、図表の正本になった**（2026-09-14）。(1) **§3.0 モジュール役割サマリー**を新設——11 モジュールの 1 行サマリ表（旧 `grace_core_flow.md` §C・旧 `grace.md` 第2部）と 5 段階×担当モジュール表（旧 `grace.md` 第3部）をここへ集約し、3 本に散っていた同じ表を 1 箇所にした。(2) **§7 使用例を最小実行サンプルへ差し替え**（旧 `grace_core_flow.md` §D.1/§D.2/§D.4）。旧 §D.3 の行番号による逐行解説は、リポジトリに存在しないコード片への行番号だったため引き継いでいない。(3) §3.5 memory.py の「個別ドキュメント: （新規・本書で初出）」を `memory.md` へのリンクへ是正。(4) 冒頭に `grace.md`（WHY）/ `grace_runtime.md`（HOW）への参照を置き、本書が WHAT を受け持つことを明示 |
+| 3.1 | 2026-09-24 | 現在の既定モデルの記載 `claude-sonnet-4-6` を実装（`grace/config.py` の `LLMConfig.model` = `claude-sonnet-5`）に合わせて是正した（CLAUDE.md §9.3。旧既定は履歴の記述にだけ残す）（2026-09-24） |
+| 3.2 | 2026-09-26 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
+| 3.3 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
+| 3.4 | 2026-10-04 | `rag_sufficient_score` の既定を 0.7 → 0.64 に追随（2026-10-04。`executor.md` v4.12）。設定表のセクション名を実体（`qdrant.`）に直した |
+| 3.5 | 2026-10-06 | 現在の既定モデルの記載 `claude-sonnet-5` を実装（`grace/config.py` の `LLMConfig.model` / `grace/llm_compat.py` の `DEFAULT_ANTHROPIC_MODEL` = `claude-sonnet-5-5`）に合わせて是正（2026-10-06。CLAUDE.md §9.3。旧既定は履歴の記述にだけ残す） |
+| 3.6 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
 
 ---
 

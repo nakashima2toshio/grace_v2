@@ -629,20 +629,20 @@ normalize_source_filename   # 日時サフィックスの除去
 
 ## 8. 変更履歴
 
-| バージョン | 変更内容 |
-|-----------|---------|
-| 1.0 | 初版作成（2026-09-25）。`qa_qdrant/docs/README.md` の残タスク（本モジュールの IPO 文書が無い）を解消。実装を読み、ダミーキーで CLI を実行して、`.txt` 入力が必ず失敗すること・Qdrant 登録失敗でも終了コード 0 になることを確認し、`--provider` / `--text-column` が効かないことと合わせて §3.3 に記録した（コードは未変更） |
-| 1.1 | §3.3 の 2（Qdrant 登録が失敗しても終了コード 0）の修正に追随（2026-09-25）。`main()` は Phase 2 の失敗で `sys.exit(1)` するようになった。§5.2 の Output・§5.1.3 の注記・§7 のテストの記述を更新 |
-| 1.2 | §3.3 の 1（`.txt` 入力が必ず失敗する）の修正に追随（2026-09-25）。`.txt` は `chunk_text_file()` で先にチャンク化してから Q/A 生成するようになった。概要・責務表・構成図 3 枚・§3.1 の判定表と図・§3.2 の出力・§5.4（`chunk_text_file` の IPO を新設。旧 §5.4 は §5.5 へ）・§5.1.2 の使用例・§6 の CLI 引数／環境変数／定数・§7 を更新。あわせて §5.2 の Process 7 に残っていた「登録失敗時はエラーログだけ」（v1.1 の取り残し）を「終了コード 1」へ直した |
-| 1.3 | §3.3 の 3（`--provider` が効かない）と 5（`ANTHROPIC_API_KEY` を起動時に確かめない）の修正に追随（2026-09-25）。`--provider` は `choices=["gemini"]`、Q/A を生成する経路では新設の `require_anthropic_key()` が生成前に確かめる。概要の注記・§1.2・§3.3・§4.2・§5.2・§5.3 の `provider`・§5.4（`require_anthropic_key` の IPO を追加）・§6.1／§6.2・§7 を更新 |
-| 1.4 | §3.3 の 4（`--text-column` が Q/A 生成に渡らない）の修正に追随（2026-09-25）。これで §3.3 の 5 件はすべて解消。概要の注記・§3.1 の 4・§3.3・§6.1・§7 を更新 |
-| 1.5 | §3.2 の `<種別>` の記述を是正（2026-09-26）。「`--dataset` のときはデータセット設定の `type`」は誤りで、`type` キーが無いため一律 `unknown` になっていた。`QAPipeline._load_config()` がデータセット名で補うよう直したのに合わせ、出力名・チャンク ID・途中経過ファイルがデータセット間で共有されていたことも記録 |
-| 1.6 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
-| 1.7 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
-| 1.8 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
-| 1.9 | Q/A 生成の既定モデルがコード側で `config.py::ModelConfig.DEFAULT_MODEL` 参照になったのに追随し、既定の記述を `claude-sonnet-5` → `claude-sonnet-5-5` へ是正（概要・引数表）（2026-10-08） |
-| 1.10 | チャンキングの既定を、回答生成・Q/A 生成の `ModelConfig.DEFAULT_MODEL` から分けた `config.py::ModelConfig.CHUNKING_MODEL`（`claude-haiku-5-5`）の 1 箇所で決めるようにしたのに追随（2026-10-08） |
-| 1.11 | §6.1 の引数表から `--batch-chunks` を削除（処理に使われていなかった）。`-c/--concurrency` はログ表示用で、実際の並列数は `start_celery.sh -c` で決まることを明記（2026-10-09） |
+| バージョン | 日付 | 変更内容 |
+|---|---|---|
+| 1.0 | 2026-09-25 | 初版作成（2026-09-25）。`qa_qdrant/docs/README.md` の残タスク（本モジュールの IPO 文書が無い）を解消。実装を読み、ダミーキーで CLI を実行して、`.txt` 入力が必ず失敗すること・Qdrant 登録失敗でも終了コード 0 になることを確認し、`--provider` / `--text-column` が効かないことと合わせて §3.3 に記録した（コードは未変更） |
+| 1.1 | 2026-09-25 | §3.3 の 2（Qdrant 登録が失敗しても終了コード 0）の修正に追随（2026-09-25）。`main()` は Phase 2 の失敗で `sys.exit(1)` するようになった。§5.2 の Output・§5.1.3 の注記・§7 のテストの記述を更新 |
+| 1.2 | 2026-09-25 | §3.3 の 1（`.txt` 入力が必ず失敗する）の修正に追随（2026-09-25）。`.txt` は `chunk_text_file()` で先にチャンク化してから Q/A 生成するようになった。概要・責務表・構成図 3 枚・§3.1 の判定表と図・§3.2 の出力・§5.4（`chunk_text_file` の IPO を新設。旧 §5.4 は §5.5 へ）・§5.1.2 の使用例・§6 の CLI 引数／環境変数／定数・§7 を更新。あわせて §5.2 の Process 7 に残っていた「登録失敗時はエラーログだけ」（v1.1 の取り残し）を「終了コード 1」へ直した |
+| 1.3 | 2026-09-25 | §3.3 の 3（`--provider` が効かない）と 5（`ANTHROPIC_API_KEY` を起動時に確かめない）の修正に追随（2026-09-25）。`--provider` は `choices=["gemini"]`、Q/A を生成する経路では新設の `require_anthropic_key()` が生成前に確かめる。概要の注記・§1.2・§3.3・§4.2・§5.2・§5.3 の `provider`・§5.4（`require_anthropic_key` の IPO を追加）・§6.1／§6.2・§7 を更新 |
+| 1.4 | 2026-09-25 | §3.3 の 4（`--text-column` が Q/A 生成に渡らない）の修正に追随（2026-09-25）。これで §3.3 の 5 件はすべて解消。概要の注記・§3.1 の 4・§3.3・§6.1・§7 を更新 |
+| 1.5 | 2026-09-26 | §3.2 の `<種別>` の記述を是正（2026-09-26）。「`--dataset` のときはデータセット設定の `type`」は誤りで、`type` キーが無いため一律 `unknown` になっていた。`QAPipeline._load_config()` がデータセット名で補うよう直したのに合わせ、出力名・チャンク ID・途中経過ファイルがデータセット間で共有されていたことも記録 |
+| 1.6 | 2026-09-26 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
+| 1.7 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
+| 1.8 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
+| 1.9 | 2026-10-08 | Q/A 生成の既定モデルがコード側で `config.py::ModelConfig.DEFAULT_MODEL` 参照になったのに追随し、既定の記述を `claude-sonnet-5` → `claude-sonnet-5-5` へ是正（概要・引数表）（2026-10-08） |
+| 1.10 | 2026-10-08 | チャンキングの既定を、回答生成・Q/A 生成の `ModelConfig.DEFAULT_MODEL` から分けた `config.py::ModelConfig.CHUNKING_MODEL`（`claude-haiku-5-5`）の 1 箇所で決めるようにしたのに追随（2026-10-08） |
+| 1.11 | 2026-10-09 | §6.1 の引数表から `--batch-chunks` を削除（処理に使われていなかった）。`-c/--concurrency` はログ表示用で、実際の並列数は `start_celery.sh -c` で決まることを明記（2026-10-09） |
 
 ---
 

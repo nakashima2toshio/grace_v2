@@ -581,13 +581,13 @@ LLM 用途（Anthropic Claude）とは別系統なので、画面から切り替
 
 ## 10. 変更履歴
 
-| 版 | 日付 | 変更内容 |
+| バージョン | 日付 | 変更内容 |
 |---|---|---|
 | 1.0 | 2026-08-05 | 初版作成 |
 | 1.1 | 2026-08-05 | タブ離脱時に進捗を失う不具合を修正（`activeJobs` による再購読）。`role="alert"` と `Timeline` のライブ領域を追加 |
-| 1.4 | 2026-09-23 | **モデルの選択をヘッダー（`App`）へ移した。** フォーム内の `ModelSelect` 2 つと `model` / `qaModel` / `models` / `modelInfo` の state、モデル取得の `useEffect` を削除し、`chunkingModel` / `qaModel` prop（`App` → `DataPanel` 経由）を受け取るようにした。`useState` は 25 → 21、`useEffect` は 3 → 2 |
-| 1.3 | 2026-09-16 | **モデル欄を自由入力から `ModelSelect`（選択式）へ変更**。選択肢は `GET /api/models`、既定値は `GET /api/model` の `chunking_model` / `qa_model`。未選択は `model` キーごと省略して送るため、`canSubmitQa` の「モデル欄が空なら送信できない」条件を撤去した。`useState` は 23 → 25、`useEffect` は 2 → 3 |
 | 1.2 | 2026-09-12 | **`variant='qa'`（Q/A 生成）を追加**。`useState` は 17 → 23（旧版の「× 13」は実装より古かった）、呼ぶ API は 2 → 3。出力先を入れ子にしない理由とモデル既定が違う理由を §7 に追記。テスト件数を実測値へ更新 |
+| 1.3 | 2026-09-16 | **モデル欄を自由入力から `ModelSelect`（選択式）へ変更**。選択肢は `GET /api/models`、既定値は `GET /api/model` の `chunking_model` / `qa_model`。未選択は `model` キーごと省略して送るため、`canSubmitQa` の「モデル欄が空なら送信できない」条件を撤去した。`useState` は 23 → 25、`useEffect` は 2 → 3 |
+| 1.4 | 2026-09-23 | **モデルの選択をヘッダー（`App`）へ移した。** フォーム内の `ModelSelect` 2 つと `model` / `qaModel` / `models` / `modelInfo` の state、モデル取得の `useEffect` を削除し、`chunkingModel` / `qaModel` prop（`App` → `DataPanel` 経由）を受け取るようにした。`useState` は 25 → 21、`useEffect` は 3 → 2 |
 | 1.5 | 2026-09-23 | **詳細ログの既定を ON へ変更**（基本版 / GRACE-Support / GRACE-Review は `DEFAULT_QUERY_FORM` / `DEFAULT_REVIEW_FORM` の `verbose`、データ管理は `DataJobPanel` の `useState`） |
 | 1.6 | 2026-09-24 | `a_react_page_md_format.md` v1.1 に追随（2026-09-24）。概要に「各責務対応のモジュール」（主な責務と 1:1）を追加し、`## 1.` を「アーキテクチャ構成図」として **1.1 システム全体での位置づけ（3 層）** と 1.2 コンポーネントツリー図の 2 枚構成にした。Mermaid の `classDef subgraphStyle` の欠落を補った |
 | 1.7 | 2026-09-26 | Embedding を `gemini-embedding-2` へ変更し、モデル名の定義を `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所へ集約（2026-09-26）。`embeddingLabel` prop を追加し、③ Qdrant 登録の注記のモデル名を API 由来にした（直書きをやめた） |

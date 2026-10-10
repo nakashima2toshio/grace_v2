@@ -2060,30 +2060,30 @@ __all__ = [
 
 ## 7. 変更履歴
 
-| バージョン | 変更内容 |
-|-----------|---------|
-| 4.16 | 未記載だった `_prefetch_enabled()`（最終評価の先行実行を行うかの判定）を §3.1 に追加（2026-10-06）。`_damp_support_rate` が `confidence.py::damp_support_rate` へ委譲するだけであること（Review と共用）を明記 |
-| 4.15 | 現在の既定モデルの記載 `claude-sonnet-5` を実装（`grace/config.py` の `LLMConfig.model` / `grace/llm_compat.py` の `DEFAULT_ANTHROPIC_MODEL` = `claude-sonnet-5-5`）に合わせて是正（2026-10-06。CLAUDE.md §9.3。旧既定は履歴の記述にだけ残す） |
-| 4.14 | 計測スクリプトを `scripts/measure_rag_threshold.py` に一本化したのに追随（2026-10-05） |
-| 4.13 | 付録の注記を訂正（2026-10-05）。E2E の saas の件の原因が 0.64〜0.7 の帯だったとは確かめていない（素の質問の最高スコアは 0.7062）。再測定の結果（範囲内と範囲外が重なり、しきい値 1 本では分けられない）への参照を追加 |
-| 4.12 | `qdrant.rag_sufficient_score` の既定を 0.7 → 0.64（`executor.reasoning_min_rag_score` と同じ）にした（2026-10-04）。採用した社内ナレッジがあるのに無条件で Web も検索していた帯（0.64〜0.7）をなくす |
-| 4.11 | Web 検索の無効化（`config.tools.disabled` に `web_search`）を 5 経路すべてで尊重するようにした（2026-10-04）。`_web_search_allowed()` / `_react_prompt_template()` を追加。無効時は `ask_user` も挿入しない（付録の注記） |
-| 4.10 | 最終評価と Groundedness 検証の先行実行を追加（2026-09-29）。回答生成の直後に両方を先に走らせ、ステップ確信度の評価（haiku）と重ねる。3 つとも回答本文と出典だけに依存し互いに独立なのに順番に待っており、実測（住民票）で全体 17 秒のうち約 10 秒を占めていた。消費側は入力が完全一致したときだけ先行結果を使う。`executor.prefetch_final_evaluation` で無効化可 |
-| 4.9 | 一時停止（介入）時の結果を返す `_result_on_pause` を追加（2026-09-29）。一時停止の分岐が全体信頼度の計算より前に `return` していたため、回答が生成済み・支持率 1.00 でも全体信頼度が 0.00 で返っていた不具合の修正。ReAct 経路の一時停止も同じ関数を使う |
-| 4.8 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
-| 4.7 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
-| 4.6 | 現在の既定モデルの記載 `claude-sonnet-4-6` を実装（`grace/config.py` の `LLMConfig.model` = `claude-sonnet-5`）に合わせて是正した（CLAUDE.md §9.3。旧既定は履歴の記述にだけ残す）（2026-09-24） |
-| 4.5 | **目次のアンカー 6 件を実際の節番号へ是正**（2026-09-14）。v4.4 で `4.1 使用例` を挿入し `### 4.N` を 1 つずつ繰り下げた際、**目次だけが旧番号のまま取り残されていた**（`#41-executionstate-データクラス` → 実際は `4.2`、`#42-executor-クラス` → `4.3`、`#43-ファクトリ関数` → `4.4`）。あわせて、移動前の「## 6. 使用例」配下に置かれたままだった 使用例 3 件（`#61` / `#62` / `#63`）を **IPO 詳細（§4.1）の下へ移し、`#411` / `#412` / `#413` へ**是正し、欠けていた `4.1 使用例` 自体の項目を追加した |
-| 4.4 | 使用例を「## 6. 使用例」から IPO 詳細セクション冒頭の `4.1 使用例` へ移動（フォーマット仕様 v1.6 §6.1）。これに伴い既存の `### 4.N` を 1 つずつ繰り下げ、章番号を エクスポート → `## 6.` / 変更履歴 → `## 7.` へ繰り上げ（2026-09-14）。過去の変更履歴行に書かれた旧節番号（§4.x / §6.x）は当時の記録としてそのまま残している |
-| 4.3 | **Streamlit 残骸の除去。** Mermaid の呼び出し元ノードを `support_agent.py / benchmark.py` へ是正。Streamlit は本リポジトリに無い（2026-09-12） |
-| 0.1.0 | 初版作成 |
-| 1.0 | ドキュメント改修: フォーマット v1.2準拠、主な責務・主要機能一覧・IPO詳細に「**概要**:」ラベルを追加 |
-| 2.0 | フォーマット v1.4準拠: ASCII図をMermaid v9に全面変更、「各責務対応のモジュール」テーブル追加、補助メソッドのIPO詳細を追加 |
-| 3.0 | web_search対応: アーキテクチャ図にWebSearch Tool追加、`_prepare_tool_kwargs`にweb_search引数追加、内部依存にcreate_source_agreement_calculator追加 |
-| 4.0 | フォーマット v1.5準拠（黒背景Mermaid必須化）。技術スタック表記を Anthropic Claude（`claude-sonnet-4-6`、`llm_compat`経由）/ Gemini Embedding に統一。新規メソッドを実ソースから追記（`execute`／`_handle_ask_user_response`／`_run_tool_with_timeout`／`_prefetch_parallel_searches`／`_should_trigger_replan`／`_evaluate_rag_relevance`／`_execute_dynamic_web_search`／`_execute_dynamic_ask_user`／`_build_confidence_factors`／`_blend_groundedness_confidence`）。`_calculate_overall_confidence`を groundedness ブレンド＋温度較正に更新。`_SEARCH_ACTIONS`定数とexecutor/groundedness/replan関連の設定を5章に追加。各IPO項目に戻り値例・使用例を補完。 |
-| 4.2 | 2026-09-04: **未記載メソッド 7 件を追加**（AST 照合）。(1) **S3 ハイブリッド ReAct の 3 つ**（`_dispatch_generator` / `execute_react_generator` / `_decide_next_action`）— 複雑度で ReAct と静的パスを振り分ける経路そのものが文書に無かった。LLM 不在時に初期計画を辿るフォールバックへ degrade する仕組みも記載。(2) `_warn_on_missing_score_keys` — 正準キーが欠けると例外にならず既定値へ落ちるのを検知する番人（実測で Web ステップだけが `search_max_score=0.6`／`score_variance=1.0` で評価されていた）。(3) `_final_answer_of`（「答えに辿り着けたか」の唯一の定義）/ `_record_memory`（動的挿入ステップを成否判定から除外する回帰修正）/ `_should_pause_for_intervention`（ESCALATE は常に停止・CONFIRM は対話かつ非ブロッキング時のみ）。§3.1 の一覧表にも 7 行を追記 |
-| 4.1 | 実装（07-26〜27）へ追随（2026-08-01）。P-01b の `get_completed_source_texts()` / `_extract_source_texts()`（識別子ではなく**出典本文**を groundedness へ渡す。識別子だと全 neutral 化して支持率の分母が 0 になる）、M-3 の `_relevance_check_model()`（軽量モデル解決）、M-5 の `_format_rag_snippet()` / `RELEVANCE_SNIPPET_LIMIT`、M-6 の `_damp_support_rate()`（判定できた claim の割合で支持率を減衰）を追加。あわせて `_evaluate_rag_relevance` の記述を実装へ修正 — **「検索結果は先頭500文字」は誤りで、修正前は要素数でスライスしていた**（`ToolResult.output` がリストのため）。担当範囲（`llm.prompt_addendum`）を判定に反映する M-5 の 2 点も追記 |
-| 4.17 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
+| バージョン | 日付 | 変更内容 |
+|---|---|---|
+| 0.1.0 | — | 初版作成 |
+| 1.0 | — | ドキュメント改修: フォーマット v1.2準拠、主な責務・主要機能一覧・IPO詳細に「**概要**:」ラベルを追加 |
+| 2.0 | — | フォーマット v1.4準拠: ASCII図をMermaid v9に全面変更、「各責務対応のモジュール」テーブル追加、補助メソッドのIPO詳細を追加 |
+| 3.0 | — | web_search対応: アーキテクチャ図にWebSearch Tool追加、`_prepare_tool_kwargs`にweb_search引数追加、内部依存にcreate_source_agreement_calculator追加 |
+| 4.0 | — | フォーマット v1.5準拠（黒背景Mermaid必須化）。技術スタック表記を Anthropic Claude（`claude-sonnet-4-6`、`llm_compat`経由）/ Gemini Embedding に統一。新規メソッドを実ソースから追記（`execute`／`_handle_ask_user_response`／`_run_tool_with_timeout`／`_prefetch_parallel_searches`／`_should_trigger_replan`／`_evaluate_rag_relevance`／`_execute_dynamic_web_search`／`_execute_dynamic_ask_user`／`_build_confidence_factors`／`_blend_groundedness_confidence`）。`_calculate_overall_confidence`を groundedness ブレンド＋温度較正に更新。`_SEARCH_ACTIONS`定数とexecutor/groundedness/replan関連の設定を5章に追加。各IPO項目に戻り値例・使用例を補完。 |
+| 4.1 | 2026-08-01 | 実装（07-26〜27）へ追随（2026-08-01）。P-01b の `get_completed_source_texts()` / `_extract_source_texts()`（識別子ではなく**出典本文**を groundedness へ渡す。識別子だと全 neutral 化して支持率の分母が 0 になる）、M-3 の `_relevance_check_model()`（軽量モデル解決）、M-5 の `_format_rag_snippet()` / `RELEVANCE_SNIPPET_LIMIT`、M-6 の `_damp_support_rate()`（判定できた claim の割合で支持率を減衰）を追加。あわせて `_evaluate_rag_relevance` の記述を実装へ修正 — **「検索結果は先頭500文字」は誤りで、修正前は要素数でスライスしていた**（`ToolResult.output` がリストのため）。担当範囲（`llm.prompt_addendum`）を判定に反映する M-5 の 2 点も追記 |
+| 4.2 | 2026-09-04 | 2026-09-04: **未記載メソッド 7 件を追加**（AST 照合）。(1) **S3 ハイブリッド ReAct の 3 つ**（`_dispatch_generator` / `execute_react_generator` / `_decide_next_action`）— 複雑度で ReAct と静的パスを振り分ける経路そのものが文書に無かった。LLM 不在時に初期計画を辿るフォールバックへ degrade する仕組みも記載。(2) `_warn_on_missing_score_keys` — 正準キーが欠けると例外にならず既定値へ落ちるのを検知する番人（実測で Web ステップだけが `search_max_score=0.6`／`score_variance=1.0` で評価されていた）。(3) `_final_answer_of`（「答えに辿り着けたか」の唯一の定義）/ `_record_memory`（動的挿入ステップを成否判定から除外する回帰修正）/ `_should_pause_for_intervention`（ESCALATE は常に停止・CONFIRM は対話かつ非ブロッキング時のみ）。§3.1 の一覧表にも 7 行を追記 |
+| 4.3 | 2026-09-12 | **Streamlit 残骸の除去。** Mermaid の呼び出し元ノードを `support_agent.py / benchmark.py` へ是正。Streamlit は本リポジトリに無い（2026-09-12） |
+| 4.4 | 2026-09-14 | 使用例を「## 6. 使用例」から IPO 詳細セクション冒頭の `4.1 使用例` へ移動（フォーマット仕様 v1.6 §6.1）。これに伴い既存の `### 4.N` を 1 つずつ繰り下げ、章番号を エクスポート → `## 6.` / 変更履歴 → `## 7.` へ繰り上げ（2026-09-14）。過去の変更履歴行に書かれた旧節番号（§4.x / §6.x）は当時の記録としてそのまま残している |
+| 4.5 | 2026-09-14 | **目次のアンカー 6 件を実際の節番号へ是正**（2026-09-14）。v4.4 で `4.1 使用例` を挿入し `### 4.N` を 1 つずつ繰り下げた際、**目次だけが旧番号のまま取り残されていた**（`#41-executionstate-データクラス` → 実際は `4.2`、`#42-executor-クラス` → `4.3`、`#43-ファクトリ関数` → `4.4`）。あわせて、移動前の「## 6. 使用例」配下に置かれたままだった 使用例 3 件（`#61` / `#62` / `#63`）を **IPO 詳細（§4.1）の下へ移し、`#411` / `#412` / `#413` へ**是正し、欠けていた `4.1 使用例` 自体の項目を追加した |
+| 4.6 | 2026-09-24 | 現在の既定モデルの記載 `claude-sonnet-4-6` を実装（`grace/config.py` の `LLMConfig.model` = `claude-sonnet-5`）に合わせて是正した（CLAUDE.md §9.3。旧既定は履歴の記述にだけ残す）（2026-09-24） |
+| 4.7 | 2026-09-26 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
+| 4.8 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
+| 4.9 | 2026-09-29 | 一時停止（介入）時の結果を返す `_result_on_pause` を追加（2026-09-29）。一時停止の分岐が全体信頼度の計算より前に `return` していたため、回答が生成済み・支持率 1.00 でも全体信頼度が 0.00 で返っていた不具合の修正。ReAct 経路の一時停止も同じ関数を使う |
+| 4.10 | 2026-09-29 | 最終評価と Groundedness 検証の先行実行を追加（2026-09-29）。回答生成の直後に両方を先に走らせ、ステップ確信度の評価（haiku）と重ねる。3 つとも回答本文と出典だけに依存し互いに独立なのに順番に待っており、実測（住民票）で全体 17 秒のうち約 10 秒を占めていた。消費側は入力が完全一致したときだけ先行結果を使う。`executor.prefetch_final_evaluation` で無効化可 |
+| 4.11 | 2026-10-04 | Web 検索の無効化（`config.tools.disabled` に `web_search`）を 5 経路すべてで尊重するようにした（2026-10-04）。`_web_search_allowed()` / `_react_prompt_template()` を追加。無効時は `ask_user` も挿入しない（付録の注記） |
+| 4.12 | 2026-10-04 | `qdrant.rag_sufficient_score` の既定を 0.7 → 0.64（`executor.reasoning_min_rag_score` と同じ）にした（2026-10-04）。採用した社内ナレッジがあるのに無条件で Web も検索していた帯（0.64〜0.7）をなくす |
+| 4.13 | 2026-10-05 | 付録の注記を訂正（2026-10-05）。E2E の saas の件の原因が 0.64〜0.7 の帯だったとは確かめていない（素の質問の最高スコアは 0.7062）。再測定の結果（範囲内と範囲外が重なり、しきい値 1 本では分けられない）への参照を追加 |
+| 4.14 | 2026-10-05 | 計測スクリプトを `scripts/measure_rag_threshold.py` に一本化したのに追随（2026-10-05） |
+| 4.15 | 2026-10-06 | 現在の既定モデルの記載 `claude-sonnet-5` を実装（`grace/config.py` の `LLMConfig.model` / `grace/llm_compat.py` の `DEFAULT_ANTHROPIC_MODEL` = `claude-sonnet-5-5`）に合わせて是正（2026-10-06。CLAUDE.md §9.3。旧既定は履歴の記述にだけ残す） |
+| 4.16 | 2026-10-06 | 未記載だった `_prefetch_enabled()`（最終評価の先行実行を行うかの判定）を §3.1 に追加（2026-10-06）。`_damp_support_rate` が `confidence.py::damp_support_rate` へ委譲するだけであること（Review と共用）を明記 |
+| 4.17 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
 
 ---
 
