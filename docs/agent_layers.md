@@ -1,6 +1,6 @@
 # エージェント階層（L0〜L4）— 一般用語と grace_v2 実装の対応
 
-**Version 1.4** | 最終更新: 2026-10-10
+**Version 1.5** | 最終更新: 2026-10-10
 
 ---
 
@@ -188,7 +188,6 @@ style L0L fill:#1a1a1a,stroke:#fff,color:#fff
 |---|---|---|
 | `helper/helper_llm.py` — `LLMClient` / `AnthropicClient` / `create_llm_client` | プロバイダ抽象 | Provider abstraction |
 | 〃 `generate_content` / `generate_structured` | テキスト生成 / Pydantic スキーマ付き生成 | Completion / Structured Output |
-| 〃 `generate_with_tools` → `ToolUseResponse` | ツール定義を渡し「次に呼ぶツール」を返させる | Function calling / Tool use |
 | `grace/llm_compat.py` — `AnthropicGenaiClient` / `create_chat_client` | genai 形の呼び出しを Anthropic へ差し替える互換層 | Compatibility shim |
 | 〃 `_strip_to_json` / `_schema_hint` | JSON 強制・スキーマヒント注入 | Output parsing / repair |
 | `helper/helper_embedding.py` | Gemini Embedding（3072 次元） | Embedding model |
@@ -367,7 +366,7 @@ dev: `:5173` / FastAPI dev: `:8000`）。
 
 | 一般用語 | 実装 | 層 |
 |---|---|:--:|
-| Function calling / Tool use | `helper/helper_llm.py::AnthropicClient.generate_with_tools` | L0 |
+| Function calling / Tool use | ネイティブの Tool use は使わない（`generate_with_tools` は 2026-10-10 に削除）。次に呼ぶツールは `grace/executor.py::_decide_next_action` が構造化出力（`AgentThought`）で選ぶ | L1 |
 | Structured Output | 〃 `generate_structured` | L0 |
 | LLM-as-a-Judge | `core/gates.py::create_*` / `core/review_gates.py::create_violation_detector` | L0.5 |
 | Faithfulness / Groundedness | `grace/confidence.py::GroundednessVerifier` | L0.5 |
@@ -413,3 +412,4 @@ dev: `:5173` / FastAPI dev: `:8000`）。
 | 1.2 | 2026-10-10 | §8.1 から削除済みの `a_pages_md_format.md` への言及を外した（Streamlit 用フォーマット仕様をスキル資材から削除したため）。変更履歴を 3 列（`バージョン \| 日付 \| 変更内容`）へ移した |
 | 1.3 | 2026-10-10 | `grace/step_trace/`（`benchmark.py` を含む）を 2026-10-10 にディレクトリごと削除したのに追随し、現状を述べる記述から外した（過去の経緯の記述は残す） |
 | 1.4 | 2026-10-10 | Legacy ReAct 経路（`services/agent_service.py`・`agent_parallel_search.py`・`agent_cache.py`・`executor._execute_legacy_agent_step`・`run_legacy_agent` アクション）を 2026-10-10 に削除したのに追随 |
+| 1.5 | 2026-10-10 | **Tool Use（`generate_with_tools()`）の削除に追随。** L0 の表と逆引き表から外し、「Function calling / Tool use」は ReAct が構造化出力（`AgentThought`）で次のツールを選ぶ `_decide_next_action` を指すように直した |

@@ -1,6 +1,6 @@
 # services/docs/ 棚卸し
 
-**Version 1.5** | 最終更新: 2026-10-10
+**Version 1.6** | 最終更新: 2026-10-10
 
 > 📎 **姉妹版**: [`docs/README.md`](../../docs/README.md)（直下・配置の境界） /
 > [`backend/docs/README.md`](../../backend/docs/README.md) /
@@ -51,7 +51,7 @@
 
 | 文書 | 対象実装 | 実装行数 | 文書行数 | Ver | 重要度 |
 |---|---|---:|---:|---|:--:|
-| [`__init__.md`](__init__.md) | `__init__.py` — 再エクスポート（`__all__` **50 件**） | 146 | 470 | 1.8 | ★★★ |
+| [`__init__.md`](__init__.md) | `__init__.py` — 再エクスポート（`__all__` **50 件**） | 146 | 471 | 1.9 | ★★★ |
 | [`qdrant_service.md`](qdrant_service.md) | `qdrant_service.py` — Qdrant CRUD・ヘルスチェック・Embedding 登録 | 1104 | 1547 | 2.4 | ★★★ |
 | [`data_pipeline_service.md`](data_pipeline_service.md) | `data_pipeline_service.py` — データ準備の Web 向けラッパ層 | 351 | 513 | 1.1 | ★★★ |
 | [`config_service.md`](config_service.md) | `config_service.py` — YAML / 環境変数・ロガー | 289 | 886 | 1.5 | ★★☆ |
@@ -59,7 +59,7 @@
 | [`json_service.md`](json_service.md) | `json_service.py` — 安全な JSON 入出力 | 283 | 676 | 1.1 | ★★☆ |
 | [`cache_service.md`](cache_service.md) | `cache_service.py` — TTL 付きメモリキャッシュ | 258 | 890 | 1.3 | ★★☆ |
 | [`qa_service.md`](qa_service.md) | `qa_service.py` — Q/A 生成（サブプロセス実行） | 174 | 527 | 1.2 | ★★☆ |
-| [`log_service.md`](log_service.md) | `log_service.py` — 未回答質問ログ | 89 | 462 | 1.3 | ★☆☆ |
+| [`log_service.md`](log_service.md) | `log_service.py` — 未回答質問ログ | 64 | 383 | 1.4 | ★☆☆ |
 | [`prompts.md`](prompts.md) | `prompts.py` — 共通プロンプト定義 | 32 | 318 | 1.1 | ★☆☆ |
 | ~~[`agent_service.md`](archive/agent_service.md)~~ | `agent_service.py` — **2026-10-10 に削除**（Legacy ReAct。文書は `archive/` に凍結） | — | 623 | 2.7 | — |
 
@@ -90,8 +90,9 @@
 `search_rag_knowledge_base_cached()` / `list_rag_collections()`・テスト `backend/tests/test_agent_service.py`（5 件）。
 文書は [`archive/agent_service.md`](archive/agent_service.md) に凍結した。
 
-> 📌 **呼び出し元が無くなったもの（コードは残している）**: `services/log_service.py::log_unanswered_question()`
-> （未回答ログの書き込み）、`helper/helper_llm.py` の `generate_with_tools()`（Tool Use）。
+> 📌 **呼び出し元が無くなったため、続けて削除したもの（2026-10-10）**: `services/log_service.py::log_unanswered_question()`
+> （未回答ログの書き込み）、`helper/helper_llm.py` の `generate_with_tools()` / `build_tool_result_message()` /
+> `ToolUseResponse`（Tool Use）。読み込み・クリア（`load_unanswered_logs()` / `clear_unanswered_logs()`）は残っている。
 > 直下 `config.yml` の `models.default` も読むコードが無い（CLAUDE.md §3.1 の経路 5）。
 
 ---
@@ -121,7 +122,7 @@
 | `backend/tests/test_json_service.py` | 6 | `json_service` |
 | `backend/tests/test_token_service.py` | 6 | `token_service`（既定モデルが単価・上限表に載っていること） |
 | `backend/tests/test_cache_service.py` | 4 | `cache_service` |
-| `backend/tests/test_log_service.py` | 3 | `log_service` |
+| `backend/tests/test_log_service.py` | 2 | `log_service` |
 | `backend/tests/test_qa_service.py` | 2 | `qa_service`（LLM クライアントが Anthropic で作られること） |
 | `backend/tests/test_data_pipeline.py` | 30 | `data_pipeline_service`・`qdrant_service` |
 | `backend/tests/test_data_jobs.py` | 43 | データ管理タブのジョブ全体（`data_pipeline_service` / `qdrant_service` 経由・**間接**） |
@@ -168,3 +169,4 @@ uv run --no-sync pytest backend/tests/test_*_service.py backend/tests/test_data_
 | 1.3 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随して 6 文書の行数・Ver を再実測（実装行数は変化なし） |
 | 1.4 | 2026-10-10 | `grace/step_trace/`（`benchmark.py` を含む）を 2026-10-10 にディレクトリごと削除したのに追随し、現状を述べる記述から外した（過去の経緯の記述は残す）。`agent_service.md` の行数・版を実測へ（623 行・v2.7。v2.6 までの更新が索引に反映されていなかった分を含む） |
 | 1.5 | 2026-10-10 | Legacy ReAct 経路（`services/agent_service.py`・`agent_parallel_search.py`・`agent_cache.py`・`executor._execute_legacy_agent_step`・`run_legacy_agent` アクション）を 2026-10-10 に削除したのに追随 |
+| 1.6 | 2026-10-10 | §4 の「呼び出し元が無くなったもの（コードは残している）」を「続けて削除したもの」へ書き換え（`log_unanswered_question()` / `generate_with_tools()` ほか）。`log_service` の行数・版とテスト件数（3 → 2）を実測値へ更新 |

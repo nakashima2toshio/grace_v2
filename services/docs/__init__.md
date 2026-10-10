@@ -1,6 +1,6 @@
 # __init__.py - services パッケージ ドキュメント
 
-**Version 1.8** | 最終更新: 2026-10-10
+**Version 1.9** | 最終更新: 2026-10-10
 
 ---
 
@@ -54,7 +54,7 @@
 | 6 | データ準備（パス検証・データ変換） | `data_pipeline_service.py` | 入力ファイル解決・Qdrant 操作・DataFrame 変換。※ `__init__.py` からは再エクスポートしない（`from services.data_pipeline_service import ...` で直接使う） |
 | 7 | Q/A生成（Anthropic Claude・サブプロセス実行） | `qa_service.py` | Q/Aペア生成とファイル保存 |
 | 8 | ~~ReAct + Reflection エージェント~~ | ~~`agent_service.py`~~ | **2026-10-10 に削除**（Legacy ReAct 経路。`services/docs/README.md` §4） |
-| 9 | 未回答質問ログ | `log_service.py` | `log_unanswered_question` ほか。※ `__init__.py` からは再エクスポートしない（`from services.log_service import ...` で直接使う） |
+| 9 | 未回答質問ログ | `log_service.py` | `load_unanswered_logs` / `clear_unanswered_logs`。※ `__init__.py` からは再エクスポートしない（`from services.log_service import ...` で直接使う） |
 
 ### 主要機能一覧
 
@@ -437,6 +437,7 @@ __all__ = [
 | 1.6 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
 | 1.7 | 2026-10-08 | 概要の技術スタックと使用例のコメントの既定 LLM を `claude-sonnet-5` → 現在の既定 `claude-sonnet-5-5`（`config.py::ModelConfig.DEFAULT_MODEL`）へ是正（2026-10-08） |
 | 1.8 | 2026-10-10 | Legacy ReAct 経路（`services/agent_service.py`・`agent_parallel_search.py`・`agent_cache.py`・`executor._execute_legacy_agent_step`・`run_legacy_agent` アクション）を 2026-10-10 に削除したのに追随 |
+| 1.9 | 2026-10-10 | モジュール一覧の `log_service.py` 行を残っている関数（`load_unanswered_logs` / `clear_unanswered_logs`）へ更新（書き込み関数を削除したため） |
 
 ---
 
