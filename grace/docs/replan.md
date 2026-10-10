@@ -1078,18 +1078,18 @@ __all__ = [
 
 ## 7. 変更履歴
 
-| バージョン | 変更内容 |
-|-----------|---------|
-| 2.4 | 現在の既定モデルの記載 `claude-sonnet-5` を実装（`grace/config.py` の `LLMConfig.model` / `grace/llm_compat.py` の `DEFAULT_ANTHROPIC_MODEL` = `claude-sonnet-5-5`）に合わせて是正（2026-10-06。CLAUDE.md §9.3。旧既定は履歴の記述にだけ残す） |
-| 2.3 | 現在の既定モデルの記載 `claude-sonnet-4-6` を実装（`grace/config.py` の `LLMConfig.model` = `claude-sonnet-5`）に合わせて是正した（CLAUDE.md §9.3。旧既定は履歴の記述にだけ残す）（2026-09-24） |
-| 2.2 | 使用例を「## 6. 使用例」から IPO 詳細セクション冒頭の `4.1 使用例` へ移動（フォーマット仕様 v1.6 §6.1）。これに伴い既存の `### 4.N` を 1 つずつ繰り下げ、章番号を エクスポート → `## 6.` / 変更履歴 → `## 7.` へ繰り上げ（2026-09-14）。過去の変更履歴行に書かれた旧節番号（§4.x / §6.x）は当時の記録としてそのまま残している |
-| 2.1 | **Streamlit 残骸の除去。** Mermaid の呼び出し元ノードを `support_agent.py` へ是正。`agent_rag.py` は存在しない（2026-09-12） |
-| 1.0 | 初版作成（リプラントリガー・戦略・ReplanManager） |
-| 1.2 | ReplanOrchestrator を追加、自動リプランフローを整理 |
-| 1.3 | フォールバックチェーン（`_SEARCH_FALLBACK_CHAIN`）を追加 |
-| 1.4 | IPO形式に再構成 |
-| 2.0 | 2026-09-04: **`_enhance_query_with_context` / `_create_remaining_query` は既に存在しない**（`1fbbc6d` で `_build_context_hints` / `_create_remaining_hints` へ改名・役割変更済み）ため §3.1 の一覧を是正し、§4.4 に両メソッドの IPO を追加した。旧実装は補足文を**元のクエリへ連結**して `create_plan()` へ渡しており、その文章がまるごと `PlanStep.query` ＝ rag_search の検索クエリになっていた（embedding が壊れて再検索も外れ、`estimate_complexity` が長さで加点して LLM 計画生成へ落ちる。＝リプランするほど悪化する構造）。現行は `context_hints` として分離して渡す |
-| 1.5 | 2026-06-16: 実装に合わせて改訂。LLM経由（Planner→Anthropic Claude/`llm_compat`）の委譲関係を明記、全メソッドのIPO・シグネチャ・デフォルト値を反映、Mermaid を黒背景・白文字スタイルに統一 |
+| バージョン | 日付 | 変更内容 |
+|---|---|---|
+| 1.0 | — | 初版作成（リプラントリガー・戦略・ReplanManager） |
+| 1.2 | — | ReplanOrchestrator を追加、自動リプランフローを整理 |
+| 1.3 | — | フォールバックチェーン（`_SEARCH_FALLBACK_CHAIN`）を追加 |
+| 1.4 | — | IPO形式に再構成 |
+| 1.5 | 2026-06-16 | 2026-06-16: 実装に合わせて改訂。LLM経由（Planner→Anthropic Claude/`llm_compat`）の委譲関係を明記、全メソッドのIPO・シグネチャ・デフォルト値を反映、Mermaid を黒背景・白文字スタイルに統一 |
+| 2.0 | 2026-09-04 | 2026-09-04: **`_enhance_query_with_context` / `_create_remaining_query` は既に存在しない**（`1fbbc6d` で `_build_context_hints` / `_create_remaining_hints` へ改名・役割変更済み）ため §3.1 の一覧を是正し、§4.4 に両メソッドの IPO を追加した。旧実装は補足文を**元のクエリへ連結**して `create_plan()` へ渡しており、その文章がまるごと `PlanStep.query` ＝ rag_search の検索クエリになっていた（embedding が壊れて再検索も外れ、`estimate_complexity` が長さで加点して LLM 計画生成へ落ちる。＝リプランするほど悪化する構造）。現行は `context_hints` として分離して渡す |
+| 2.1 | 2026-09-12 | **Streamlit 残骸の除去。** Mermaid の呼び出し元ノードを `support_agent.py` へ是正。`agent_rag.py` は存在しない（2026-09-12） |
+| 2.2 | 2026-09-14 | 使用例を「## 6. 使用例」から IPO 詳細セクション冒頭の `4.1 使用例` へ移動（フォーマット仕様 v1.6 §6.1）。これに伴い既存の `### 4.N` を 1 つずつ繰り下げ、章番号を エクスポート → `## 6.` / 変更履歴 → `## 7.` へ繰り上げ（2026-09-14）。過去の変更履歴行に書かれた旧節番号（§4.x / §6.x）は当時の記録としてそのまま残している |
+| 2.3 | 2026-09-24 | 現在の既定モデルの記載 `claude-sonnet-4-6` を実装（`grace/config.py` の `LLMConfig.model` = `claude-sonnet-5`）に合わせて是正した（CLAUDE.md §9.3。旧既定は履歴の記述にだけ残す）（2026-09-24） |
+| 2.4 | 2026-10-06 | 現在の既定モデルの記載 `claude-sonnet-5` を実装（`grace/config.py` の `LLMConfig.model` / `grace/llm_compat.py` の `DEFAULT_ANTHROPIC_MODEL` = `claude-sonnet-5-5`）に合わせて是正（2026-10-06。CLAUDE.md §9.3。旧既定は履歴の記述にだけ残す） |
 
 ---
 

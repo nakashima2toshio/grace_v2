@@ -393,25 +393,25 @@ GRACE_E2E=1 uv run --no-sync pytest backend/tests/e2e -m e2e -rs
 
 ## 6. 変更履歴
 
-| Version | 日付 | 変更内容 |
+| バージョン | 日付 | 変更内容 |
 |---|---|---|
 | 1.0 | 2026-09-16 | 新規作成。`review_spec.md` §9（テスト方針）を取り込み、`backend/tests` の実測（58 ファイル / 867 関数 / 978 passed・1 skipped）から地図を書き起こした |
 | 1.1 | 2026-09-24 | `a_cross_doc_md_format.md` v1.1（種別 B）に準拠（2026-09-24）。概要（結論・対象モジュール）を追加し、冒頭の説明文を概要へ移した。本文の章番号は変えていない |
-| 2.8 | 2026-10-07 | §1.2 に `GRACE_E2E_REPEAT=3` の実測（21 件 passed・242 秒・3 回の結果の比較）を追記 |
-| 2.7 | 2026-10-06 | 計測スクリプトの判定で、他業界の質問を範囲外（無関係）から分けたのに追随（混ぜると別の業界にも答えがある質問で「分離できない」と誤判定した） |
-| 2.6 | 2026-10-05 | 計測スクリプトを grace_v2_local の `scripts/measure_rag_threshold.py` に一本化（`measure_rag_scores.py` とそのテストを統合して削除）。地図の行を差し替え |
-| 2.5 | 2026-10-05 | §1.2 に 7 件での実測（grace_v2 81 秒・grace_v2_local 718 秒・全件 passed）を記録 |
-| 2.4 | 2026-10-04 | 地図に `test_measure_rag_scores.py`（と結合テスト）を追加。`test_web_search_toggle.py` に Web 許可時のしきい値（`rag_sufficient_score` を 0.7 → 0.64）のテストを追記 |
-| 2.3 | 2026-10-04 | §1.2 E2E の網羅性: Support の回答に社内ナレッジの事実が入っているか（`SUPPORT_FACTS`）、範囲外の質問でエスカレするか（`OUT_OF_SCOPE`）、Review の記録だけの期待値（`REVIEW_WATCH`）、`GRACE_E2E_REPEAT` による揺れの計測（合格率・出現率）を追加。レポートを `{repeat, summary, records}` の形にした |
-| 2.2 | 2026-10-04 | §1.2 クラウド VM の準備に、VM から届く保存先（GCS / S3。Google ドライブ・Dropbox は不可）と署名付き URL の作り方、hook の通し確認（初回・再開・404・キー未設定）、sparse モデルの取得元と許可ドメインを追記 |
-| 2.1 | 2026-10-04 | §1.2 に修正後の実測（6 passed・80 秒・saas は社内の出典のみ）を記録。E2E レポートに実際のモデル名（`model` / `light_model`）を残すようにし、事前確認を CI で通す `test_e2e_preflight.py` を追加 |
-| 2.0 | 2026-10-04 | E2E の初回実測（Mac・6 passed）を記録。`use_web=False` で executor が Web を検索していた不具合（§1.2 の注記）を直したのに合わせ、Support の E2E に「Web を検索していない・Web の出典が無い」確認を追加。地図に `test_web_search_toggle.py` / `test_uncited_web_citations.py` を追加 |
-| 1.9 | 2026-10-03 | §1.2 E2E（`backend/tests/e2e/`・`GRACE_E2E=1`・画面の例文を実データで流す）と、実データを VM へ運ぶ `scripts/qdrant_snapshot.py` を追加。API 失敗時に安全側の結果で合格してしまう問題への 2 段の対策を記載。結合テストを 25 件に更新 |
-| 1.8 | 2026-10-03 | テストの地図に `test_celery_worker_init.py` を追加 |
-| 1.7 | 2026-10-03 | §1.1 結合テスト（`backend/tests/integration/`・実 Qdrant / Redis・未起動なら skip）を追加。地図・§3・§4・§5 に反映。クラウド VM では SessionStart hook が両サービスを起動する |
-| 1.6 | 2026-10-03 | テストの地図に `test_review_facts.py` を追加。スタブの `purchase_shipping_shown`（既定 True・None で実物）を conftest に追加 |
-| 1.5 | 2026-10-03 | テストの地図に `test_review_keyword_excludes.py` を追加 |
-| 1.4 | 2026-10-02 | テストの地図に `test_review_document_context.py` を追加 |
-| 1.3 | 2026-10-02 | テストの地図に `test_review_cosmetic_lp_expected.py` を追加（化粧品LP案の期待値・確定の上限・判定基準と修正案の指示） |
 | 1.2 | 2026-09-26 | §1 に「`GOOGLE_API_KEY` があっても結果が変わらないこと」の注意を追記。`RAGSearchTool.execute` を回す 3 ファイルがキーのある環境で実 Embedding API を呼び、8 件落ちていたのを是正したのに合わせた |
+| 1.3 | 2026-10-02 | テストの地図に `test_review_cosmetic_lp_expected.py` を追加（化粧品LP案の期待値・確定の上限・判定基準と修正案の指示） |
+| 1.4 | 2026-10-02 | テストの地図に `test_review_document_context.py` を追加 |
+| 1.5 | 2026-10-03 | テストの地図に `test_review_keyword_excludes.py` を追加 |
+| 1.6 | 2026-10-03 | テストの地図に `test_review_facts.py` を追加。スタブの `purchase_shipping_shown`（既定 True・None で実物）を conftest に追加 |
+| 1.7 | 2026-10-03 | §1.1 結合テスト（`backend/tests/integration/`・実 Qdrant / Redis・未起動なら skip）を追加。地図・§3・§4・§5 に反映。クラウド VM では SessionStart hook が両サービスを起動する |
+| 1.8 | 2026-10-03 | テストの地図に `test_celery_worker_init.py` を追加 |
+| 1.9 | 2026-10-03 | §1.2 E2E（`backend/tests/e2e/`・`GRACE_E2E=1`・画面の例文を実データで流す）と、実データを VM へ運ぶ `scripts/qdrant_snapshot.py` を追加。API 失敗時に安全側の結果で合格してしまう問題への 2 段の対策を記載。結合テストを 25 件に更新 |
+| 2.0 | 2026-10-04 | E2E の初回実測（Mac・6 passed）を記録。`use_web=False` で executor が Web を検索していた不具合（§1.2 の注記）を直したのに合わせ、Support の E2E に「Web を検索していない・Web の出典が無い」確認を追加。地図に `test_web_search_toggle.py` / `test_uncited_web_citations.py` を追加 |
+| 2.1 | 2026-10-04 | §1.2 に修正後の実測（6 passed・80 秒・saas は社内の出典のみ）を記録。E2E レポートに実際のモデル名（`model` / `light_model`）を残すようにし、事前確認を CI で通す `test_e2e_preflight.py` を追加 |
+| 2.2 | 2026-10-04 | §1.2 クラウド VM の準備に、VM から届く保存先（GCS / S3。Google ドライブ・Dropbox は不可）と署名付き URL の作り方、hook の通し確認（初回・再開・404・キー未設定）、sparse モデルの取得元と許可ドメインを追記 |
+| 2.3 | 2026-10-04 | §1.2 E2E の網羅性: Support の回答に社内ナレッジの事実が入っているか（`SUPPORT_FACTS`）、範囲外の質問でエスカレするか（`OUT_OF_SCOPE`）、Review の記録だけの期待値（`REVIEW_WATCH`）、`GRACE_E2E_REPEAT` による揺れの計測（合格率・出現率）を追加。レポートを `{repeat, summary, records}` の形にした |
+| 2.4 | 2026-10-04 | 地図に `test_measure_rag_scores.py`（と結合テスト）を追加。`test_web_search_toggle.py` に Web 許可時のしきい値（`rag_sufficient_score` を 0.7 → 0.64）のテストを追記 |
+| 2.5 | 2026-10-05 | §1.2 に 7 件での実測（grace_v2 81 秒・grace_v2_local 718 秒・全件 passed）を記録 |
+| 2.6 | 2026-10-05 | 計測スクリプトを grace_v2_local の `scripts/measure_rag_threshold.py` に一本化（`measure_rag_scores.py` とそのテストを統合して削除）。地図の行を差し替え |
+| 2.7 | 2026-10-06 | 計測スクリプトの判定で、他業界の質問を範囲外（無関係）から分けたのに追随（混ぜると別の業界にも答えがある質問で「分離できない」と誤判定した） |
+| 2.8 | 2026-10-07 | §1.2 に `GRACE_E2E_REPEAT=3` の実測（21 件 passed・242 秒・3 回の結果の比較）を追記 |
 | 2.9 | 2026-10-09 | 地図に `test_qa_generation_core.py`（Q/A 生成の中核 3 つの直接テスト）を追加し、`test_celery_worker_init.py` の対象に `celery_config.py` の `__main__` を追記。§3 に `qa_generation/` を触ったときに流すテストを追加 |

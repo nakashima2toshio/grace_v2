@@ -563,16 +563,16 @@ REFLECTION_INSTRUCTION
 
 ## 7. 変更履歴
 
-| バージョン | 変更内容 |
-|-----------|---------|
-| 2.6 | 既定モデルの記述（注記・使用例・`__init__` の引数表と Process・戻り値例・§5.3 の設定キー表）を、実装（`get_config("models.default", "claude-sonnet-5-5")` と直下 `config.yml`）どおり `claude-sonnet-5` → `claude-sonnet-5-5` へ是正（2026-10-08） |
-| 2.5 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
-| 2.4 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
-| 2.3 | 直下 `config.yml` の `models.default` を `claude-sonnet-4-6` → `claude-sonnet-5` へ是正したのに追随（2026-09-24）。「現状は旧モデル」という注記を外し、戻り値例のモデル名も更新 |
-| 2.2 | 使用例を IPO 詳細の冒頭（`### 4.1 使用例`）へ移し、末尾の「## 6. 使用例」章を削除（基本フォーマット `a_class_method_md_format.md` v1.6〜 §6.1 に準拠。2026-09-24）。IPO の小節を 4.2 以降へ繰り下げ、後続の章番号を 1 つ繰り上げた。文書内の `§4.x` 参照も追随。あわせて既定モデルの記述を実装に合わせた（コード側の既定は `claude-sonnet-5`。`config.yml` の `models.default` が優先され、現状はそちらが `claude-sonnet-4-6` である旨を明記） |
-| 2.1 | **Streamlit 残骸の除去。** Streamlit UI（`ui/pages/agent_chat_page.py`）を呼び出し元としていたが、**実際の呼び出し元は `grace/executor.py` と `grace/step_trace/benchmark.py`**（Web からは FastAPI → SSE → React UI）。§6.2 の例も SSE 中継の形へ差し替えた（2026-09-12） |
-| 1.0 | 初版作成（2026-06-17）。Gemini ネイティブ function-calling 版の ReAct + Reflection に整合 |
-| 2.0 | 2026-06-21。**Anthropic Tool Use ネイティブ**へ全面改修（`create_llm_client("anthropic")` + `generate_with_tools` / `stop_reason=="tool_use"`、会話履歴 `self._messages` 自前管理）。`_setup_client()`/`_create_chat()` 廃止、`_build_system_instruction()`/`_build_tools()` を追加。設定キー・依存関係・図を Anthropic に更新（Embedding は Gemini 維持） |
+| バージョン | 日付 | 変更内容 |
+|---|---|---|
+| 1.0 | 2026-06-17 | 初版作成（2026-06-17）。Gemini ネイティブ function-calling 版の ReAct + Reflection に整合 |
+| 2.0 | 2026-06-21 | 2026-06-21。**Anthropic Tool Use ネイティブ**へ全面改修（`create_llm_client("anthropic")` + `generate_with_tools` / `stop_reason=="tool_use"`、会話履歴 `self._messages` 自前管理）。`_setup_client()`/`_create_chat()` 廃止、`_build_system_instruction()`/`_build_tools()` を追加。設定キー・依存関係・図を Anthropic に更新（Embedding は Gemini 維持） |
+| 2.1 | 2026-09-12 | **Streamlit 残骸の除去。** Streamlit UI（`ui/pages/agent_chat_page.py`）を呼び出し元としていたが、**実際の呼び出し元は `grace/executor.py` と `grace/step_trace/benchmark.py`**（Web からは FastAPI → SSE → React UI）。§6.2 の例も SSE 中継の形へ差し替えた（2026-09-12） |
+| 2.2 | 2026-09-24 | 使用例を IPO 詳細の冒頭（`### 4.1 使用例`）へ移し、末尾の「## 6. 使用例」章を削除（基本フォーマット `a_class_method_md_format.md` v1.6〜 §6.1 に準拠。2026-09-24）。IPO の小節を 4.2 以降へ繰り下げ、後続の章番号を 1 つ繰り上げた。文書内の `§4.x` 参照も追随。あわせて既定モデルの記述を実装に合わせた（コード側の既定は `claude-sonnet-5`。`config.yml` の `models.default` が優先され、現状はそちらが `claude-sonnet-4-6` である旨を明記） |
+| 2.3 | 2026-09-24 | 直下 `config.yml` の `models.default` を `claude-sonnet-4-6` → `claude-sonnet-5` へ是正したのに追随（2026-09-24）。「現状は旧モデル」という注記を外し、戻り値例のモデル名も更新 |
+| 2.4 | 2026-09-26 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
+| 2.5 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
+| 2.6 | 2026-10-08 | 既定モデルの記述（注記・使用例・`__init__` の引数表と Process・戻り値例・§5.3 の設定キー表）を、実装（`get_config("models.default", "claude-sonnet-5-5")` と直下 `config.yml`）どおり `claude-sonnet-5` → `claude-sonnet-5-5` へ是正（2026-10-08） |
 
 ---
 

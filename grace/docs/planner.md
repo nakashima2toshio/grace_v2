@@ -1122,25 +1122,25 @@ __all__ = [
 
 ## 7. 変更履歴
 
-| バージョン | 変更内容 |
-|-----------|---------|
-| 3.14 | 使用例の `create_planner(model_name="claude-sonnet-4-6")`（旧々既定の直書き）を `create_planner()` に改め、省略時は `resolve_heavy_model()`（`llm.heavy_model` が空なら `llm.model`。現在 `claude-sonnet-5-5`）を使う旨のコメントにした（2026-10-09） |
-| 3.13 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
-| 3.12 | 現在の既定モデルの記載 `claude-sonnet-5` を実装（`grace/config.py` の `LLMConfig.model` / `grace/llm_compat.py` の `DEFAULT_ANTHROPIC_MODEL` = `claude-sonnet-5-5`）に合わせて是正（2026-10-06。CLAUDE.md §9.3。旧既定は履歴の記述にだけ残す） |
-| 3.11 | 計画生成プロンプトから `SEARCH_QUERY_INSTRUCTION` を外した（2026-09-29）。「rag_search の query は元の質問文を完全一致でコピー・キーワード化は禁止」と「質問をキーワード列に変換せよ」を同じプロンプトに入れており、指示が正反対で矛盾していた。`services.prompts` への依存も解消 |
-| 3.10 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
-| 3.9 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
-| 3.8 | 現在の既定モデルの記載 `claude-sonnet-4-6` を実装（`grace/config.py` の `LLMConfig.model` = `claude-sonnet-5`）に合わせて是正した（CLAUDE.md §9.3。旧既定は履歴の記述にだけ残す）（2026-09-24） |
-| 3.7 | 使用例を「## 6. 使用例」から IPO 詳細セクション冒頭の `4.1 使用例` へ移動（フォーマット仕様 v1.6 §6.1）。これに伴い既存の `### 4.N` を 1 つずつ繰り下げ、章番号を エクスポート → `## 6.` / 変更履歴 → `## 7.` へ繰り上げ（2026-09-14） |
-| 3.6 | **Streamlit 残骸の除去。** Mermaid の呼び出し元ノードを `support_agent.py` へ是正。`agent_rag.py` は存在しない（2026-09-12） |
-| 1.0 | 初版作成（LLM計画生成のみ） |
-| 2.0 | 二層方式（ルールベース / LLM）の振り分け、フォールバック計画を追加 |
-| 3.0 | IPO形式に全面再構成 |
-| 3.1 | 2026-06-16: 実装に合わせて改訂。LLMを Anthropic Claude（`llm_compat.create_chat_client` 経由）に統一、`_should_use_llm_plan` / `_create_rule_based_plan` / `_create_llm_plan` / `_get_available_collections` を反映、Mermaid を黒背景・白文字スタイルに統一 |
-| 3.2 | 2026-06-27: 曖昧クエリ検知（`is_ambiguous_query` / `_create_clarification_plan`）と P4 実行メモリ層（`_prioritized_collection` / `grace.memory` 連携・`MemoryConfig`）を追加反映。`create_plan` / `__init__` / `_create_rule_based_plan` / `_create_fallback_plan` のフローを更新、図・一覧表・定数を最新化 |
-| 3.3 | 2026-06-27: PR-1/PR-2 のリファクタを反映。KeywordExtractor 撤去、_build_rag_reasoning_plan による計画構築の共通化、_create_llm_plan の _build_plan_prompt/_generate_plan_with_retry/_finalize_plan への分割、refine_plan のリトライ共通化、PlannerConfig へのマジックナンバー外出し（step_timeout_seconds 等）、_COMPLEXITY_FACTORS 定数化を文書化 |
-| 3.5 | 2026-09-04: **`_is_excluded` が未記載**だった（AST 照合）ので追加。あわせて `_prioritized_collection` の Process が `best_collection(query, min_count, min_score)` のままだったのを、実装どおり **`exclude=self._is_excluded` を渡す**形へ是正。メモリの戻り値は「推測」だが `PlanStep.collection` に入ると `RAGSearchTool` 側で明示指定と区別が付かず `qdrant.excluded_collections` を素通りする、という理由も明記した（実測 2026-08-17: 天気の実行で誤採用された `wikipedia_ja_5per` が全体集計の首位に居座り、無関係な質問でも返り続けていた） |
-| 3.4 | 2026-08-01: 実装（07-27）へ追随。`model_name` の解決を **`resolve_heavy_model(config)`**（M-1 論理層モデル。`llm.heavy_model` → 未設定なら `llm.model`）へ更新。内部依存に `resolve_heavy_model` / `heavy_thinking_budget` を追記 |
+| バージョン | 日付 | 変更内容 |
+|---|---|---|
+| 1.0 | — | 初版作成（LLM計画生成のみ） |
+| 2.0 | — | 二層方式（ルールベース / LLM）の振り分け、フォールバック計画を追加 |
+| 3.0 | — | IPO形式に全面再構成 |
+| 3.1 | 2026-06-16 | 2026-06-16: 実装に合わせて改訂。LLMを Anthropic Claude（`llm_compat.create_chat_client` 経由）に統一、`_should_use_llm_plan` / `_create_rule_based_plan` / `_create_llm_plan` / `_get_available_collections` を反映、Mermaid を黒背景・白文字スタイルに統一 |
+| 3.2 | 2026-06-27 | 2026-06-27: 曖昧クエリ検知（`is_ambiguous_query` / `_create_clarification_plan`）と P4 実行メモリ層（`_prioritized_collection` / `grace.memory` 連携・`MemoryConfig`）を追加反映。`create_plan` / `__init__` / `_create_rule_based_plan` / `_create_fallback_plan` のフローを更新、図・一覧表・定数を最新化 |
+| 3.3 | 2026-06-27 | 2026-06-27: PR-1/PR-2 のリファクタを反映。KeywordExtractor 撤去、_build_rag_reasoning_plan による計画構築の共通化、_create_llm_plan の _build_plan_prompt/_generate_plan_with_retry/_finalize_plan への分割、refine_plan のリトライ共通化、PlannerConfig へのマジックナンバー外出し（step_timeout_seconds 等）、_COMPLEXITY_FACTORS 定数化を文書化 |
+| 3.4 | 2026-08-01 | 2026-08-01: 実装（07-27）へ追随。`model_name` の解決を **`resolve_heavy_model(config)`**（M-1 論理層モデル。`llm.heavy_model` → 未設定なら `llm.model`）へ更新。内部依存に `resolve_heavy_model` / `heavy_thinking_budget` を追記 |
+| 3.5 | 2026-09-04 | 2026-09-04: **`_is_excluded` が未記載**だった（AST 照合）ので追加。あわせて `_prioritized_collection` の Process が `best_collection(query, min_count, min_score)` のままだったのを、実装どおり **`exclude=self._is_excluded` を渡す**形へ是正。メモリの戻り値は「推測」だが `PlanStep.collection` に入ると `RAGSearchTool` 側で明示指定と区別が付かず `qdrant.excluded_collections` を素通りする、という理由も明記した（実測 2026-08-17: 天気の実行で誤採用された `wikipedia_ja_5per` が全体集計の首位に居座り、無関係な質問でも返り続けていた） |
+| 3.6 | 2026-09-12 | **Streamlit 残骸の除去。** Mermaid の呼び出し元ノードを `support_agent.py` へ是正。`agent_rag.py` は存在しない（2026-09-12） |
+| 3.7 | 2026-09-14 | 使用例を「## 6. 使用例」から IPO 詳細セクション冒頭の `4.1 使用例` へ移動（フォーマット仕様 v1.6 §6.1）。これに伴い既存の `### 4.N` を 1 つずつ繰り下げ、章番号を エクスポート → `## 6.` / 変更履歴 → `## 7.` へ繰り上げ（2026-09-14） |
+| 3.8 | 2026-09-24 | 現在の既定モデルの記載 `claude-sonnet-4-6` を実装（`grace/config.py` の `LLMConfig.model` = `claude-sonnet-5`）に合わせて是正した（CLAUDE.md §9.3。旧既定は履歴の記述にだけ残す）（2026-09-24） |
+| 3.9 | 2026-09-26 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
+| 3.10 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
+| 3.11 | 2026-09-29 | 計画生成プロンプトから `SEARCH_QUERY_INSTRUCTION` を外した（2026-09-29）。「rag_search の query は元の質問文を完全一致でコピー・キーワード化は禁止」と「質問をキーワード列に変換せよ」を同じプロンプトに入れており、指示が正反対で矛盾していた。`services.prompts` への依存も解消 |
+| 3.12 | 2026-10-06 | 現在の既定モデルの記載 `claude-sonnet-5` を実装（`grace/config.py` の `LLMConfig.model` / `grace/llm_compat.py` の `DEFAULT_ANTHROPIC_MODEL` = `claude-sonnet-5-5`）に合わせて是正（2026-10-06。CLAUDE.md §9.3。旧既定は履歴の記述にだけ残す） |
+| 3.13 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
+| 3.14 | 2026-10-09 | 使用例の `create_planner(model_name="claude-sonnet-4-6")`（旧々既定の直書き）を `create_planner()` に改め、省略時は `resolve_heavy_model()`（`llm.heavy_model` が空なら `llm.model`。現在 `claude-sonnet-5-5`）を使う旨のコメントにした（2026-10-09） |
 
 ---
 

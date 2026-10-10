@@ -787,13 +787,13 @@ REDIS_URL=redis://localhost:6379/0
 
 ## 11. 変更履歴
 
-| バージョン | 変更内容 |
-|---|---|
-| 3.5 | Q/A 生成の既定モデルがコード側で `config.py::ModelConfig.DEFAULT_MODEL` 参照になったのに追随し、既定の記述を `claude-sonnet-5` → `claude-sonnet-5-5` へ是正（`QAPipeline` / `SmartQAGenerator` のシグネチャ・CLI 引数の 4 箇所）（2026-10-08） |
-| 3.4 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
-| 3.3 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
-| 3.2 | `QAPipeline` / `SmartQAGenerator` のシグネチャと CLI 引数の既定モデル（4 箇所）を実装（`qa_generation/pipeline.py` / `smart_qa_generator.py` / `make_qa*.py`）に合わせて `claude-sonnet-5` へ是正。§9 の環境変数を実装が読むものへ書き直した（2026-09-25） |
-| 3.1 | `a_cross_doc_md_format.md` の種別 A の骨格へ揃えた（2026-09-24）。番号なしの「概要」に主な責務・各責務対応のモジュール（1:1）・3 層のアーキテクチャ構成図（Mermaid）とデータフローを追加し、本文 §1 の図の「Legacy 生成」が削除済みである旨を注記した。冒頭の「更新履歴」を末尾の「変更履歴」へ統合した。本文の章番号は変えていない |
-| 3.0 | pipeline.py v3.0対応、チャンク処理の外部化、make_qa.py引数整理（2025-01-28） |
-| 2.x | 初版作成（2025-01-26） |
-| 3.6 | `QAPipeline.run()` の擬似コードと §5 の CLI 引数一覧から `batch_chunks` / `--batch-chunks` を削除（処理に使われていなかった）（2026-10-09） |
+| バージョン | 日付 | 変更内容 |
+|---|---|---|
+| 2.x | 2025-01-26 | 初版作成（2025-01-26） |
+| 3.0 | 2025-01-28 | pipeline.py v3.0対応、チャンク処理の外部化、make_qa.py引数整理（2025-01-28） |
+| 3.1 | 2026-09-24 | `a_cross_doc_md_format.md` の種別 A の骨格へ揃えた（2026-09-24）。番号なしの「概要」に主な責務・各責務対応のモジュール（1:1）・3 層のアーキテクチャ構成図（Mermaid）とデータフローを追加し、本文 §1 の図の「Legacy 生成」が削除済みである旨を注記した。冒頭の「更新履歴」を末尾の「変更履歴」へ統合した。本文の章番号は変えていない |
+| 3.2 | 2026-09-25 | `QAPipeline` / `SmartQAGenerator` のシグネチャと CLI 引数の既定モデル（4 箇所）を実装（`qa_generation/pipeline.py` / `smart_qa_generator.py` / `make_qa*.py`）に合わせて `claude-sonnet-5` へ是正。§9 の環境変数を実装が読むものへ書き直した（2026-09-25） |
+| 3.3 | 2026-09-26 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
+| 3.4 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
+| 3.5 | 2026-10-08 | Q/A 生成の既定モデルがコード側で `config.py::ModelConfig.DEFAULT_MODEL` 参照になったのに追随し、既定の記述を `claude-sonnet-5` → `claude-sonnet-5-5` へ是正（`QAPipeline` / `SmartQAGenerator` のシグネチャ・CLI 引数の 4 箇所）（2026-10-08） |
+| 3.6 | 2026-10-09 | `QAPipeline.run()` の擬似コードと §5 の CLI 引数一覧から `batch_chunks` / `--batch-chunks` を削除（処理に使われていなかった）（2026-10-09） |

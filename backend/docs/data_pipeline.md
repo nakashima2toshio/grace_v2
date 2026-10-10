@@ -512,7 +512,7 @@ CHUNKING_STEP_LABELS, QA_STEP_LABELS, REGISTER_STEP_LABELS, DELETE_STEP_LABELS
 
 ## 7. 変更履歴
 
-| 版 | 日付 | 変更内容 |
+| バージョン | 日付 | 変更内容 |
 |---|---|---|
 | 1.0 | 2026-08-05 | 初版作成（D0〜D10） |
 | 1.1 | 2026-08-05 | 再購読（タブ離脱後の進捗復元）の節を追加。`stream_events()` が先頭からリプレイする性質に依存することを明記 |

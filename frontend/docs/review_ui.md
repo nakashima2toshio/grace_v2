@@ -622,13 +622,13 @@ document.slice(finding.start, finding.end) === finding.excerpt
 
 ## 10. 変更履歴
 
-| 版 | 日付 | 変更内容 |
+| バージョン | 日付 | 変更内容 |
 |---|---|---|
-| 1.3 | 2026-09-12 | **横断文書として位置づけを明記した。** `ReviewPanel.md` / `ReviewForm.md` を新規作成したため、個別コンポーネントの仕様はそちらが正となる。本書は Review 画面全体の俯瞰に役割を絞る |
 | 1.0 | 2026-07-29 | 初版作成（GRACE-Review STEP6・PR #42 に対応） |
 | 1.1 | 2026-08-05 | **ルールセット取得の失敗を握りつぶしていた不具合を修正。** バックエンド停止時にセレクタが空になるだけで理由が出なかったため、`MetaErrorBanner` で復旧手順を表示し再取得できるようにした |
 | 1.2 | 2026-08-05 | **タブを切り替えると入力が既定値へ戻る不具合を修正。** 貼り付けた文書・タイトル・ルールセット・チェックを `state/formMemory.ts` へ退避し、再マウント時に復元する |
+| 1.3 | 2026-09-12 | **横断文書として位置づけを明記した。** `ReviewPanel.md` / `ReviewForm.md` を新規作成したため、個別コンポーネントの仕様はそちらが正となる。本書は Review 画面全体の俯瞰に役割を絞る |
 | 1.4 | 2026-09-23 | ReviewForm の既定値を変更（Web 裏取り ON・dry-run OFF）。state 表を追随 |
-| 1.6 | 2026-09-24 | **§8 のアクセシビリティ・チェックを実装へ追随。** grace_v2_local から移植したフォーカストラップ・指摘選択のキーボード操作・`ReviewForm` の Ctrl+Enter を反映し、❌ 2 行を ✅ に。あわせて、実装済みなのに ❌ のまま残っていた 2 行（textarea の `.sr-only` ラベル・`aria-controls` / `role="tabpanel"`）を実装と突き合わせて ✅ に訂正 |
 | 1.5 | 2026-09-23 | **詳細ログの既定を ON へ変更**（基本版 / GRACE-Support / GRACE-Review は `DEFAULT_QUERY_FORM` / `DEFAULT_REVIEW_FORM` の `verbose`、データ管理は `DataJobPanel` の `useState`） |
+| 1.6 | 2026-09-24 | **§8 のアクセシビリティ・チェックを実装へ追随。** grace_v2_local から移植したフォーカストラップ・指摘選択のキーボード操作・`ReviewForm` の Ctrl+Enter を反映し、❌ 2 行を ✅ に。あわせて、実装済みなのに ❌ のまま残っていた 2 行（textarea の `.sr-only` ラベル・`aria-controls` / `role="tabpanel"`）を実装と突き合わせて ✅ に訂正 |
 | 1.7 | 2026-09-24 | `a_react_page_md_format.md` v1.1 に追随（2026-09-24）。概要に「各責務対応のモジュール」（主な責務と 1:1）を追加し、`## 1.` を「アーキテクチャ構成図」として **1.1 システム全体での位置づけ（3 層）** と 1.2 コンポーネントツリー図の 2 枚構成にした。Mermaid の `classDef subgraphStyle` の欠落を補った |

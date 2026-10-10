@@ -572,12 +572,12 @@ class S,V,R,Go,Err,Fail,Stream,I,M,D,Sel default
 
 ## 10. 変更履歴
 
-| 版 | 日付 | 変更内容 |
+| バージョン | 日付 | 変更内容 |
 |---|---|---|
-| 1.6 | 2026-10-03 | **結果が古いことを表示する。** `ReviewForm` の `onDocumentChange` で入力欄の文書を `draftDocument` に持ち、チェックした文書（`state.document`）と違えば警告（`role="status"`）を出して結果ブロックを薄くする（判定は `state/staleResult.ts`・vitest 6 件）。実測 2026-10-03: 例文ボタンで「OK 例」へ切り替えただけで実行せず、前回（表記漏れLP案）の結果を「OK 例が NG」と読み違えた |
-| 1.5 | 2026-09-24 | `a_react_page_md_format.md` v1.1 に追随（2026-09-24）。概要に「各責務対応のモジュール」（主な責務と 1:1）を追加し、`## 1.` を「アーキテクチャ構成図」として **1.1 システム全体での位置づけ（3 層）** と 1.2 コンポーネントツリー図の 2 枚構成にした。Mermaid の `classDef subgraphStyle` の欠落を補った |
-| 1.4 | 2026-09-23 | **モデル選択をヘッダー（`App`）へ移した。** `models` / `modelInfo` の state と取得を削除し、`model` prop を受け取って `ReviewForm` へ渡すだけにした（Props なし → `model` 1 つ） |
-| 1.3 | 2026-09-16 | **モデルセレクタに追随。** `models` / `modelInfo` の取得を副作用へ追加し、`ReviewForm` へ `models` / `defaultModel` を渡すようにした |
-| 1.2 | 2026-09-12 | **アクセシビリティ記述の訂正。** 「点検中であることが伝わるか」を ❌ としていたが誤りだった。`Timeline` が `sr-only` の `aria-live="polite"` で「実行中: <ステップ名>」を読み上げており（`state/timelineAnnounce.ts`）、実行中であることは支援技術へ伝わっている。`.running-banner` にライブ領域を足すと二重読み上げになるため、あえて付けない |
-| 1.1 | 2026-09-12 | **打ち切り警告 `.warn-banner` に `role="alert"` を追加**（`MetaErrorBanner` / `CollectionPanel` と同じ扱い）。結果が不完全であることは利用者が気付くべき事実なので、視覚のみの表示では足りなかった |
 | 1.0 | 2026-09-12 | 初版作成。実装は 2026-08 からあり `review_ui.md` が部分的に触れるだけで、props・reducer・SSE を記した単体の文書が無かった |
+| 1.1 | 2026-09-12 | **打ち切り警告 `.warn-banner` に `role="alert"` を追加**（`MetaErrorBanner` / `CollectionPanel` と同じ扱い）。結果が不完全であることは利用者が気付くべき事実なので、視覚のみの表示では足りなかった |
+| 1.2 | 2026-09-12 | **アクセシビリティ記述の訂正。** 「点検中であることが伝わるか」を ❌ としていたが誤りだった。`Timeline` が `sr-only` の `aria-live="polite"` で「実行中: <ステップ名>」を読み上げており（`state/timelineAnnounce.ts`）、実行中であることは支援技術へ伝わっている。`.running-banner` にライブ領域を足すと二重読み上げになるため、あえて付けない |
+| 1.3 | 2026-09-16 | **モデルセレクタに追随。** `models` / `modelInfo` の取得を副作用へ追加し、`ReviewForm` へ `models` / `defaultModel` を渡すようにした |
+| 1.4 | 2026-09-23 | **モデル選択をヘッダー（`App`）へ移した。** `models` / `modelInfo` の state と取得を削除し、`model` prop を受け取って `ReviewForm` へ渡すだけにした（Props なし → `model` 1 つ） |
+| 1.5 | 2026-09-24 | `a_react_page_md_format.md` v1.1 に追随（2026-09-24）。概要に「各責務対応のモジュール」（主な責務と 1:1）を追加し、`## 1.` を「アーキテクチャ構成図」として **1.1 システム全体での位置づけ（3 層）** と 1.2 コンポーネントツリー図の 2 枚構成にした。Mermaid の `classDef subgraphStyle` の欠落を補った |
+| 1.6 | 2026-10-03 | **結果が古いことを表示する。** `ReviewForm` の `onDocumentChange` で入力欄の文書を `draftDocument` に持ち、チェックした文書（`state.document`）と違えば警告（`role="status"`）を出して結果ブロックを薄くする（判定は `state/staleResult.ts`・vitest 6 件）。実測 2026-10-03: 例文ボタンで「OK 例」へ切り替えただけで実行せず、前回（表記漏れLP案）の結果を「OK 例が NG」と読み違えた |

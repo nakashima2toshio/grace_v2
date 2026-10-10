@@ -306,12 +306,12 @@ npm run build   # tsc --noEmit + vite build
 
 ## 10. 変更履歴
 
-| バージョン | 変更内容 |
-|-----------|---------|
-| 1.0 | 初版作成（前提ソフト・uv/npm 依存・.env・Qdrant・起動・動作確認・テスト・トラブルシュート） |
-| 1.1 | §6 に「6.1 最短（1 コマンド `./run_dev.sh`）」を追加（backend + frontend の一括起動） |
-| 1.2 | **起動手順の正本であることを明記**（2026-09-15）。`main.md` §6.1 が同じ手順を複製していたため、そちらを本書へのリンクに置き換えた（`CLAUDE.md` §2 とあわせて 3 重管理だった） |
-| 1.3 | `run_dev.sh` の使用中ポートの自動解放と `RUN_DEV_FREE_PORTS` を §6.1 に、`Address already in use` をトラブルシュートに追記 |
-| 1.4 | `a_cross_doc_md_format.md` v1.1（種別 B）に準拠（2026-09-24）。概要（結論・対象モジュール）を追加し、冒頭の説明文を概要へ移した。本文の章番号は変えていない |
-| 1.5 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
-| 1.6 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
+| バージョン | 日付 | 変更内容 |
+|---|---|---|
+| 1.0 | — | 初版作成（前提ソフト・uv/npm 依存・.env・Qdrant・起動・動作確認・テスト・トラブルシュート） |
+| 1.1 | — | §6 に「6.1 最短（1 コマンド `./run_dev.sh`）」を追加（backend + frontend の一括起動） |
+| 1.2 | 2026-09-15 | **起動手順の正本であることを明記**（2026-09-15）。`main.md` §6.1 が同じ手順を複製していたため、そちらを本書へのリンクに置き換えた（`CLAUDE.md` §2 とあわせて 3 重管理だった） |
+| 1.3 | — | `run_dev.sh` の使用中ポートの自動解放と `RUN_DEV_FREE_PORTS` を §6.1 に、`Address already in use` をトラブルシュートに追記 |
+| 1.4 | 2026-09-24 | `a_cross_doc_md_format.md` v1.1（種別 B）に準拠（2026-09-24）。概要（結論・対象モジュール）を追加し、冒頭の説明文を概要へ移した。本文の章番号は変えていない |
+| 1.5 | 2026-09-26 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
+| 1.6 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |

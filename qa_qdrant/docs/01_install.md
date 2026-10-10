@@ -849,15 +849,15 @@ grace_v2/
 
 ## 変更履歴
 
-| バージョン | 変更内容 |
-|---|---|
-| 2.7 | 現在の既定 LLM の記述（構成図・依存表・API キー表の 3 箇所）を `claude-sonnet-5` → 実装（`config.py::ModelConfig.DEFAULT_MODEL`）どおり `claude-sonnet-5-5` へ是正（2026-10-08） |
-| 2.6 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
-| 2.5 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
-| 2.4 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
-| 2.3 | 現在の既定モデルの記述（構成図・依存表・API キー表の 3 箇所）を旧既定 `claude-sonnet-4-6` → `claude-sonnet-5` へ是正（2026-09-25） |
-| 2.2 | `a_cross_doc_md_format.md` の種別 B の骨格へ揃えた（2026-09-24）。番号なしの「概要」（状態・結論・対象モジュール）を追加し、履歴表を「バージョン｜変更内容」形式へ揃えて末尾の「変更履歴」とした。本文の章番号は変えていない |
-| 2.1 | §2.3 の注記を是正。`streamlit` / `altair` / `pydeck` は**2026-09-12 に依存から削除済み**なのに、「依存に残っている・整理は残タスク」と書いたままだった（版の食い違いの記述も含め、削除前の状態を指していた）（2026-09-20） |
-| 2.0 | **全面改訂。** v1 は Streamlit 版（`streamlit run agent_rag.py --server.port=8500`）の手順だったが、`agent_rag.py` は存在せず Streamlit も使っていない。現行の React（:5173）+ FastAPI（:8000）へ差し替え、必須 API キーを `GEMINI_API_KEY` 単独から **`ANTHROPIC_API_KEY`（LLM）＋ `GOOGLE_API_KEY`（Embedding）** の 2 本立てへ是正。依存管理も venv/pip から **uv** へ。汎用セットアップは `backend/docs/install_and_setup.md` へ委譲し、本書は Q/A 生成・Qdrant 登録固有の準備（MeCab / Docker / Celery）に絞った（2026-09-12） |
-| 1.1 | 構成図のMermaid化、トラブルシューティング追記（2025-12-03） |
-| 1.0 | 初版作成（2025-11-28） |
+| バージョン | 日付 | 変更内容 |
+|---|---|---|
+| 1.0 | 2025-11-28 | 初版作成（2025-11-28） |
+| 1.1 | 2025-12-03 | 構成図のMermaid化、トラブルシューティング追記（2025-12-03） |
+| 2.0 | 2026-09-12 | **全面改訂。** v1 は Streamlit 版（`streamlit run agent_rag.py --server.port=8500`）の手順だったが、`agent_rag.py` は存在せず Streamlit も使っていない。現行の React（:5173）+ FastAPI（:8000）へ差し替え、必須 API キーを `GEMINI_API_KEY` 単独から **`ANTHROPIC_API_KEY`（LLM）＋ `GOOGLE_API_KEY`（Embedding）** の 2 本立てへ是正。依存管理も venv/pip から **uv** へ。汎用セットアップは `backend/docs/install_and_setup.md` へ委譲し、本書は Q/A 生成・Qdrant 登録固有の準備（MeCab / Docker / Celery）に絞った（2026-09-12） |
+| 2.1 | 2026-09-20 | §2.3 の注記を是正。`streamlit` / `altair` / `pydeck` は**2026-09-12 に依存から削除済み**なのに、「依存に残っている・整理は残タスク」と書いたままだった（版の食い違いの記述も含め、削除前の状態を指していた）（2026-09-20） |
+| 2.2 | 2026-09-24 | `a_cross_doc_md_format.md` の種別 B の骨格へ揃えた（2026-09-24）。番号なしの「概要」（状態・結論・対象モジュール）を追加し、履歴表を「バージョン｜変更内容」形式へ揃えて末尾の「変更履歴」とした。本文の章番号は変えていない |
+| 2.3 | 2026-09-25 | 現在の既定モデルの記述（構成図・依存表・API キー表の 3 箇所）を旧既定 `claude-sonnet-4-6` → `claude-sonnet-5` へ是正（2026-09-25） |
+| 2.4 | 2026-09-26 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
+| 2.5 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
+| 2.6 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
+| 2.7 | 2026-10-08 | 現在の既定 LLM の記述（構成図・依存表・API キー表の 3 箇所）を `claude-sonnet-5` → 実装（`config.py::ModelConfig.DEFAULT_MODEL`）どおり `claude-sonnet-5-5` へ是正（2026-10-08） |

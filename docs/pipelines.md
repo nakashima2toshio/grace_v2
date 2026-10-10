@@ -240,11 +240,11 @@ style REV fill:#1a1a1a,stroke:#fff,color:#fff
 
 ## 6. 変更履歴
 
-| バージョン | 変更内容 |
-|---|---|
-| 1.0 | 初版。3 モードの対照表・実行順・基本版と Support の差・ガードレールの有効表を新設（それまで「基本版」がどの文書にも記載されていなかった） |
-| 1.1 | `a_cross_doc_md_format.md`（横断文書・種別 A）に準拠（2026-09-24）。Version ヘッダー・目次・概要（主な責務／各責務対応のモジュール／3 層のアーキテクチャ構成図）を追加。本文の章番号は変えていない |
-| 1.2 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
-| 1.3 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
-| 1.4 | §4 の G7（Review）を実装に合わせて是正（2026-10-06）。「常に `escalate_to_human`」と書いていたが、`review_agent.py::_decide_review_action` は high の指摘があれば `escalate_to_human`（承認不要）、なければ `create_ticket`（要承認）を返す |
-| 1.5 | 現在の既定 LLM の記述を `claude-sonnet-5` から実装（`config.py::ModelConfig.DEFAULT_MODEL` / `config/grace_config.yml` の `llm.model`）どおり `claude-sonnet-5-5` へ是正（技術スタック）（2026-10-08） |
+| バージョン | 日付 | 変更内容 |
+|---|---|---|
+| 1.0 | — | 初版。3 モードの対照表・実行順・基本版と Support の差・ガードレールの有効表を新設（それまで「基本版」がどの文書にも記載されていなかった） |
+| 1.1 | 2026-09-24 | `a_cross_doc_md_format.md`（横断文書・種別 A）に準拠（2026-09-24）。Version ヘッダー・目次・概要（主な責務／各責務対応のモジュール／3 層のアーキテクチャ構成図）を追加。本文の章番号は変えていない |
+| 1.2 | 2026-09-26 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
+| 1.3 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
+| 1.4 | 2026-10-06 | §4 の G7（Review）を実装に合わせて是正（2026-10-06）。「常に `escalate_to_human`」と書いていたが、`review_agent.py::_decide_review_action` は high の指摘があれば `escalate_to_human`（承認不要）、なければ `create_ticket`（要承認）を返す |
+| 1.5 | 2026-10-08 | 現在の既定 LLM の記述を `claude-sonnet-5` から実装（`config.py::ModelConfig.DEFAULT_MODEL` / `config/grace_config.yml` の `llm.model`）どおり `claude-sonnet-5-5` へ是正（技術スタック）（2026-10-08） |

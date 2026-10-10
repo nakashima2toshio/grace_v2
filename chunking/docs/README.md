@@ -128,10 +128,10 @@ uv run --no-sync pytest backend/tests/test_chunking_abort.py -q
 
 ## 7. 変更履歴
 
-| Version | 日付 | 変更 |
+| バージョン | 日付 | 変更内容 |
 |---|---|---|
-| 1.4 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随 |
-| 1.3 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随して `csv_text_to_chunks_text_csv.md` v1.8（入力上限 8192 → 2048）の行数・Ver を再実測 |
-| 1.2 | 2026-09-26 | `csv_text_to_chunks_text_csv.md` v1.7（Embedding の入力上限 2048 → 8192 = `ModelConfig.EMBEDDING_MAX_INPUT_TOKENS`、モデル名 `gemini-embedding-2`）に追随して行数・Ver を再実測 |
-| 1.1 | 2026-09-25 | 残タスク 1（`async_api_client.md` の既定モデル）を完了し、§2 の行数・Ver を更新 |
 | 1.0 | 2026-09-25 | 新規作成。`chunking/docs/` には棚卸し索引が無かった（姉妹リポジトリ `grace_v2_local` にはある）。本リポジトリの実ファイルから、文書一覧・実装カバレッジ・テスト件数（実測）・残タスクを記載。`memo.txt` のオプション・既定値を実装と突き合わせて一致を確認し、`async_api_client.md` の既定モデルが旧既定のままであることを残タスク 1 に記録した |
+| 1.1 | 2026-09-25 | 残タスク 1（`async_api_client.md` の既定モデル）を完了し、§2 の行数・Ver を更新 |
+| 1.2 | 2026-09-26 | `csv_text_to_chunks_text_csv.md` v1.7（Embedding の入力上限 2048 → 8192 = `ModelConfig.EMBEDDING_MAX_INPUT_TOKENS`、モデル名 `gemini-embedding-2`）に追随して行数・Ver を再実測 |
+| 1.3 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随して `csv_text_to_chunks_text_csv.md` v1.8（入力上限 8192 → 2048）の行数・Ver を再実測 |
+| 1.4 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随 |

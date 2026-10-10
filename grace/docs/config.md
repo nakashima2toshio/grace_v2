@@ -932,20 +932,20 @@ __all__ = [
 ## 7. 変更履歴
 
 | バージョン | 日付 | 変更内容 |
-|-----------|------|---------|
-| 1.13 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随 |
-| 1.12 | 2026-10-06 | 冒頭の注記にあった行番号参照 `config.py:411` を、シンボル参照 `config.py::GeminiConfig` の docstring へ改めた。行 411 は現在 `get_dataset_dict` の位置で、参照先とずれていた（行番号は書かない規則。grace_v2_local の `backend/docs/docs_audit.md` §5.2 の再測定で発見） |
-| 1.11 | 2026-10-06 | 設定一覧の表に、v1.7 で追加した 2 設定（`executor.prefetch_final_evaluation` / `confidence.groundedness_exclude_absence_claims`）が載っていなかったのを補った（変更履歴にだけ書かれていた）。§5.5 の網羅度減衰の実装の所在を `executor.py::_damp_support_rate` から `confidence.py::damp_support_rate`（Support / Review 共通。executor 側は委譲するだけ）へ是正。v1.10 の行に日付列が抜けて表が崩れていたのを直した |
-| 1.10 | 2026-10-06 | 現在の既定モデルの記載 `claude-sonnet-5` を実装（`grace/config.py` の `LLMConfig.model` / `grace/llm_compat.py` の `DEFAULT_ANTHROPIC_MODEL` = `claude-sonnet-5-5`）に合わせて是正（2026-10-06。CLAUDE.md §9.3。旧既定は履歴の記述にだけ残す） |
-| 1.9 | 2026-10-05 | 計測スクリプトを `scripts/measure_rag_threshold.py` に一本化したのに追随 |
-| 1.8 | 2026-10-04 | `qdrant.rag_sufficient_score` の既定を 0.7 → 0.64（`executor.reasoning_min_rag_score` と同じ）にした |
-| 1.7 | 2026-09-29 | 設定を 2 つ追加。`executor.prefetch_final_evaluation`（既定 true。回答生成の直後に最終評価と Groundedness 検証を先行実行する）、`confidence.groundedness_exclude_absence_claims`（既定 true。「記載がない」型の主張を Groundedness の母数から外す） |
+|---|---|---|
 | 1.0 | 2026-06-16 | 初版作成（`config.py` の実装に基づく全設定モデル・ローダー・シングルトン関数を文書化） |
-| 1.2 | 2026-09-04 | **`CodeExecuteConfig` と `MemoryConfig` が未記載**だった（AST 照合）ので追加。`GraceConfig` のフィールド表にも 2 行が欠けており、実装は 15 フィールドなのに文書は 13 しか載せていなかった。§3.1 に「ネストされたドメイン設定モデル」の一覧を新設し、§4.1 の直後に両モデルのフィールド表を追加した |
 | 1.1 | 2026-08-01 | 実装（07-26〜27）へ追随。`LLMConfig` に `heavy_model` / `heavy_thinking_budget_tokens`（M-1 論理層）、`ConfidenceConfig` に `groundedness_coverage_strength` / `groundedness_coverage_target`（支持率の網羅度減衰）、`WebSearchConfig` に `preferred_domains` / `preferred_domain_boost`（W-1・**加点であって絞り込みではない**）、`ExecutorConfig` に `relevance_check_model`（M-3 軽量モデル）を追加。§3.2 と §4.5 に `resolve_heavy_model` / `heavy_thinking_budget` を追記し、`heavy_model` 未設定時に思考予算が 0 になる意図的な仕様を明記 |
+| 1.2 | 2026-09-04 | **`CodeExecuteConfig` と `MemoryConfig` が未記載**だった（AST 照合）ので追加。`GraceConfig` のフィールド表にも 2 行が欠けており、実装は 15 フィールドなのに文書は 13 しか載せていなかった。§3.1 に「ネストされたドメイン設定モデル」の一覧を新設し、§4.1 の直後に両モデルのフィールド表を追加した |
 | 1.4 | 2026-09-24 | 使用例を IPO 詳細の冒頭（`### 4.1 使用例`）へ移し、末尾の「## 6. 使用例」章を削除（基本フォーマット `a_class_method_md_format.md` v1.6〜 §6.1 に準拠。2026-09-24）。IPO の小節を 4.2 以降へ繰り下げ、後続の章番号を 1 つ繰り上げた。文書内の `§4.x` 参照も追随。現在の既定モデルの記載 `claude-sonnet-4-6` を実装（`grace/config.py` の `LLMConfig.model` = `claude-sonnet-5`）に合わせて是正した（CLAUDE.md §9.3。旧既定は履歴の記述にだけ残す） |
 | 1.5 | 2026-09-26 | Embedding を `gemini-embedding-2` へ変更し、モデル名の定義を `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所へ集約（2026-09-26）。`EmbeddingConfig` の既定値を `ModelConfig` 参照にし、`grace_config.yml` から `model` / `dimensions` を外した |
 | 1.6 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
+| 1.7 | 2026-09-29 | 設定を 2 つ追加。`executor.prefetch_final_evaluation`（既定 true。回答生成の直後に最終評価と Groundedness 検証を先行実行する）、`confidence.groundedness_exclude_absence_claims`（既定 true。「記載がない」型の主張を Groundedness の母数から外す） |
+| 1.8 | 2026-10-04 | `qdrant.rag_sufficient_score` の既定を 0.7 → 0.64（`executor.reasoning_min_rag_score` と同じ）にした |
+| 1.9 | 2026-10-05 | 計測スクリプトを `scripts/measure_rag_threshold.py` に一本化したのに追随 |
+| 1.10 | 2026-10-06 | 現在の既定モデルの記載 `claude-sonnet-5` を実装（`grace/config.py` の `LLMConfig.model` / `grace/llm_compat.py` の `DEFAULT_ANTHROPIC_MODEL` = `claude-sonnet-5-5`）に合わせて是正（2026-10-06。CLAUDE.md §9.3。旧既定は履歴の記述にだけ残す） |
+| 1.11 | 2026-10-06 | 設定一覧の表に、v1.7 で追加した 2 設定（`executor.prefetch_final_evaluation` / `confidence.groundedness_exclude_absence_claims`）が載っていなかったのを補った（変更履歴にだけ書かれていた）。§5.5 の網羅度減衰の実装の所在を `executor.py::_damp_support_rate` から `confidence.py::damp_support_rate`（Support / Review 共通。executor 側は委譲するだけ）へ是正。v1.10 の行に日付列が抜けて表が崩れていたのを直した |
+| 1.12 | 2026-10-06 | 冒頭の注記にあった行番号参照 `config.py:411` を、シンボル参照 `config.py::GeminiConfig` の docstring へ改めた。行 411 は現在 `get_dataset_dict` の位置で、参照先とずれていた（行番号は書かない規則。grace_v2_local の `backend/docs/docs_audit.md` §5.2 の再測定で発見） |
+| 1.13 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随 |
 
 ---
 

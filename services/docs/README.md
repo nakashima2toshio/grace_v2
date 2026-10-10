@@ -165,9 +165,9 @@ uv run --no-sync pytest backend/tests/test_*_service.py backend/tests/test_data_
 
 ## 8. 変更履歴
 
-| Version | 日付 | 変更 |
+| バージョン | 日付 | 変更内容 |
 |---|---|---|
-| 1.3 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随して 6 文書の行数・Ver を再実測（実装行数は変化なし） |
-| 1.2 | 2026-09-26 | Embedding を `gemini-embedding-2` へ変えたのに追随して 6 文書（`__init__` / `agent_service` / `cache_service` / `config_service` / `qdrant_service` / `token_service`）の行数・Ver を再実測。実装行数も PR #216 で変わった `qdrant_service.py`（1104）/ `token_service.py`（351）を更新 |
-| 1.1 | 2026-09-25 | 姉妹リポジトリから `services/` の単体テスト 8 ファイル・52 件を移植したのにあわせ、§6 のテスト件数と §7 の残タスクを更新 |
 | 1.0 | 2026-09-25 | 新規作成。`services/docs/` には棚卸し索引が無かった（姉妹リポジトリ `grace_v2_local` にはある）。本リポジトリの実ファイルから、文書一覧・実装カバレッジ・テスト件数（実測）・残タスクを記載。`ReActAgent` の呼び出し元を grep し、`grace/executor.py` の `run_legacy_agent` 分岐が残っていること（プランナは提示しない）を §4 に記録した |
+| 1.1 | 2026-09-25 | 姉妹リポジトリから `services/` の単体テスト 8 ファイル・52 件を移植したのにあわせ、§6 のテスト件数と §7 の残タスクを更新 |
+| 1.2 | 2026-09-26 | Embedding を `gemini-embedding-2` へ変えたのに追随して 6 文書（`__init__` / `agent_service` / `cache_service` / `config_service` / `qdrant_service` / `token_service`）の行数・Ver を再実測。実装行数も PR #216 で変わった `qdrant_service.py`（1104）/ `token_service.py`（351）を更新 |
+| 1.3 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随して 6 文書の行数・Ver を再実測（実装行数は変化なし） |

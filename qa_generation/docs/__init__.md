@@ -292,7 +292,7 @@ from qa_generation.evaluation import analyze_coverage
 
 ## 9. 変更履歴
 
-| Version | 日付 | 内容 |
+| バージョン | 日付 | 変更内容 |
 |---|---|---|
 | 1.0 | 2026-09-24 | 初版作成。再エクスポート 11 件を実装（65 行）から起こし、**import 副作用を実測**（`data_io` の依存だけ 1,616 → パッケージ経由 1,733・+117 モジュール、Celery 一式が載る）して記録した。対処案（遅延 import）と、対処時に露見しうる `helper_rag_qa.py` の import 順序依存、`qa_qdrant/__init__.py`（236 行の陳腐化コピー）との違いを整理した。索引 `qa_generation/docs/README.md` §6 の残タスク 1（文書欠落）に対応。再エクスポート専用で IPO 対象を持たないため、一覧表・IPO 詳細の代わりに「エクスポート」「使用例」章を置いた |
 | 1.1 | 2026-09-24 | **import 副作用を解消**。`pipeline.py` の `celery_tasks` import を `_generate_with_celery()` 内の遅延 import へ移し、`import qa_generation.data_io` のモジュール数を 1,733 → **1,623** に（Celery は載らない）。あわせて `celery_tasks` の `sys.path` 挿入に依存していた `helper/` 配下の裸 import 4 モジュールを是正（§3.2）。回帰テスト 3 件を追加。§1.2・§2 の図・§6.3・§7・§8 を更新 |

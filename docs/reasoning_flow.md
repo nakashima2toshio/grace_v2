@@ -380,12 +380,12 @@ print(result.confidence_factors)   # {'has_sources': True, 'source_count': 1, ..
 
 ## 9. 変更履歴
 
-| バージョン | 変更内容 |
-|---|---|
-| 2.5 | 現在の既定 LLM の記述を `claude-sonnet-5` から実装（`config.py::ModelConfig.DEFAULT_MODEL` / `config/grace_config.yml` の `llm.model`）どおり `claude-sonnet-5-5` へ是正（技術スタック・構成図・§5 の設定表）（2026-10-08） |
-| 2.4 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
-| 2.3 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
-| 2.2 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
-| 2.1 | `a_cross_doc_md_format.md`（横断文書・種別 A）に準拠（2026-09-24）。概要（主な責務／各責務対応のモジュール／3 層のアーキテクチャ構成図）を追加し、冒頭の説明文を概要へ移した。本文の章番号は変えていない |
-| 2.0 | 対象を「Support の reasoning」から「**生成ステップ全般**」へ拡張し、Review の `detect` を並置。プロンプトを 7 ブロック／7 ルールへ更新（【現在日時】【この回答で必ず守ること】＝`prompt_closing` を追加）。`ask_user` 除外を追記。**行番号参照を全廃**（v1.0 の 4 件がすべて別のコードを指していた）。解消済みの制約（複数質問）を整理 |
-| 1.0 | 初版。backend → executor → tools → llm_compat の 4 層構成、`_prepare_tool_kwargs` の元質問復元・観測収集、`_build_prompt` の 6 ブロック構造と回答ルール |
+| バージョン | 日付 | 変更内容 |
+|---|---|---|
+| 1.0 | — | 初版。backend → executor → tools → llm_compat の 4 層構成、`_prepare_tool_kwargs` の元質問復元・観測収集、`_build_prompt` の 6 ブロック構造と回答ルール |
+| 2.0 | — | 対象を「Support の reasoning」から「**生成ステップ全般**」へ拡張し、Review の `detect` を並置。プロンプトを 7 ブロック／7 ルールへ更新（【現在日時】【この回答で必ず守ること】＝`prompt_closing` を追加）。`ask_user` 除外を追記。**行番号参照を全廃**（v1.0 の 4 件がすべて別のコードを指していた）。解消済みの制約（複数質問）を整理 |
+| 2.1 | 2026-09-24 | `a_cross_doc_md_format.md`（横断文書・種別 A）に準拠（2026-09-24）。概要（主な責務／各責務対応のモジュール／3 層のアーキテクチャ構成図）を追加し、冒頭の説明文を概要へ移した。本文の章番号は変えていない |
+| 2.2 | 2026-09-26 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
+| 2.3 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
+| 2.4 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
+| 2.5 | 2026-10-08 | 現在の既定 LLM の記述を `claude-sonnet-5` から実装（`config.py::ModelConfig.DEFAULT_MODEL` / `config/grace_config.yml` の `llm.model`）どおり `claude-sonnet-5-5` へ是正（技術スタック・構成図・§5 の設定表）（2026-10-08） |

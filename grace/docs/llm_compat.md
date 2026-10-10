@@ -805,18 +805,18 @@ from .llm_compat import create_chat_client
 
 ## 7. 変更履歴
 
-| バージョン | 変更内容 |
-|-----------|---------|
-| 1.0 | 初版作成（llm_compat.py のソースに基づくドキュメント化） |
-| 1.1 | 実装（07-27）へ追随（2026-08-01）。`_thinking_budget()` と `_MIN_TEXT_TOKENS` / `_MIN_THINKING_BUDGET`（M-1 拡張思考）を §3.2 と §5.3 に追加。0 / None / 不正値は無効、有効時は API 下限 1024 まで引き上げるという正規化の表を付け、`heavy_model` 未設定ならそもそも走らない点を明記。旧 §5.3（関連環境変数）を §5.4 へ繰り下げ |
-| 1.2 | 使用例を IPO 詳細の冒頭（`### 4.1 使用例`）へ移し、末尾の「## 6. 使用例」章を削除（基本フォーマット `a_class_method_md_format.md` v1.6〜 §6.1 に準拠。2026-09-24）。IPO の小節を 4.2 以降へ繰り下げ、後続の章番号を 1 つ繰り上げた。文書内の `§4.x` 参照も追随。現在の既定モデルの記載 `claude-sonnet-4-6` を実装（`grace/config.py` の `LLMConfig.model` = `claude-sonnet-5`）に合わせて是正した（CLAUDE.md §9.3。旧既定は履歴の記述にだけ残す） |
-| 1.3 | `extract_json_block` の IPO 表で、表セル内で閉じていなかったバッククォート 3 連をインラインコード表記へ修正（2026-09-24） |
-| 1.4 | `create_chat_client()` が未知の `config.llm.provider` を `ValueError` にするようになったのに追随（2026-09-26）。IPO の Process を更新（`backend/tests/test_llm_provider_validation.py`） |
-| 1.5 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
-| 1.6 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
-| 1.7 | `stop_reason` の扱いを追加（2026-09-29）。拒否（`refusal`）は `LLMRefusalError`、JSON 応答の `max_tokens` 打ち切りは 1 回再試行のうち `LLMTruncatedError`。従来は `stop_reason` を見ず、拒否は「本文が空の成功」、打ち切りは「途中で切れた JSON」として下流へ流れていた（Sonnet 5.5 のプロンプトガイドの推奨に対応） |
-| 1.8 | 現在の既定モデルの記載 `claude-sonnet-5` を実装（`grace/config.py` の `LLMConfig.model` / `grace/llm_compat.py` の `DEFAULT_ANTHROPIC_MODEL` = `claude-sonnet-5-5`）に合わせて是正（2026-10-06。CLAUDE.md §9.3。旧既定は履歴の記述にだけ残す） |
-| 1.9 | 未記載だった 2 シンボルを実装から書き起こして追加（2026-10-06）。§4.7 に `_stop_category`（拒否の分類を取り出す）、§5.3.1 に `_ALWAYS_THINKING_MIN_TOKENS`（思考を無効化できないモデルで本文が空にならないための `max_tokens` 下限）。あわせて v1.7 で追加された例外 `LLMRefusalError` / `LLMTruncatedError` を §3.1・主要機能一覧に載せた（それまで Process の文中にしか無かった） |
+| バージョン | 日付 | 変更内容 |
+|---|---|---|
+| 1.0 | — | 初版作成（llm_compat.py のソースに基づくドキュメント化） |
+| 1.1 | 2026-08-01 | 実装（07-27）へ追随（2026-08-01）。`_thinking_budget()` と `_MIN_TEXT_TOKENS` / `_MIN_THINKING_BUDGET`（M-1 拡張思考）を §3.2 と §5.3 に追加。0 / None / 不正値は無効、有効時は API 下限 1024 まで引き上げるという正規化の表を付け、`heavy_model` 未設定ならそもそも走らない点を明記。旧 §5.3（関連環境変数）を §5.4 へ繰り下げ |
+| 1.2 | 2026-09-24 | 使用例を IPO 詳細の冒頭（`### 4.1 使用例`）へ移し、末尾の「## 6. 使用例」章を削除（基本フォーマット `a_class_method_md_format.md` v1.6〜 §6.1 に準拠。2026-09-24）。IPO の小節を 4.2 以降へ繰り下げ、後続の章番号を 1 つ繰り上げた。文書内の `§4.x` 参照も追随。現在の既定モデルの記載 `claude-sonnet-4-6` を実装（`grace/config.py` の `LLMConfig.model` = `claude-sonnet-5`）に合わせて是正した（CLAUDE.md §9.3。旧既定は履歴の記述にだけ残す） |
+| 1.3 | 2026-09-24 | `extract_json_block` の IPO 表で、表セル内で閉じていなかったバッククォート 3 連をインラインコード表記へ修正（2026-09-24） |
+| 1.4 | 2026-09-26 | `create_chat_client()` が未知の `config.llm.provider` を `ValueError` にするようになったのに追随（2026-09-26）。IPO の Process を更新（`backend/tests/test_llm_provider_validation.py`） |
+| 1.5 | 2026-09-26 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
+| 1.6 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
+| 1.7 | 2026-09-29 | `stop_reason` の扱いを追加（2026-09-29）。拒否（`refusal`）は `LLMRefusalError`、JSON 応答の `max_tokens` 打ち切りは 1 回再試行のうち `LLMTruncatedError`。従来は `stop_reason` を見ず、拒否は「本文が空の成功」、打ち切りは「途中で切れた JSON」として下流へ流れていた（Sonnet 5.5 のプロンプトガイドの推奨に対応） |
+| 1.8 | 2026-10-06 | 現在の既定モデルの記載 `claude-sonnet-5` を実装（`grace/config.py` の `LLMConfig.model` / `grace/llm_compat.py` の `DEFAULT_ANTHROPIC_MODEL` = `claude-sonnet-5-5`）に合わせて是正（2026-10-06。CLAUDE.md §9.3。旧既定は履歴の記述にだけ残す） |
+| 1.9 | 2026-10-06 | 未記載だった 2 シンボルを実装から書き起こして追加（2026-10-06）。§4.7 に `_stop_category`（拒否の分類を取り出す）、§5.3.1 に `_ALWAYS_THINKING_MIN_TOKENS`（思考を無効化できないモデルで本文が空にならないための `max_tokens` 下限）。あわせて v1.7 で追加された例外 `LLMRefusalError` / `LLMTruncatedError` を §3.1・主要機能一覧に載せた（それまで Process の文中にしか無かった） |
 
 ---
 

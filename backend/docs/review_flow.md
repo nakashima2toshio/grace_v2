@@ -1063,26 +1063,26 @@ _emit(SupportEvent(
 
 ## 10. 変更履歴
 
-| Version | 変更内容 |
-|---|---|
-| 3.5 | 現在の既定 LLM の記述を `claude-sonnet-5` から実装（`config.py::ModelConfig.DEFAULT_MODEL` / `config/grace_config.yml` の `llm.model`）どおり `claude-sonnet-5-5` へ是正（技術スタック表）（2026-10-08） |
-| 3.4 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
-| 3.3 | 文字列だけで決まる事実で LLM の判定を補う `backend/app/core/review_facts.py` を追加。(1) tokusho-01（`RuleItem.missing_fact_check="purchase_shipping"`）: 返品の行を除いて広告文に購入時の送料の語が無いのに ③ が「違反なし」と答えたら、違反として扱う（判定失敗のときは補わない）。(2) policy-01（`RuleItem.counter_check="return_terms"`）: 指摘文が返品の話で、広告と規程の返品条件（期限・条件語・返送料の負担）を読み取れ、広告が規程より不利でないと言い切れるときは ④' で抑止する。実測 2026-10-03（ローカル LLM・各 2 回再現）: 表記漏れLP案で送料の取りこぼし、OK 例で「未開封」と「未使用・未開封」の比較を逆に判定 |
-| 3.2 | ③-1 候補検出に `RuleItem.keyword_excludes` を追加（除外語の一部としてだけ現れた keyword は一致と数えない）。keihyo-09（数量限定）の「限定」が「期間限定」の中で一致し、期間の表示を数量限定の候補にしていた（実測 2026-10-02 / 10-03・ローカル LLM で誤検知が出たり出なかったり）。keihyo-09 の判定基準にも「期間を限る表示は指摘しない」を追加（要旨は不変・再登録不要） |
-| 3.1 | ③ Detect の段落単位の判定に「文書の文脈」（題名＋冒頭 600 字・`_document_context`）を添える。段落だけでは商品の種類が分からず、gemma4 26b が美容液の「シミが治る」を食品のルール（yakki-01）で指摘していた。文書全体で判定するルールには添えない。tokusho-01 の判定基準に「税込／税別の表記の有無も確認する」を追加（要旨は不変・再登録不要） |
-| 3.0 | ④' Suppress に `RuleItem.confirm_needs_human`（確定を人に渡す）を追加し、keihyo-07 に設定。keihyo-07 / keihyo-08 の【判定基準】に指示文を追加（条件の付かない「送料無料」は指摘しない・常態化を断定しない。要旨は不変なので再登録は不要）。③ Detect の指示に修正案の制約（今より厳しい条件を足さない・架空の値を書かない）と利用者向けの言葉づかいを追加。実測 2026-10-02 の 3 サンプル × 2 モデル比較による |
-| 2.9 | ⑥ Web 裏取りの待ち時間の既定を 10 秒から 5 秒へ（`GRACE_REVIEW_WEB_TIMEOUT` で上書き可）。実測で、返る検索は 0.16〜1.7 秒、遅い検索は 14.8 秒以上で中間が無く、10 秒では遅いときに全体が 10 秒待つだけだった |
-| 2.8 | ② Retrieve のクエリを、セグメントスコープでも**ルール自身**（`retrieval_query()`）に変更し、検索をルールごとに 1 回へ（同じルールが複数セグメントに出ても 1 回）。実測: 本文クエリは 0.67〜0.68 で下限 0.70 を割り、登録した条文（yakki-02 / yakki-04 の第 66 条）が ③④ に渡っていなかった。本文クエリの結果をセグメント内の全候補ルールで共用していたための越境も解消。落とした規程のログにルール ID を付けた |
-| 2.7 | ⑥ Web 裏取りをルールごとに並列化し、全体の待ちを `GRACE_REVIEW_WEB_TIMEOUT`（既定 10 秒）で打ち切る（実測: 2 回目の検索が 23 秒で全体 44 秒の半分を占めた）。`web_checked` は検索が結果を返したルールの指摘にだけ付ける（以前は失敗・タイムアウトでも付いた）。遅延生成クライアント（Qdrant / Embedding / Sparse）の重複作成を `qdrant_client_wrapper` のロックで防止 |
-| 2.6 | ② Retrieve も判定単位ごとに並列化（ログは入力順のまま主スレッドが流す）。指摘の確信度に Support と同じ判定率の減衰（`grace.confidence.damp_support_rate`）を掛け、neutral が混ざる指摘が 1.00 にならないようにした（neutral が無ければ不変）。`RuleItem.retrieval_query()` と規程 CSV の書き出し（`scripts/export_ruleset_to_csv.py`）は `description` 全文ではなく要旨（`public_description()`）を使う |
-| 2.5 | ③ Detect + ④ Ground を判定単位ごとにスレッドプールで並列化（既定 4・環境変数 `GRACE_REVIEW_WORKERS`、1 で直列。結果の並び・ID は入力順で不変。② Retrieve は従来どおり直列）。規程未登録時の根拠フォールバックと条文引用を `RuleItem.public_description()`（`description` の第 1 段落）に限定し、LLM 向け指示文が画面へ漏れるのを止めた（③ Detect の判定基準は全文のまま）。`GroundednessVerifier` のメモ更新を排他化 |
-| 2.4 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
-| 2.3 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
-| 2.2 | 目次の §4 へのリンクが見出しの丸数字（①⑦）を含むアンカーと一致せず切れていたのを修正（2026-09-24） |
-| 2.1 | 概要の「各責務対応のモジュール」を主な責務と 1:1（6 行）に揃えた（7 行で、1 つの責務が複数行に割れていた。基本フォーマット §2.4。2026-09-24） |
-| 2.0 | **`review_spec.md`（1,080 行・v1.4）を統合し、処理フローと設計判断を 1 本にした**（2026-09-16）。設計方針を **§1** へ、各ステップの設計仕様を **§4 の該当ステップ直下（`#### 設計仕様`）** へ、組合せ爆発ガードを **§5.4**、データモデルを **§8**、未決事項を **§9**、実装時の構成と影響範囲を**付録B**へ移した。ルールセット定義（旧 §5）は [`verticals_and_rulesets.md` §2](./verticals_and_rulesets.md) へ、ジョブ基盤の汎用化（旧 §6）は [`job_runtime.md` §3](./job_runtime.md) へ、API 設計（旧 §7.1/§7.2）は [`api_contract.md`](./api_contract.md) へ、テスト方針（旧 §9）は [`testing.md`](./testing.md) へ移送した。旧 §3「クラス・関数一覧表」は `reference/core_review_*.md` と重複するため**削除してリンクに置換**した。S1 と ⑦ の設計仕様は IPO 本文と同内容だったため取り込んでいない |
-| 1.1 | ステップ番号を `CLAUDE.md` §1 の体系へ統一し、実行順の注記（⑥ Web が ⑤ Severity より先）を追加 |
-| 1.0 | 初版作成（S1・①〜⑦ を IPO 形式でステップ別に詳細化） |
+| バージョン | 日付 | 変更内容 |
+|---|---|---|
+| 1.0 | — | 初版作成（S1・①〜⑦ を IPO 形式でステップ別に詳細化） |
+| 1.1 | — | ステップ番号を `CLAUDE.md` §1 の体系へ統一し、実行順の注記（⑥ Web が ⑤ Severity より先）を追加 |
+| 2.0 | 2026-09-16 | **`review_spec.md`（1,080 行・v1.4）を統合し、処理フローと設計判断を 1 本にした**（2026-09-16）。設計方針を **§1** へ、各ステップの設計仕様を **§4 の該当ステップ直下（`#### 設計仕様`）** へ、組合せ爆発ガードを **§5.4**、データモデルを **§8**、未決事項を **§9**、実装時の構成と影響範囲を**付録B**へ移した。ルールセット定義（旧 §5）は [`verticals_and_rulesets.md` §2](./verticals_and_rulesets.md) へ、ジョブ基盤の汎用化（旧 §6）は [`job_runtime.md` §3](./job_runtime.md) へ、API 設計（旧 §7.1/§7.2）は [`api_contract.md`](./api_contract.md) へ、テスト方針（旧 §9）は [`testing.md`](./testing.md) へ移送した。旧 §3「クラス・関数一覧表」は `reference/core_review_*.md` と重複するため**削除してリンクに置換**した。S1 と ⑦ の設計仕様は IPO 本文と同内容だったため取り込んでいない |
+| 2.1 | 2026-09-24 | 概要の「各責務対応のモジュール」を主な責務と 1:1（6 行）に揃えた（7 行で、1 つの責務が複数行に割れていた。基本フォーマット §2.4。2026-09-24） |
+| 2.2 | 2026-09-24 | 目次の §4 へのリンクが見出しの丸数字（①⑦）を含むアンカーと一致せず切れていたのを修正（2026-09-24） |
+| 2.3 | 2026-09-26 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
+| 2.4 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
+| 2.5 | — | ③ Detect + ④ Ground を判定単位ごとにスレッドプールで並列化（既定 4・環境変数 `GRACE_REVIEW_WORKERS`、1 で直列。結果の並び・ID は入力順で不変。② Retrieve は従来どおり直列）。規程未登録時の根拠フォールバックと条文引用を `RuleItem.public_description()`（`description` の第 1 段落）に限定し、LLM 向け指示文が画面へ漏れるのを止めた（③ Detect の判定基準は全文のまま）。`GroundednessVerifier` のメモ更新を排他化 |
+| 2.6 | — | ② Retrieve も判定単位ごとに並列化（ログは入力順のまま主スレッドが流す）。指摘の確信度に Support と同じ判定率の減衰（`grace.confidence.damp_support_rate`）を掛け、neutral が混ざる指摘が 1.00 にならないようにした（neutral が無ければ不変）。`RuleItem.retrieval_query()` と規程 CSV の書き出し（`scripts/export_ruleset_to_csv.py`）は `description` 全文ではなく要旨（`public_description()`）を使う |
+| 2.7 | — | ⑥ Web 裏取りをルールごとに並列化し、全体の待ちを `GRACE_REVIEW_WEB_TIMEOUT`（既定 10 秒）で打ち切る（実測: 2 回目の検索が 23 秒で全体 44 秒の半分を占めた）。`web_checked` は検索が結果を返したルールの指摘にだけ付ける（以前は失敗・タイムアウトでも付いた）。遅延生成クライアント（Qdrant / Embedding / Sparse）の重複作成を `qdrant_client_wrapper` のロックで防止 |
+| 2.8 | — | ② Retrieve のクエリを、セグメントスコープでも**ルール自身**（`retrieval_query()`）に変更し、検索をルールごとに 1 回へ（同じルールが複数セグメントに出ても 1 回）。実測: 本文クエリは 0.67〜0.68 で下限 0.70 を割り、登録した条文（yakki-02 / yakki-04 の第 66 条）が ③④ に渡っていなかった。本文クエリの結果をセグメント内の全候補ルールで共用していたための越境も解消。落とした規程のログにルール ID を付けた |
+| 2.9 | — | ⑥ Web 裏取りの待ち時間の既定を 10 秒から 5 秒へ（`GRACE_REVIEW_WEB_TIMEOUT` で上書き可）。実測で、返る検索は 0.16〜1.7 秒、遅い検索は 14.8 秒以上で中間が無く、10 秒では遅いときに全体が 10 秒待つだけだった |
+| 3.0 | 2026-10-02 | ④' Suppress に `RuleItem.confirm_needs_human`（確定を人に渡す）を追加し、keihyo-07 に設定。keihyo-07 / keihyo-08 の【判定基準】に指示文を追加（条件の付かない「送料無料」は指摘しない・常態化を断定しない。要旨は不変なので再登録は不要）。③ Detect の指示に修正案の制約（今より厳しい条件を足さない・架空の値を書かない）と利用者向けの言葉づかいを追加。実測 2026-10-02 の 3 サンプル × 2 モデル比較による |
+| 3.1 | — | ③ Detect の段落単位の判定に「文書の文脈」（題名＋冒頭 600 字・`_document_context`）を添える。段落だけでは商品の種類が分からず、gemma4 26b が美容液の「シミが治る」を食品のルール（yakki-01）で指摘していた。文書全体で判定するルールには添えない。tokusho-01 の判定基準に「税込／税別の表記の有無も確認する」を追加（要旨は不変・再登録不要） |
+| 3.2 | 2026-10-02 | ③-1 候補検出に `RuleItem.keyword_excludes` を追加（除外語の一部としてだけ現れた keyword は一致と数えない）。keihyo-09（数量限定）の「限定」が「期間限定」の中で一致し、期間の表示を数量限定の候補にしていた（実測 2026-10-02 / 10-03・ローカル LLM で誤検知が出たり出なかったり）。keihyo-09 の判定基準にも「期間を限る表示は指摘しない」を追加（要旨は不変・再登録不要） |
+| 3.3 | 2026-10-03 | 文字列だけで決まる事実で LLM の判定を補う `backend/app/core/review_facts.py` を追加。(1) tokusho-01（`RuleItem.missing_fact_check="purchase_shipping"`）: 返品の行を除いて広告文に購入時の送料の語が無いのに ③ が「違反なし」と答えたら、違反として扱う（判定失敗のときは補わない）。(2) policy-01（`RuleItem.counter_check="return_terms"`）: 指摘文が返品の話で、広告と規程の返品条件（期限・条件語・返送料の負担）を読み取れ、広告が規程より不利でないと言い切れるときは ④' で抑止する。実測 2026-10-03（ローカル LLM・各 2 回再現）: 表記漏れLP案で送料の取りこぼし、OK 例で「未開封」と「未使用・未開封」の比較を逆に判定 |
+| 3.4 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
+| 3.5 | 2026-10-08 | 現在の既定 LLM の記述を `claude-sonnet-5` から実装（`config.py::ModelConfig.DEFAULT_MODEL` / `config/grace_config.yml` の `llm.model`）どおり `claude-sonnet-5-5` へ是正（技術スタック表）（2026-10-08） |
 
 > 統合元 `review_spec.md` の変更履歴（v1.0〜v1.4）は git で追える
 > （`git log --follow --all -- backend/docs/review_flow.md`）。
