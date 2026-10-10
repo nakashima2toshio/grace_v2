@@ -1,13 +1,13 @@
 # qa_generation/ - Q/A 生成パッケージ（データ準備 ②）ドキュメント
 
-**Version 2.3** | 最終更新: 2026-10-10
+**Version 2.4** | 最終更新: 2026-10-10
 
 > 📎 **姉妹版**: [`docs/README.md`](../../docs/README.md)（直下・配置の境界） /
 > [`grace/docs/README_grace.md`](../../grace/docs/README_grace.md) /
 > [`backend/docs/README.md`](../../backend/docs/README.md) /
 > [`chunking/docs/README.md`](../../chunking/docs/README.md) /
 > [`qa_qdrant/docs/README.md`](../../qa_qdrant/docs/README.md) /
-> [`services/docs/README.md`](../../services/docs/README.md)
+> [`services/docs/README_services.md`](../../services/docs/README_services.md)
 
 > 📌 **データ準備 3 工程のうち ② にあたるパッケージ。**
 > ① チャンク化は [`chunking/`](../../chunking/docs/README.md)、③ Qdrant 登録は [`qa_qdrant/`](../../qa_qdrant/docs/README.md)。
@@ -943,6 +943,7 @@ __all__ = [
 | 2.1 | 2026-10-09 | **残タスク 6〜8 を完了し、残タスク 0 件。** 6: `celery_config.py` の `__main__` の import 確認を `qa_generation.smart_qa_generator` へ直した（`test_celery_worker_init.py` に 1 件追加・修正前は fail）。7: `QAPipeline` の効かない引数のうち `client` / `batch_chunks` を、`QAPipeline`・`run_qa_generation_sync`・API・画面・CLI（`--batch-chunks`）から削除し、`concurrency` は表示用と明記（§5・§6.2 のシグネチャと引数表を更新）。8: `test_qa_generation_core.py`（12 件）を追加。§3.2 の `pipeline` 行と §8 のテスト一覧（11 ファイル）を再実測 |
 | 2.2 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |
 | 2.3 | 2026-10-10 | `grace/docs/` の構成整理（`README.md` → `README_grace.md`、`grace.md` / `grace_core.md` / `grace_runtime.md` / `confidence_calibration.md` を `README_grace.md` / `grace_process_flow.md` / `grace_data_flow.md` へ統合）に合わせてリンクを直した |
+| 2.4 | 2026-10-10 | `services/docs/` の構成整理（`README.md` → `README_services.md`、`__init__.md` を統合）に合わせてリンクを直した |
 
 > v1.x の変更履歴にある節番号（§2〜§7）は旧構成のもの。v2.0 では §2 → §3.2、§3 → §3.3、§4 → §4.1、§5 → §3.4、§6 → §4.2、§7 → §8 に対応する。
 

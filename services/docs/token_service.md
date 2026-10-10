@@ -1,6 +1,6 @@
 # token_service.py - トークン管理サービス ドキュメント
 
-**Version 1.6** | 最終更新: 2026-10-08
+**Version 1.7** | 最終更新: 2026-10-10
 
 ---
 
@@ -231,56 +231,110 @@ style UTIL fill:#1a1a1a,stroke:#fff,color:#fff
 
 ### 4.1 使用例
 
-#### 4.1.1 基本的なワークフロー
+`token_service` は **tiktoken（`cl100k_base`）による近似**でトークン数を数え、内蔵の単価表・上限表で見積もる。
+Claude / Gemini の本当のトークナイザではない（目安として使う）。使い方は次の 4 通り。
+
+| 処理パターン | 呼び方 | 向いている場面 | 例 |
+|---|---|---|---|
+| 数える・切り詰める | `count_tokens(text, model=...)` / `truncate_text(text, max_tokens=...)` | プロンプトやチャンクの長さを抑える | 4.1.1 |
+| LLM のコストを見積もる | `TokenManager.estimate_cost(input_tokens, output_tokens, model)` | 1 回の生成の概算 | 4.1.2 |
+| Embedding のコストを見積もる | `estimate_cost(..., model=ModelConfig.EMBEDDING_MODEL, is_embedding=True)` | Qdrant 登録前の概算 | 4.1.3 |
+| 上限と単価を引く | `TokenManager.get_model_limits(model)` / `get_llm_pricing(model)` | 出力上限の確認・表に無いモデルの扱い | 4.1.4 |
+
+> 📝 4 本とも**別プロセスでそのまま実行し**、出力を確かめてある（2026-10-10）。
+> ⚠️ ただし実行した環境は tiktoken の符号表（`cl100k_base.tiktoken`）をダウンロードできなかったので、**トークン数は簡易推定（`estimate_tokens_simple`）の値**になっている。
+> 符号表が使える環境では、トークン数とそこから計算する金額が変わる。
+
+#### 4.1.1 基本的なワークフロー（数える・切り詰める）
 
 ```python
-from services.token_service import (
-    TokenManager,
-    count_tokens,
-    truncate_text,
-    get_llm_pricing,
-)
+from services.token_service import TokenManager, count_tokens, estimate_tokens_simple, truncate_text
 
-# 1. トークン数をカウント
-text = "RAGシステムで使用する長い日本語の文章..."
-n_tokens = count_tokens(text, model="gpt-4o")
-print(f"トークン数: {n_tokens}")
+text = "住民票の写しは市民課の窓口か、マイナンバーカードを使ってコンビニで請求できます。" * 5
 
-# 2. プロンプト上限に合わせて切り詰め
-trimmed = truncate_text(text, max_tokens=100, model="gpt-4o")
+print(count_tokens(text), count_tokens(text, model="claude-sonnet-5-5"))   # 表に載るモデルは cl100k_base
+print(estimate_tokens_simple(text))     # 符号表が使えないときに使う簡易推定（日本語 0.5・英数 0.25 トークン/字）
 
-# 3. コストを推定
-cost = TokenManager.estimate_cost(
-    input_tokens=n_tokens,
-    output_tokens=200,
-    model="gpt-4o",
-)
-print(f"推定コスト: ${cost:.4f}")
-
-# 4. モデル制限の確認
-limits = TokenManager.get_model_limits("gpt-4o")
-print(f"最大トークン: {limits['max_tokens']}")
+short = truncate_text(text, max_tokens=20)                    # 切り詰めたら「...」を付ける
+raw = TokenManager.truncate_text(text, max_tokens=20)         # クラス版は付けない
+print(len(text), len(short), short[-3:], len(raw))
 ```
 
-#### 4.1.2 応用ワークフロー（Embeddingコスト計算）
+```
+# 出力例（符号表が使えない環境。簡易推定の値）:
+# 100 100
+# 100
+# 200 43 ... 40
+```
+
+> ⚠️ **最初の呼び出しで符号表をインターネットから取りに行く**（tiktoken の仕様）。取れないと警告ログを出して簡易推定に切り替わり、
+> 切り詰めは「1 トークン ≒ 2 文字」で文字数を切る。オフラインで正確に数えたいときは、事前に符号表をキャッシュしておく（`TIKTOKEN_CACHE_DIR`）。
+
+#### 4.1.2 LLM のコストを見積もる
 
 ```python
 from config import ModelConfig
 from services.token_service import TokenManager, count_tokens
 
-# Embedding対象テキストのトークン数を集計
-chunks = ["チャンク1...", "チャンク2...", "チャンク3..."]
-total_tokens = sum(count_tokens(c) for c in chunks)
+prompt = "社内規程に基づいて、退職手続きの流れを説明してください。" * 20
+model = ModelConfig.DEFAULT_MODEL                 # 本リポジトリの既定（単価表に必ず載る。tests/test_token_service.py が検査）
+cost = TokenManager.estimate_cost(input_tokens=count_tokens(prompt, model), output_tokens=800, model=model)
+print(model, f"${cost:.4f}")
+```
 
-# Embeddingコストを推定（output_tokensは0）
-embed_cost = TokenManager.estimate_cost(
-    input_tokens=total_tokens,
-    output_tokens=0,
-    model=ModelConfig.EMBEDDING_MODEL,   # 定義は config.py（現在 gemini-embedding-001）
+```
+# 出力例（符号表が使えない環境。単価は 1,000 トークンあたりの USD）:
+# claude-sonnet-5-5 $0.0086
+```
+
+> 📝 単価は `LLM_PRICING`（1,000 トークンあたりの USD・入力と出力で別）。`gpt-4o` などが載っているのは他プロジェクトとの互換のためで、
+> 本リポジトリが使う LLM ではない。
+
+#### 4.1.3 Embedding のコストを見積もる
+
+```python
+from config import ModelConfig
+from services.token_service import TokenManager, count_tokens
+
+chunks = ["退職の 1 か月前までに届け出る。", "有給休暇は年 10 日から付与する。", "副業は事前の届け出で認める。"]
+total = sum(count_tokens(c) for c in chunks)
+cost = TokenManager.estimate_cost(
+    input_tokens=total,
+    output_tokens=0,                         # Embedding は出力トークンを数えない
+    model=ModelConfig.EMBEDDING_MODEL,       # 定義は config.py::ModelConfig の 1 箇所（gemini-embedding-001）
     is_embedding=True,
 )
-print(f"Embedding推定コスト: ${embed_cost:.6f}")
+print(ModelConfig.EMBEDDING_MODEL, total, f"${cost:.8f}")
 ```
+
+```
+# 出力例（符号表が使えない環境）:
+# gemini-embedding-001 22 $0.00000220
+```
+
+#### 4.1.4 上限と単価を引く（表に無いモデルに注意）
+
+```python
+from services.token_service import TokenManager, get_llm_pricing, get_model_limits
+
+print(TokenManager.get_model_limits("claude-haiku-5-5"))
+
+# 表に無いモデル名: クラス版と関数版で既定値が違う
+print(TokenManager.get_model_limits("my-model"), get_model_limits("my-model"))
+print(round(TokenManager.estimate_cost(1000, 1000, "my-model"), 6), get_llm_pricing("my-model"))
+```
+
+```
+# 出力例:
+# {'max_tokens': 1000000, 'max_output': 128000}
+# {'max_tokens': 128000, 'max_output': 4096} {'max_tokens': 0, 'max_output': 0}
+# 0.00075 {'input': 0.0, 'output': 0.0}
+```
+
+> ⚠️ **表に無いモデルは黙って既定値になる**。`TokenManager.estimate_cost` は `gpt-4o-mini` 相当の単価で計算し、関数版の `get_llm_pricing` は 0 を返す。
+> 上限もクラス版は 128,000 / 4,096、関数版は 0 / 0。モデルを足したら単価表・上限表にも足す（CLAUDE.md §3.1）。
+
+---
 
 ### 4.2 TokenManager クラス
 
@@ -860,6 +914,7 @@ __all__ = [
 | 1.4 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`）。単価表・使用例を 001（0.0001）へ戻し、`gemini-embedding-2` は切り替え候補として残した（コードの `EMBEDDING_PRICING` と同じ） |
 | 1.5 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
 | 1.6 | 2026-10-08 | 現在の既定 LLM の記述（冒頭の表・概要・`get_model_limits()` の使用例）を `claude-sonnet-5` から実装どおり `claude-sonnet-5-5` へ是正し、§5 の各表に実装にある `claude-sonnet-5-5` の行を追加（`claude-sonnet-5` は旧既定として残す）（2026-10-08） |
+| 1.7 | 2026-10-10 | §4.1 使用例を処理パターン別（数える・切り詰める／LLM のコスト／Embedding のコスト／上限と単価）の 4 本に書き直した（2026-10-10。`grace/docs/executor.md` §4.1 を手本に、処理パターンの表 → パターンごとの例 → 落とし穴の注記の形にし、別プロセスで全例を実行して出力を確かめた）。tiktoken の符号表をダウンロードできないと簡易推定に切り替わること・表に無いモデルでクラス版と関数版の既定値が違うことを明記 |
 
 ---
 

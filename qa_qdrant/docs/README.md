@@ -1,11 +1,11 @@
 # qa_qdrant/docs/ 棚卸し
 
-**Version 1.12** | 最終更新: 2026-10-10
+**Version 1.13** | 最終更新: 2026-10-10
 
 > 📎 **姉妹版**: [`docs/README.md`](../../docs/README.md)（直下・配置の境界） /
 > [`chunking/docs/README.md`](../../chunking/docs/README.md) /
 > [`qa_generation/docs/README.md`](../../qa_generation/docs/README.md) /
-> [`services/docs/README.md`](../../services/docs/README.md)
+> [`services/docs/README_services.md`](../../services/docs/README_services.md)
 
 `qa_qdrant/docs/` 配下のドキュメントを一覧化する。**目的から入口を引ける**ようにするのが狙い。
 
@@ -217,3 +217,4 @@ uv run --no-sync pytest tests/test_qa_qdrant_package_init.py -q
 | 1.10 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`）。同じ改訂の 6 文書の行数・Ver を再実測 |
 | 1.11 | 2026-10-08 | Q/A 生成の既定モデルがコード側で `config.py::ModelConfig.DEFAULT_MODEL` 参照になったのに追随し、既定の記述を `claude-sonnet-5` → `claude-sonnet-5-5` へ是正（冒頭の注記） |
 | 1.12 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |
+| 1.13 | 2026-10-10 | `services/docs/` の構成整理（`README.md` → `README_services.md`、`__init__.md` を統合）に合わせてリンクを直した |
