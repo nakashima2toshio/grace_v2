@@ -1,6 +1,6 @@
 # docs 棚卸し（リポジトリ直下 `docs/`）
 
-**Version 3.9** | 最終更新: 2026-10-10
+**Version 3.10** | 最終更新: 2026-10-10
 
 リポジトリ直下 `docs/` の一覧と、**どのディレクトリに何を置くかの境界**をまとめる。
 各領域の棚卸しは [`backend/docs/README.md`](../backend/docs/README.md) /
@@ -103,7 +103,7 @@ CLAUDE.md §9.1 の表を、判断に使える形へ具体化したもの。
 | `guardrails.md` | A | ガードレール GA〜G9 の機構 → 実装 → **失敗時の既定** | backend + grace + ルート | 378 | 1.0 |
 | `reasoning_flow.md` | A | 生成の 2 ステップ（Support の `reasoning` / Review の `detect`） | grace + backend | 389 | 2.3 |
 | `performance_levers.md` | A | 回答品質・レイテンシ・コストを決めている箇所と未実装レバー | 全域 | 577 | 2.7 |
-| `agent_layers.md` | A | **一般エージェント用語 → 実装の対応表**（L0〜L4）。実装を読む前の見取り図 | 全域 | 415 | 1.4 |
+| `agent_layers.md` | A | **一般エージェント用語 → 実装の対応表**（L0〜L4）。実装を読む前の見取り図 | 全域 | 415 | 1.5 |
 | `app_tabs_overview.md` | A | **処理 3 タブの入口**。基本版 / GRACE-Support / GRACE-Review を「業界特化・処理フロー・回答」の 3 点で、画面の実行例つきでまとめる。ステップ対照表は `pipelines.md` へリンク | backend + frontend + grace | 380 | 1.2 |
 
 ### 3.2 モジュール IPO（トップレベル `.py`）
@@ -246,3 +246,4 @@ EOF
 | 3.7 | 2026-10-10 | `agent_layers.md` を v1.2 へ（削除した `a_pages_md_format.md` への言及を外した）。変更履歴を 3 列へ移した |
 | 3.8 | 2026-10-10 | `grace/step_trace/`（`benchmark.py` を含む）を 2026-10-10 にディレクトリごと削除したのに追随し、現状を述べる記述から外した（過去の経緯の記述は残す）。§3.1 の `agent_layers.md` / `agent_parallel_search.md` の行数・版を実測へ（v1.3） |
 | 3.9 | 2026-10-10 | Legacy ReAct 経路（`services/agent_service.py`・`agent_parallel_search.py`・`agent_cache.py`・`executor._execute_legacy_agent_step`・`run_legacy_agent` アクション）を 2026-10-10 に削除したのに追随 |
+| 3.10 | 2026-10-10 | `agent_layers.md` の行数・版を実測値へ更新（Tool Use の削除に追随） |
