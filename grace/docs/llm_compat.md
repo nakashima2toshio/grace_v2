@@ -1,6 +1,6 @@
 # llm_compat.py - GRACE LLM 互換クライアント ドキュメント
 
-**Version 1.9** | 最終更新: 2026-10-06
+**Version 1.11** | 最終更新: 2026-10-10
 
 ---
 
@@ -260,54 +260,143 @@ style RESPONSE fill:#1a1a1a,stroke:#fff,color:#fff
 
 ### 4.1 使用例
 
-#### 4.1.1 基本的なワークフロー
+grace の LLM 呼び出しは、すべて genai 形式の `client.models.generate_content(model=..., contents=..., config=...)` で書く。
+`create_chat_client()` が返すクライアントが、それを Anthropic の `messages.create(...)` に変換する。使い方は次の 4 通り。
+
+| 処理パターン | 呼び方 | 向いている場面 | 例 |
+|---|---|---|---|
+| テキストを生成する | `create_chat_client(config).models.generate_content(model=..., contents=...)` | 回答・要約などの自由文 | 4.1.1 |
+| JSON で受け取る | `config={"response_mime_type": "application/json", "response_schema": Model}` | 計画・評価・根拠検証などの構造化出力 | 4.1.2 |
+| 拒否・打ち切りを扱う | `LLMRefusalError` / `LLMTruncatedError` を捕まえる | 「本文が空の成功」「途中で切れた JSON」を見逃さない | 4.1.3 |
+| プロバイダを切り替える | `config.llm.provider` を `anthropic` / `gemini` にする | 既定は Anthropic。未知の名前は `ValueError` | 4.1.4 |
+
+> 📝 4 本とも、Anthropic の SDK クライアントをスタブ（受け取った引数を記録し、固定の応答を返す）に差し替えて**そのまま実行し**、
+> 出力を確かめてある（2026-10-10）。4.1.3 は、スタブに `stop_reason="refusal"` / `"max_tokens"` を返させて例外になることも確かめた。
+> 応答の文面とトークン数は例示。
+
+#### 4.1.1 基本的なワークフロー（テキストを生成する）
 
 ```python
+from grace.config import get_config
 from grace.llm_compat import create_chat_client
 
-# 1. config に基づきクライアントを生成（provider 未指定なら Anthropic）
-client = create_chat_client(config)
+config = get_config()
+client = create_chat_client(config)   # provider=anthropic → AnthropicGenaiClient（SDK は最初の呼び出しまで作らない）
 
-# 2. genai 互換インターフェースで生成
 response = client.models.generate_content(
-    model="claude-sonnet-5-5",
-    contents="次の文章を1行で要約してください: ...",
+    model=config.llm.model,           # 省略すると config.llm.model
+    contents="『金色夜叉』の作者を 1 文で答えてください。",
+    config={"max_output_tokens": 256, "temperature": 0.0},   # plain dict で渡す
 )
-
-# 3. 結果とトークン使用量を確認
 print(response.text)
-print(response.usage_metadata.prompt_token_count)
-print(response.usage_metadata.candidates_token_count)
+print(response.usage_metadata.prompt_token_count, response.usage_metadata.candidates_token_count)
 ```
 
-#### 4.1.2 応用的なワークフロー（JSON 構造化出力）
+```
+# 出力例:
+# 『金色夜叉』の作者は尾崎紅葉です。
+# 10 5
+```
+
+> ⚠️ **思考を無効にできないモデル（既定の `claude-sonnet-5-5`）には `temperature` を送らない**。代わりに `output_config={"effort": "low"}` を付け、
+> `max_tokens` を 4096 以上に広げる（思考が本文の取り分を食わないように）。どのモデルがどの送り方かは `config.py::ModelConfig` の 3 つの表で決まる（§5.3）。
+
+#### 4.1.2 JSON で受け取る（構造化出力）
 
 ```python
-from google.genai import types  # GenerateContentConfig 互換
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
-class Answer(BaseModel):
-    answer: str
-    confidence: float
+from grace.config import get_config
+from grace.llm_compat import create_chat_client
 
-config = types.GenerateContentConfig(
-    temperature=0.0,
-    max_output_tokens=512,
-    response_mime_type="application/json",
-    response_schema=Answer,
-)
 
-client = create_chat_client(grace_config)
+class Score(BaseModel):
+    score: float = Field(ge=0.0, le=1.0)
+    reason: str = ""
+
+
+client = create_chat_client(get_config())
 response = client.models.generate_content(
-    model="claude-sonnet-5-5",
-    contents="日本の首都を JSON で答えてください。",
-    config=config,
+    contents="次の回答が質問に答えているかを 0〜1 で採点してください。質問: … 回答: …",
+    config={
+        "response_mime_type": "application/json",   # → JSON だけを返すシステム指示を付ける
+        "response_schema": Score,                    # → その JSON Schema もシステム指示に入れる
+        "max_output_tokens": 512,
+    },
 )
-
-# response.text は Markdown フェンスが除去された純粋な JSON 本体
-parsed = Answer.model_validate_json(response.text)
-print(parsed.answer, parsed.confidence)
+parsed = Score.model_validate_json(response.text)   # コードフェンスや前後の文は除去済み
+print(parsed.score, parsed.reason)
 ```
+
+```
+# 出力例（採点は LLM による）:
+# 0.8 根拠が質問に合っている
+```
+
+> 📝 旧来の `google.genai.types.GenerateContentConfig` も属性で読むので動くが、新しいコードは plain dict で書く。
+> JSON を求めた呼び出しが `max_tokens` で切れたら、上限を倍にして 1 回だけ自動で再試行する。
+
+#### 4.1.3 拒否・打ち切りを扱う
+
+```python
+from grace.config import get_config
+from grace.llm_compat import LLMRefusalError, LLMTruncatedError, create_chat_client
+
+client = create_chat_client(get_config())
+try:
+    response = client.models.generate_content(
+        contents="計画を JSON で出力してください。",
+        config={"response_mime_type": "application/json", "max_output_tokens": 512},
+    )
+    print(response.text)
+except LLMRefusalError as e:
+    print(f"拒否された（category={e.category}）。安全側の既定値で続ける")
+except LLMTruncatedError as e:
+    print(f"JSON が打ち切られた: {e}")
+```
+
+```
+# 出力例（通常の応答のとき）:
+# {"score": 0.8, "reason": "根拠が質問に合っている"}
+# 出力例（stop_reason="refusal" のとき）:
+# 拒否された（category=None）。安全側の既定値で続ける
+```
+
+> 📝 拒否は通常の応答として届くので、例外にしないと「本文が空の成功」に見える。grace の呼び出し側はどこも `except Exception` で
+> 安全側の既定値へ落とすので、この 2 つの例外もそこで止まる（パイプラインは止まらない）。自由文の打ち切りは例外にせず、警告ログを出して返す。
+
+#### 4.1.4 プロバイダを切り替える
+
+```python
+import copy
+
+from grace.config import get_config
+from grace.llm_compat import AnthropicGenaiClient, create_chat_client
+
+config = copy.deepcopy(get_config())
+print(type(create_chat_client(config)).__name__)            # 既定（anthropic / claude）
+
+config.llm.provider = "anthropc"                            # 打ち間違い
+try:
+    create_chat_client(config)
+except ValueError as e:
+    print(e)
+
+client = AnthropicGenaiClient(default_model="claude-haiku-5-5")   # モデルを固定したクライアントを直接作る
+print(client.models._default_model)
+```
+
+```
+# 出力例:
+# AnthropicGenaiClient
+# 未知の LLM プロバイダです: config.llm.provider='anthropc'（anthropic / gemini のいずれか）
+# claude-haiku-5-5
+```
+
+> ⚠️ **未知のプロバイダ名は `ValueError`**（2026-09-26 まで黙って Anthropic にしていたので、`grace_config.yml` の打ち間違いに気付けなかった）。
+> `gemini` / `google` を指定すると `google.genai.Client()` を返すが、**本リポジトリの LLM 用途は Anthropic だけ**で、Gemini は Embedding にだけ使う（CLAUDE.md §3）。
+
+---
 
 ### 4.2 AnthropicGenaiClient クラス
 
@@ -783,6 +872,21 @@ _ALWAYS_THINKING_MIN_TOKENS = 4096
 | `ANTHROPIC_BASE_URL` | Anthropic ベース URL（任意） |
 
 
+### 5.5 JSON を求めるときのシステム指示
+
+`generate_content` の `config` に `response_mime_type="application/json"` か `response_schema` があると、次のシステム指示を付ける
+（`_AnthropicModels.generate_content`。2026-10-10 に最終評価の呼び出しで実際に送られた文面）。`response_schema` が Pydantic モデルなら、
+2 段落目にその JSON Schema（`model_json_schema()` を JSON にした 1 行）が入る。
+
+```text
+あなたは厳密な JSON ジェネレーターです。出力は有効な JSON オブジェクト 1 個のみとし、Markdown のコードブロックや説明文を一切含めないでください。
+
+出力は次の JSON Schema に厳密に従ってください:
+{response_schema の JSON Schema}
+```
+
+返答は `_strip_to_json` で Markdown のコードフェンスや前後の文を落としてから返す（呼び出し側が `model_validate_json` / `json.loads` するため）。
+
 ---
 
 ## 6. エクスポート
@@ -817,6 +921,8 @@ from .llm_compat import create_chat_client
 | 1.7 | 2026-09-29 | `stop_reason` の扱いを追加（2026-09-29）。拒否（`refusal`）は `LLMRefusalError`、JSON 応答の `max_tokens` 打ち切りは 1 回再試行のうち `LLMTruncatedError`。従来は `stop_reason` を見ず、拒否は「本文が空の成功」、打ち切りは「途中で切れた JSON」として下流へ流れていた（Sonnet 5.5 のプロンプトガイドの推奨に対応） |
 | 1.8 | 2026-10-06 | 現在の既定モデルの記載 `claude-sonnet-5` を実装（`grace/config.py` の `LLMConfig.model` / `grace/llm_compat.py` の `DEFAULT_ANTHROPIC_MODEL` = `claude-sonnet-5-5`）に合わせて是正（2026-10-06。CLAUDE.md §9.3。旧既定は履歴の記述にだけ残す） |
 | 1.9 | 2026-10-06 | 未記載だった 2 シンボルを実装から書き起こして追加（2026-10-06）。§4.7 に `_stop_category`（拒否の分類を取り出す）、§5.3.1 に `_ALWAYS_THINKING_MIN_TOKENS`（思考を無効化できないモデルで本文が空にならないための `max_tokens` 下限）。あわせて v1.7 で追加された例外 `LLMRefusalError` / `LLMTruncatedError` を §3.1・主要機能一覧に載せた（それまで Process の文中にしか無かった） |
+| 1.10 | 2026-10-10 | 旧 `grace_runtime.md`（現 `grace_data_flow.md`）にあったプロンプトの全文を、実装から書き出して §5 へ移した（`grace/docs/` の構成整理。所在の一覧は `grace_data_flow.md` §3.4） |
+| 1.11 | 2026-10-10 | §4.1 使用例を処理パターン 4 通り（テキスト生成・JSON で受け取る・拒否と打ち切りを扱う・プロバイダの切り替え）に書き直し、SDK クライアントをスタブにして実行して出力を確かめた（拒否・打ち切りの例外もスタブで発生させて確認）。旧版は未定義の `config` / `grace_config` を使い、`google.genai.types` で設定を渡していた |
 
 ---
 

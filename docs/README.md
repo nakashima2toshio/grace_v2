@@ -1,10 +1,10 @@
 # docs 棚卸し（リポジトリ直下 `docs/`）
 
-**Version 3.11** | 最終更新: 2026-10-10
+**Version 3.12** | 最終更新: 2026-10-10
 
 リポジトリ直下 `docs/` の一覧と、**どのディレクトリに何を置くかの境界**をまとめる。
 各領域の棚卸しは [`backend/docs/README.md`](../backend/docs/README.md) /
-[`grace/docs/README.md`](../grace/docs/README.md) /
+[`grace/docs/README_grace.md`](../grace/docs/README_grace.md) /
 [`frontend/docs/README.md`](../frontend/docs/README.md) /
 [`qa_generation/docs/README.md`](../qa_generation/docs/README.md) /
 [`chunking/docs/README.md`](../chunking/docs/README.md) /
@@ -103,8 +103,8 @@ CLAUDE.md §9.1 の表を、判断に使える形へ具体化したもの。
 | `guardrails.md` | A | ガードレール GA〜G9 の機構 → 実装 → **失敗時の既定** | backend + grace + ルート | 379 | 1.1 |
 | `reasoning_flow.md` | A | 生成の 2 ステップ（Support の `reasoning` / Review の `detect`） | grace + backend | 389 | 2.3 |
 | `performance_levers.md` | A | 回答品質・レイテンシ・コストを決めている箇所と未実装レバー | 全域 | 578 | 2.8 |
-| `agent_layers.md` | A | **一般エージェント用語 → 実装の対応表**（L0〜L4）。実装を読む前の見取り図 | 全域 | 416 | 1.6 |
-| `app_tabs_overview.md` | A | **処理 3 タブの入口**。基本版 / GRACE-Support / GRACE-Review を「業界特化・処理フロー・回答」の 3 点で、画面の実行例つきでまとめる。ステップ対照表は `pipelines.md` へリンク | backend + frontend + grace | 380 | 1.2 |
+| `agent_layers.md` | A | **一般エージェント用語 → 実装の対応表**（L0〜L4）。実装を読む前の見取り図 | 全域 | 417 | 1.7 |
+| `app_tabs_overview.md` | A | **処理 3 タブの入口**。基本版 / GRACE-Support / GRACE-Review を「業界特化・処理フロー・回答」の 3 点で、画面の実行例つきでまとめる。ステップ対照表は `pipelines.md` へリンク | backend + frontend + grace | 380 | 1.3 |
 
 ### 3.2 モジュール IPO（トップレベル `.py`）
 
@@ -161,7 +161,7 @@ CLAUDE.md §9.1 の表を、判断に使える形へ具体化したもの。
 ## 5. 重複の検出
 
 同じ Mermaid ブロック・同じ表が 2 箇所に無いかを見る（リポジトリ直下で実行）。
-`grace/docs/README.md` §2.7 の検出を**全 docs ディレクトリへ広げた**もの。
+旧 `grace/docs/README.md` §2.7 の検出（2026-10-10 に README_grace.md へ改称した際に整理）を**全 docs ディレクトリへ広げた**もの。
 
 ```bash
 python3 - <<'EOF'
@@ -248,3 +248,4 @@ EOF
 | 3.9 | 2026-10-10 | Legacy ReAct 経路（`services/agent_service.py`・`agent_parallel_search.py`・`agent_cache.py`・`executor._execute_legacy_agent_step`・`run_legacy_agent` アクション）を 2026-10-10 に削除したのに追随 |
 | 3.10 | 2026-10-10 | `agent_layers.md` の行数・版を実測値へ更新（Tool Use の削除に追随） |
 | 3.11 | 2026-10-10 | 索引の行数・版を実測値へ更新（テストを直下 `tests/` へ移した変更に追随） |
+| 3.12 | 2026-10-10 | `grace/docs/` の構成整理（`README.md` → `README_grace.md`、`grace.md` / `grace_core.md` / `grace_runtime.md` / `confidence_calibration.md` を `README_grace.md` / `grace_process_flow.md` / `grace_data_flow.md` へ統合）に合わせてリンクを直した |

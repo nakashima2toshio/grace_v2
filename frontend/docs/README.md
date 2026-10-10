@@ -1,6 +1,6 @@
 # frontend — 責務・構成・モジュール構造
 
-**Version 3.2** | 最終更新: 2026-10-10
+**Version 3.3** | 最終更新: 2026-10-10
 
 `frontend/`（Vite + React 18 + TypeScript）の**入口文書**である。
 前半（§1〜§7）で frontend の責務・構成・モジュール構造・データの流れを説明し、
@@ -11,7 +11,7 @@
 
 > **関連**: 形式仕様は [`.claude/skills/grace-agent-docs/a_react_page_md_format.md`](../../.claude/skills/grace-agent-docs/a_react_page_md_format.md) ／
 > 純関数規約は CLAUDE.md §6 ／ 姉妹リポジトリ（grace_v2_local）との乖離は CLAUDE.md §5 ／
-> [`grace/docs/README.md`](../../grace/docs/README.md) ／ [`backend/docs/README.md`](../../backend/docs/README.md) ／
+> [`grace/docs/README_grace.md`](../../grace/docs/README_grace.md) ／ [`backend/docs/README.md`](../../backend/docs/README.md) ／
 > 全体の改修計画は [`docs/doc_modernization_todo.md`](../../docs/doc_modernization_todo.md)
 
 ---
@@ -691,3 +691,4 @@ npm run build    # 本番ビルド
 | 3.0 | 2026-10-03 | GRACE-Review の結果が古いことを表示する `state/staleResult.ts`（6 件）を追加したのに追随。§8 の `ReviewPanel.md` 1.6 / 219 行・`ReviewForm.md` 1.9 / 264 行、§10 に `staleResult.ts`、§11 のテスト件数を **24 ファイル / 332 件**（実測）へ更新 |
 | 3.1 | 2026-10-08 | **SSE の張り直し**を grace_v2_local から移植したのに追随。`api/client.ts::subscribeStream` が切断・無音（60 秒）で張り直し、リプレイ分を `seq` で読み飛ばすようにした（local でチャンク化の長い無音中に画面だけ固まった件）。§3 の `client.ts` を 369 行、§6.1・§6.3 を更新、§10 に `streamWatch.ts`（22 モジュール）、§11 のテスト件数を **26 ファイル / 346 件**（実測・`streamWatch.test.ts` 8 件・`api/client.test.ts` 6 件を追加）へ更新 |
 | 3.2 | 2026-10-10 | 索引の行数・版を実測値へ更新（テストを直下 `tests/` へ移した変更に追随） |
+| 3.3 | 2026-10-10 | `grace/docs/` の構成整理（`README.md` → `README_grace.md`、`grace.md` / `grace_core.md` / `grace_runtime.md` / `confidence_calibration.md` を `README_grace.md` / `grace_process_flow.md` / `grace_data_flow.md` へ統合）に合わせてリンクを直した |

@@ -1,6 +1,6 @@
 # backend/docs 棚卸し・監査記録 ドキュメント
 
-**Version 1.20** | 最終更新: 2026-10-10
+**Version 1.21** | 最終更新: 2026-10-10
 
 > ⚠️ **本書は「監査記録」であって入口ではない。** 文書の地図と読む順路は
 > [`README.md`](./README.md) にある。ここには実装追随の照合結果・過去に見つかった
@@ -28,7 +28,7 @@
 > 姉妹リポジトリ `grace_v2_local` は Ollama 版で LLM 用の API キーが不要。**表記が逆**なので、
 > あちらの文書をそのまま持ち込まない（CLAUDE.md §3・§5）。
 
-> **関連**: `grace/` 側の棚卸しは [`grace/docs/README.md`](../../grace/docs/README.md)。
+> **関連**: `grace/` 側の索引は [`grace/docs/README_grace.md`](../../grace/docs/README_grace.md)。
 
 ---
 
@@ -185,7 +185,7 @@ AST 列は 2026-09-15 の実測値（全 17 モジュールの網羅は §4.1）
 
 ### 4.1 公開シンボルの網羅（AST 照合・2026-09-15 実測）
 
-**17 モジュールすべてで 100%。** 下表は `grace/docs/README.md` §4.1 のスクリプトを
+**17 モジュールすべてで 100%。** 下表は `grace/docs/README_grace.md` §5.1 の網羅スクリプトを
 全 17 ペアに流した**実測値**である（件数を記憶で書かないこと）。
 
 | 文書 | 公開シンボル | 未記載 |
@@ -256,7 +256,7 @@ AST 列は 2026-09-15 の実測値（全 17 モジュールの網羅は §4.1）
 
 ### 5.1 公開シンボルの網羅（AST）
 
-`grace/docs/README.md` §4.1 のスクリプトをそのまま使う（対象パスだけ差し替える）。
+`grace/docs/README_grace.md` §5.1 の網羅スクリプトをそのまま使う（対象パスだけ差し替える）。
 
 ### 5.2 CI 4 ゲート（CLAUDE.md §4）
 
@@ -271,7 +271,7 @@ cd frontend && npm run lint && npm test && npm run build
 
 ### 5.3 Mermaid 規約・リンク存在・アンカー解決
 
-`grace/docs/README.md` §4.2（Mermaid 規約）/ §4.3（リンク存在）/ **§4.5（見出しアンカーの解決）** と同じ。
+Mermaid 規約は `a_cross_doc_md_format.md` §10 の検証スクリプト、リンク存在と**見出しアンカーの解決**は `grace/docs/README_grace.md` §5.1 のリンク・アンカーのスクリプトと同じ。
 対象を `backend/docs` に読み替えて流す。§4.5 は「節番号を繰り下げた／見出しを言い換えたのに
 目次が追随していない」を捕まえる検査で、**リンク存在チェックでは検出できない**
 （ファイルは実在し、壊れているのは `#` 以降だけ）。
@@ -343,3 +343,4 @@ grep -A 12 'STEP_IDS = (' backend/app/core/support_agent.py \
 | 1.18 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
 | 1.19 | 2026-10-08 | 現在の既定 LLM の記述を `claude-sonnet-5` から実装（`config.py::ModelConfig.DEFAULT_MODEL` / `config/grace_config.yml` の `llm.model`）どおり `claude-sonnet-5-5` へ是正（冒頭の注記）（2026-10-08） |
 | 1.20 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |
+| 1.21 | 2026-10-10 | `grace/docs/` の構成整理（`README.md` → `README_grace.md`、`grace.md` / `grace_core.md` / `grace_runtime.md` / `confidence_calibration.md` を `README_grace.md` / `grace_process_flow.md` / `grace_data_flow.md` へ統合）に合わせてリンクを直した |

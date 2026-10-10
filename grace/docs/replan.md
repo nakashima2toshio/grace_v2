@@ -1,6 +1,6 @@
 # replan.py - GRACE 動的リプランニングシステム ドキュメント
 
-**Version 2.4** | 最終更新: 2026-10-06
+**Version 2.5** | 最終更新: 2026-10-10
 
 ---
 
@@ -279,61 +279,146 @@ style FACTORY fill:#1a1a1a,stroke:#fff,color:#fff
 
 ### 4.1 使用例
 
-#### 4.1.1 基本的なワークフロー（ステップ失敗時の自動リプラン）
+リプランは「**要るか**（`should_replan`）→ **どう直すか**（`determine_strategy`）→ **新しい計画**（`create_new_plan`）」の 3 段。
+使い方は次の 4 通り。
+
+| 処理パターン | 呼び方 | 向いている場面 | 例 |
+|---|---|---|---|
+| ステップの失敗から立て直す | `ReplanOrchestrator.handle_step_failure(step_result, current_plan, completed_results, replan_count)` | executor と同じ呼び方。3 段をまとめて実行する | 4.1.1 |
+| 戦略の決まり方を確かめる | `ReplanManager.should_replan` → `determine_strategy(context, plan)` | 計画を作らずに、どの戦略になるかだけを見る（LLM 不要） | 4.1.2 |
+| 計画を作り直す（FULL / PARTIAL） | `ReplanManager.create_new_plan(context, strategy, plan)` | 失敗の文脈を `context_hints` で `Planner` に渡して作り直す | 4.1.3 |
+| ユーザーの指摘から立て直す | `ReplanOrchestrator.handle_user_feedback(feedback, ...)` | 「別の観点で」「やり直し」などの指摘を受けたとき | 4.1.4 |
+
+> 📝 4 本とも、LLM（計画生成は固定の JSON を返す）と Qdrant のコレクション一覧をスタブに差し替えて**そのまま実行し**、
+> 出力を確かめてある（2026-10-10）。戦略の判定と `FALLBACK` は LLM を使わないので出力は実際と同じ。作り直した計画の中身は LLM による。
+
+#### 4.1.1 基本的なワークフロー（ステップの失敗から立て直す）
 
 ```python
+from grace.planner import create_planner
 from grace.replan import create_replan_orchestrator
 from grace.schemas import StepResult
 
-# 1. オーケストレーターを生成
+plan = create_planner().create_plan("『金色夜叉』の作者は誰ですか？")   # rag_search（fallback=web_search）→ reasoning
 orchestrator = create_replan_orchestrator()
 
-# 2. ステップ失敗結果を受け取る
-failed = StepResult(step_id=1, status="failed", confidence=0.0, error="timeout")
+# 1. 検索ステップが失敗した
+failed = StepResult(step_id=1, status="failed", confidence=0.0, error="Qdrant timeout")
 
-# 3. 自動リプラン処理
+# 2. 要否 → 戦略 → 新しい計画（失敗したステップに fallback があるので FALLBACK＝検索を Web 検索へ差し替える）
 result = orchestrator.handle_step_failure(
     step_result=failed,
-    current_plan=current_plan,
+    current_plan=plan,
     completed_results={},
-    replan_count=0
-)
-
-# 4. 結果を確認
-if result and result.success:
-    print(f"戦略: {result.strategy.value}, 新計画ステップ数: {len(result.new_plan.steps)}")
-else:
-    print("リプラン不要、または中断")
-```
-
-#### 4.1.2 応用ワークフロー（ReplanManager を直接利用）
-
-```python
-from grace.replan import (
-    create_replan_manager,
-    ReplanContext,
-    ReplanTrigger,
-)
-
-mgr = create_replan_manager()
-
-# コンテキストを構築
-ctx = ReplanContext(
-    trigger=ReplanTrigger.STEP_FAILED,
-    original_query="量子コンピュータとは？",
-    failed_step_id=1,
-    error_message="RAG search timeout",
     replan_count=0,
 )
-
-# 戦略を決定し、新計画を生成
-strategy = mgr.determine_strategy(ctx, current_plan)
-result = mgr.create_new_plan(ctx, strategy, current_plan)
-print(f"理由: {result.reason}")
-
-# 履歴を確認
-print(f"履歴件数: {len(mgr.get_history())}")
+if result and result.success:
+    print(f"戦略: {result.strategy.value} / 理由: {result.reason} / 回数: {result.replan_count}")
+    print([s.action for s in result.new_plan.steps])
+else:
+    print("リプランしない（不要、または上限で中断）")
 ```
+
+```
+# 出力例:
+# 戦略: fallback / 理由: 代替アクション適用 / 回数: 1
+# ['web_search', 'reasoning']
+```
+
+> 📝 executor は、ステップが失敗したら常に、低信頼（`replan.confidence_threshold`＝0.4 未満）は**検索ステップのときだけ**これを呼ぶ
+> （`Executor._should_trigger_replan`）。成功した新しい計画で、同じ `state` のまま続きを実行する。
+
+#### 4.1.2 戦略の決まり方を確かめる
+
+```python
+from grace.planner import create_planner
+from grace.replan import ReplanContext, ReplanTrigger, create_replan_manager
+from grace.schemas import StepResult
+
+plan = create_planner().create_plan("『金色夜叉』の作者は誰ですか？")
+mgr = create_replan_manager()
+
+# 1. 要るか（失敗は常に、低信頼は 0.4 未満、上限 max_replans=3 に達したら不要）
+print(mgr.should_replan(StepResult(step_id=1, status="success", confidence=0.3), replan_count=0))
+print(mgr.should_replan(StepResult(step_id=1, status="failed", confidence=0.0), replan_count=3))
+
+# 2. どう直すか（条件ごとの戦略）
+cases = {
+    "fallback あり": ReplanContext(trigger=ReplanTrigger.STEP_FAILED, original_query=plan.original_query, failed_step_id=1),
+    "低信頼（2 ステップの 1 つ目）": ReplanContext(trigger=ReplanTrigger.LOW_CONFIDENCE, original_query=plan.original_query, failed_step_id=1),
+    "「最初から」の指摘": ReplanContext(trigger=ReplanTrigger.USER_FEEDBACK, original_query=plan.original_query, user_feedback="最初からやり直して"),
+    "上限に達した": ReplanContext(trigger=ReplanTrigger.STEP_FAILED, original_query=plan.original_query, failed_step_id=1, replan_count=3),
+}
+for name, ctx in cases.items():
+    print(f"{name}: {mgr.determine_strategy(ctx, plan).value}")
+```
+
+```
+# 出力例:
+# (True, <ReplanTrigger.LOW_CONFIDENCE: 'low_confidence'>)
+# (False, None)
+# fallback あり: fallback
+# 低信頼（2 ステップの 1 つ目）: partial
+# 「最初から」の指摘: full
+# 上限に達した: abort
+```
+
+> 📝 失敗したステップが計画の最初の 1/3 以内（`failed_step_id / ステップ数 <= 0.34`）なら `FULL`、それ以外は `PARTIAL`。
+> **通常の 2 ステップの計画では 1 つ目でも 1/2＝0.5 なので `FULL` にはならない**（3 ステップ以上の LLM 計画で効く）。`SKIP` は列挙と `create_new_plan` にあるが、
+> `determine_strategy` は選ばない。
+
+#### 4.1.3 計画を作り直す（FULL / PARTIAL）
+
+```python
+from grace.planner import create_planner
+from grace.replan import ReplanContext, ReplanStrategy, ReplanTrigger, create_replan_manager
+from grace.schemas import StepResult
+
+plan = create_planner().create_plan("明日の東京の天気は？")
+mgr = create_replan_manager()
+
+ctx = ReplanContext(
+    trigger=ReplanTrigger.LOW_CONFIDENCE,
+    original_query=plan.original_query,
+    failed_step_id=1,
+    error_message="rag_search の最大スコアが 0.31 で、根拠にならなかった",
+    completed_results={1: StepResult(step_id=1, status="success", confidence=0.31, output="無関係な文書")},
+)
+
+# エラーの文脈は context_hints で Planner へ渡る（検索クエリには混ぜない）
+result = mgr.create_new_plan(ctx, ReplanStrategy.FULL, plan)
+print(f"{result.reason}: {[(s.action, s.query) for s in result.new_plan.steps]}")
+print(f"履歴 {len(mgr.get_history())} 件")
+```
+
+```
+# 出力例（新しい計画の中身は LLM による）:
+# 全体再計画: [('rag_search', '明日の東京の天気は？'), ('reasoning', None)]
+# 履歴 1 件
+```
+
+#### 4.1.4 ユーザーの指摘から立て直す
+
+```python
+from grace.planner import create_planner
+from grace.replan import create_replan_orchestrator
+
+plan = create_planner().create_plan("生成AIの動向を教えて")
+orchestrator = create_replan_orchestrator()
+
+for feedback in ["ありがとう", "別の観点で調べ直して"]:
+    result = orchestrator.handle_user_feedback(feedback, current_plan=plan, completed_results={}, replan_count=0)
+    print(f"{feedback} -> {'リプランしない' if result is None else result.strategy.value}")
+```
+
+```
+# 出力例:
+# ありがとう -> リプランしない
+# 別の観点で調べ直して -> partial
+```
+
+> 📝 指摘とみなすのは「修正」「変更」「やり直し」「違う」「別の」を含むとき（`should_replan_from_feedback`）。
+> 「最初から」を含めば `FULL`、それ以外は `PARTIAL`。executor はこの経路を呼ばない（Web の画面にも指摘の入口は無い）。
 
 ---
 
@@ -1090,6 +1175,7 @@ __all__ = [
 | 2.2 | 2026-09-14 | 使用例を「## 6. 使用例」から IPO 詳細セクション冒頭の `4.1 使用例` へ移動（フォーマット仕様 v1.6 §6.1）。これに伴い既存の `### 4.N` を 1 つずつ繰り下げ、章番号を エクスポート → `## 6.` / 変更履歴 → `## 7.` へ繰り上げ（2026-09-14）。過去の変更履歴行に書かれた旧節番号（§4.x / §6.x）は当時の記録としてそのまま残している |
 | 2.3 | 2026-09-24 | 現在の既定モデルの記載 `claude-sonnet-4-6` を実装（`grace/config.py` の `LLMConfig.model` = `claude-sonnet-5`）に合わせて是正した（CLAUDE.md §9.3。旧既定は履歴の記述にだけ残す）（2026-09-24） |
 | 2.4 | 2026-10-06 | 現在の既定モデルの記載 `claude-sonnet-5` を実装（`grace/config.py` の `LLMConfig.model` / `grace/llm_compat.py` の `DEFAULT_ANTHROPIC_MODEL` = `claude-sonnet-5-5`）に合わせて是正（2026-10-06。CLAUDE.md §9.3。旧既定は履歴の記述にだけ残す） |
+| 2.5 | 2026-10-10 | §4.1 使用例を処理パターン 4 通り（ステップの失敗から立て直す・戦略の決まり方・計画の作り直し・ユーザーの指摘）に書き直し、LLM と Qdrant をスタブにして実行して出力を確かめた。旧版は未定義の `current_plan` を使っていて動かなかった。通常の 2 ステップの計画では進捗による `FULL` が起きないこと、`handle_user_feedback` に本番の呼び出し元が無いことを注記した |
 
 ---
 
