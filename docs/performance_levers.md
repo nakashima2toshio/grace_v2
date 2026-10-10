@@ -1,6 +1,6 @@
 # 性能改善レバー — 回答品質とレイテンシ・コストを決めている箇所
 
-**Version 2.7** | 最終更新: 2026-10-10
+**Version 2.8** | 最終更新: 2026-10-10
 
 ---
 
@@ -194,7 +194,7 @@ payload から本文を抽出。executor 内部の `_calculate_overall_confidenc
 本文が取れない経路は従来の出典ラベルへフォールバックする。
 
 **実測効果**: 支持率 判定不能(0/7) → **1.00（7/7 supported）** / decision **answer**。
-回帰テスト `backend/tests/test_groundedness_sources.py`。
+回帰テスト `tests/test_groundedness_sources.py`。
 
 > 📌 `_should_rescue_unaffirmed`（④-救済）と ⑤ Web フォールバックは、**この欠陥への
 > 対症療法**として作られていた。根本が直ったので、これらの出番は減っている。
@@ -230,7 +230,7 @@ payload から本文を抽出。executor 内部の `_calculate_overall_confidenc
 | saas | （汎用順） | `saas_docs, saas_api` |
 | ec | （汎用順） | `ec_policy, ec_faq` |
 
-回帰テスト `backend/tests/test_collection_selection.py`。
+回帰テスト `tests/test_collection_selection.py`。
 
 **P-03b（未実装）**: `break` を廃して全スコープ横断でスコア統合する方式。
 案①で「正解が最後に評価される」問題は解消したが、**先頭コレクションが一次ヒットを
@@ -256,7 +256,7 @@ Legacy ReAct 経路とともに 2026-10-10 に削除した（git 履歴と `docs
 相互汚染**していた（gov の質問が ec のコレクションで走りうる）。
 
 `copy.deepcopy(get_config())` によるリクエスト単位のコピーで解消（Review 側も同様）。
-回帰テスト `backend/tests/test_config_isolation.py`（Barrier で 2 スレッドを同期させ、
+回帰テスト `tests/test_config_isolation.py`（Barrier で 2 スレッドを同期させ、
 修正前コードで 2 件が失敗することを確認済み）。
 
 ### W-2 / W-2b — 担当範囲を生成側で担保（スコア 7）
@@ -351,7 +351,7 @@ llm:
   設定で行えるようにした。
 
 > 📌 **解決ロジック単体のテストだけでは、呼び出し箇所の巻き戻しを検出できない。**
-> LLM へ渡る model を捕まえるテストを `backend/tests/test_scope_and_models.py` に置いた。
+> LLM へ渡る model を捕まえるテストを `tests/test_scope_and_models.py` に置いた。
 
 ### 補助 LLM 判定はすべて有効（`judges` ブロックが無い）
 
@@ -381,7 +381,7 @@ P-05（リランカー）・P-06 のさらなる拡大・M-1（`heavy_model`）�
 `GroundednessVerifier` が `(query, answer, tuple(sources))` をキーに直近
 `_CACHE_SIZE = 4` 件を記憶する。⑤ Web フォールバックの再検証などで同一入力が
 再び来たとき、LLM 呼び出しを省く。**失敗（検証器の例外・空応答）はキャッシュしない。**
-回帰テスト `backend/tests/test_groundedness_cache.py`。
+回帰テスト `tests/test_groundedness_cache.py`。
 
 あわせて `support_agent` が `executor.groundedness_verifier` を**再利用**する
 （以前は検証器を 2 つ作っており、キャッシュが効かなかった）。
@@ -575,3 +575,4 @@ gov / saas / ec のコレクションが 1 つも無ければ、検索スコー�
 | 2.5 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
 | 2.6 | 2026-10-08 | 現在の既定 LLM の記述を `claude-sonnet-5` から実装（`config.py::ModelConfig.DEFAULT_MODEL` / `config/grace_config.yml` の `llm.model`）どおり `claude-sonnet-5-5` へ是正（技術スタック・モデル階層の yml 例・§8.5）（2026-10-08） |
 | 2.7 | 2026-10-10 | Legacy ReAct 経路（`services/agent_service.py`・`agent_parallel_search.py`・`agent_cache.py`・`executor._execute_legacy_agent_step`・`run_legacy_agent` アクション）を 2026-10-10 に削除したのに追随 |
+| 2.8 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |

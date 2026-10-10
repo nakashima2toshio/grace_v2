@@ -171,7 +171,7 @@ qdrant:
   # ⚠️ executor.reasoning_min_rag_score（推論・出典に採用する下限）以下にすること。
   #    上げると、採用した社内ナレッジがあるのに無条件で Web も検索する（2026-10-04 まで 0.7 で、
   #    範囲内の質問の実測最小 0.665 を下回る質問で Web 検索が走っていた。
-  #    backend/tests/test_web_search_toggle.py）
+  #    tests/test_web_search_toggle.py）
   rag_sufficient_score: 0.64
   # true にすると collection_name 1 つに限定し横断フォールバックを行わない
   restrict_to_collection: false

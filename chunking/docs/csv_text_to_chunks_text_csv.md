@@ -1,6 +1,6 @@
 # csv_text_to_chunks_text_csv.py - LLMベースセマンティックチャンキング（統一版） ドキュメント
 
-**Version 1.10** | 最終更新: 2026-10-08
+**Version 1.11** | 最終更新: 2026-10-10
 
 ---
 
@@ -990,7 +990,7 @@ uv run python -m chunking.csv_text_to_chunks_text_csv \
 >
 > 📌 **既定モデル名は 2026-10-08 から `claude-haiku-5-5`（Claude Haiku 5.5）。** それ以前は
 > `claude-haiku-4-5`（日付サフィックス無し）だった。どちらも `config.py` の価格表・上限表に
-> 載っている（`backend/tests/test_model_table_coverage.py` が検査）。
+> 載っている（`tests/test_model_table_coverage.py` が検査）。
 > Haiku 5.5 は思考が既定で ON なので、`helper/helper_llm.py` が `thinking: disabled` を明示して
 > 構造化 JSON が途中で切れないようにしている。
 
@@ -1031,6 +1031,7 @@ from chunking.csv_text_to_chunks_text_csv import (
 | 1.8 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`）。入力上限を 8192 → 2048（`ModelConfig.EMBEDDING_MAX_INPUT_TOKENS`）へ戻した |
 | 1.9 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
 | 1.10 | 2026-10-08 | チャンキングの既定を、回答生成・Q/A 生成の `ModelConfig.DEFAULT_MODEL` から分けた `config.py::ModelConfig.CHUNKING_MODEL`（`claude-haiku-5-5`）の 1 箇所で決めるようにしたのに追随（2026-10-08） |
+| 1.11 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |
 
 ---
 

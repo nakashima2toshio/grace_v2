@@ -1,4 +1,4 @@
-# backend/tests を実 API キー・Qdrant 無しで通すための最小依存セット。
+# tests を実 API キー・Qdrant 無しで通すための最小依存セット。
 #
 # ⚠️ **CI（.github/workflows/ci.yml の `pytest (backend)` ジョブ）と共有する
 # 唯一の正本である。** 以前は CI の YAML にインラインで列挙しており、
@@ -12,13 +12,13 @@
 # （tqdm は chunking/ の実依存で pyproject.toml にも requirements.txt にも宣言済み。
 #  CI のリストにだけ載っていなかった）。
 #
-# backend/tests が import するパッケージを足したら、**このファイルに追記する**。
+# tests が import するパッケージを足したら、**このファイルに追記する**。
 # CI 側の YAML を直す必要はもう無い。
 #
 # 使い方（ローカル）:
 #   uv venv
 #   uv pip install -r requirements-test.txt
-#   uv run --no-sync pytest backend/tests -q -rs
+#   uv run --no-sync pytest tests -q -rs
 #
 # ⚠️ 実行時の全依存（`pyproject.toml` の `[project] dependencies`・221 行）は
 # **入れない**。テストはスタブベースで、重い実行時依存を必要としない。

@@ -1,6 +1,6 @@
 # 業界プロファイルとルールセット ドキュメント
 
-**Version 1.1** | 最終更新: 2026-09-24
+**Version 1.2** | 最終更新: 2026-10-10
 
 > **本書の位置づけ**: GRACE-Support の**業界プロファイル**（`VerticalProfile`・gov / saas / ec）と、
 > GRACE-Review の**ルールセット**（`RuleSet`・ec_ad）の**カタログ**。
@@ -123,7 +123,7 @@ style EXTERNAL fill:#1a1a1a,stroke:#fff,color:#fff
 > （`git log --all --full-history -- 'eval/*'` が両方とも空）。他プロジェクト由来の記述だったため、
 > **2026-09-04 に KPI 評価章（旧 §8「テスト用データ」・旧 §9.1「KPI 評価」）ごと削除した。**
 >
-> 現存するテストは `backend/tests/` 配下のみ（§1.7）。
+> 現存するテストは `tests/` 配下のみ（§1.7）。
 
 ### 1.0 業界特化とは何か
 
@@ -141,11 +141,11 @@ style EXTERNAL fill:#1a1a1a,stroke:#fff,color:#fff
 
 | 責務 | 実装（`backend/app/core/` / `grace/`） | テスト・データ資産 |
 |---|---|---|
-| 検索範囲の限定 | `PROFILES[v].collections` → `config.qdrant.allowed_collections` → `RAGSearchTool._apply_allowed_collections` | `backend/tests/test_vertical_scope.py` |
-| 判断基準の切替 | `_answer_gate()`（閾値）/ `_should_force_escalate()`（エスカレ語×意図分類）/ `_decide_action()`（アクション語彙） | `backend/tests/test_no_info_judge.py` |
-| 安全装置の業界適合 | `_perform_action()`（本人確認）/ `_detect_no_info_answer()`＋`create_no_info_judge()`（④'） | `backend/tests/test_no_info_judge.py` |
+| 検索範囲の限定 | `PROFILES[v].collections` → `config.qdrant.allowed_collections` → `RAGSearchTool._apply_allowed_collections` | `tests/test_vertical_scope.py` |
+| 判断基準の切替 | `_answer_gate()`（閾値）/ `_should_force_escalate()`（エスカレ語×意図分類）/ `_decide_action()`（アクション語彙） | `tests/test_no_info_judge.py` |
+| 安全装置の業界適合 | `_perform_action()`（本人確認）/ `_detect_no_info_answer()`＋`create_no_info_judge()`（④'） | `tests/test_no_info_judge.py` |
 | 語り口の注入 | `PROFILES[v].prompt_addendum` → `config.llm.prompt_addendum` → `ReasoningTool._build_prompt()` | —（reasoning 出力に反映） |
-| 業界別の品質保証 | ❌ **評価基盤は本リポジトリに無い**（旧版が挙げていた `eval/vertical/` 一式は存在しない） | `backend/tests/test_vertical_scope.py` / `test_no_info_judge.py` |
+| 業界別の品質保証 | ❌ **評価基盤は本リポジトリに無い**（旧版が挙げていた `eval/vertical/` 一式は存在しない） | `tests/test_vertical_scope.py` / `test_no_info_judge.py` |
 
 #### 主要機能一覧
 
@@ -329,15 +329,15 @@ style PROF fill:#1a1a1a,stroke:#fff,color:#fff
 
 #### 単体テスト（実 API・実 Qdrant 不要）
 
-> ⚠️ **リポジトリ直下に `tests/` は無い**（CLAUDE.md §9.4）。テストは `backend/tests/` 配下のみ。
+> テストはリポジトリ直下の `tests/` 配下にある（2026-10-10 に `backend/tests/` から移した）。
 
 | テスト | 対象 |
 |---|---|
-| `backend/tests/test_vertical_scope.py` | `allowed_collections` による検索範囲限定（プロファイルの許可リストに汎用コーパスを混ぜないことの固定を含む） |
-| `backend/tests/test_no_info_judge.py` | ④' 実質回答判定の理由・エスカレ条件・使用モデル |
-| `backend/tests/test_no_info_prediction.py` | ④' 判定の予測挙動 |
+| `tests/test_vertical_scope.py` | `allowed_collections` による検索範囲限定（プロファイルの許可リストに汎用コーパスを混ぜないことの固定を含む） |
+| `tests/test_no_info_judge.py` | ④' 実質回答判定の理由・エスカレ条件・使用モデル |
+| `tests/test_no_info_prediction.py` | ④' 判定の予測挙動 |
 
-実行: `uv run pytest backend/tests -q`（実 API キー・実 Qdrant は不要）。
+実行: `uv run pytest tests -q`（実 API キー・実 Qdrant は不要）。
 ---
 
 
@@ -428,7 +428,7 @@ RuleSet(
 表記漏れ（「価格が書かれていない」）の検出は**キーワード一致では原理的に不可能**である。
 「無い」ものは語として現れないので、文書全体に対して常時チェックするしかない。
 そのため `always_check=True` のルールには `keywords` を持たせない（排他は
-`backend/tests/test_rulesets.py` が固定している）。
+`tests/test_rulesets.py` が固定している）。
 
 #### `policy-01` だけ性格が違う
 
@@ -465,9 +465,9 @@ RuleSet(
 
 | ファイル | 内容 |
 |---|---|
-| `backend/tests/data/ec_ad_ng_sample.txt` | 意図的に違反を仕込んだ LP（各カテゴリ 1 件以上・想定 12 指摘） |
-| `backend/tests/data/ec_ad_ok_sample.txt` | 適正表記の LP（想定 0 指摘。**過検知テスト用**） |
-| `backend/tests/data/ec_ad_edge_sample.txt` | 誤検知しやすい文（否定文脈の「No.1」等。**抑止機構のテスト用**） |
+| `tests/data/ec_ad_ng_sample.txt` | 意図的に違反を仕込んだ LP（各カテゴリ 1 件以上・想定 12 指摘） |
+| `tests/data/ec_ad_ok_sample.txt` | 適正表記の LP（想定 0 指摘。**過検知テスト用**） |
+| `tests/data/ec_ad_edge_sample.txt` | 誤検知しやすい文（否定文脈の「No.1」等。**抑止機構のテスト用**） |
 
 ---
 
@@ -483,7 +483,7 @@ RuleSet(
 2. `collections` に挙げた Qdrant コレクションを登録する
    （[`data_pipeline.md`](./data_pipeline.md)。**未登録なら検索制限は適用されず警告ログのみ**）
 3. `GET /api/verticals` に出ることを確認する（UI のセレクタはこの API を読む）
-4. `backend/tests/test_vertical_scope.py` にスコープ固定のテストを追加する
+4. `tests/test_vertical_scope.py` にスコープ固定のテストを追加する
 
 > ⚠️ **プロファイルの許可リストに汎用コーパス（`wikipedia_ja` 等）を混ぜない。**
 > 業界外へ根拠が漏れる。上記テストがこれを固定している。
@@ -494,7 +494,7 @@ RuleSet(
 2. `description` は**条文の要点を自己完結的に**書く（規程コレクションが未登録のとき、
    これと `article` が ④ Ground の根拠フォールバックになる）
 3. 「表記漏れ」を見る種類のルールは `always_check=True` にし、`keywords` は**持たせない**
-   （排他は `backend/tests/test_rulesets.py` が固定している）
+   （排他は `tests/test_rulesets.py` が固定している）
 4. 件数・`always_check` / `web_check` の数を変えたら、
    [`reference/core_rulesets.md`](./reference/core_rulesets.md) の一覧を追随させる
 5. 法務監修を通す（**本ルールセットは技術検証用のサンプルである**）
@@ -507,3 +507,4 @@ RuleSet(
 |---|---|---|
 | 1.0 | 2026-09-16 | 新規作成。`support_spec.md` §6（業界特化）と `review_spec.md` §5（RuleSet 定義）を統合し、増やし方（§3）を追加した |
 | 1.1 | 2026-09-24 | `a_cross_doc_md_format.md` v1.1（種別 A）に準拠（2026-09-24）。概要（主な責務／各責務対応のモジュール／3 層のアーキテクチャ構成図）を追加し、本文の章番号は変えていない |
+| 1.2 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |

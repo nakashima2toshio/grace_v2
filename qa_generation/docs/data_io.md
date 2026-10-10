@@ -1,6 +1,6 @@
 # data_io.py - 入力読み込み・結果保存 ドキュメント
 
-**Version 1.3** | 最終更新: 2026-09-25
+**Version 1.4** | 最終更新: 2026-10-10
 
 ---
 
@@ -456,7 +456,7 @@ def save_results(
 | 4 | **例外は握りつぶさない。** `load_uploaded_file()` は読み込み中の例外をログに出してから再 raise する（ファイル不在の `FileNotFoundError` は `try` の外で送出）。`load_preprocessed_data()` / `save_results()` はログを出さずにそのまま送出する。いずれも呼び出し元は失敗を検知できる |
 | 5 | **`save_results()` は上書きしない。** ファイル名に秒までのタイムスタンプが入るため、同一秒内の再実行以外で衝突しない |
 | 6 | **LLM・Embedding を呼ばない。** プロバイダ（Anthropic / Gemini）に依存しないので、`ANTHROPIC_API_KEY` も `GOOGLE_API_KEY` も不要 |
-| 7 | ~~候補列の空セルが文字列 `"nan"` として残る~~ → **修正済み**（2026-09-24）。以前は `clean_text(str(x))` と先に `str()` をかけていたため、`NaN` が `clean_text()` の欠損判定に届かず `"nan"` として残り、空白行の除外もすり抜けていた（実測: `['hello', 'nan', 'world']`）。候補列が無いときの全列連結も `'B nan'` / `'nan nan'` を作っていた。いずれも `_is_missing()` で欠損を先に判定するよう直し、`backend/tests/test_data_io_missing_text.py`（3 件）で固定した |
+| 7 | ~~候補列の空セルが文字列 `"nan"` として残る~~ → **修正済み**（2026-09-24）。以前は `clean_text(str(x))` と先に `str()` をかけていたため、`NaN` が `clean_text()` の欠損判定に届かず `"nan"` として残り、空白行の除外もすり抜けていた（実測: `['hello', 'nan', 'world']`）。候補列が無いときの全列連結も `'B nan'` / `'nan nan'` を作っていた。いずれも `_is_missing()` で欠損を先に判定するよう直し、`tests/test_data_io_missing_text.py`（3 件）で固定した |
 
 ---
 
@@ -481,3 +481,4 @@ def save_results(
 | 1.1 | 2026-09-24 | **`"nan"` 混入を修正**。`load_uploaded_file()` が候補列の欠損値（`NaN`）を文字列 `"nan"` として残していた不具合と、全列連結のフォールバックが `"nan"` を連結していた不具合を、欠損判定ヘルパー `_is_missing()` で直した。§3 の図・注記、§5 の行番号（実装 162 → 168 行）、§8 の 7 を更新 |
 | 1.2 | 2026-09-24 | `pipeline.py` の行番号参照を更新（先頭の `celery_tasks` import を遅延 import へ移して 5 行ずれた。140 → 135、153 → 148） |
 | 1.3 | 2026-09-25 | §4 の注記を訂正。チャンク化 CLI に `--timestamp` オプションは存在しない（CLI の引数定義と git 履歴で確認）ので、「`--timestamp` を付けたときだけ日時サフィックスが付く」という記述を削除した |
+| 1.4 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |

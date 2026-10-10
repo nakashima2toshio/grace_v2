@@ -1,6 +1,6 @@
 # backend テストの地図 ドキュメント
 
-**Version 2.9** | 最終更新: 2026-10-09
+**Version 2.10** | 最終更新: 2026-10-10
 
 ---
 
@@ -20,7 +20,7 @@
 
 ## 概要
 
-> **本書の位置づけ**: `backend/tests` に何があり、**どこを触ったらどれを流すか**をまとめる。
+> **本書の位置づけ**: `tests` に何があり、**どこを触ったらどれを流すか**をまとめる。
 > テストの書式（SAE 形式）は `.claude/skills/grace-agent-tests/a_test_md_format.md`、
 > CI の設定は `.github/workflows/ci.yml` が正本。
 
@@ -31,9 +31,9 @@
 
 ### 結論
 
-- 実行は `uv run --no-sync pytest backend/tests -q -rs`（§1）。実 API キー・Qdrant は不要
-- **例外は `backend/tests/integration/`（§1.1）**。実 Qdrant / Redis に接続し、未起動なら skip する。クラウド VM では SessionStart hook が両方を起動するので走る
-- **E2E は `backend/tests/e2e/`（§1.2）**。実 API を呼んで課金されるので `GRACE_E2E=1` のときだけ走る。実データは Mac の Qdrant からスナップショットで VM へ運ぶ（`scripts/qdrant_snapshot.py`）
+- 実行は `uv run --no-sync pytest tests -q -rs`（§1）。実 API キー・Qdrant は不要
+- **例外は `tests/integration/`（§1.1）**。実 Qdrant / Redis に接続し、未起動なら skip する。クラウド VM では SessionStart hook が両方を起動するので走る
+- **E2E は `tests/e2e/`（§1.2）**。実 API を呼んで課金されるので `GRACE_E2E=1` のときだけ走る。実データは Mac の Qdrant からスナップショットで VM へ運ぶ（`scripts/qdrant_snapshot.py`）
 - **どこを触ったらどれを流すか**は §3。共有基盤（`jobs.py` ほか）と共用部品を触ったら全体を流す
 - CI の必須ゲートは 4 つ（§5）
 
@@ -41,12 +41,12 @@
 
 | # | モジュール | 関係 |
 |---|---|---|
-| 1 | `backend/tests/` | テスト本体（§2 の地図） |
+| 1 | `tests/` | テスト本体（§2 の地図） |
 | 2 | `requirements-test.txt` | テスト用依存の正本（CI と共有） |
 | 3 | `.github/workflows/ci.yml` | 4 ゲートの定義 |
-| 4 | `backend/tests/integration/` | 結合テスト（§1.1） |
+| 4 | `tests/integration/` | 結合テスト（§1.1） |
 | 5 | `.claude/hooks/session-start.sh` | クラウド VM でテスト依存を入れ、Qdrant / Redis を起動する。`GRACE_E2E_SNAPSHOT_URL` があれば実データも復元する |
-| 6 | `backend/tests/e2e/` / `requirements-e2e.txt` | E2E（§1.2）とその追加依存 |
+| 6 | `tests/e2e/` / `requirements-e2e.txt` | E2E（§1.2）とその追加依存 |
 | 7 | `scripts/qdrant_snapshot.py` | E2E 用の実データを Qdrant スナップショットで書き出す / 復元する（§1.2） |
 
 ---
@@ -71,14 +71,14 @@ uv venv
 uv pip install -r requirements-test.txt
 
 # 実行
-uv run --no-sync pytest backend/tests -q -rs
+uv run --no-sync pytest tests -q -rs
 ```
 
 > ⚠️ **`--no-sync` を付ける。** 付けないと `uv run` が `pyproject.toml` の
 > `[project] dependencies`（221 行・spacy / matplotlib 等）で環境を同期し直し、
 > `requirements-test.txt` で作った軽い環境が上書きされる。
 
-> ⚠️ **`backend/tests` が import するパッケージを足したら `requirements-test.txt` に追記する。**
+> ⚠️ **`tests` が import するパッケージを足したら `requirements-test.txt` に追記する。**
 > CI はこのファイルを読むので、YAML 側を直す必要は無い。
 
 **実測（2026-09-16）**: `978 passed, 1 skipped, 3 warnings in 9.51s`。
@@ -86,7 +86,7 @@ uv run --no-sync pytest backend/tests -q -rs
 
 ### 1.1 結合テスト（実 Qdrant / Redis）
 
-`backend/tests/integration/` だけは**スタブを使わず**、`docker-compose/docker-compose.yml` の
+`tests/integration/` だけは**スタブを使わず**、`docker-compose/docker-compose.yml` の
 Qdrant（:6333）と Redis（:6379）に実際に接続する。API キーは使わない
 （Embedding は固定ベクトル、LLM は固定応答の生成器へ差し替える）。
 
@@ -100,7 +100,7 @@ Qdrant（:6333）と Redis（:6379）に実際に接続する。API キーは使
 ```bash
 # Mac: Docker Desktop で起動してから
 docker compose -f docker-compose/docker-compose.yml up -d
-uv run --no-sync pytest backend/tests/integration -q -rs
+uv run --no-sync pytest tests/integration -q -rs
 
 # クラウド VM（Claude Code on the web）: セッション開始時に
 # .claude/hooks/session-start.sh が dockerd と compose を起動済み。そのまま流す
@@ -138,7 +138,7 @@ uv run --no-sync pytest backend/tests/integration -q -rs
 
 ### 1.2 E2E（実 LLM・実 Embedding・実データ）
 
-`backend/tests/e2e/` は、**本物の API と実データ**で `run_support_agent_core` /
+`tests/e2e/` は、**本物の API と実データ**で `run_support_agent_core` /
 `run_review_agent_core` を丸ごと流す。スタブを一切使わない。**課金される**ので
 `GRACE_E2E=1` を付けたときだけ走り、それ以外（CI を含む）は skip する。
 
@@ -210,11 +210,11 @@ records を突き合わせると、Review は 3 例文とも当たったルー�
 ```bash
 # Mac（.env にキー・Qdrant に実データ・E2E 用の追加依存）
 uv pip install -r requirements-e2e.txt
-GRACE_E2E=1 uv run --no-sync pytest backend/tests/e2e -m e2e -rs
-GRACE_E2E=1 GRACE_E2E_REPEAT=3 uv run --no-sync pytest backend/tests/e2e -m e2e -rs   # 揺れを測る（課金 3 倍）
+GRACE_E2E=1 uv run --no-sync pytest tests/e2e -m e2e -rs
+GRACE_E2E=1 GRACE_E2E_REPEAT=3 uv run --no-sync pytest tests/e2e -m e2e -rs   # 揺れを測る（課金 3 倍）
 
 # クラウド VM: 下の準備をしたうえで新しいセッションを開くと、hook が依存と実データを用意する
-GRACE_E2E=1 uv run --no-sync pytest backend/tests/e2e -m e2e -rs
+GRACE_E2E=1 uv run --no-sync pytest tests/e2e -m e2e -rs
 ```
 
 #### クラウド VM で走らせる準備（初回だけ）
@@ -275,7 +275,7 @@ GRACE_E2E=1 uv run --no-sync pytest backend/tests/e2e -m e2e -rs
 
 ### 2.1 GRACE-Review 系（18 ファイル）
 
-**`backend/tests` の約 1/3 が Review 系**である。共用部品を触ったら必ず流す。
+**`tests` の約 1/3 が Review 系**である。共用部品を触ったら必ず流す。
 
 | テスト | 対象 |
 |---|---|
@@ -300,7 +300,7 @@ GRACE_E2E=1 uv run --no-sync pytest backend/tests/e2e -m e2e -rs
 > `test_review_segment.py` を挙げていたが、そのファイルは**存在しない**（実測 2026-09-16）。
 > ① Segment の検証は `test_review_agent_core.py`（`split_segments` を直接呼ぶ）にある。
 
-**過検知の回帰テスト**を重視している（`backend/tests/data/` の 3 サンプル）。
+**過検知の回帰テスト**を重視している（`tests/data/` の 3 サンプル）。
 
 | サンプル | 期待 |
 |---|---|
@@ -344,14 +344,14 @@ GRACE_E2E=1 uv run --no-sync pytest backend/tests/e2e -m e2e -rs
 
 | 触った場所 | 最低限流すもの |
 |---|---|
-| `core/jobs.py` / `intervention_bridge.py` / `job_logs.py`（**共有基盤**） | 全体（`pytest backend/tests`）。特に `test_jobs_generic.py` |
+| `core/jobs.py` / `intervention_bridge.py` / `job_logs.py`（**共有基盤**） | 全体（`pytest tests`）。特に `test_jobs_generic.py` |
 | `core/gates.py`（Support の判定） | `test_support_agent_core.py` `test_multi_question*.py` `test_no_info_*.py` ＋ **Review 系 18 本**（`_match_keyword` / `judge_model` を共用） |
 | `core/review_*.py` / `rulesets.py` | `test_review_*.py` `test_rulesets.py` |
 | `grace.confidence` / `support_actions.py`（**Support / Review 共用**） | 全体 |
 | `schemas.py` / `api/*.py` | `test_api.py` `test_review_api.py` ＋ **frontend ゲート**（`types.ts` の追随） |
 | `core/data_jobs.py` | `test_data_jobs.py` `test_data_pipeline.py` |
 | `qa_generation/*.py` / `services/data_pipeline_service.py` の Q/A 生成 | `test_qa_generation_core.py` `test_qa_pipeline_*.py` `test_qa_generation_import_side_effects.py` `test_qa_pair_definitions.py` |
-| `qdrant_client_wrapper.py` / `services/qdrant_service.py` / `qa_qdrant/register_to_qdrant.py` / `celery_*.py` | 上の単体テストに加えて `backend/tests/integration/`（Qdrant / Redis を起動して。§1.1） |
+| `qdrant_client_wrapper.py` / `services/qdrant_service.py` / `qa_qdrant/register_to_qdrant.py` / `celery_*.py` | 上の単体テストに加えて `tests/integration/`（Qdrant / Redis を起動して。§1.1） |
 | 判定・閾値・プロンプト・モデル既定（`gates.py` / `review_gates.py` / `rulesets.py` / `config/grace_config.yml`） | 単体テストに加えて、できれば E2E（§1.2）。とくに「適正LP案 → 0 件」 |
 | `frontend/src/components/QueryForm.tsx` / `ReviewForm.tsx` の例文 | `e2e/test_e2e_cases.py`（期待値とずれていないか） |
 
@@ -383,7 +383,7 @@ GRACE_E2E=1 uv run --no-sync pytest backend/tests/e2e -m e2e -rs
 |---|---|
 | `compile (syntax gate)` | `python -m compileall` |
 | `ruff` | `ruff check .`（`ruff==0.12.11` 固定。再現は `uvx ruff@0.12.11 check . --no-cache`） |
-| `pytest (backend)` | `pytest backend/tests -q -rs`（CI に Qdrant / Redis は無いので `integration/` は skip） |
+| `pytest (backend)` | `pytest tests -q -rs`（CI に Qdrant / Redis は無いので `integration/` は skip） |
 | `frontend (tsc + vitest + build)` | `npm run lint` → `npm test` → `npm run build` |
 
 > ⚠️ **frontend ゲートを忘れない。** Python 側が全部緑でも `frontend/src/types.ts` の
@@ -415,3 +415,4 @@ GRACE_E2E=1 uv run --no-sync pytest backend/tests/e2e -m e2e -rs
 | 2.7 | 2026-10-06 | 計測スクリプトの判定で、他業界の質問を範囲外（無関係）から分けたのに追随（混ぜると別の業界にも答えがある質問で「分離できない」と誤判定した） |
 | 2.8 | 2026-10-07 | §1.2 に `GRACE_E2E_REPEAT=3` の実測（21 件 passed・242 秒・3 回の結果の比較）を追記 |
 | 2.9 | 2026-10-09 | 地図に `test_qa_generation_core.py`（Q/A 生成の中核 3 つの直接テスト）を追加し、`test_celery_worker_init.py` の対象に `celery_config.py` の `__main__` を追記。§3 に `qa_generation/` を触ったときに流すテストを追加 |
+| 2.10 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |

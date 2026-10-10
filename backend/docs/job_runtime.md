@@ -1,6 +1,6 @@
 # ジョブ実行基盤（jobs / intervention_bridge / job_logs） ドキュメント
 
-**Version 1.2** | 最終更新: 2026-10-08
+**Version 1.3** | 最終更新: 2026-10-10
 
 > **本書の位置づけ**: GRACE-Support・GRACE-Review・データ準備の **3 系統が共有する
 > 実行基盤の正本**。ジョブのライフサイクル、SSE のイベント配信、HITL 承認の橋渡し、
@@ -337,7 +337,7 @@ SSE は**失敗しても必ず `done` 番兵で閉じる**（`status` に `faile
 - [ ] 破壊的操作なら CONFIRM を出しているか（タイムアウト = 実行しない、で正しいか）
 - [ ] 外部パッケージの進捗を出したい → `capture_logs()` を使ったか（`with` で必ず外れるか）
 - [ ] `done_event` の `ts` / `started_at` を落としていないか（フロントの所要時間が消える）
-- [ ] 3 系統すべてに効く変更か？ `backend/tests/test_jobs_generic.py` と Review 系
+- [ ] 3 系統すべてに効く変更か？ `tests/test_jobs_generic.py` と Review 系
       18 ファイルを流したか
 
 ---
@@ -349,3 +349,4 @@ SSE は**失敗しても必ず `done` 番兵で閉じる**（`status` に `faile
 | 1.0 | 2026-09-16 | 新規作成。`jobs.py` / `intervention_bridge.py` / `job_logs.py` に分散していた共有基盤の説明を 1 本に集約した |
 | 1.1 | 2026-09-24 | `a_cross_doc_md_format.md` v1.1（種別 A）に準拠（2026-09-24）。概要に主な責務・各責務対応のモジュール・アーキテクチャ構成図を追加。本文の章番号は変えていない |
 | 1.2 | 2026-10-08 | keepalive を名前付きイベント（`SSE_KEEPALIVE`）へ変更し、フロントが黙って止まった接続を張り直すことを §2 に追記（姉妹リポジトリ grace_v2_local で、長い処理中に画面への配信が黙って止まった件の移植） |
+| 1.3 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |

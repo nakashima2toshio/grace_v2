@@ -1,6 +1,6 @@
 # core/review_agent.py - GRACE-Review コアパイプライン ドキュメント
 
-**Version 1.5** | 最終更新: 2026-09-24
+**Version 1.6** | 最終更新: 2026-10-10
 
 > **本書の位置づけ**: `backend/app/core/review_agent.py`（GRACE-Review のコアパイプライン（`run_review_agent_core`））の **IPO リファレンス**。
 > 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。
@@ -388,7 +388,7 @@ style REG fill:#1a1a1a,stroke:#fff,color:#fff
 
 `split_segments()` は **LLM を呼ばない決定的な純関数**なので、単体で試せる。
 `run_review_agent_core()` 全体は Qdrant と API キーを要するため、
-挙動確認は `backend/tests/test_review_agent_core.py` か `./run_dev.sh` で行う。
+挙動確認は `tests/test_review_agent_core.py` か `./run_dev.sh` で行う。
 
 ```python
 from backend.app.core.review_agent import split_segments
@@ -487,7 +487,7 @@ for s in segments:
 > ⚠️ **正規化を挟んではならない。** 全角/半角の統一やトリムを本文に対して行うと、
 > `Segment.start` / `.end` が原文からずれ、UI のハイライト位置が壊れる。
 > この不変条件（`document[start:end] == text`）は
-> `backend/tests/test_review_agent_core.py` が全ケースで固定している。
+> `tests/test_review_agent_core.py` が全ケースで固定している。
 
 ---
 
@@ -828,6 +828,7 @@ else:
 | 1.3 | 2026-09-15 | **§4.1「使用例」を新設**（2026-09-15）。ドキュメント規約 `a_class_method_md_format.md` §6.1 が IPO 詳細セクションの冒頭に必須としている代表ワークフローが欠落していた。① 文書分割（LLM 不要・決定的）、ステップ ID と実行順の 2 本を追加し、**実行して出力を確認した**（外部依存が要る例はその旨を明記）。旧 §4.1〜§4.3 は §4.2〜§4.4 へ繰り下げ |
 | 1.4 | 2026-09-16 | 3 階建て再編（`reference/` へ移設）に伴い、冒頭へ**位置づけと上位文書への導線**を追加した |
 | 1.5 | 2026-09-24 | 目次の §5.2 へのリンクが見出しの丸数字（①）を含むアンカーと一致せず切れていたのを修正 |
+| 1.6 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |
 
 ---
 

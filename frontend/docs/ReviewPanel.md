@@ -1,6 +1,6 @@
 # ReviewPanel.tsx - 文書 → 指摘 パネル ドキュメント
 
-**Version 1.6** | 最終更新: 2026-10-03
+**Version 1.7** | 最終更新: 2026-10-10
 
 ---
 
@@ -554,8 +554,8 @@ class S,V,R,Go,Err,Fail,Stream,I,M,D,Sel default
 | `src/state/citations.test.ts` | 出典の派生値 | 13 |
 | `src/state/elapsed.test.ts` / `serverTiming.test.ts` | 所要時間・サーバ時刻 | 22 / 16 |
 
-`backend/tests/test_review_api.py` ほか Review 系の pytest が呼び先の API を押さえる
-（`uv run pytest backend/tests`）。
+`tests/test_review_api.py` ほか Review 系の pytest が呼び先の API を押さえる
+（`uv run pytest tests`）。
 
 ### テスト方針
 
@@ -581,3 +581,4 @@ class S,V,R,Go,Err,Fail,Stream,I,M,D,Sel default
 | 1.4 | 2026-09-23 | **モデル選択をヘッダー（`App`）へ移した。** `models` / `modelInfo` の state と取得を削除し、`model` prop を受け取って `ReviewForm` へ渡すだけにした（Props なし → `model` 1 つ） |
 | 1.5 | 2026-09-24 | `a_react_page_md_format.md` v1.1 に追随（2026-09-24）。概要に「各責務対応のモジュール」（主な責務と 1:1）を追加し、`## 1.` を「アーキテクチャ構成図」として **1.1 システム全体での位置づけ（3 層）** と 1.2 コンポーネントツリー図の 2 枚構成にした。Mermaid の `classDef subgraphStyle` の欠落を補った |
 | 1.6 | 2026-10-03 | **結果が古いことを表示する。** `ReviewForm` の `onDocumentChange` で入力欄の文書を `draftDocument` に持ち、チェックした文書（`state.document`）と違えば警告（`role="status"`）を出して結果ブロックを薄くする（判定は `state/staleResult.ts`・vitest 6 件）。実測 2026-10-03: 例文ボタンで「OK 例」へ切り替えただけで実行せず、前回（表記漏れLP案）の結果を「OK 例が NG」と読み違えた |
+| 1.7 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |

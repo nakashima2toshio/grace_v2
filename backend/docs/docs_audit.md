@@ -1,6 +1,6 @@
 # backend/docs 棚卸し・監査記録 ドキュメント
 
-**Version 1.19** | 最終更新: 2026-10-08
+**Version 1.20** | 最終更新: 2026-10-10
 
 > ⚠️ **本書は「監査記録」であって入口ではない。** 文書の地図と読む順路は
 > [`README.md`](./README.md) にある。ここには実装追随の照合結果・過去に見つかった
@@ -262,7 +262,7 @@ AST 列は 2026-09-15 の実測値（全 17 モジュールの網羅は §4.1）
 
 ```bash
 uv run ruff check . --no-cache
-PYTHONPATH=. uv run pytest backend/tests -q
+PYTHONPATH=. uv run pytest tests -q
 python -m compileall -q -x '\.venv|/\.git/|/logs/' .
 cd frontend && npm run lint && npm test && npm run build
 ```
@@ -342,3 +342,4 @@ grep -A 12 'STEP_IDS = (' backend/app/core/support_agent.py \
 | 1.17 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
 | 1.18 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
 | 1.19 | 2026-10-08 | 現在の既定 LLM の記述を `claude-sonnet-5` から実装（`config.py::ModelConfig.DEFAULT_MODEL` / `config/grace_config.yml` の `llm.model`）どおり `claude-sonnet-5-5` へ是正（冒頭の注記）（2026-10-08） |
+| 1.20 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |

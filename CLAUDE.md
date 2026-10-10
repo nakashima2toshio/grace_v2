@@ -41,7 +41,7 @@
 | **GRACE-Support** | 問い合わせ → **回答** | `backend/app/core/support_agent.py::run_support_agent_core` | 「基本版」「GRACE-Support」タブ |
 | **GRACE-Review** | 文書 → **指摘** | `backend/app/core/review_agent.py::run_review_agent_core` | 「GRACE-Review」タブ |
 
-**Support だけ見て作業しない。** `backend/tests` の約 1/4（72 ファイル中 18 ファイル・2026-09-25 実測）が
+**Support だけ見て作業しない。** `tests` の約 1/4（72 ファイル中 18 ファイル・2026-09-25 実測）が
 Review 系である。中核部品（`GroundednessVerifier` / `InterventionBridge` /
 `support_actions.py` の `ActionBackend`）は**両者で共用**しているので、
 Support のつもりで触った変更が Review を壊す。
@@ -119,7 +119,7 @@ Retrieve・Ground・誤検知抑止・Action は Support と同じ機構の再�
 > `run_review_agent_core`）である。かつて Support には CLI
 > （`agent_support_example.py`）と S0〜S9 のステップ別トレース（`grace/step_trace/s*.py`）が
 > あったが、いずれも機能確認用の薄いラッパだったため削除した（実装は git 履歴に残る）。
-> 挙動確認は `./run_dev.sh` か `backend/tests/`（`test_support_agent_core.py` /
+> 挙動確認は `./run_dev.sh` か `tests/`（`test_support_agent_core.py` /
 > `test_review_agent_core.py`）で行う。
 
 ---
@@ -140,7 +140,7 @@ uvicorn backend.app.main:app --reload --port 8000
 
 > ⚠️ **エージェント実行の CLI は無い。** `agent_support_example.py` と
 > `grace/step_trace/s*.py` は 2026-09-19 に削除した（§1 の注記）。
-> 挙動確認は `./run_dev.sh`（:5173）か `backend/tests/` で行う。
+> 挙動確認は `./run_dev.sh`（:5173）か `tests/` で行う。
 > 下の「データ準備」の CLI は現役である。
 
 ### データ準備（3段階）
@@ -173,7 +173,7 @@ uv pip install -r requirements-test.txt   # CI と共有する唯一の正本（
 
 ```bash
 uv run ruff check . --no-cache             # lint
-uv run --no-sync pytest backend/tests -q -rs   # backend テスト
+uv run --no-sync pytest tests -q -rs   # backend テスト
 python -m compileall -q -x '\.venv|/\.git/|/logs/' .   # 構文ゲート
 cd frontend && npm run lint && npm test && npm run build   # frontend
 ```
@@ -182,18 +182,18 @@ cd frontend && npm run lint && npm test && npm run build   # frontend
 > `[project] dependencies`（221 行・spacy/matplotlib 等を含む）で環境を同期し直し、
 > `requirements-test.txt` で作った軽い環境が上書きされる。
 >
-> ⚠️ **`backend/tests` が import するパッケージを足したら `requirements-test.txt` に追記する。**
+> ⚠️ **`tests` が import するパッケージを足したら `requirements-test.txt` に追記する。**
 > CI（`.github/workflows/ci.yml`）はこのファイルを読むので、YAML 側を直す必要は無い。
 > 理由と過去の事故例（`openai` が `tqdm` を落として無関係な PR が落ちた）は同ファイルの冒頭に書いてある。
 
 ### 結合テスト（実 Qdrant / Redis）とクラウド VM
 
-`backend/tests/integration/` は**スタブを使わず** docker-compose の Qdrant / Redis に接続する
+`tests/integration/` は**スタブを使わず** docker-compose の Qdrant / Redis に接続する
 （API キーは不要。Embedding は固定ベクトル、LLM は固定応答で代用）。**未起動なら skip** するので
 CI とは無関係。除外は `-m "not integration"`、強制 skip は `GRACE_SKIP_INTEGRATION=1`。
 
 ```bash
-uv run --no-sync pytest backend/tests/integration -q -rs
+uv run --no-sync pytest tests/integration -q -rs
 ```
 
 - **クラウド VM（Claude Code on the web）でも Docker は動く。** `.claude/hooks/session-start.sh`
@@ -208,13 +208,13 @@ uv run --no-sync pytest backend/tests/integration -q -rs
 
 ### E2E（実 LLM・実 Embedding・実データ）
 
-`backend/tests/e2e/` は画面の例文（Support 3 業界・Review 3 例文）を**本物の API と実データ**で流す。
+`tests/e2e/` は画面の例文（Support 3 業界・Review 3 例文）を**本物の API と実データ**で流す。
 **課金される**ので `GRACE_E2E=1` のときだけ走る（CI は skip）。詳細は `backend/docs/testing.md` §1.2。
 
 ```bash
 uv pip install -r requirements-e2e.txt          # 初回（fastembed / ddgs）
-GRACE_E2E=1 uv run --no-sync pytest backend/tests/e2e -m e2e -rs   # 結果は logs/e2e/*.json
-GRACE_E2E=1 GRACE_E2E_REPEAT=3 uv run --no-sync pytest backend/tests/e2e -m e2e -rs   # LLM の揺れを測る（合格率・出現率が summary に出る。課金 3 倍）
+GRACE_E2E=1 uv run --no-sync pytest tests/e2e -m e2e -rs   # 結果は logs/e2e/*.json
+GRACE_E2E=1 GRACE_E2E_REPEAT=3 uv run --no-sync pytest tests/e2e -m e2e -rs   # LLM の揺れを測る（合格率・出現率が summary に出る。課金 3 倍）
 ```
 
 - **実データは Mac の Qdrant からスナップショットで運ぶ**: Mac で `python scripts/qdrant_snapshot.py export`
@@ -232,8 +232,8 @@ GRACE_E2E=1 GRACE_E2E_REPEAT=3 uv run --no-sync pytest backend/tests/e2e -m e2e 
 
 > `pyproject.toml` に `pythonpath` 指定は無い。CI は素の `pytest` を使うので
 > `PYTHONPATH=.` を env で与えている（`uv run` 経由ならプロジェクトルートが通るので不要）。
-> `python backend/tests/x.py` を直接叩くと `ModuleNotFoundError: No module named 'backend'`
-> になる → `uv run python -m backend.tests.x` を使う。
+> `python tests/x.py` を直接叩くと `ModuleNotFoundError: No module named 'backend'`
+> になる → `uv run python -m tests.x` を使う。
 
 ---
 
@@ -251,7 +251,7 @@ GRACE_E2E=1 GRACE_E2E_REPEAT=3 uv run --no-sync pytest backend/tests/e2e -m e2e 
   `EMBEDDING_MODEL` / `EMBEDDING_DIMS` / `EMBEDDING_MAX_INPUT_TOKENS` / `EMBEDDING_PRICING` の 1 箇所だけ**
   （LLM のモデルと同じクラス）。`GeminiConfig` / `QdrantConfig` / `grace/config.py::EmbeddingConfig` /
   `helper/helper_embedding.py` などはそこを参照する。**他のファイル（`config/grace_config.yml` を含む）に
-  モデル名を書かない**（`backend/tests/test_embedding_model_single_source.py` が検査する）。
+  モデル名を書かない**（`tests/test_embedding_model_single_source.py` が検査する）。
 - ⚠️ **Embedding モデルを変えると既存 Qdrant コレクションは使えない。** 次元が同じでもベクトルの
   意味が合わず、**エラーにならずに検索結果だけが壊れる**。全コレクションを再登録し、RAG スコアの
   しきい値（`reasoning_min_rag_score` / `rag_sufficient_score`。後者は前者以下にする）も測り直すこと（`python scripts/measure_rag_threshold.py --vertical each` が LLM を呼ばずに範囲内・範囲外の質問のスコア分布と、今のしきい値での振る舞いを出す。grace_v2_local にも同じものがある）。2026-09-26 に一度 `gemini-embedding-2` へ
@@ -275,9 +275,9 @@ GRACE_E2E=1 GRACE_E2E_REPEAT=3 uv run --no-sync pytest backend/tests/e2e -m e2e 
 |---|---|---|---|
 | 1 | **設定ファイル（正）** | `config/grace_config.yml` の `llm.model` / `llm.light_model` | `grace/config.py::ConfigLoader` 経由で planner / reasoning / groundedness / ReAct |
 | 2 | **モジュール定数** | `backend/app/core/verticals.py::INTENT_MODEL`（リテラル） | 判定系（意図分類・情報なし判定）。**yml を一切見ない** |
-| 3 | **Python 定数** | `config.py::ModelConfig.DEFAULT_MODEL` | 上記以外（Q&A 生成の CLI・`QAPipeline`・`SmartQAGenerator`・`helper_rag_qa` の生成器の既定）。**ここでは文字列を直書きせず `ModelConfig.DEFAULT_MODEL` を参照する**（2026-10-08 まで旧既定 `claude-sonnet-5` が直書きで残り、画面と CLI で Q&A 生成のモデルが割れていた。`backend/tests/test_qa_default_model.py` が検査）。**チャンキングは分けて `ModelConfig.CHUNKING_MODEL`（`claude-haiku-5-5`）** を参照する（`ChunkingRequest` / `ChunkingParams` / `chunks_all_async` / チャンク化 CLI の `--model` / `CHUNK_DEFAULT_MODEL` / `AsyncAPIClient`。`backend/tests/test_chunking_default_model.py` が検査）。`DEFAULT_MODEL` を変えてもチャンキングは変わらない |
+| 3 | **Python 定数** | `config.py::ModelConfig.DEFAULT_MODEL` | 上記以外（Q&A 生成の CLI・`QAPipeline`・`SmartQAGenerator`・`helper_rag_qa` の生成器の既定）。**ここでは文字列を直書きせず `ModelConfig.DEFAULT_MODEL` を参照する**（2026-10-08 まで旧既定 `claude-sonnet-5` が直書きで残り、画面と CLI で Q&A 生成のモデルが割れていた。`tests/test_qa_default_model.py` が検査）。**チャンキングは分けて `ModelConfig.CHUNKING_MODEL`（`claude-haiku-5-5`）** を参照する（`ChunkingRequest` / `ChunkingParams` / `chunks_all_async` / チャンク化 CLI の `--model` / `CHUNK_DEFAULT_MODEL` / `AsyncAPIClient`。`tests/test_chunking_default_model.py` が検査）。`DEFAULT_MODEL` を変えてもチャンキングは変わらない |
 | 4 | **リクエスト単位の上書き** | UI のモデルセレクタ → `QueryRequest.model` / `ReviewRequest.model` → コアが `config.llm.model` を差し替え | その 1 リクエストの生成・推論・根拠検証・③ Detect |
-| 5 | **直下 `config.yml`** | `config.yml` の `models.default`（`services/config_service.py` が読める） | **読むコードは無い**（唯一の読み手だった `services/agent_service.py`〔Legacy ReAct〕は 2026-10-10 に削除）。読んだ人が旧モデルを既定と誤解しないよう、値は経路 3 とそろえておく（`backend/tests/test_model_selection.py` が一致を検査）。2026-09-24 まで `claude-sonnet-4-6` のまま残っていた |
+| 5 | **直下 `config.yml`** | `config.yml` の `models.default`（`services/config_service.py` が読める） | **読むコードは無い**（唯一の読み手だった `services/agent_service.py`〔Legacy ReAct〕は 2026-10-10 に削除）。読んだ人が旧モデルを既定と誤解しないよう、値は経路 3 とそろえておく（`tests/test_model_selection.py` が一致を検査）。2026-09-24 まで `claude-sonnet-4-6` のまま残っていた |
 
 **経路 4 は経路 1 を「そのリクエストだけ」上書きする**（`copy.deepcopy(get_config())` の
 コピーに対して行うので、他のジョブへは漏れない）。選択肢は
@@ -364,7 +364,7 @@ GRACE_E2E=1 GRACE_E2E_REPEAT=3 uv run --no-sync pytest backend/tests/e2e -m e2e 
 |---|---|
 | `compile (syntax gate)` | `python -m compileall` |
 | `ruff` | `ruff check .`（`ruff==0.12.11` 固定） |
-| `pytest (backend)` | `pytest backend/tests -q -rs`（実 API キー・Qdrant 不要） |
+| `pytest (backend)` | `pytest tests -q -rs`（実 API キー・Qdrant 不要） |
 | `frontend (tsc + vitest + build)` | `npm run lint` → `npm test` → `npm run build` |
 
 `auto-merge` は `needs: [build, lint, backend-tests, frontend]`。4 つ緑になれば
@@ -378,8 +378,9 @@ GRACE_E2E=1 GRACE_E2E_REPEAT=3 uv run --no-sync pytest backend/tests/e2e -m e2e 
 
 `[tool.ruff.lint.isort] known-first-party` にトップレベルモジュールを列挙している。
 **新規トップレベルモジュールを足したらここにも追記する**（現在は `scripts` /
-`qdrant_delete_collection` を含む全 18 個。`agent_support_example` は
-2026-09-19、`agent_cache` / `agent_parallel_search` は 2026-10-10 の削除にあわせて外した）。
+`qdrant_delete_collection` / `tests` を含む全 19 個。`agent_support_example` は
+2026-09-19、`agent_cache` / `agent_parallel_search` は 2026-10-10 の削除にあわせて外し、
+`tests` は 2026-10-10 にテストを直下へ移したときに足した）。
 
 > ⚠️ **この設定の効き目を過大評価しないこと（2026-09-13 実測）。**
 > `known-first-party` を丸ごとコメントアウトして `ruff 0.12.11 check .` を回しても
@@ -654,7 +655,7 @@ python -m chunking.csv_text_to_chunks_text_csv \
 > 必要なときだけ `<dir>_process_flow.md` / `<dir>_data_flow.md` を置き、ほかの文書はこれらへ統合する**
 > （2026-10-10 に規則化。`a_cross_doc_md_format.md` §1.1〜§1.4）。**`backend/` は `backend/app/docs/`・`backend/app/api/docs/`・
 > `backend/app/core/docs/` に分け**、`backend/docs/` には backend 全体にまたがる文書と索引だけを残す（同 §1.1.2）。
-> リポジトリ直下の `*.py`（直下 `docs/`）・`frontend/`・`config/`・テスト（`backend/tests/`。直下に `tests/` は無い）は対象外。
+> リポジトリ直下の `*.py`（直下 `docs/`）・`frontend/`・`config/`・テスト（直下 `tests/`。2026-10-10 に `backend/tests/` から移した）は対象外。
 > **既存文書の移行はまだ行っていない。** `check_docs.py --layout` が要対応の一覧を出す。移行が済むまでは下の索引 `README.md` も有効。
 
 **各領域の棚卸し README を先に読む。** どこに何があるか・何が欠落しているかは索引が持つ。
@@ -707,7 +708,7 @@ python -m chunking.csv_text_to_chunks_text_csv \
 ### 9.4 参照してはいけない廃止ファイル
 grace_v2 に**存在しない**: `setup.py` / `server.py` / a-prefixed scripts
 （`a30_qdrant_registration.py` 等）/ `agent_rag.py` / `ui/` /
-リポジトリ直下の `tests/` / `test_celery_integration.py` /
+**`backend/tests/`**（2026-10-10 に直下 `tests/` へ移した）/ `test_celery_integration.py` /
 **`agent_support_example.py`** / **`grace/step_trace/`**
 （`agent_support_example.py` と `grace/step_trace/s0_arg.py`〜`s9_render.py` は 2026-09-19 に削除。§1・§2 の注記を参照。
 残っていた `benchmark.py` を含む `grace/step_trace/` 全体は 2026-10-10 に削除）。
@@ -795,7 +796,7 @@ response = client.responses.create(
 - [ ] **Review 側**（`review_agent.py` / `review_gates.py` / `rulesets.py` /
       `ReviewPanel` 系）を壊していないか？ 共用部品（`GroundednessVerifier` /
       `InterventionBridge` / `support_actions.py`）を触ったなら
-      `backend/tests/test_review_*.py`（18 本）も通したか？（§1）
+      `tests/test_review_*.py`（18 本）も通したか？（§1）
 - [ ] モデル既定を変えたなら**5 本の解決経路すべて**を確認したか？（§3.1）
       新しい既定を `SELECTABLE_MODELS` と `MODEL_PRICING` / `MODEL_LIMITS` へ入れたか？
 - [ ] 確信が持てない → **ユーザーに聞く**

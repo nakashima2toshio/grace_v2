@@ -1,6 +1,6 @@
 # データ準備パイプライン（チャンキング / Q/A 生成 / 登録 / 削除） ドキュメント
 
-**Version 1.8** | 最終更新: 2026-10-09
+**Version 1.9** | 最終更新: 2026-10-10
 
 ---
 
@@ -311,7 +311,7 @@ style L4 fill:#1a1a1a,stroke:#fff,color:#fff
 結果、全ジョブ終了後もロガーが INFO のまま残り、コンソール出力が増え続ける。
 最初に入った 1 本だけが元の値を持ち、最後に出る 1 本がそれを戻す方式にしてある。
 
-> 回帰テスト: `backend/tests/test_job_logs.py::test_sequenced_jobs_restore_level`。
+> 回帰テスト: `tests/test_job_logs.py::test_sequenced_jobs_restore_level`。
 > Event で「A が入る → B が入る → A が出る → B が出る」の順序を固定している。
 > **入れ子（後入れ先出し）では素朴実装でも通ってしまう**ため、そちらは回帰テストではない。
 
@@ -523,6 +523,7 @@ CHUNKING_STEP_LABELS, QA_STEP_LABELS, REGISTER_STEP_LABELS, DELETE_STEP_LABELS
 | 1.6 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
 | 1.7 | 2026-09-30 | 付録 A の登録コマンドに `--no-create-ui-csv` を追加し、理由（登録スクリプトが既定で UI 用 CSV = `question` / `answer` の 2 列を `qa_output/<入力と同じファイル名>` へ書き、入力 CSV 自身を上書きして `topic` 列が消える）を明記 |
 | 1.8 | 2026-10-09 | `QaGenerationParams` から処理に効いていなかった `batch_chunks` を削除したのに追随 |
+| 1.9 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |
 
 ---
 

@@ -1,4 +1,4 @@
-# E2E（backend/tests/e2e/）用の依存。requirements-test.txt に足りないものだけを足す。
+# E2E（tests/e2e/）用の依存。requirements-test.txt に足りないものだけを足す。
 #
 # E2E は実 LLM・実 Embedding・実 Qdrant でパイプラインを丸ごと流すので、
 # スタブで消していた実行時依存が要る。CI では E2E を流さないので、CI はこれを読まない。

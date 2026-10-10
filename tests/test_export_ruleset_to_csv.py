@@ -1,0 +1,286 @@
+# tests/test_export_ruleset_to_csv.py
+"""条文 CSV 書き出し（`scripts/export_ruleset_to_csv.py`）のテスト。
+
+## 背景
+
+`ec_ad` の検索スコープ `ec_ad_rules_anthropic` が未登録で、実行ログが
+毎回こうなっていた（実測 2026-08-17 20:07 〜 2026-08-18 21:41）。
+
+    doc/tokusho-01: 文書全体で判定 / 規程 0 件
+    doc/tokusho-02: 文書全体で判定 / 規程 0 件      ← 7 ルール中 6 つが 0 件
+
+指摘の「根拠」がすべて条文フォールバックになり、RAG 経路が一度も通っていない。
+
+## ここで固定すること
+
+書き出した CSV が**そのまま登録できる形**であること。特に、
+`register_to_qdrant.py` と Review 側の読み取りが噛み合うこと。
+
+  1. 列が `question` / `answer` / `topic`（`detect_text_column` が
+     `question` + `answer` を埋め込み対象として自動検出する形）
+  2. 全ルールが 1 行ずつ出ること（取りこぼさない）
+  3. `question` が UI の引用ラベルとして読める形（法令 + 条 + タイトル）
+  4. `answer` が ④ Ground へ渡る根拠本文（`RuleItem.description`）であること
+  5. 検索クエリ `f"{rule.title} {rule.description}"` と語が重なること
+     — これが `evidence_min_score`（0.70）を超えるための前提
+  6. 未知の RuleSet ID はエラーにすること
+
+⚠️ Qdrant にも Embedding にも接続しない。
+"""
+from __future__ import annotations
+
+import csv
+import importlib.util
+import sys
+from pathlib import Path
+
+import pytest
+
+from backend.app.core.rulesets import EC_AD
+
+_SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "export_ruleset_to_csv.py"
+
+
+def _load_module():
+    """`scripts/` はパッケージではないのでファイルから直接読み込む。"""
+    spec = importlib.util.spec_from_file_location("export_ruleset_to_csv", _SCRIPT)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+@pytest.fixture(scope="module")
+def exporter():
+    return _load_module()
+
+
+@pytest.fixture()
+def written(exporter, tmp_path):
+    output = tmp_path / "ec_ad_rules.csv"
+    exporter.main(["--ruleset", "ec_ad", "--output", str(output)])
+    with output.open(encoding="utf-8") as f:
+        return list(csv.DictReader(f))
+
+
+# =============================================================================
+# ① register_to_qdrant.py が読める形
+# =============================================================================
+
+class TestCsvShape:
+
+    def test_columns_match_the_registrar(self, written):
+        """`detect_text_column` は question + answer を自動検出する。"""
+        assert written
+        assert set(written[0]) == {"question", "answer", "topic"}
+
+    def test_every_rule_is_exported(self, written):
+        assert len(written) == len(EC_AD.rules)
+
+    def test_no_empty_cells(self, written):
+        for row in written:
+            for key in ("question", "answer", "topic"):
+                assert row[key].strip(), f"{key} が空: {row}"
+
+
+# =============================================================================
+# ② Review 側の読み取りと噛み合う
+# =============================================================================
+
+class TestFieldsMatchTheReviewSide:
+    """`_retrieve_evidence` の読み取り:
+
+        title = payload.get("title") or payload.get("question") or "(規程)"
+        body  = payload.get("answer") or payload.get("text") or ""
+    """
+
+    def test_question_is_a_readable_citation_label(self, written):
+        """UI に `[規程] 特定商取引法 第11条（販売価格・送料の明示）` と出る形。"""
+        by_title = {r.title: r for r in EC_AD.rules}
+        for row in written:
+            assert row["question"].endswith("）")
+            title = row["question"].rsplit("（", 1)[1][:-1]
+            assert title in by_title, f"タイトルを復元できない: {row['question']}"
+            rule = by_title[title]
+            assert rule.law in row["question"]
+            assert rule.article in row["question"]
+
+    def test_answer_is_the_evidence_body(self, written):
+        # ⚠️ 全文ではなく要旨（第 1 段落）。2 段落目以降は ③ Detect への指示文で、
+        #    規程コレクションへ登録すると「規程の内容」として画面に出てしまう。
+        bodies = {r.public_description() for r in EC_AD.rules}
+        for row in written:
+            assert row["answer"] in bodies
+            assert "violates=true" not in row["answer"]
+            assert "指摘しない" not in row["answer"]
+
+    def test_topic_carries_the_category(self, written):
+        categories = {r.category for r in EC_AD.rules}
+        for row in written:
+            assert row["topic"] in categories
+
+
+# =============================================================================
+# ③ 検索が当たる前提（evidence_min_score = 0.70 を超えるため）
+# =============================================================================
+
+class TestRetrievabilityPremise:
+    """② Retrieve の検索クエリは `f"{rule.title} {rule.public_description()}"`（`retrieval_query`）。
+
+    埋め込み対象は `question + "\\n" + answer` なので、両者の語が重なっていないと
+    `RuleSet.evidence_min_score`（0.70）を超えられない。ここでは語の重なりを
+    構造的に保証する（スコアそのものは Embedding が要るので測れない）。
+    """
+
+    def test_embedded_text_contains_the_query_terms(self, written):
+        rows = {r["answer"]: r for r in written}
+        for rule in EC_AD.rules:
+            row = rows[rule.public_description()]
+            embedded = f"{row['question']}\n{row['answer']}"
+
+            assert rule.title in embedded, f"{rule.rule_id}: タイトルが埋め込みに無い"
+            assert rule.public_description() in embedded, (
+                f"{rule.rule_id}: 要旨が埋め込みに無い"
+            )
+
+    def test_policy_rule_is_included(self, written):
+        """policy-01（社内規程との整合）も書き出されること。
+
+        ⚠️ ただし policy-01 が実際に機能するには**自社規程の実データ**が要る。
+        条文の書き出しだけでは「8日 vs 14日」は検出できない。
+        """
+        assert any("表示内容と社内規程の不一致" in r["question"] for r in written)
+
+
+# =============================================================================
+# ④ 異常系
+# =============================================================================
+
+class TestErrors:
+
+    def test_unknown_ruleset_is_rejected(self, exporter, tmp_path):
+        with pytest.raises(SystemExit) as excinfo:
+            exporter.main(["--ruleset", "no_such", "--output", str(tmp_path / "x.csv")])
+
+        assert "unknown ruleset" in str(excinfo.value)
+
+    def test_output_directory_is_created(self, exporter, tmp_path):
+        output = tmp_path / "nested" / "dir" / "rules.csv"
+
+        exporter.main(["--ruleset", "ec_ad", "--output", str(output)])
+
+        assert output.exists()
+
+
+# =============================================================================
+# ⑤ リポジトリに置いてある CSV が最新の書き出しと一致する
+# =============================================================================
+
+class TestCommittedCsvIsCurrent:
+    """`qa_output/ec_ad_rules.csv`（登録の入力としてそのまま使われる）の鮮度。
+
+    ⚠️ この CSV は `description` 全文を `answer` へ書いていた時期の出力が
+    残っていた（3 行に ③ Detect への指示文が入っていた）。そのまま登録すると、
+    LLM 向けの指示文が「規程の内容」として画面へ出る。`rulesets.py` の
+    要旨を変えたのに CSV を作り直し忘れる事故もここで検知する。
+    """
+
+    def test_matches_a_fresh_export(self, exporter):
+        import csv
+        from pathlib import Path
+
+        path = Path(__file__).resolve().parents[1] / "qa_output" / "ec_ad_rules.csv"
+        with path.open(encoding="utf-8", newline="") as f:
+            committed = list(csv.DictReader(f))
+        # ⚠️ 比較するのは登録に必須の question / answer だけ。`topic` は payload の
+        #    来歴（任意）なので、手で外してあっても古いとは見なさない。
+        def core(rows):
+            return [(r["question"], r["answer"]) for r in rows]
+
+        assert core(committed) == core(exporter.build_rows(EC_AD)), (
+            "qa_output/ec_ad_rules.csv が古い。"
+            "PYTHONPATH=. python scripts/export_ruleset_to_csv.py で作り直すこと"
+        )
+
+    def test_has_no_llm_directive(self):
+        from pathlib import Path
+
+        path = Path(__file__).resolve().parents[1] / "qa_output" / "ec_ad_rules.csv"
+        text = path.read_text(encoding="utf-8")
+        assert "violates=true" not in text
+        assert "指摘しない" not in text
+
+
+# =============================================================================
+# ⑥ 案内文（登録コマンドの提示）
+# =============================================================================
+
+class TestRegistrationGuidance:
+    """書き出し後に画面へ出す登録コマンドの案内。
+
+    ⚠️ 登録スクリプトは既定で UI 用 CSV（question / answer の 2 列）を
+    `qa_output/<入力と同じファイル名>` へ書く。案内どおりに実行すると入力 CSV 自身が
+    上書きされ `topic` 列が消える（実測 2026-09-30）。案内に
+    `--no-create-ui-csv` を含めておく。
+    """
+
+    def _run(self, exporter, tmp_path, capsys):
+        out = tmp_path / "ec_ad_rules.csv"
+        assert exporter.main(["--ruleset", "ec_ad", "--output", str(out)]) == 0
+        return capsys.readouterr().out
+
+    def test_command_disables_the_ui_csv_overwrite(self, exporter, tmp_path, capsys):
+        printed = self._run(exporter, tmp_path, capsys)
+        assert "--recreate --no-create-ui-csv" in printed
+
+    def test_answer_wording_matches_the_export(self, exporter, tmp_path, capsys):
+        printed = self._run(exporter, tmp_path, capsys)
+        assert "public_description" in printed
+        assert "answer は RuleItem.description（" not in printed
+
+
+# =============================================================================
+# ⑦ 条文置換用の雛形（qa_output/ec_ad_rules_statutes_template.csv）
+# =============================================================================
+
+class TestStatuteTemplate:
+    """人が `answer` へ条文を書き足すための雛形。ルールセットと食い違わないこと。
+
+    ⚠️ `question` はルールのタイトルを含めないと検索が当たらない（付録 A の 3-2）。
+    ルールを足す／改名したのに雛形を作り直し忘れると、条文を書き足した行が
+    どのルールにも対応しなくなる。
+    """
+
+    PATH = "qa_output/ec_ad_rules_statutes_template.csv"
+
+    def _rows(self):
+        import csv
+        from pathlib import Path
+
+        path = Path(__file__).resolve().parents[1] / self.PATH
+        with path.open(encoding="utf-8", newline="") as f:
+            return list(csv.DictReader(f))
+
+    def test_one_row_per_rule_with_the_same_question(self, exporter):
+        rows = self._rows()
+        expected = {r.rule_id: f"{r.law} {r.article}（{r.title}）" for r in EC_AD.rules}
+        assert {r["rule_id"]: r["question"] for r in rows} == expected
+
+    def test_answer_starts_from_the_public_summary(self):
+        """条文を書き足した行でも、`answer` は要旨で始まる（検索スコアを保つため）。"""
+        rows = {r["rule_id"]: r for r in self._rows()}
+        for rule in EC_AD.rules:
+            answer = rows[rule.rule_id]["answer"]
+            assert answer.startswith(rule.public_description()), rule.rule_id
+            rest = answer[len(rule.public_description()):]
+            # 書き足すなら「【条文】」の見出しで始める（監修時に追記部分を見分けるため）
+            assert rest == "" or rest.startswith("\n\n【条文】"), rule.rule_id
+
+    def test_no_llm_directive_even_after_appending_statutes(self):
+        for row in self._rows():
+            assert "violates=true" not in row["answer"], row["rule_id"]
+            assert "指摘しない" not in row["answer"], row["rule_id"]
+
+    def test_registration_columns_come_first(self):
+        header = list(self._rows()[0])
+        assert header[:3] == ["rule_id", "question", "answer"]

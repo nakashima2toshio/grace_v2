@@ -1,6 +1,6 @@
 # backend/docs 再編計画 ドキュメント
 
-**Version 3.0** | 最終更新: 2026-09-16
+**Version 3.1** | 最終更新: 2026-10-10
 
 > **本書の位置づけ**: `backend/docs` を「横断 / 系統別 / 参照」の 3 階建てへ
 > 作り替える計画と進捗。完了した作業は [`docs_audit.md`](./docs_audit.md) の
@@ -72,7 +72,7 @@
 | `support_spec.md`（929 行）→ `support_flow.md` v3.0 | 統合完了。**2,217 行**（旧 flow 1,622 + spec の設計判断） |
 | `review_spec.md`（1,080 行）→ `review_flow.md` v2.0 | 統合完了。**1,225 行**（各ステップの直下に `#### 設計仕様` を配置） |
 | `verticals_and_rulesets.md` 新設 | `support_spec.md` §6 ＋ `review_spec.md` §5 ＋ 増やし方（§3） |
-| `testing.md` 新設 | `review_spec.md` §9 ＋ `backend/tests` の実測地図 |
+| `testing.md` 新設 | `review_spec.md` §9 ＋ `tests` の実測地図 |
 | `review_spec.md` §6（ジョブ基盤）/ §7.1・§7.2（API）/ §8（フロント） | それぞれ `job_runtime.md` §3 / `api_contract.md` / `frontend/docs/review_ui.md` が既に同内容を持つため**移送せずリンクへ集約** |
 | `review_spec.md` §10（実装計画とファイル一覧） | 実装完了済みのため**引き継がない**（git 履歴に残る） |
 | 旧 `support_flow.md` §3.2（関数一覧）/ 旧 `review_flow.md` §3（クラス・関数一覧表） | `reference/core_*.md` と 3 重管理だったため**削除してリンクへ置換** |
@@ -126,7 +126,7 @@
 
 ### 3.4 新設 `testing.md`
 
-- `backend/tests` の地図（Support 系 / Review 系 / 共有部品 / API）
+- `tests` の地図（Support 系 / Review 系 / 共有部品 / API）
 - `requirements-test.txt` と `uv run --no-sync` が要る理由
 - CI 4 ゲートと、**どこを触ったらどれを流すか**
 - テスト件数は**実行して実測値**を書く
@@ -189,3 +189,4 @@ IPO と索引に絞って薄くする」だった。着手前に**実測した�
 | 1.0 | 2026-09-16 | 新規作成。Phase 1 の完了内容と、Phase 2・3 の節単位の移送計画を記載した |
 | 2.0 | 2026-09-16 | **Phase 2 を実施し、結果（§3.0）を記録**。あわせて v1.0 の `## [HIGH]` に関する記述の誤りを訂正した |
 | 3.0 | 2026-09-16 | **Phase 3 を実施し、結果（§4）を記録**。計画していた「参照文書の圧縮」は、実測で重複がほぼ無い（0〜1%・シンボル網羅 100%）ことが分かったため**行わず**、代わりに上位文書への導線追加と古いポインタの是正を行った |
+| 3.1 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |

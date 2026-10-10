@@ -1,6 +1,6 @@
 # services/docs/ 棚卸し
 
-**Version 1.6** | 最終更新: 2026-10-10
+**Version 1.7** | 最終更新: 2026-10-10
 
 > 📎 **姉妹版**: [`docs/README.md`](../../docs/README.md)（直下・配置の境界） /
 > [`backend/docs/README.md`](../../backend/docs/README.md) /
@@ -87,7 +87,7 @@
 
 同時に削除したもの: `grace/executor.py::_execute_legacy_agent_step`・`grace/schemas.py` の `run_legacy_agent`
 アクション・`agent_parallel_search.py`・`agent_cache.py`・`agent_tools.py` の `search_rag_knowledge_base()` /
-`search_rag_knowledge_base_cached()` / `list_rag_collections()`・テスト `backend/tests/test_agent_service.py`（5 件）。
+`search_rag_knowledge_base_cached()` / `list_rag_collections()`・テスト `tests/test_agent_service.py`（5 件）。
 文書は [`archive/agent_service.md`](archive/agent_service.md) に凍結した。
 
 > 📌 **呼び出し元が無くなったため、続けて削除したもの（2026-10-10）**: `services/log_service.py::log_unanswered_question()`
@@ -117,23 +117,23 @@
 
 | テストファイル | 件数 | 対象 |
 |---|---:|---|
-| `backend/tests/test_qdrant_service.py` | 19 | `qdrant_service` |
-| `backend/tests/test_config_service.py` | 7 | `config_service`（既定値が `ModelConfig` と一致すること・既定プロバイダが Anthropic であること） |
-| `backend/tests/test_json_service.py` | 6 | `json_service` |
-| `backend/tests/test_token_service.py` | 6 | `token_service`（既定モデルが単価・上限表に載っていること） |
-| `backend/tests/test_cache_service.py` | 4 | `cache_service` |
-| `backend/tests/test_log_service.py` | 2 | `log_service` |
-| `backend/tests/test_qa_service.py` | 2 | `qa_service`（LLM クライアントが Anthropic で作られること） |
-| `backend/tests/test_data_pipeline.py` | 30 | `data_pipeline_service`・`qdrant_service` |
-| `backend/tests/test_data_jobs.py` | 43 | データ管理タブのジョブ全体（`data_pipeline_service` / `qdrant_service` 経由・**間接**） |
-| `backend/tests/test_model_selection.py` | 30 | モデル解決の 5 経路。うち 1 件が `config_service` の読む直下 `config.yml`（§4） |
+| `tests/test_qdrant_service.py` | 19 | `qdrant_service` |
+| `tests/test_config_service.py` | 7 | `config_service`（既定値が `ModelConfig` と一致すること・既定プロバイダが Anthropic であること） |
+| `tests/test_json_service.py` | 6 | `json_service` |
+| `tests/test_token_service.py` | 6 | `token_service`（既定モデルが単価・上限表に載っていること） |
+| `tests/test_cache_service.py` | 4 | `cache_service` |
+| `tests/test_log_service.py` | 2 | `log_service` |
+| `tests/test_qa_service.py` | 2 | `qa_service`（LLM クライアントが Anthropic で作られること） |
+| `tests/test_data_pipeline.py` | 30 | `data_pipeline_service`・`qdrant_service` |
+| `tests/test_data_jobs.py` | 43 | データ管理タブのジョブ全体（`data_pipeline_service` / `qdrant_service` 経由・**間接**） |
+| `tests/test_model_selection.py` | 30 | モデル解決の 5 経路。うち 1 件が `config_service` の読む直下 `config.yml`（§4） |
 
 ```bash
-uv run --no-sync pytest backend/tests/test_*_service.py backend/tests/test_data_pipeline.py -q
+uv run --no-sync pytest tests/test_*_service.py tests/test_data_pipeline.py -q
 ```
 
 > 📌 **上の 8 ファイル（52 件）は 2026-09-25 に姉妹リポジトリ `grace_v2_local` の
-> `backend/tests/services/` から移植した。** ファイル丸ごとではなく、実装の差分を見て移した（CLAUDE.md §5）。
+> `tests/services/` から移植した。** ファイル丸ごとではなく、実装の差分を見て移した（CLAUDE.md §5）。
 >
 > | 実装の差分 | 扱い |
 > |---|---|
@@ -142,8 +142,8 @@ uv run --no-sync pytest backend/tests/test_*_service.py backend/tests/test_data_
 > | `agent` / `qa` は生成する LLM クライアントのプロバイダが違う | モデル名を本リポジトリの既定へ替え、Anthropic で生成されることの検査を足した |
 > | `qa_service.run_advanced_qa_generation` | 本リポジトリでは死にコードとして削除済みのため**移植しない** |
 >
-> 本リポジトリの `backend/tests/` はサブディレクトリを切らない構成なので、`services/` 配下ではなく
-> `backend/tests/test_<module>.py` に置いた。書き換えた検査は、実装を壊すと落ちることを確認済み。
+> 本リポジトリの `tests/` はサブディレクトリを切らない構成なので、`services/` 配下ではなく
+> `tests/test_<module>.py` に置いた。書き換えた検査は、実装を壊すと落ちることを確認済み。
 
 ---
 
@@ -170,3 +170,4 @@ uv run --no-sync pytest backend/tests/test_*_service.py backend/tests/test_data_
 | 1.4 | 2026-10-10 | `grace/step_trace/`（`benchmark.py` を含む）を 2026-10-10 にディレクトリごと削除したのに追随し、現状を述べる記述から外した（過去の経緯の記述は残す）。`agent_service.md` の行数・版を実測へ（623 行・v2.7。v2.6 までの更新が索引に反映されていなかった分を含む） |
 | 1.5 | 2026-10-10 | Legacy ReAct 経路（`services/agent_service.py`・`agent_parallel_search.py`・`agent_cache.py`・`executor._execute_legacy_agent_step`・`run_legacy_agent` アクション）を 2026-10-10 に削除したのに追随 |
 | 1.6 | 2026-10-10 | §4 の「呼び出し元が無くなったもの（コードは残している）」を「続けて削除したもの」へ書き換え（`log_unanswered_question()` / `generate_with_tools()` ほか）。`log_service` の行数・版とテスト件数（3 → 2）を実測値へ更新 |
+| 1.7 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |

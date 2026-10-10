@@ -1,6 +1,6 @@
 # models.py - Q/A データモデル ドキュメント
 
-**Version 1.4** | 最終更新: 2026-09-25
+**Version 1.5** | 最終更新: 2026-10-10
 
 ---
 
@@ -62,7 +62,7 @@
 flowchart TB
     subgraph CALLER["呼び出し側"]
         INIT["qa_generation/__init__.py（再エクスポート）"]
-        TEST["backend/tests（定義場所の固定）"]
+        TEST["tests（定義場所の固定）"]
     end
     subgraph TARGET["models.py"]
         M["Pydantic モデル 8 クラス"]
@@ -180,7 +180,7 @@ A(question="Q", answer="A", difficulty="hard").difficulty_level   # → "medium"
 
 ### 3.3 固定しているテスト
 
-`backend/tests/test_qa_pair_definitions.py`（6 件）が次を確かめる。
+`tests/test_qa_pair_definitions.py`（6 件）が次を確かめる。
 
 | テスト | 内容 |
 |---|---|
@@ -420,3 +420,4 @@ __all__ = [
 | 1.2 | 2026-09-25 | **`QAPair` を直下 `models.py` の定義へ一本化**（v1.1 の「統合しない」判断を変更）。本モジュールの `class QAPair`（`difficulty` / `source_span`）を削除し、正本を import して再エクスポートする形にしたのに追随。§3 を「定義場所（一本化）」に書き直し（理由・テスト）、§5.1.1 の使用例と §5.2 のフィールド表を正本（10 項目）へ、§1・§2 の図、§4 の行番号、§7・§8 を更新 |
 | 1.3 | 2026-09-25 | `helper/helper_rag_qa.py` の旧 `QAPair` も削除し、定義は直下 `models.py` の 1 つだけになった。§3 の表・§3.1・§3.2 のテスト一覧・§8 を更新 |
 | 1.4 | 2026-09-25 | **`QAPairsList` も直下 `models.py` の定義（`QAPairsResponse` の別名）へ一本化**。本モジュールと `helper/helper_rag_qa.py` の同名クラスを削除したのに追随し、§3.2（新設）・§3.3 のテスト一覧（6 件）・§1・§2 の図・§4 の行番号・§5.3・§7・§8 を更新 |
+| 1.5 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |

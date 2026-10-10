@@ -5,7 +5,7 @@
 #  - 必須ゲート（blocking）:
 #      build         = `python -m compileall`（全 .py の構文チェック / 依存不要）
 #      lint          = `ruff check .`（pyproject.toml の [tool.ruff] 設定に従う）
-#      backend-tests = `pytest backend/tests`（イベント駆動コア・HITL・API。
+#      backend-tests = `pytest tests`（イベント駆動コア・HITL・API。
 #                       スタブベースで実 API キー・Qdrant 不要）
 #      frontend      = `tsc --noEmit` + `vitest run` + `vite build`
 #  - 自動マージ: 必須ゲートが緑になった `claude/*` ブランチの PR を master へ
@@ -101,7 +101,7 @@ jobs:
       - name: Run backend tests
         env:
           PYTHONPATH: .
-        run: pytest backend/tests -q -rs
+        run: pytest tests -q -rs
 
   # --------------------------------------------------------------------------
   # frontend（blocking）: 型チェック（tsc）＋ vitest ＋ プロダクションビルド
