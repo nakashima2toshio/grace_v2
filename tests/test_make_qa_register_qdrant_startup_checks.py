@@ -1,6 +1,6 @@
 """`qa_qdrant/make_qa_register_qdrant.py` の起動時チェックを固定するテスト。
 
-2026-09-25 まで次の 2 つが食い違っていた（経緯は `qa_qdrant/docs/make_qa_register_qdrant_ipo.md` §3.3）。
+2026-09-25 まで次の 2 つが食い違っていた（経緯は `qa_qdrant/docs/make_qa_register_qdrant.md` §3.3）。
 
 - `ANTHROPIC_API_KEY` を確かめるのは `.txt` 入力のチャンク化だけで、チャンク済み CSV や
   `--dataset` からの Q/A 生成は、キーが無くても LLM を最初に呼ぶまで失敗しなかった。

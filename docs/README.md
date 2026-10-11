@@ -1,6 +1,6 @@
 # docs 棚卸し（リポジトリ直下 `docs/`）
 
-**Version 3.14** | 最終更新: 2026-10-11
+**Version 3.15** | 最終更新: 2026-10-11
 
 リポジトリ直下 `docs/` の一覧と、**どのディレクトリに何を置くかの境界**をまとめる。
 各領域の棚卸しは [`backend/docs/README.md`](../backend/docs/README.md) /
@@ -8,7 +8,7 @@
 [`frontend/docs/README.md`](../frontend/docs/README.md) /
 [`qa_generation/docs/README.md`](../qa_generation/docs/README.md) /
 [`chunking/docs/README.md`](../chunking/docs/README.md) /
-[`qa_qdrant/docs/README.md`](../qa_qdrant/docs/README.md) /
+[`qa_qdrant/docs/README_qa_qdrant.md`](../qa_qdrant/docs/README_qa_qdrant.md) /
 [`services/docs/README_services.md`](../services/docs/README_services.md) /
 [`helper/docs/README_helper.md`](../helper/docs/README_helper.md) にある（直下の本書を含め全 9 領域）。
 
@@ -106,11 +106,14 @@ CLAUDE.md §9.1 の表を、判断に使える形へ具体化したもの。
 | `performance_levers.md` | A | 回答品質・レイテンシ・コストを決めている箇所と未実装レバー | 全域 | 578 | 2.8 |
 | `agent_layers.md` | A | **一般エージェント用語 → 実装の対応表**（L0〜L4）。実装を読む前の見取り図 | 全域 | 417 | 1.7 |
 | `app_tabs_overview.md` | A | **処理 3 タブの入口**。基本版 / GRACE-Support / GRACE-Review を「業界特化・処理フロー・回答」の 3 点で、画面の実行例つきでまとめる。ステップ対照表は `pipelines.md` へリンク | backend + frontend + grace | 380 | 1.3 |
+| `data_prep_install.md` | B | データ準備（チャンク化 → Q/A 生成 → Qdrant 登録）の環境構築。MeCab・Docker（Qdrant / Redis）・Celery・API キー（2026-10-11 に `qa_qdrant/docs/01_install.md` から移した） | chunking + qa_generation + qa_qdrant | 864 | 2.8 |
+| `celery_quick_start.md` | B | Celery ワーカーの起動・監視・トラブルシューティング（2026-10-11 に `qa_qdrant/docs/` から移した） | qa_generation + qa_qdrant + 直下 `celery_*.py` | 525 | 2.5 |
 
 ### 3.2 モジュール IPO（トップレベル `.py`）
 
 | 文書 | 種別 | 対象 | 行数 | Ver |
 |---|:--:|---|---:|---|
+| `qdrant_delete_collection.md` | E | `qdrant_delete_collection.py` — Qdrant のコレクション削除 CLI（2026-10-11 に `qa_qdrant/docs/` から移した） | 344 | 1.2 |
 
 ### 3.3 進行中の TODO
 
@@ -252,3 +255,4 @@ EOF
 | 3.12 | 2026-10-10 | `grace/docs/` の構成整理（`README.md` → `README_grace.md`、`grace.md` / `grace_core.md` / `grace_runtime.md` / `confidence_calibration.md` を `README_grace.md` / `grace_process_flow.md` / `grace_data_flow.md` へ統合）に合わせてリンクを直した |
 | 3.13 | 2026-10-10 | `services/docs/` の構成整理（`README.md` → `README_services.md`、`__init__.md` を統合）に合わせてリンクを直した |
 | 3.14 | 2026-10-11 | helper/docs/README_helper.md（2026-10-11 新設）への参照を足した |
+| 3.15 | 2026-10-11 | `qa_qdrant/docs/` の構成整理に合わせ、移ってきた 3 文書（`data_prep_install.md`（旧 `qa_qdrant/docs/01_install.md`）・`celery_quick_start.md`・`qdrant_delete_collection.md`）を §3.1・§3.2 に足し、`qa_qdrant/docs/README.md` → `README_qa_qdrant.md` の改名に合わせてリンクを直した |

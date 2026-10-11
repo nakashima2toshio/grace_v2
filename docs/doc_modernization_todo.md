@@ -1,6 +1,6 @@
 # ドキュメント最新化・不具合除去 TODO（`./run_dev.sh` テスト前の地ならし）
 
-**Version 2.6** | 作成日: 2026-09-12 | 最終更新: 2026-09-26 | 対象コミット: `d832a54`（master）
+**Version 2.7** | 作成日: 2026-09-12 | 最終更新: 2026-10-11 | 対象コミット: `d832a54`（master）
 
 ---
 
@@ -68,7 +68,7 @@
 | README.md の画像リンク | ~~30 件中 25 件がリンク切れ~~ → **誤り。24 件は意図的なコメント（撮影待ちスロット）** | ✅ **指摘を撤回**（§2 訂正） |
 | README_DATA.md | v1.0 / 2026-08-05。2026-09-12 追加の「② Q/A 作成」を**一言も含まない** | ❌ 陳腐化 |
 | frontend/docs | コンポーネント 18 個中 **4 個が文書なし**、1 個が実装より古い | ❌ 欠落・陳腐化 |
-| Streamlit 残骸 | `services/docs/` 8 ファイル＋`qa_qdrant/docs/01_install.md` に記述あり。**実コードに streamlit の import は 0 件** | ❌ 移植漏れ |
+| Streamlit 残骸 | `services/docs/` 8 ファイル＋`docs/data_prep_install.md`（旧 `qa_qdrant/docs/01_install.md`） に記述あり。**実コードに streamlit の import は 0 件** | ❌ 移植漏れ |
 | LLM モデル表記 | `services/docs/token_service.md` に `gpt-4o` 系、`chunking/docs/*` に `gemini-2.5-flash` | ⚠️ 要仕分け |
 | grace/docs・backend/docs の棚卸し | 各 `README.md` が索引を持ち、実ファイルと一致 | ✅ 良好 |
 
@@ -281,7 +281,7 @@ fetchVerticals()
 | `services/docs/config_service.md` | 1 | 同上 `UI["Streamlit UI"]` |
 | `services/docs/qdrant_service.md` | 1 | `ST["Streamlit Dashboard"]` |
 | `services/docs/__init__.md` | 1 | `UI["Streamlit UI"]` |
-| `qa_qdrant/docs/01_install.md` | **17** | 手順全体が Streamlit 前提 |
+| `docs/data_prep_install.md`（旧 `qa_qdrant/docs/01_install.md`） | **17** | 手順全体が Streamlit 前提 |
 
 - `services/docs/qa_service.md` は v1.1（09-12）で**既に Streamlit 記述を削除済み** → **これが手本**。
 
@@ -290,7 +290,7 @@ Mermaid ノードは `UI["React UI (frontend/)"]` とし、**CLAUDE.md §7.2 の
 （`classDef default fill:#000,stroke:#fff,color:#fff`）を維持**すること。
 使用例の `import streamlit as st` は CLI / FastAPI 依存注入の例へ書き換える。
 
-### T5-2 `qa_qdrant/docs/01_install.md`（17 件）は単独タスクにする
+### T5-2 `docs/data_prep_install.md`（旧 `qa_qdrant/docs/01_install.md`）（17 件）は単独タスクにする
 
 最終コミットは 2026-09-12（Celery 関連の是正）だが Streamlit 記述が残っている。
 分量が大きいので T5-1 とは別コミットに分ける。
@@ -486,3 +486,4 @@ Q/A 生成は CLAUDE.md §3 で **Anthropic 必須**の用途。T6-2 と同じ�
 | 2.4 | 2026-09-25 | 残タスク #5 / #6（`ReviewForm` / `ReviewPanel` のアクセシビリティ）を完了へ（2026-09-25）。実装は 2026-09-12 に済んでいた（`frontend/docs/ReviewForm.md` / `ReviewPanel.md` v1.1）のに本表だけ ⏳ のまま残っていた。現行コードでラベル・ライブ領域・`role="alert"` を確認して訂正 |
 | 2.5 | 2026-09-26 | スクリーンショット `D-05`〜`D-08` の 4 枚を撮影（2026-09-26）。残りは `ANTHROPIC_API_KEY` が要る 10 枚だけになった |
 | 2.6 | 2026-09-26 | 残りのスクリーンショット 10 枚を撮影（2026-09-26）。§10 の残タスクはすべて完了 |
+| 2.7 | 2026-10-11 | `qa_qdrant/docs/01_install.md` を直下 `docs/data_prep_install.md` へ移したのに合わせ、本文の参照先を直した（履歴の行は当時のまま） |

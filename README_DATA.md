@@ -1,6 +1,6 @@
 # データ管理（チャンキング / Q&A 生成 / Qdrant CRUD） — 移転のお知らせ
 
-**Version 2.0** | 最終更新: 2026-09-12
+**Version 2.1** | 最終更新: 2026-10-11
 
 ---
 
@@ -36,8 +36,8 @@
 |---|---|
 | **データ準備 3 工程の設計全体**（チャンク化 → Q/A 生成 → Qdrant 登録） | [`backend/docs/data_pipeline.md`](./backend/docs/data_pipeline.md) |
 | 画面から何ができるか・操作と実装の対応 | [`README.md`](./README.md) §4.5「データ管理画面」 |
-| 環境構築（MeCab / Docker / Celery） | [`qa_qdrant/docs/01_install.md`](./qa_qdrant/docs/01_install.md) |
-| Celery 並列の起動手順 | [`qa_qdrant/docs/celery_quick_start.md`](./qa_qdrant/docs/celery_quick_start.md) |
+| 環境構築（MeCab / Docker / Celery） | [`docs/data_prep_install.md`](./docs/data_prep_install.md) |
+| Celery 並列の起動手順 | [`docs/celery_quick_start.md`](./docs/celery_quick_start.md) |
 
 ### モジュール単位で読む
 
@@ -89,3 +89,4 @@
 |---|---|---|
 | 1.0 | 2026-08-05 | 初版作成（2,313 行・IPO 形式） |
 | 2.0 | 2026-09-12 | **索引へ変更。** 記述対象 18 件がすべて `backend/docs/` 側にも存在し（実測）、かつ v1.0 は「② Q/A 作成」を一切含まない陳腐化状態だったため、内容の二重保守をやめて移転先を示す形にした。v1.0 の本文は git 履歴（`git show <この commit>~1:README_DATA.md`）で参照できる |
+| 2.1 | 2026-10-11 | 環境構築と Celery の手順書へのリンクを、移動先（直下 `docs/data_prep_install.md`（旧 `qa_qdrant/docs/01_install.md`）・`docs/celery_quick_start.md`）に直した |

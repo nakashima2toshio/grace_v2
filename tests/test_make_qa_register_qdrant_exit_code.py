@@ -3,7 +3,7 @@
 2026-09-25 まで、Phase 2（Qdrant 登録）の `run_registration()` が `False` を返しても、
 `main()` はエラーログを出すだけで**終了コード 0** で終わっていた。シェルスクリプトや
 ジョブ管理から失敗を検知できないため、失敗時は終了コード 1 で止めるよう直した
-（経緯は `qa_qdrant/docs/make_qa_register_qdrant_ipo.md` §3.3）。
+（経緯は `qa_qdrant/docs/make_qa_register_qdrant.md` §3.3）。
 
 `question` / `answer` 列を持つ CSV を渡すと Phase 1（Q/A 生成）を飛ばすので、
 `run_registration` をモックに差し替えれば実 LLM / Qdrant / API キーなしで `main()` を通せる。

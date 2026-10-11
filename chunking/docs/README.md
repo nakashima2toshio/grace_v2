@@ -1,10 +1,10 @@
 # chunking/docs/ 棚卸し
 
-**Version 1.6** | 最終更新: 2026-10-10
+**Version 1.7** | 最終更新: 2026-10-11
 
 > 📎 **姉妹版**: [`docs/README.md`](../../docs/README.md)（直下・配置の境界） /
 > [`qa_generation/docs/README.md`](../../qa_generation/docs/README.md) /
-> [`qa_qdrant/docs/README.md`](../../qa_qdrant/docs/README.md) /
+> [`qa_qdrant/docs/README_qa_qdrant.md`](../../qa_qdrant/docs/README_qa_qdrant.md) /
 > [`services/docs/README_services.md`](../../services/docs/README_services.md)
 
 `chunking/docs/` 配下のドキュメントを一覧化する。**目的から入口を引ける**ようにするのが狙い。
@@ -12,7 +12,7 @@
 
 > 📌 **データ準備 3 工程のうち ① にあたるパッケージ。**
 > ② Q/A 生成は [`qa_generation/`](../../qa_generation/docs/README.md)、
-> ③ Qdrant 登録は [`qa_qdrant/`](../../qa_qdrant/docs/README.md)。
+> ③ Qdrant 登録は [`qa_qdrant/`](../../qa_qdrant/docs/README_qa_qdrant.md)。
 > 運用手順の入口は [`README_DATA.md`](../../README_DATA.md)。
 
 > ⚠️ **本リポジトリは Anthropic 版。** チャンク化の LLM は Anthropic Claude
@@ -137,3 +137,4 @@ uv run --no-sync pytest tests/test_chunking_abort.py -q
 | 1.4 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随 |
 | 1.5 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |
 | 1.6 | 2026-10-10 | `services/docs/` の構成整理（`README.md` → `README_services.md`、`__init__.md` を統合）に合わせてリンクを直した |
+| 1.7 | 2026-10-11 | ③ Qdrant 登録へのリンク先を、`qa_qdrant/docs/` の構成整理（`README.md` → `README_qa_qdrant.md`）に合わせて直した |
