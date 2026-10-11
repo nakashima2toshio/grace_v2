@@ -17,7 +17,7 @@ Celery 本体（amqp / billiard / kombu ほか）まで読み込まれていた�
 import できなかった）。遅延 import 化でこの偶然が無くなるので、裸 import が
 戻らないことも静的に検査する。
 
-経緯は `qa_generation/docs/__init__.md` §3。実 LLM / Qdrant / Celery ワーカーは不要。
+経緯は `qa_generation/docs/README_qa_generation.md` §3。実 LLM / Qdrant / Celery ワーカーは不要。
 """
 
 import ast

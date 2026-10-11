@@ -10,7 +10,7 @@
 
 候補列が 1 つも無いときの全列連結も同じ理由で `"nan"` を連結していた。
 
-経緯は `qa_generation/docs/README.md` §4 の 5 / `qa_generation/docs/data_io.md` §8 の 7。
+経緯は `qa_generation/docs/data_io.md` §8 の 7。
 """
 
 from qa_generation.data_io import load_uploaded_file

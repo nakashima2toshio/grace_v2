@@ -1,12 +1,12 @@
 # README_chunking.md - chunking/ ディレクトリ概要
 
-**Version 2.1** | 最終更新: 2026-10-11
+**Version 2.2** | 最終更新: 2026-10-11
 
 `chunking/` の入口となる文書。ディレクトリの役割・モジュール索引・コマンドの早見表・組み合わせ方・既知の制約をまとめる。
 文書を新しく書く／直す前に、まずここを見る。
 
 > 📌 **データ準備 3 工程のうち ① チャンク化を担う。**
-> ② Q/A 生成は [`qa_generation/`](../../qa_generation/docs/README.md)、③ Qdrant 登録は [`qa_qdrant/`](../../qa_qdrant/docs/README_qa_qdrant.md)。
+> ② Q/A 生成は [`qa_generation/`](../../qa_generation/docs/README_qa_generation.md)、③ Qdrant 登録は [`qa_qdrant/`](../../qa_qdrant/docs/README_qa_qdrant.md)。
 > 運用手順の入口は [`README_DATA.md`](../../README_DATA.md)、環境構築は [`docs/data_prep_install.md`](../../docs/data_prep_install.md)。
 >
 > ⚠️ **本リポジトリは Anthropic 版。** チャンク化の LLM は Anthropic Claude（既定 `claude-haiku-5-5` = `config.py::ModelConfig.CHUNKING_MODEL`・
@@ -322,3 +322,4 @@ uv run --no-sync pytest tests/test_chunking_abort.py tests/test_chunking_default
 | 1.1〜1.7 | 2026-09-25〜2026-10-11 | `async_api_client.md` の既定モデルの是正、Embedding・軽量モデルの変更への追随、テストの所在の移動、`services/docs/`・`qa_qdrant/docs/` の改名への追随（各版の内容は git 履歴） |
 | 2.0 | 2026-10-11 | `a_cross_doc_md_format.md` §1.1〜§1.4 に合わせて `README_chunking.md` へ改名し、共通骨格（主な責務・各責務対応のモジュール・3 層構成図）を持つ構成に書き直した。専用の文書が無かった 5 モジュール（`checkpoint_manager` / `models` / `prompts` / `regex_string` / `utils`）の文書と `chunking_process_flow.md` を新設し、`memo.txt` を §2.1 に取り込んで `archive/` へ移した。§2 のワークフロー 3 本を実行して確かめ、実測で見つけた制約 8 件を §5 に、テスト件数を数え直して §5.1 に記録した |
 | 2.1 | 2026-10-11 | §5 の 1〜3（LLM が失敗したブロックの本文が消える・`--resume` が入力を照合しない・入力ファイルが無くても終了コード 0）を直したので解決済みにし、照合で見つかった「同じ秒の新規ジョブがディレクトリを共有する」も解決済みとして足した。§5.1 のテスト件数を数え直し（`test_chunking_fallback_and_resume.py` 18 件・`test_data_jobs.py` 45 件・3 ファイルで 28 passed）、§2.1 を実行し直した |
+| 2.2 | 2026-10-11 | `qa_generation/docs/` の構成整理（`README.md` → `README_qa_generation.md`、`__init__.md` を統合、`make_qa_qapipeline.md` → `qa_generation_process_flow.md`）に合わせてリンクを直した |

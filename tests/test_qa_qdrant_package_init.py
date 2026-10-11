@@ -8,7 +8,7 @@
 走るたびに `config` と `qa_generation.pipeline` まで読み込まれていた
 （実測: `import qa_qdrant` だけで 1,406 モジュール → 修正後 35）。
 
-経緯は `qa_generation/docs/__init__.md` §4。実 LLM / Qdrant 不要。
+経緯は `qa_qdrant/docs/README_qa_qdrant.md` §3。実 LLM / Qdrant 不要。
 """
 
 import ast
