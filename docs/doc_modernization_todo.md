@@ -1,6 +1,6 @@
 # ドキュメント最新化・不具合除去 TODO（`./run_dev.sh` テスト前の地ならし）
 
-**Version 2.7** | 作成日: 2026-09-12 | 最終更新: 2026-10-11 | 対象コミット: `d832a54`（master）
+**Version 2.8** | 作成日: 2026-09-12 | 最終更新: 2026-10-11 | 対象コミット: `d832a54`（master）
 
 ---
 
@@ -191,7 +191,7 @@ CLAUDE.md §1 の表は「データ準備 | `chunking/`, `qa_generation/`, `qa_q
 - 「② Q/A 作成」「`/api/qa/generate`」の出現回数は **0**。
 - 同じ領域を扱う文書が他に 3 つある:
   `backend/docs/data_pipeline.md`（563 行・v1.2・09-12 更新）、
-  `backend/docs/reference/core_data_jobs.md`、`backend/docs/reference/api_data.md`。
+  `backend/app/core/docs/data_jobs.md`、`backend/app/api/docs/data.md`。
 - README.md からの参照は **1 箇所だけ**（1415 行）。
 
 ### T3-2 方針案（要判断・§8 で確認）
@@ -487,3 +487,4 @@ Q/A 生成は CLAUDE.md §3 で **Anthropic 必須**の用途。T6-2 と同じ�
 | 2.5 | 2026-09-26 | スクリーンショット `D-05`〜`D-08` の 4 枚を撮影（2026-09-26）。残りは `ANTHROPIC_API_KEY` が要る 10 枚だけになった |
 | 2.6 | 2026-09-26 | 残りのスクリーンショット 10 枚を撮影（2026-09-26）。§10 の残タスクはすべて完了 |
 | 2.7 | 2026-10-11 | `qa_qdrant/docs/01_install.md` を直下 `docs/data_prep_install.md` へ移したのに合わせ、本文の参照先を直した（履歴の行は当時のまま） |
+| 2.8 | 2026-10-11 | backend のモジュール文書を移したのに追随（パスの付け替え） |

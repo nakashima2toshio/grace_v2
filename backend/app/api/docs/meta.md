@@ -1,17 +1,17 @@
 # api/meta.py - メタ情報 API ドキュメント
 
-**Version 1.10** | 最終更新: 2026-10-10
+**Version 1.11** | 最終更新: 2026-10-11
 
 > **本書の位置づけ**: `backend/app/api/meta.py`（モデル一覧 / 業界プロファイル / ルールセット一覧・ヘルスチェック）の **IPO リファレンス**。
 > 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。
 >
 > | 知りたいこと | 参照先 |
 > |---|---|
-> | エンドポイント一覧 | [`api_contract.md` §1.5](../api_contract.md) |
-> | プロファイル・ルールセットの中身 | [`verticals_and_rulesets.md`](../verticals_and_rulesets.md) |
-> | モデル選択の方針・上書き範囲 | [`config_and_providers.md` §3.1](../config_and_providers.md) |
-> | API キーの扱い | [`config_and_providers.md` §4](../config_and_providers.md) |
-> | 文書全体の地図 | [`README.md`](../README.md) |
+> | エンドポイント一覧 | [`api_contract.md` §1.5](../../../docs/api_contract.md) |
+> | プロファイル・ルールセットの中身 | [`verticals_and_rulesets.md`](../../../docs/verticals_and_rulesets.md) |
+> | モデル選択の方針・上書き範囲 | [`config_and_providers.md` §3.1](../../../docs/config_and_providers.md) |
+> | API キーの扱い | [`config_and_providers.md` §4](../../../docs/config_and_providers.md) |
+> | 文書全体の地図 | [`README.md`](../../../docs/README.md) |
 
 ---
 
@@ -214,6 +214,14 @@ style DEPS fill:#1a1a1a,stroke:#fff,color:#fff
 
 ### 4.1 使用例
 
+| # | パターン | いつ使うか | 例 |
+|---|---------|-----------|----|
+| 1 | **基本**: 起動確認と、Support / Review のセレクタの選択肢を取る | 画面の初期表示と同じ順で確かめる | 4.1.1 |
+| 2 | プロファイル 1 件の中身を見る | 業界プロファイルの公開範囲を確かめる | 4.1.2 |
+| 3 | モデルの選択肢と既定値を取る（`/api/models` / `/api/model`） | ヘッダーのモデルセレクタ・データ管理タブの既定値 | 4.1.3 |
+
+> 📝 **確かめ方（2026-10-11）**: 4.1.1〜4.1.3 はすべて `PYTHONPATH=. python3 <例>.py` で実行した（API キーを入れていない環境。Qdrant・LLM は使わない）。
+
 #### 4.1.1 基本的なワークフロー（起動確認とメタ取得）
 
 > 📌 **`TestClient` を使うとサーバを起動せずに試せる**（実 API キー・Qdrant 不要の範囲）。
@@ -259,7 +267,31 @@ print(sorted(v))
 
 > `prompt_addendum` は**業界固有の方針だけ**を返す（共通の `SCOPE_POLICY` は含まない）。
 > 実際に注入されるのは `build_prompt_addendum()` が合成した文字列
-> （[`core_verticals.md` §4.1.3](./core_verticals.md#41-使用例)）。
+> （[`core/docs/verticals.md` §4.1.3](../../core/docs/verticals.md#41-使用例)）。
+
+#### 4.1.3 モデルの選択肢と既定値
+
+```python
+from fastapi.testclient import TestClient
+from backend.app.main import app
+
+c = TestClient(app)
+print([m["id"] for m in c.get("/api/models").json()])
+info = c.get("/api/model").json()
+print({k: info[k] for k in ("model", "light_model", "chunking_model", "qa_model")})
+print(c.get("/api/models").json()[2])
+print({r["id"]: r["rule_count"] for r in c.get("/api/rulesets").json()})
+
+# 実行結果:
+# ['claude-fable-5-1', 'claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5']
+# {'model': 'claude-sonnet-5-5', 'light_model': 'claude-haiku-5-5', 'chunking_model': 'claude-haiku-5-5', 'qa_model': 'claude-sonnet-5-5'}
+# {'id': 'claude-sonnet-5-5', 'input_price': 0.002, 'output_price': 0.01, 'context_window': 1000000, 'max_output': 128000}
+# {'ec_ad': 23}
+```
+
+> 📌 `/api/models` は `config.py::get_selectable_models()` の 4 つだけ（旧既定・日付指定のエイリアスは出さない）。単価は 1K トークンあたりの USD。
+> `/api/model` は**解決後**の値で、`model` / `light_model` は `config/grace_config.yml`、`chunking_model` / `qa_model` は
+> `schemas.ChunkingRequest` / `QaGenerationRequest` の既定値から引く（フロントに既定値を焼き付けない）。Embedding はここに選択肢として出ない。
 
 
 ### 4.2 エンドポイント関数
@@ -400,9 +432,9 @@ def list_rulesets() -> List[RuleSetInfo]
         "id": "ec_ad",
         "name": "EC広告表示",
         "collections": ["ec_ad_rules_anthropic", "ec_policy_anthropic"],
-        "rule_count": 21,
-        "always_check_count": 6,
-        "laws": ["医薬品医療機器等法", "景品表示法", "特定商取引法"],
+        "rule_count": 23,
+        "always_check_count": 7,
+        "laws": ["医薬品医療機器等法", "景品表示法", "特定商取引法", "社内規程"],
         "critical_keywords": ["No.1", "NO.1", "ナンバーワン", "日本一", "世界一", "..."],
         "action_map": {"修正": "create_ticket", "差し戻し": "send_reply"},
         "notify_th": 0.85,
@@ -415,7 +447,7 @@ def list_rulesets() -> List[RuleSetInfo]
 ```python
 # 使用例
 GET /api/rulesets
-# → [{"id": "ec_ad", "rule_count": 21, ...}]
+# → [{"id": "ec_ad", "rule_count": 23, ...}]
 ```
 
 > **`RuleItem.description`（判定基準の本文）は返さない。** LLM プロンプト用で UI では
@@ -473,7 +505,7 @@ GET /api/health
    （プロファイルセレクタの選択肢に反映）
 
 3. GET /api/rulesets（Review タブ）
-   → [{"id": "ec_ad", "name": "EC広告表示", "rule_count": 21, ...}]
+   → [{"id": "ec_ad", "name": "EC広告表示", "rule_count": 23, ...}]
    （ルールセットセレクタの選択肢に反映）
 ```
 
@@ -504,6 +536,7 @@ router  # APIRouter(prefix="/api", tags=["meta"])
 | 1.8 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随 |
 | 1.9 | 2026-10-08 | `GET /api/models` / `GET /api/model` の戻り値例とワークフロー例の既定・選択肢を実装どおり `claude-sonnet-5` → `claude-sonnet-5-5` へ是正。選択肢に出ない旧既定に `claude-sonnet-5` を追記 |
 | 1.10 | 2026-10-10 | 概要の「各責務対応のモジュール」を「主な責務」と 1:1 に揃えた（枝番 `1b` と、責務でない「出力スキーマ」行をやめ、スキーマは各行の説明へ移した）。変更履歴を 3 列へ移した |
+| 1.11 | 2026-10-11 | `backend/docs/reference/api_meta.md` から移した（`a_cross_doc_md_format.md` §1.1.2。リンクを付け替えた）。§4.1.3（`/api/models` / `/api/model`）を追加して実行で確かめた。§5.1 の `rule_count` を 21 → 23 に是正。§4.2 の戻り値例も `rule_count` 23・`always_check_count` 7・`laws` に社内規程を実装どおりに是正 |
 
 ---
 

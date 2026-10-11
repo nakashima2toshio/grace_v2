@@ -1,6 +1,6 @@
 # backend/docs 再編計画 ドキュメント
 
-**Version 3.1** | 最終更新: 2026-10-10
+**Version 3.2** | 最終更新: 2026-10-11
 
 > **本書の位置づけ**: `backend/docs` を「横断 / 系統別 / 参照」の 3 階建てへ
 > 作り替える計画と進捗。完了した作業は [`docs_audit.md`](./docs_audit.md) の
@@ -104,7 +104,7 @@
 | 統合前 | 行き先 |
 |---|---|
 | `review_spec.md` §1 概要・§2 アーキテクチャ・§3 パイプライン | `review_flow.md` の各段へマージ |
-| `review_spec.md` §4 データモデル | `reference/schemas.md` / `reference/core_review_agent.md` へリンクし**本文は持たない** |
+| `review_spec.md` §4 データモデル | `backend/app/docs/schemas.md` / `backend/app/core/docs/review_agent.md` へリンクし**本文は持たない** |
 | `review_spec.md` §5 RuleSet 定義 | **新設 `verticals_and_rulesets.md` へ**（本文は複製せず `rulesets.py` を指す） |
 | `review_spec.md` §6 ジョブ基盤の汎用化 | **`job_runtime.md` §3 へ寄せる**（共有基盤そのもの） |
 | `review_spec.md` §7 API 設計 | **`api_contract.md` へ寄せる** |
@@ -166,9 +166,9 @@ IPO と索引に絞って薄くする」だった。着手前に**実測した�
 
 ### 4.3 残す判断
 
-- **`reference/schemas.md`（38KB）と `api_contract.md` の役割分担は現状のままでよい。**
+- **`backend/app/docs/schemas.md`（38KB）と `api_contract.md` の役割分担は現状のままでよい。**
   前者はフィールド単位の定義、後者はエンドポイント一覧と SSE の契約で、重複していない。
-- **`reference/main.md` と `architecture.md` も分担できている。**
+- **`backend/app/docs/main.md` と `architecture.md` も分担できている。**
   前者は `main.py` の 4 要素（`app` / `load_dotenv` / CORS / ルータ結線）の IPO、
   後者は層構造と外部境界で、図の粒度が違う。
 
@@ -190,3 +190,4 @@ IPO と索引に絞って薄くする」だった。着手前に**実測した�
 | 2.0 | 2026-09-16 | **Phase 2 を実施し、結果（§3.0）を記録**。あわせて v1.0 の `## [HIGH]` に関する記述の誤りを訂正した |
 | 3.0 | 2026-09-16 | **Phase 3 を実施し、結果（§4）を記録**。計画していた「参照文書の圧縮」は、実測で重複がほぼ無い（0〜1%・シンボル網羅 100%）ことが分かったため**行わず**、代わりに上位文書への導線追加と古いポインタの是正を行った |
 | 3.1 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |
+| 3.2 | 2026-10-11 | backend のモジュール文書を `backend/docs/reference/` から `backend/app/docs/`・`backend/app/api/docs/`・`backend/app/core/docs/` へ移したのに追随（リンクの付け替え） |

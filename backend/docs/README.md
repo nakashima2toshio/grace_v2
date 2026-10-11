@@ -1,6 +1,6 @@
 # backend/docs — 文書の地図
 
-**Version 2.10** | 最終更新: 2026-10-10
+**Version 2.11** | 最終更新: 2026-10-11
 
 ---
 
@@ -94,7 +94,7 @@ architecture.md            層構造・モジュール責務・外部境界（�
 api_contract.md            フロント / API 利用者はここから
 config_and_providers.md    モデル・API キーを触る前に
 pitfalls.md                コードを触る前に
-reference/*.md             引く（通読しない）
+../app/docs/・../app/api/docs/・../app/core/docs/   モジュール文書（引く。通読しない）
 ```
 
 ---
@@ -107,7 +107,7 @@ reference/*.md             引く（通読しない）
 |---|:--:|---|
 | [`architecture.md`](./architecture.md) | A | 層構造、17 モジュールの責務と行数、**backend が持たないもの（外部境界）**、依存の向き、リクエストが通る経路 |
 | [`job_runtime.md`](./job_runtime.md) | A | **3 系統が共有する実行基盤の正本。** ジョブのライフサイクル、イベントのリプレイ、runner 注入、HITL の橋渡し、ログ転送、ローカル専用であることの制約 |
-| [`api_contract.md`](./api_contract.md) | A | 全 23 エンドポイント、SSE のワイヤ形式、HTTP ステータスの使い分け、`frontend/src/types.ts` との対応 |
+| [`api_contract.md`](./api_contract.md) | A | 全 25 エンドポイント、SSE のワイヤ形式、HTTP ステータスの使い分け、`frontend/src/types.ts` との対応 |
 | [`config_and_providers.md`](./config_and_providers.md) | A | **モデル名の 3 本の解決経路**、`judge_model()` / `detect_model()`、API キーのガード位置 |
 | [`pitfalls.md`](./pitfalls.md) | B | 非自明な設計判断・過去に壊れた箇所・**直してはいけないもの** |
 
@@ -121,21 +121,20 @@ reference/*.md             引く（通読しない）
 | [`data_pipeline.md`](./data_pipeline.md) | A | チャンク化 → Q/A 生成 → Qdrant 登録（付録A: 規程コレクションの準備） |
 | [`webapp_flow.md`](./webapp_flow.md) | A | `run_dev.sh` 起点の end-to-end（ブラウザ → FastAPI → コア → 描画） |
 
-### 3.3 モジュール参照（`reference/`）— 引く用
+### 3.3 モジュール文書（`backend/app/**/docs/`）— 引く用
 
-種別はすべて E（`a_class_method_md_format.md` の IPO 形式。使用例は IPO 詳細の冒頭 `### 4.1 使用例`）。
+モジュール文書は 2026-10-11 に `backend/docs/reference/` から**各ディレクトリの `docs/`** へ移した（`a_cross_doc_md_format.md` §1.1.2。
+`reference/api_meta.md` → `backend/app/api/docs/meta.md` のように接頭辞を外した）。種別はすべて E（`a_class_method_md_format.md` の IPO 形式。
+使用例は IPO 詳細の冒頭 `### 4.1 使用例`（`api/docs/data.md`・`qdrant.md`・`core/docs/job_logs.md` は `### 3.1`）で、すべて実行して確かめてある）。
+公開・非公開シンボルの網羅は AST で検証済み（**18 モジュール・257 シンボル / 未記載 0**・実測 2026-10-11）。
 
-各文書の冒頭に**位置づけと上位文書への導線**がある（どの設計文書が「なぜ」の正本かを示す）。
-公開シンボルの網羅は AST で検証済み（**223 シンボル / 未記載 0**・実測 2026-09-16）。
-
-| 対象 | 文書 |
-|---|---|
-| `backend/app/main.py` | [`reference/main.md`](./reference/main.md) |
-| `backend/app/schemas.py` | [`reference/schemas.md`](./reference/schemas.md) |
-| `api/support.py` / `api/review.py` / `api/data.py` / `api/qdrant.py` / `api/meta.py` | [`reference/api_support.md`](./reference/api_support.md)・[`api_review.md`](./reference/api_review.md)・[`api_data.md`](./reference/api_data.md)・[`api_qdrant.md`](./reference/api_qdrant.md)・[`api_meta.md`](./reference/api_meta.md) |
-| `core/support_agent.py` / `gates.py` / `verticals.py` | [`reference/core_support_agent.md`](./reference/core_support_agent.md)・[`core_gates.md`](./reference/core_gates.md)・[`core_verticals.md`](./reference/core_verticals.md) |
-| `core/review_agent.py` / `review_gates.py` / `rulesets.py` | [`reference/core_review_agent.md`](./reference/core_review_agent.md)・[`core_review_gates.md`](./reference/core_review_gates.md)・[`core_rulesets.md`](./reference/core_rulesets.md) |
-| `core/jobs.py` / `intervention_bridge.py` / `job_logs.py` / `data_jobs.py` | [`reference/core_jobs.md`](./reference/core_jobs.md)・[`core_intervention_bridge.md`](./reference/core_intervention_bridge.md)・[`core_job_logs.md`](./reference/core_job_logs.md)・[`core_data_jobs.md`](./reference/core_data_jobs.md) |
+| ディレクトリ | 索引 | 文書 |
+|---|---|---|
+| `backend/app/`（`main.py` / `schemas.py`） | [`README_app.md`](../app/docs/README_app.md) | [`main.md`](../app/docs/main.md)・[`schemas.md`](../app/docs/schemas.md) |
+| `backend/app/api/`（ルーター 5 本・25 エンドポイント） | [`README_api.md`](../app/api/docs/README_api.md) | [`support.md`](../app/api/docs/support.md)・[`review.md`](../app/api/docs/review.md)・[`data.md`](../app/api/docs/data.md)・[`qdrant.md`](../app/api/docs/qdrant.md)・[`meta.md`](../app/api/docs/meta.md) |
+| `backend/app/core/`（Support の 1 周と判定） | [`README_core.md`](../app/core/docs/README_core.md) | [`support_agent.md`](../app/core/docs/support_agent.md)・[`gates.md`](../app/core/docs/gates.md)・[`verticals.md`](../app/core/docs/verticals.md) |
+| 〃（Review の 1 周と判定） | 〃 | [`review_agent.md`](../app/core/docs/review_agent.md)・[`review_gates.md`](../app/core/docs/review_gates.md)・[`rulesets.md`](../app/core/docs/rulesets.md)・[`review_facts.md`](../app/core/docs/review_facts.md) |
+| 〃（ジョブ基盤とデータ準備） | 〃 | [`jobs.md`](../app/core/docs/jobs.md)・[`intervention_bridge.md`](../app/core/docs/intervention_bridge.md)・[`job_logs.md`](../app/core/docs/job_logs.md)・[`data_jobs.md`](../app/core/docs/data_jobs.md) |
 
 ### 3.4 運用・記録
 
@@ -155,10 +154,10 @@ reference/*.md             引く（通読しない）
 |---|---|
 | backend の全体像を掴む | `architecture.md` |
 | SSE / ジョブ / HITL の仕組みを知る | `job_runtime.md` |
-| 新しいエンドポイントを足す | `api_contract.md` → `job_runtime.md` §3 → `reference/api_*.md` |
-| 新しいジョブ種別を足す | `job_runtime.md` §3・§8 → `reference/core_data_jobs.md` |
-| 回答が escalate に倒れる理由を追う | `support_flow.md` → `reference/core_gates.md` |
-| 指摘が出ない / 誤検知する理由を追う | `review_flow.md` → `reference/core_review_gates.md` |
+| 新しいエンドポイントを足す | `api_contract.md` → `job_runtime.md` §3 → `backend/app/api/docs/README_api.md` |
+| 新しいジョブ種別を足す | `job_runtime.md` §3・§8 → `backend/app/core/docs/data_jobs.md` |
+| 回答が escalate に倒れる理由を追う | `support_flow.md` → `backend/app/core/docs/gates.md` |
+| 指摘が出ない / 誤検知する理由を追う | `review_flow.md` → `backend/app/core/docs/review_gates.md` |
 | 業界プロファイル / ルールセットを増やす | `verticals_and_rulesets.md` §3 |
 | テストを足す・どれを流すか調べる・E2E を走らせる | `testing.md` |
 | 既定モデルを変える | `config_and_providers.md` §6 |
@@ -171,7 +170,7 @@ reference/*.md             引く（通読しない）
 
 | 対象 | 仕様書 |
 |---|---|
-| Python モジュール（IPO 形式） | `.claude/skills/grace-agent-docs/a_class_method_md_format.md` |
+| Python モジュール（IPO 形式。`backend/app/docs/`・`backend/app/api/docs/`・`backend/app/core/docs/` に置く） | `.claude/skills/grace-agent-docs/a_class_method_md_format.md` |
 | React コンポーネント | `.claude/skills/grace-agent-docs/a_react_page_md_format.md` |
 | 設計・フロー・API 契約・手順・索引（IPO 以外。上表の種別 A / B / C） | `.claude/skills/grace-agent-docs/a_cross_doc_md_format.md`（A: 概要に主な責務・各責務対応のモジュール・3 層の構成図／B: 概要に結論・対象モジュール／C: 目次と変更履歴） |
 | 単体テスト（SAE 形式） | `.claude/skills/grace-agent-tests/a_test_md_format.md` |
@@ -199,3 +198,4 @@ reference/*.md             引く（通読しない）
 | 2.8 | 2026-10-08 | 現在の既定 LLM の記述を `claude-sonnet-5` から実装（`config.py::ModelConfig.DEFAULT_MODEL` / `config/grace_config.yml` の `llm.model`）どおり `claude-sonnet-5-5` へ是正（冒頭の注記） |
 | 2.9 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |
 | 2.10 | 2026-10-10 | `grace/docs/` の構成整理（`README.md` → `README_grace.md`、`grace.md` / `grace_core.md` / `grace_runtime.md` / `confidence_calibration.md` を `README_grace.md` / `grace_process_flow.md` / `grace_data_flow.md` へ統合）に合わせてリンクを直した |
+| 2.11 | 2026-10-11 | モジュール文書 17 本を `reference/` から `backend/app/docs/`・`backend/app/api/docs/`・`backend/app/core/docs/` へ移したのに追随（§2・§3.3・§4・§5）。§3.3 を 3 つの `README_<dir>.md` への索引に作り替え、文書の無かった `review_facts.md` を足した。`api_contract.md` の説明の「全 23 エンドポイント」を実装どおり 25 へ是正 |

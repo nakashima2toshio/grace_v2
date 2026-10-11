@@ -1,16 +1,16 @@
 # schemas.py - API スキーマ（Pydantic）ドキュメント
 
-**Version 1.14** | 最終更新: 2026-10-10
+**Version 1.15** | 最終更新: 2026-10-11
 
 > **本書の位置づけ**: `backend/app/schemas.py`（API のリクエスト / レスポンス / イベントの Pydantic スキーマ）の **IPO リファレンス**。
 > 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。
 >
 > | 知りたいこと | 参照先 |
 > |---|---|
-> | エンドポイント一覧・SSE ワイヤ形式・`types.ts` 対応 | [`api_contract.md`](../api_contract.md) |
-> | SupportResult の各段での埋まり方 | [`support_flow.md`](../support_flow.md) |
-> | ReviewResult の各段での埋まり方 | [`review_flow.md` §8](../review_flow.md) |
-> | 文書全体の地図 | [`README.md`](../README.md) |
+> | エンドポイント一覧・SSE ワイヤ形式・`types.ts` 対応 | [`api_contract.md`](../../docs/api_contract.md) |
+> | SupportResult の各段での埋まり方 | [`support_flow.md`](../../docs/support_flow.md) |
+> | ReviewResult の各段での埋まり方 | [`review_flow.md` §8](../../docs/review_flow.md) |
+> | 文書全体の地図 | [`README.md`](../../docs/README.md) |
 
 ---
 
@@ -225,7 +225,7 @@ style DATA fill:#1a1a1a,stroke:#fff,color:#fff
 
 #### データ準備用（チャンク化 / Q/A 生成 / Qdrant 登録・参照 / 削除）
 
-リクエスト系（[`api_data.md`](./api_data.md) が使う）:
+リクエスト系（[`api/docs/data.md`](../api/docs/data.md) が使う）:
 
 | モデル | 概要 |
 |-------|------|
@@ -235,7 +235,7 @@ style DATA fill:#1a1a1a,stroke:#fff,color:#fff
 | `DeleteCollectionsRequest` | コレクション削除のパラメータ |
 | `DataJobStatusResponse` | データ準備ジョブの状態＋結果 |
 
-参照系（[`api_qdrant.md`](./api_qdrant.md) が使う・読み取り専用）:
+参照系（[`api/docs/qdrant.md`](../api/docs/qdrant.md) が使う・読み取り専用）:
 
 | モデル | 概要 |
 |-------|------|
@@ -268,20 +268,72 @@ style DATA fill:#1a1a1a,stroke:#fff,color:#fff
 
 ### 4.1 使用例
 
-#### 4.1.1 基本的なワークフロー（API 層での利用）
+| # | パターン | いつ使うか | 例 |
+|---|---------|-----------|----|
+| 1 | **基本**: リクエストの検証（既定値・422 になる入力） | 画面やクライアントが送る JSON の形を確かめる | 4.1.1 |
+| 2 | 応答モデルで結果を検証する（足りないキー・知らないキー） | runner が返す dict と API の応答の関係を確かめる | 4.1.2 |
+
+> 📝 **確かめ方（2026-10-11）**: どちらも `PYTHONPATH=. python3 <例>.py` で実行した（Pydantic だけ。LLM・Qdrant は使わない）。
+> API を通した 422 / 404 の例は [`api/docs/support.md` §4.1.2](../api/docs/support.md#41-使用例)。
+
+#### 4.1.1 基本: リクエストの検証
+
+FastAPI はリクエストの JSON をこのモデルで検証し、`ValidationError` を 422 にして返す。
 
 ```python
-from backend.app.schemas import QueryRequest, QueryAccepted, JobStatusResponse
+from pydantic import ValidationError
 
-# 1. リクエスト検証（FastAPI が自動で行う）
+from backend.app.schemas import QueryRequest, ReviewRequest
+
+# 1. 既定値（画面が送らなかった項目）
 req = QueryRequest(query="返品したい", vertical="ec")
+print(req.model_dump(exclude={"query", "identity"}))
 
-# 2. 受付レスポンス
-accepted = QueryAccepted(job_id="a1b2c3", stream_url="/api/support/stream/a1b2c3")
+# 2. 不正な入力は ValidationError（FastAPI はこれを 422 にする）
+bads = ({"query": ""}, {"query": "x", "vertical": "bank"},
+        {"query": "x", "model": "claude-sonnet-4-6"})   # 実在するが画面の選択肢に無いモデル
+for bad in bads:
+    try:
+        QueryRequest(**bad)
+    except ValidationError as e:
+        err = e.errors()[0]
+        print(err["loc"], err["type"], err["msg"][:45])
 
-# 3. 結果取得
-status = JobStatusResponse(job_id="a1b2c3", status="completed", result=None)
+# 3. Review の文書は 1〜50,000 文字。ルールセットの既定は ec_ad
+print(ReviewRequest(document="業界最高").ruleset, ReviewRequest.model_fields["document"].metadata)
+
+# 実行結果:
+# {'vertical': 'ec', 'model': None, 'dry_run': True, 'use_web': True, 'do_action': True, 'verbose': False}
+# ('query',) string_too_short String should have at least 1 character
+# ('vertical',) literal_error Input should be 'gov', 'saas' or 'ec'
+# ('model',) value_error Value error, 未対応のモデルです: claude-sonnet-4-6（選択可
+# ec_ad [MinLen(min_length=1), MaxLen(max_length=50000)]
 ```
+
+> 📌 `model` は `config.py::get_selectable_models()`（画面の選択肢）に無い値を拒否する。`claude-sonnet-4-6` は実在するモデル名だが、
+> 選択肢に出していないので API からは指定できない（設定ファイルからは指定できる。CLAUDE.md §3.2）。`None` は「`config/grace_config.yml` の既定」。
+
+#### 4.1.2 応答モデルで結果を検証する
+
+```python
+from backend.app.schemas import JobStatusResponse, ReviewJobStatusResponse
+
+# runner が返した dict は応答モデルで検証される: 足りないキーは既定値、知らないキーは落ちる
+res = JobStatusResponse(job_id="a1b2c3", status="completed",
+                        result={"answer": "…", "decision": "answer", "extra": 1})
+print(res.result.decision, res.result.citations, hasattr(res.result, "extra"))
+
+rev = ReviewJobStatusResponse(job_id="d4e5f6", status="completed",
+                              result={"document_title": "LP案", "summary": {"high": 1}})
+print(rev.result.summary.model_dump(), rev.result.findings)
+
+# 実行結果:
+# answer [] False
+# {'high': 1, 'medium': 0, 'low': 0, 'confirmed': 0, 'review_required': 0, 'suppressed': 0} []
+```
+
+> ⚠️ **runner の戻り値に新しいキーを足しても、応答モデルに足さなければ画面へ届かない**（黙って落ちる）。
+> 足したら `frontend/src/types.ts` も合わせる（CLAUDE.md §4）。
 
 ### 4.2 QueryRequest
 
@@ -825,8 +877,8 @@ class RuleSetInfo(BaseModel):
 ```python
 {"id": "ec_ad", "name": "EC広告表示",
  "collections": ["ec_ad_rules_anthropic", "ec_policy_anthropic"],
- "rule_count": 21, "always_check_count": 6,
- "laws": ["医薬品医療機器等法", "景品表示法", "特定商取引法"],
+ "rule_count": 23, "always_check_count": 7,
+ "laws": ["医薬品医療機器等法", "景品表示法", "特定商取引法", "社内規程"],
  "critical_keywords": ["No.1", "NO.1", "ナンバーワン", ...],
  "action_map": {"修正": "create_ticket", "差し戻し": "send_reply"},
  "notify_th": 0.85, "confirm_th": 0.6,
@@ -874,7 +926,7 @@ class ModelInfo(BaseModel):
 >
 > ⚠️ **Embedding は選択肢（`ModelChoice`）に出ない。** Gemini `gemini-embedding-001`（3072 次元）固定。
 > `ModelInfo.embedding_model` / `embedding_dims` は画面の注記に実名を出すためだけに返す
-> （[`config_and_providers.md` §3.1](../config_and_providers.md)）。
+> （[`config_and_providers.md` §3.1](../../docs/config_and_providers.md)）。
 
 ---
 
@@ -996,7 +1048,7 @@ class QdrantHealth(BaseModel):
 ```
 
 > ⚠️ **Qdrant が落ちていても HTTP 200 で返す型。** 稼働の有無は `available` で判定する
-> （503 にすると画面でエラーバナーと起動案内を出し分けられない。[`api_qdrant.md`](./api_qdrant.md) §4）。
+> （503 にすると画面でエラーバナーと起動案内を出し分けられない。[`api/docs/qdrant.md`](../api/docs/qdrant.md) §4）。
 
 #### `CollectionInfo` / `CollectionDetail` / `CollectionPoints`
 
@@ -1104,6 +1156,7 @@ ReviewResultModel, ReviewJobStatusResponse, RuleSetInfo
 | 1.12 | 2026-10-08 | `QaGenerationRequest.model` の既定を実装どおり `claude-sonnet-5` → `claude-sonnet-5-5` へ是正し、注記の理由を「アプリ全体の既定に合わせる」へ直した |
 | 1.13 | 2026-10-09 | `QaGenerationRequest.batch_chunks` を削除（処理に使われていなかった。古いクライアントが送っても無視される）。`concurrency` は表示用である旨を注記 |
 | 1.14 | 2026-10-10 | 概要の「主な責務」と「各責務対応のモジュール」を実クラスに合わせて組み直した（9 項目・1:1）。Review・データ準備・Qdrant 参照系・ルールセット/モデルのメタ情報が欠けており、旧表は責務 5「入力値の制約」と行 5「メタ情報」が食い違っていた。変更履歴を 3 列へ移した |
+| 1.15 | 2026-10-11 | `backend/docs/reference/schemas.md` から移した（`a_cross_doc_md_format.md` §1.1.2。リンクを付け替えた）。§4.1 を、実行しても何も出力しない例から、実行して確かめた 2 パターン（リクエストの検証と 422 になる入力 / 応答モデルが runner の dict を検証する）へ作り直した。§4.13 `RuleSetInfo` の戻り値例を実装どおり（`rule_count` 23・`always_check_count` 7・`laws` に社内規程）に是正 |
 
 ---
 

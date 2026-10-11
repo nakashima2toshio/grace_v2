@@ -1,6 +1,6 @@
 # 生成（reasoning / detect）フロー ドキュメント
 
-**Version 2.5** | 最終更新: 2026-10-08
+**Version 2.6** | 最終更新: 2026-10-11
 
 ---
 
@@ -370,9 +370,9 @@ print(result.confidence_factors)   # {'has_sources': True, 'source_count': 1, ..
 |---|---|
 | `docs/pipelines.md` | 3 モードの対照（本書の上位） |
 | `docs/guardrails.md` | 判定（ゲート）側の一覧（本書の対） |
-| `backend/docs/reference/core_support_agent.md` | Support コアの IPO |
-| `backend/docs/reference/core_review_agent.md` / `core_review_gates.md` | Review コアとゲートの IPO |
-| `backend/docs/reference/core_gates.md` | ④ 回答ゲート・④' 情報なし検知 |
+| `backend/app/core/docs/support_agent.md` | Support コアの IPO |
+| `backend/app/core/docs/review_agent.md` / `review_gates.md` | Review コアとゲートの IPO |
+| `backend/app/core/docs/gates.md` | ④ 回答ゲート・④' 情報なし検知 |
 | `grace/docs/executor.md` / `grace/docs/tools.md` / `grace/docs/llm_compat.md` | 実行エンジン・ツール・互換層の IPO |
 | `backend/docs/support_flow.md` | 複数質問（0-(A)）の設計（§6） |
 
@@ -389,3 +389,4 @@ print(result.confidence_factors)   # {'has_sources': True, 'source_count': 1, ..
 | 2.3 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
 | 2.4 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
 | 2.5 | 2026-10-08 | 現在の既定 LLM の記述を `claude-sonnet-5` から実装（`config.py::ModelConfig.DEFAULT_MODEL` / `config/grace_config.yml` の `llm.model`）どおり `claude-sonnet-5-5` へ是正（技術スタック・構成図・§5 の設定表）（2026-10-08） |
+| 2.6 | 2026-10-11 | backend のモジュール文書を移したのに追随（パスの付け替え） |

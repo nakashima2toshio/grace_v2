@@ -1,6 +1,6 @@
 # backend/docs 棚卸し・監査記録 ドキュメント
 
-**Version 1.21** | 最終更新: 2026-10-10
+**Version 1.22** | 最終更新: 2026-10-11
 
 > ⚠️ **本書は「監査記録」であって入口ではない。** 文書の地図と読む順路は
 > [`README.md`](./README.md) にある。ここには実装追随の照合結果・過去に見つかった
@@ -15,6 +15,11 @@
 > `review_spec.md` を `review_flow.md` v2.0 へ統合し、`verticals_and_rulesets.md` と
 > `testing.md` を新設した。本書の §2 の文書一覧は**再編前の構成のまま**なので、
 > **現在の構成は [`README.md`](./README.md) を見ること。**
+>
+> **2026-10-11 の再編**: `reference/` の 17 本を `backend/app/docs/`・`backend/app/api/docs/`・`backend/app/core/docs/` へ移し
+> （`reference/api_meta.md` → `backend/app/api/docs/meta.md` のように接頭辞を外した）、各ディレクトリに `README_<dir>.md` を置き、
+> 文書の無かった `review_facts.py` の文書を足した（`a_cross_doc_md_format.md` §1.1.2）。**本書の表の文書名（`api_*.md` / `core_*.md`）は当時の名前のまま**残している。
+> 2026-10-11 時点の網羅は 18 モジュール・257 シンボル / 未記載 0（[`README.md`](./README.md) §3.3）。
 >
 > **2026-09-16 の再編 Phase 3**: `reference/` の 17 文書へ位置づけヘッダーを追加した。
 > 計画していた「圧縮」は、実測（逐語重複 0〜1%・AST シンボル網羅 223/223）の結果
@@ -282,7 +287,7 @@ Mermaid 規約は `a_cross_doc_md_format.md` §10 の検証スクリプト、リ
 # 文書が STEP_IDS の 9 段すべてに触れているか
 grep -A 12 'STEP_IDS = (' backend/app/core/support_agent.py \
   | grep -oE '"[a-z_]+"' | tr -d '"' | while read -r s; do
-    grep -ql "$s" backend/docs/reference/core_support_agent.md || echo "未記載の段: $s"
+    grep -ql "$s" backend/app/core/docs/support_agent.md || echo "未記載の段: $s"
   done
 ```
 
@@ -344,3 +349,4 @@ grep -A 12 'STEP_IDS = (' backend/app/core/support_agent.py \
 | 1.19 | 2026-10-08 | 現在の既定 LLM の記述を `claude-sonnet-5` から実装（`config.py::ModelConfig.DEFAULT_MODEL` / `config/grace_config.yml` の `llm.model`）どおり `claude-sonnet-5-5` へ是正（冒頭の注記）（2026-10-08） |
 | 1.20 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |
 | 1.21 | 2026-10-10 | `grace/docs/` の構成整理（`README.md` → `README_grace.md`、`grace.md` / `grace_core.md` / `grace_runtime.md` / `confidence_calibration.md` を `README_grace.md` / `grace_process_flow.md` / `grace_data_flow.md` へ統合）に合わせてリンクを直した |
+| 1.22 | 2026-10-11 | backend のモジュール文書を `backend/docs/reference/` から `backend/app/docs/`・`backend/app/api/docs/`・`backend/app/core/docs/` へ移したのに追随（リンクの付け替え） |

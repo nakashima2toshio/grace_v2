@@ -1,16 +1,16 @@
 # core/gates.py - 回答ゲート・判定ロジック ドキュメント
 
-**Version 1.6** | 最終更新: 2026-10-08
+**Version 1.7** | 最終更新: 2026-10-11
 
 > **本書の位置づけ**: `backend/app/core/gates.py`（Support の判定ロジック（質問分析・回答ゲート・救済・情報なし検知））の **IPO リファレンス**。
 > 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。
 >
 > | 知りたいこと | 参照先 |
 > |---|---|
-> | 各段のどこで呼ばれるか | [`support_flow.md` §4](../support_flow.md) |
-> | なぜこの判定・しきい値なのか | [`support_flow.md` §5・§6](../support_flow.md) |
-> | モデル解決（`judge_model`） | [`config_and_providers.md` §2](../config_and_providers.md) |
-> | 文書全体の地図 | [`README.md`](../README.md) |
+> | 各段のどこで呼ばれるか | [`support_flow.md` §4](../../../docs/support_flow.md) |
+> | なぜこの判定・しきい値なのか | [`support_flow.md` §5・§6](../../../docs/support_flow.md) |
+> | モデル解決（`judge_model`） | [`config_and_providers.md` §2](../../../docs/config_and_providers.md) |
+> | 文書全体の地図 | [`README.md`](../../../docs/README.md) |
 
 ---
 
@@ -272,12 +272,21 @@ style CITE fill:#1a1a1a,stroke:#fff,color:#fff
 | `_merge_citations(internal, web)` | 内部と Web の出典を重複なく結合 |
 | `_web_citations(web_output)` | Web 検索結果から出典表示を作る |
 | `_web_source_texts(web_output)` | Web 検索結果の本文を抽出 |
+| `drop_uncited_web_citations(citations, answer)` | 回答本文で引用していない Web 出典を、引用していないと言えるときだけ表示から外す（`_CITATION_URL_RE` で URL を取り出す） |
 
 ---
 
 ## 4. クラス・関数 IPO詳細
 
 ### 4.1 使用例
+
+| # | パターン | いつ使うか | 例 |
+|---|---------|-----------|----|
+| 1 | **基本**: 回答ゲート（④） | decision / warning がどう決まるか | 4.1.1 |
+| 2 | 二段判定の第 1 段だけを使う（LLM を呼ばない） | キーワード・疑問符による判定を確かめる | 4.1.2 |
+| 3 | 出典の整形 | 画面の出典ラベルの形 | 4.1.3 |
+
+> 📝 **確かめ方（2026-10-11）**: 4.1.1〜4.1.3 はすべて `PYTHONPATH=. python3 <例>.py` で実行し、出力が記載どおりであることを確かめた（LLM は呼ばない）。
 
 #### 4.1.1 基本的なワークフロー（回答ゲート）
 
@@ -851,6 +860,45 @@ merged = _merge_citations(internal_citations, _web_citations(web_output))
 texts = _web_source_texts(web_output)  # verifier.verify() へ渡す
 ```
 
+#### `drop_uncited_web_citations`
+
+**概要**: 回答本文で引用していない Web 出典を、**引用していないと言えるときだけ**表示から外す。executor は回答に使ったかに関係なく
+検索した URL を出典へ積むため、無関係な Web ページが出典欄に並んでいた（実測 2026-10-04）。ゲートの**後**で表示用の出典にだけ当て、
+groundedness・救済・④' の判定は全出典で行う（呼び出しは `support_agent.py` の最後）。
+
+```python
+def drop_uncited_web_citations(citations: List[str], answer: Optional[str]) -> List[str]
+```
+
+| 本文 | 扱い |
+|---|---|
+| Web の URL を 1 つ以上引用している | 引用した Web 出典だけを残す |
+| 社内の出典だけを引用している | Web 出典をすべて外す |
+| どちらも引用していない | **何も外さない**（判断できない） |
+
+| 項目 | 内容 |
+|------|------|
+| **Input** | `citations`（`[社内] …` / `[Web] URL` / `[Web] タイトル（URL）`）、`answer`（回答本文） |
+| **Process** | 1. Web 出典から `_CITATION_URL_RE`（`https?://[^\s（）()]+`）で URL を取り出す（末尾の `/` を除き、URL エンコードの有無も吸収） 2. 本文に出てくる Web 出典・社内出典を調べる 3. 上の表で決める |
+| **Output** | `List[str]`（順序は保つ。URL を取り出せない Web 出典は残す） |
+
+```python
+from backend.app.core.gates import drop_uncited_web_citations
+
+cits = ["[社内] saas_docs.csv", "[Web] https://status.example.com/", "[Web] マス（https://ja.wikipedia.org/wiki/マス）"]
+print(drop_uncited_web_citations(cits, "障害情報は https://status.example.com を確認してください。出典: saas_docs.csv"))
+print(drop_uncited_web_citations(cits, "再起動で直ります。出典: saas_docs.csv"))   # 社内だけを引用 → Web をすべて外す
+print(drop_uncited_web_citations(cits, "再起動で直ります。"))                       # どちらも引用していない → 外さない
+
+# 実行結果:
+# ['[社内] saas_docs.csv', '[Web] https://status.example.com/']
+# ['[社内] saas_docs.csv']
+# ['[社内] saas_docs.csv', '[Web] https://status.example.com/', '[Web] マス（https://ja.wikipedia.org/wiki/マス）']
+```
+
+> ⚠️ 3 行目（どちらも引用していない）を「全部外す」にしないこと。⑤ Web フォールバックの回答を採用したのにモデルが URL を書かなかった場合、
+> Web 出典が消えて使っていない社内の出典だけが残る（`tests/test_uncited_web_citations.py`）。
+
 ---
 
 ## 5. 設定・定数
@@ -960,7 +1008,7 @@ create_intent_classifier, create_no_info_judge,
 _answer_gate, _should_force_escalate, _detect_no_info_answer,
 _should_rescue_unaffirmed, _pick_groundedness, _decide_action, _match_keyword,
 _collect_citations, _collect_source_texts, _citation_text, _merge_citations,
-_web_citations, _web_source_texts,
+_web_citations, _web_source_texts, drop_uncited_web_citations,
 NO_INFO_MARKERS
 ```
 
@@ -977,6 +1025,7 @@ NO_INFO_MARKERS
 | 1.4 | 2026-09-15 | **§4.1「使用例」を新設**（2026-09-15）。ドキュメント規約 `a_class_method_md_format.md` §6.1 が IPO 詳細セクション冒頭に必須としている代表ワークフローが欠落していた。回答ゲート（プロファイル別しきい値）・二段判定の第 1 段（LLM 不要）・出典整形の 3 本を追加し、**実行して出力を確認した**。旧 §4.1〜§4.3 は §4.2〜§4.4 へ繰り下げ |
 | 1.5 | 2026-09-16 | 3 階建て再編（`reference/` へ移設）に伴い、冒頭へ**位置づけと上位文書への導線**を追加した |
 | 1.6 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
+| 1.7 | 2026-10-11 | `backend/docs/reference/core_gates.md` から移した（`a_cross_doc_md_format.md` §1.1.2。リンクを付け替えた）。§4.1 の 3 例を実行して記載どおりであることを確かめ、パターンの表を追加。未記載だった `drop_uncited_web_citations`（回答本文で引用していない Web 出典を表示から外す）と `_CITATION_URL_RE` を §3・§4.4 に追加した（例は実行で確かめた） |
 
 ---
 

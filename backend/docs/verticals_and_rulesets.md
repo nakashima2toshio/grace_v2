@@ -1,6 +1,6 @@
 # 業界プロファイルとルールセット ドキュメント
 
-**Version 1.2** | 最終更新: 2026-10-10
+**Version 1.3** | 最終更新: 2026-10-11
 
 > **本書の位置づけ**: GRACE-Support の**業界プロファイル**（`VerticalProfile`・gov / saas / ec）と、
 > GRACE-Review の**ルールセット**（`RuleSet`・ec_ad）の**カタログ**。
@@ -8,8 +8,8 @@
 >
 > ⚠️ **実装の値（フィールド定義・ルール本文・キーワード）は本書に複製しない。**
 > 正本は `backend/app/core/verticals.py` / `backend/app/core/rulesets.py` と、
-> その IPO 文書（[`reference/core_verticals.md`](./reference/core_verticals.md) /
-> [`reference/core_rulesets.md`](./reference/core_rulesets.md)）である。
+> その IPO 文書（[`core/docs/verticals.md`](../app/core/docs/verticals.md) /
+> [`core/docs/rulesets.md`](../app/core/docs/rulesets.md)）である。
 > 同じ表を 2 箇所に持つと必ず片方が腐る（実例は §2.3 の注記）。
 
 > **関連ドキュメント**
@@ -302,7 +302,7 @@ style PROF fill:#1a1a1a,stroke:#fff,color:#fff
 共通コードは変えず、**プロファイルを渡すだけ**で切り替える設計。
 
 > 📎 `VerticalProfile` の**実際のフィールド定義**は
-> [`core_verticals.md`](./reference/core_verticals.md) が正本（本書は設計意図のみを持つ）。
+> [`core/docs/verticals.md`](../app/core/docs/verticals.md) が正本（本書は設計意図のみを持つ）。
 > 設計時の案にあった `sample_queries` / `kpi` は、評価基盤を持たないため実装していない。
 
 **適用ポイント（GRACE-Support への差し込み）**:
@@ -404,7 +404,7 @@ RuleSet(
 ため、条文の要点を自己完結的に書く。
 
 **正本は `backend/app/core/rulesets.py`。** ルール ID・条項・severity・キーワードの一覧は
-[`core_rulesets.md` §5.4](./reference/core_rulesets.md#54-ルール一覧23-件) にある。
+[`core/docs/rulesets.md` §5.4](../app/core/docs/rulesets.md#54-ルール一覧23-件) にある。
 
 > ⚠️ **本書はキーワードの一覧を持たない。** 以前は 21 行の表で `keywords` まで複製していたが、
 > **実装が更新されるたびに必ず腐った**。2026-09-15 の実測では、キーワードを持つ 15 ルール
@@ -496,7 +496,7 @@ RuleSet(
 3. 「表記漏れ」を見る種類のルールは `always_check=True` にし、`keywords` は**持たせない**
    （排他は `tests/test_rulesets.py` が固定している）
 4. 件数・`always_check` / `web_check` の数を変えたら、
-   [`reference/core_rulesets.md`](./reference/core_rulesets.md) の一覧を追随させる
+   [`core/docs/rulesets.md`](../app/core/docs/rulesets.md) の一覧を追随させる
 5. 法務監修を通す（**本ルールセットは技術検証用のサンプルである**）
 
 ---
@@ -508,3 +508,4 @@ RuleSet(
 | 1.0 | 2026-09-16 | 新規作成。`support_spec.md` §6（業界特化）と `review_spec.md` §5（RuleSet 定義）を統合し、増やし方（§3）を追加した |
 | 1.1 | 2026-09-24 | `a_cross_doc_md_format.md` v1.1（種別 A）に準拠（2026-09-24）。概要（主な責務／各責務対応のモジュール／3 層のアーキテクチャ構成図）を追加し、本文の章番号は変えていない |
 | 1.2 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |
+| 1.3 | 2026-10-11 | backend のモジュール文書を `backend/docs/reference/` から `backend/app/docs/`・`backend/app/api/docs/`・`backend/app/core/docs/` へ移したのに追随（リンクの付け替え） |

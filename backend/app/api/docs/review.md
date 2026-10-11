@@ -1,16 +1,16 @@
 # api/review.py - 文書レビュー API ドキュメント
 
-**Version 1.4** | 最終更新: 2026-10-10
+**Version 1.5** | 最終更新: 2026-10-11
 
 > **本書の位置づけ**: `backend/app/api/review.py`（Review のジョブ起動 / SSE / HITL / 結果取得）の **IPO リファレンス**。
 > 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。
 >
 > | 知りたいこと | 参照先 |
 > |---|---|
-> | エンドポイントと SSE の契約 | [`api_contract.md` §1.2](../api_contract.md) |
-> | ジョブ・SSE・HITL の機構 | [`job_runtime.md`](../job_runtime.md) |
-> | パイプラインの中身（S1・①〜⑦） | [`review_flow.md`](../review_flow.md) |
-> | 文書全体の地図 | [`README.md`](../README.md) |
+> | エンドポイントと SSE の契約 | [`api_contract.md` §1.2](../../../docs/api_contract.md) |
+> | ジョブ・SSE・HITL の機構 | [`job_runtime.md`](../../../docs/job_runtime.md) |
+> | パイプラインの中身（S1・①〜⑦） | [`review_flow.md`](../../../docs/review_flow.md) |
+> | 文書全体の地図 | [`README.md`](../../../docs/README.md) |
 
 ---
 
@@ -252,36 +252,84 @@ style CORE fill:#1a1a1a,stroke:#fff,color:#fff
 
 ### 4.1 使用例
 
+| # | パターン | いつ使うか | 例 |
+|---|---------|-----------|----|
+| 1 | **基本**: 文書を投げる → SSE で 9 ステップ → 指摘一覧 | 1 回のレビューの往復を確かめる | 4.1.1 |
+| 2 | ルールセット一覧とエラー応答 | セレクタの選択肢・入力の誤りを確かめる | 4.1.2 |
+
+> 📝 **確かめ方（2026-10-11）**: 4.1.1・4.1.2 はどちらも `PYTHONPATH=. python3 <例>.py` で実行した。4.1.1 は、API キーと Qdrant が要る本物の runner を
+> **同じ契約 `(params, emit, confirm) -> dict` の偽物**に差し替え（`register_runner()`。[`core/docs/jobs.md`](../../core/docs/jobs.md)）、
+> ルーター・ジョブ基盤・SSE・HITL の橋渡しは本物のまま通した。
+
 #### 4.1.1 基本的なワークフロー（文書を投げて指摘を受け取る）
 
-> 📌 **`TestClient` を使うとサーバを起動せずに試せる**（実 API キー・Qdrant 不要の範囲）。
-> 実サーバへ投げるなら `./run_dev.sh` の後に `curl http://localhost:8000/...`。
+> ⚠️ **SSE を逐次読むには本物のサーバが要る。** `fastapi.testclient.TestClient` は応答を最後まで溜めてから返すので、
+> 承認待ちで止まるジョブの SSE を `TestClient` で読むと、承認を送れないままタイムアウト（安全側の CANCEL）まで待つことになる
+> （2026-10-11 に実測）。下の例は同じプロセスで uvicorn を起動し、`httpx` で読む。画面（`EventSource`）と同じ読み方である。
 
 ```python
-from fastapi.testclient import TestClient
+import json, threading, time
+
+import httpx
+import uvicorn
+
+from backend.app.core.review_agent import REVIEW_STEP_IDS, ReviewParams
+from backend.app.core.jobs import register_runner
+from backend.app.core.support_agent import SupportEvent
 from backend.app.main import app
 
-c = TestClient(app)
 
-# 1. 文書とルールセットを指定してジョブを起動する（202）
-r = c.post("/api/review/submit", json={
-    "document": "業界最高の保湿力を実現しました。",
-    "ruleset": "ec_ad",
-})
-job_id = r.json()["job_id"]
+# 本物の runner（run_review_agent_core）は API キーと Qdrant が要るので、
+# 同じ契約 (params, emit, confirm) -> dict の偽物へ差し替える
+def fake_runner(params, emit, confirm):
+    for step in REVIEW_STEP_IDS:
+        emit(SupportEvent(type="step", step=step, status="finished"))
+    doc = params.document
+    i = doc.index("業界最高")
+    return {"document_title": "例文", "ruleset": params.ruleset,
+            "findings": [{"finding_id": "f1", "segment_id": "s1", "excerpt": "業界最高",
+                          "start": i, "end": i + 4, "rule_id": "keihyo-01",
+                          "rule_title": "優良誤認表示", "category": "優良誤認",
+                          "law": "景品表示法", "article": "第5条第1号",
+                          "message": "根拠の無い最上級表現", "suggestion": "根拠を示す",
+                          "severity": "high", "status": "confirmed"}],
+            "summary": {"high": 1, "confirmed": 1}}
 
-# 2. 進捗を SSE で購読する（S1・①〜⑦ の 9 ステップ）
-with c.stream("GET", f"/api/review/stream/{job_id}") as s:
-    for line in s.iter_lines():
-        ...
+register_runner(ReviewParams, fake_runner, "review")
 
-# 3. 最終結果（指摘一覧とサマリ）
-result = c.get(f"/api/review/result/{job_id}").json()["result"]
-print(result["summary"], len(result["findings"]))
+# SSE は本物のサーバでないと逐次届かない（TestClient は応答を最後まで溜めてから返す）
+server = uvicorn.Server(uvicorn.Config(app, port=8767, log_level="warning"))
+threading.Thread(target=server.run, daemon=True).start()
+while not server.started:
+    time.sleep(0.05)
+
+with httpx.Client(base_url="http://127.0.0.1:8767", trust_env=False) as c:
+    # 1. 文書とルールセットを指定してジョブを起動する（202）
+    r = c.post("/api/review/submit", json={"document": "業界最高の保湿力を実現しました。",
+                                           "ruleset": "ec_ad"})
+    job_id = r.json()["job_id"]
+    print(r.status_code, r.json()["stream_url"].rsplit("/", 1)[0])
+
+    # 2. 進捗を SSE で購読する（S1・①〜⑦ の 9 ステップ → 終端の done）
+    with c.stream("GET", f"/api/review/stream/{job_id}") as s:
+        steps = [json.loads(l[6:]).get("step") or json.loads(l[6:])["type"]
+                 for l in s.iter_lines() if l.startswith("data: ")]
+    print(steps)
+
+    # 3. 最終結果（指摘一覧とサマリ）
+    result = c.get(f"/api/review/result/{job_id}").json()["result"]
+    f = result["findings"][0]
+    print(result["summary"], f["rule_id"], f["severity"], f["excerpt"], (f["start"], f["end"]))
+server.should_exit = True
+
+# 実行結果:
+# 202 /api/review/stream
+# ['ruleset', 'segment', 'retrieve', 'detect', 'ground', 'suppress', 'web', 'severity', 'action', 'done']
+# {'high': 1, 'medium': 0, 'low': 0, 'confirmed': 1, 'review_required': 0, 'suppressed': 0} keihyo-01 high 業界最高 (0, 4)
 ```
 
-> ⚠️ **上のコードだけは実行して出力を確認していない**（実 API キーと Qdrant を要するため）。
-> 以下 4.1.2 は外部依存なしで動き、出力例は実測値である。
+> 📌 ステップの順は `review_agent.REVIEW_STEP_IDS`（S1・①〜⑦。番号は Support との対応を示す呼称で、実行順とは一致しない）。
+> 結果の `result` は `ReviewResultModel` で検証される（`summary` の欠けた件数は 0 で埋まる）。`start` / `end` は原文の文字オフセットで、画面のハイライトに使う。
 
 #### 4.1.2 ルールセット一覧とエラー応答
 
@@ -539,6 +587,7 @@ const unsubscribe = subscribeStream(
 | 1.2 | 2026-09-16 | 3 階建て再編（`reference/` へ移設）に伴い、冒頭へ**位置づけと上位文書への導線**を追加した |
 | 1.3 | 2026-10-08 | SSE の keepalive を名前付きイベントへ変更したのに追随 |
 | 1.4 | 2026-10-10 | 概要の「各責務対応のモジュール」を「主な責務」（5 項目）と 1:1 に揃えた（「入出力スキーマ」「パイプライン実行」は責務 1・4 の説明へ移し、欠けていた 404 応答の行を足した）。変更履歴を 3 列へ移した |
+| 1.5 | 2026-10-11 | `backend/docs/reference/api_review.md` から移した（`a_cross_doc_md_format.md` §1.1.2。リンクを付け替えた）。§4.1.1 を実行できる形に作り直した（偽物の runner＋uvicorn＋httpx で 9 ステップの SSE と指摘一覧を通した）。パターンの表を追加 |
 
 ---
 

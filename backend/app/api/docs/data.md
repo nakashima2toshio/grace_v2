@@ -1,21 +1,21 @@
 # api/data.py - データ準備ジョブ API ドキュメント
 
-**Version 1.5** | 最終更新: 2026-10-09
+**Version 1.6** | 最終更新: 2026-10-11
 
 > **本書の位置づけ**: `backend/app/api/data.py`（データ準備 4 ジョブの起動と共通 SSE / HITL）の **IPO リファレンス**。
 > 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。
 >
 > | 知りたいこと | 参照先 |
 > |---|---|
-> | エンドポイント一覧と CONFIRM の要否 | [`api_contract.md` §1.3](../api_contract.md) |
-> | パイプラインの中身 | [`data_pipeline.md`](../data_pipeline.md) |
-> | ジョブ基盤 | [`job_runtime.md`](../job_runtime.md) |
-> | 文書全体の地図 | [`README.md`](../README.md) |
+> | エンドポイント一覧と CONFIRM の要否 | [`api_contract.md` §1.3](../../../docs/api_contract.md) |
+> | パイプラインの中身 | [`data_pipeline.md`](../../../docs/data_pipeline.md) |
+> | ジョブ基盤 | [`job_runtime.md`](../../../docs/job_runtime.md) |
+> | 文書全体の地図 | [`README.md`](../../../docs/README.md) |
 
 > **参考ドキュメント**
-> - [`backend/docs/reference/core_data_jobs.md`](./core_data_jobs.md) — 各ジョブの runner 実装
-> - [`backend/docs/reference/core_jobs.md`](./core_jobs.md) — ジョブ基盤（`JobManager` / SSE / HITL ブリッジ）
-> - [`backend/docs/data_pipeline.md`](../data_pipeline.md) — データ準備パイプライン全体の設計
+> - [`backend/app/core/docs/data_jobs.md`](../../core/docs/data_jobs.md) — 各ジョブの runner 実装
+> - [`backend/app/core/docs/jobs.md`](../../core/docs/jobs.md) — ジョブ基盤（`JobManager` / SSE / HITL ブリッジ）
+> - [`backend/docs/data_pipeline.md`](../../../docs/data_pipeline.md) — データ準備パイプライン全体の設計
 
 ---
 
@@ -147,59 +147,120 @@ style EXT fill:#1a1a1a,stroke:#fff,color:#fff
 
 ### 3.1 使用例
 
-#### 3.1.1 基本的なワークフロー（入力ファイルの確認 → チャンク化）
+| # | パターン | いつ使うか | 例 |
+|---|---------|-----------|----|
+| 1 | **基本**: 入力ファイルの確認 → ジョブ起動 → SSE → 結果 | 非破壊のジョブ（チャンク化・Q/A 生成）を動かす | 3.1.1 |
+| 2 | 破壊的な操作は CONFIRM を通る（拒否 → 承認） | 削除・`recreate=True` の登録 | 3.1.2 |
 
-> 📌 **`TestClient` を使うとサーバを起動せずに試せる**（実 API キー・Qdrant 不要の範囲）。
-> 実サーバへ投げるなら `./run_dev.sh` の後に `curl http://localhost:8000/...`。
+> 📝 **確かめ方（2026-10-11）**: どちらも `PYTHONPATH=. python3 <例>.py` で実行した。3.1.1 は LLM を呼ぶ手前で失敗する入力にしてある（API キーの有無で 2 通り）。
+> 3.1.2 は VM の実物の Qdrant（`docker compose` で起動）に 4 次元の一時コレクションを作り、本物の削除ジョブで消した。
+
+#### 3.1.1 基本: 入力ファイルの確認 → ジョブ起動 → SSE → 結果
 
 ```python
+import json
 from fastapi.testclient import TestClient
 from backend.app.main import app
 
 c = TestClient(app)
 
-# 1. 入力候補を見る（許可ディレクトリの外は列挙も取得もできない）
-print(c.get("/api/files").json())
+# 1. 入力候補を見る（許可ディレクトリの中だけ。?dir= で切り替える）
+files = c.get("/api/files", params={"dir": "OUTPUT"}).json()
+print(files["allowed_dirs"], [f["path"] for f in files["files"]][:2])
 
-# 2. チャンク化ジョブを起動する（202 + job_id）
-r = c.post("/api/chunking/run", json={"input_file": "OUTPUT/cc_news_1per.csv"})
+# 2. ジョブを起動する（入力の検証は runner 側。ここでは常に 202 + job_id）
+r = c.post("/api/chunking/run", json={"input_file": "../etc/passwd"})
+print(r.status_code, r.json()["stream_url"].rsplit("/", 1)[0])
 job_id = r.json()["job_id"]
 
-# 3. 進捗を SSE で購読し、4. 結果を取る
-#    GET /api/data/stream/{job_id} → GET /api/data/result/{job_id}
+# 3. SSE を読む（承認待ちの無いジョブなら TestClient でも最後まで読める）
+with c.stream("GET", f"/api/data/stream/{job_id}") as s:
+    for line in s.iter_lines():
+        if line.startswith("data: "):
+            ev = json.loads(line[6:])
+            print(ev["type"], ev.get("status"), ev.get("message", "")[:60])
 
-# 出力例（入力ディレクトリが空の環境で実測）:
-# {'dir': 'OUTPUT', 'allowed_dirs': ['OUTPUT', 'output_chunked', 'qa_output', 'datasets'], 'files': []}
+# 4. 結果を取る
+res = c.get(f"/api/data/result/{job_id}").json()
+print(res["status"], res["kind"], res["result"])
+
+# 実行結果（ANTHROPIC_API_KEY が無い環境）:
+# ['OUTPUT', 'output_chunked', 'qa_output', 'datasets'] ['OUTPUT/cc_news_2per_768.csv', 'OUTPUT/cc_news_2per.csv']
+# 202 /api/data/stream
+# error None ⚠️ ANTHROPIC_API_KEY が未設定です。.env に設定してください。
+# done failed
+# failed chunking None
+#
+# 実行結果（キーがある環境。入力パスの検証で止まる）:
+# 202 /api/data/stream
+# step started
+# error None ❌ 入力ファイルを開けません: 入力パスは 'ディレクトリ名/ファイル名' の形式で指定してください: '../etc/
+# done failed
+# failed chunking None
 ```
 
-> ⚠️ **`allowed_dirs` の外は弾かれる。** パスはホワイトリストで検証しており、
-> `../` を含む指定は `PathNotAllowedError` になる（`services/data_pipeline_service.py`）。
+> ⚠️ **入力ファイルの誤りは 400 ではなく、ジョブの失敗（`error` イベント → `status: failed`）で返る。** 検証は runner（`core/data_jobs.py`）が行い、
+> 4 種の API を同じ形（常に 202）にそろえている。許可ディレクトリの外・`../` を含む指定は `services/data_pipeline_service.py` のホワイトリストで弾く。
+> 実際にチャンク化まで進めると LLM を呼ぶ（課金される）。画面から流す手順は [`backend/docs/data_pipeline.md` §5](../../../docs/data_pipeline.md#5-使用例)。
 
 #### 3.1.2 破壊的操作は CONFIRM を通る
 
-削除は常に、登録は `recreate=True` のときだけ承認待ちになる。
+削除は常に、登録は `recreate=True` のときだけ承認待ちになる。承認しなければ（拒否・タイムアウト）実行しない。
+
+> ⚠️ **承認待ちになるジョブの SSE は本物のサーバで読む。** `TestClient` は応答を最後まで溜めてから返すので、承認を送れないまま
+> タイムアウト（安全側＝実行しない）まで待つことになる（[`support.md` §4.1.1](support.md#41-使用例)）。
 
 ```python
-from fastapi.testclient import TestClient
+import json, threading, time
+
+import httpx
+import uvicorn
+from qdrant_client import QdrantClient
+from qdrant_client.models import Distance, VectorParams
+
 from backend.app.main import app
 
-c = TestClient(app)
+# 例のための一時コレクション（4 次元・空）
+q = QdrantClient(url="http://localhost:6333")
+q.create_collection("datadoc_demo", vectors_config=VectorParams(size=4, distance=Distance.COSINE))
 
-# 1. 削除ジョブを起動する
-r = c.post("/api/qdrant/delete", json={"collections": ["demo_anthropic"]})
-job_id = r.json()["job_id"]
+# SSE を逐次読むため本物のサーバで起動する（TestClient は応答を溜めてから返す）
+server = uvicorn.Server(uvicorn.Config(app, port=8768, log_level="warning"))
+threading.Thread(target=server.run, daemon=True).start()
+while not server.started:
+    time.sleep(0.05)
 
-# 2. SSE に intervention イベントが流れるので、intervention_id を取り承認する
-c.post(f"/api/data/confirm/{job_id}",
-       json={"intervention_id": "...", "approve": True})
 
-# 3. 承認しなければ削除は実行されない（タイムアウトは安全側＝実行しない）
-print(c.get("/api/data/result/unknown").status_code)
+def delete(c, approve):
+    """削除ジョブを起動し、承認待ちが来たら approve を返して、結果を返す。"""
+    job_id = c.post("/api/qdrant/delete", json={"collections": ["datadoc_demo"]}).json()["job_id"]
+    with c.stream("GET", f"/api/data/stream/{job_id}") as s:
+        for line in s.iter_lines():
+            if not line.startswith("data: "):
+                continue
+            ev = json.loads(line[6:])
+            if ev["type"] == "intervention" and ev["status"] == "waiting":
+                print("  承認待ち:", ev["message"].splitlines()[0])
+                c.post(f"/api/data/confirm/{job_id}",
+                       json={"intervention_id": ev["data"]["intervention_id"], "approve": approve})
+    return c.get(f"/api/data/result/{job_id}").json()
 
-# 出力例:
-# 404
+
+with httpx.Client(base_url="http://127.0.0.1:8768", trust_env=False) as c:
+    for approve in (False, True):
+        res = delete(c, approve)
+        print(f"approve={approve}:", res["status"], res["result"],
+              "残っている" if q.collection_exists("datadoc_demo") else "消えた")
+server.should_exit = True
+
+# 実行結果:
+#   承認待ち: コレクション 1 件（datadoc_demo）を削除します。合計 0 件のデータが失われ、元に戻せません。実行してよろしいですか？
+# approve=False: completed {'kind': 'delete', 'deleted': [], 'failed': [], 'missing': [], 'cancelled': True, 'reason': '承認されませんでした'} 残っている
+#   承認待ち: コレクション 1 件（datadoc_demo）を削除します。合計 0 件のデータが失われ、元に戻せません。実行してよろしいですか？
+# approve=True: completed {'kind': 'delete', 'deleted': ['datadoc_demo'], 'failed': [], 'missing': [], 'cancelled': False, 'total_points': 0} 消えた
 ```
 
+> 📌 拒否しても `status` は `completed`（ジョブ自体は正常に終わり、`result.cancelled` が `True`）。承認待ちのメッセージには失われる件数が入る。
 
 ### 3.2 `run_chunking`
 
@@ -369,3 +430,4 @@ curl http://localhost:8000/api/data/result/<job_id>
 | 1.3 | 2026-09-16 | 3 階建て再編（`reference/` へ移設）に伴い、冒頭へ**位置づけと上位文書への導線**を追加した |
 | 1.4 | 2026-10-08 | SSE の keepalive を名前付きイベントへ変更したのに追随（姉妹リポジトリ grace_v2_local で、長い処理中に画面への配信が黙って止まった件の移植。フロントは 60 秒無音で張り直す） |
 | 1.5 | 2026-10-09 | `POST /api/qa/generate` の入力から `batch_chunks` を削除したのに追随（2026-10-09） |
+| 1.6 | 2026-10-11 | `backend/docs/reference/api_data.md` から移した（`a_cross_doc_md_format.md` §1.1.2。リンクを付け替えた）。§3.1 を作り直した。3.1.1 は入力の誤りが 400 ではなくジョブの失敗で返ることを実行で確かめ、3.1.2 は実物の Qdrant に一時コレクションを作って削除ジョブの拒否 → 承認を通した（以前の例は承認の往復を実行していなかった） |

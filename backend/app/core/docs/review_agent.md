@@ -1,16 +1,16 @@
 # core/review_agent.py - GRACE-Review コアパイプライン ドキュメント
 
-**Version 1.6** | 最終更新: 2026-10-10
+**Version 1.7** | 最終更新: 2026-10-11
 
 > **本書の位置づけ**: `backend/app/core/review_agent.py`（GRACE-Review のコアパイプライン（`run_review_agent_core`））の **IPO リファレンス**。
 > 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。
 >
 > | 知りたいこと | 参照先 |
 > |---|---|
-> | 各段の IPO と設計仕様 | [`review_flow.md` §4](../review_flow.md) |
-> | ルールセットの中身 | [`verticals_and_rulesets.md` §2](../verticals_and_rulesets.md) |
-> | ジョブ・SSE・HITL の機構 | [`job_runtime.md`](../job_runtime.md) |
-> | 文書全体の地図 | [`README.md`](../README.md) |
+> | 各段の IPO と設計仕様 | [`review_flow.md` §4](../../../docs/review_flow.md) |
+> | ルールセットの中身 | [`verticals_and_rulesets.md` §2](../../../docs/verticals_and_rulesets.md) |
+> | ジョブ・SSE・HITL の機構 | [`job_runtime.md`](../../../docs/job_runtime.md) |
+> | 文書全体の地図 | [`README.md`](../../../docs/README.md) |
 
 ---
 
@@ -350,6 +350,15 @@ style REG fill:#1a1a1a,stroke:#fff,color:#fff
 | `forced_high` | int | `0` | 強制 high にした数 |
 | `truncated` | bool | `False` | ガード上限で打ち切ったか |
 
+#### `_Job` / `_Judged`（dataclass・内部）
+
+③ Detect と ④ Ground を並列に流すための作業単位（§5.4）。
+
+| クラス | フィールド | 概要 |
+|---|---|---|
+| `_Job` | `rule` / `target` / `citations` / `source_texts` | 1 ルール × 1 判定単位（② Retrieve 済み）。`target` はセグメントまたは文書全体の擬似セグメント |
+| `_Judged` | `job` / `verdict` / `finding` / `gres` / `rate`（既定 0.0）/ `fact_note`（既定 ""） | `_Job` の ③・④ の結果。違反なしなら `finding` / `gres` は `None`。`rate` は判定率で割り引いた支持率、`fact_note` は文字列の事実で ③ を補ったときの説明（ログ用） |
+
 ### 3.2 関数一覧（カテゴリ別）
 
 #### 公開関数
@@ -373,6 +382,10 @@ style REG fill:#1a1a1a,stroke:#fff,color:#fff
 | `_document_segment(document)` | **文書全体**を 1 つの判定単位として表す擬似セグメント（表記漏れ判定用） |
 | `_is_too_broad(excerpt, document)` | 文書全体スコープの `excerpt` が「該当箇所」として広すぎるか |
 | `_web_crosscheck(tool_registry, findings, ruleset, log)` | ⑥ 法改正を確認する |
+| `_judge_workers()` | ③・④ の並列ワーカー数（環境変数 `GRACE_REVIEW_WORKERS`。§5.4） |
+| `_web_timeout()` | ⑥ Web 裏取り全体の待ち時間の上限（環境変数 `GRACE_REVIEW_WEB_TIMEOUT`。§5.4） |
+| `_apply_missing_fact(rule, document, verdict)` | 文字列で決まる「書かれていない」事実で ③ の取りこぼしを補う（tokusho-01 の購入時の送料。§5.5） |
+| `_document_context(document, document_title)` | 段落単位の ③ に添える「文書の文脈」（題名＋冒頭 `DOCUMENT_CONTEXT_CHARS` 文字。§5.5） |
 | `_summarize(findings, suppressed)` | 件数サマリを作る |
 | `_decide_review_action(result)` | ⑦ 実行アクションを決める |
 | `_build_report(result)` | 指摘レポート（Markdown）を作る |
@@ -384,7 +397,50 @@ style REG fill:#1a1a1a,stroke:#fff,color:#fff
 
 ### 4.1 使用例
 
-#### 4.1.1 基本的なワークフロー（① 文書分割）
+| # | パターン | いつ使うか | 例 |
+|---|---------|-----------|----|
+| 1 | **基本**: `run_review_agent_core()` で 1 周流す（テストと同じスタブ） | 文書 → 指摘の流れとイベントを確かめる | 4.1.1 |
+| 2 | ① 文書分割だけを使う（`split_segments`。LLM を呼ばない） | 指摘の位置（原文オフセット）を確かめる | 4.1.2 |
+| 3 | ステップ ID と UI タイムラインの対応 | 画面のタイムラインとの対応を見る | 4.1.3 |
+
+> 📝 **確かめ方（2026-10-11）**: 4.1.1〜4.1.3 は `PYTHONPATH=. python3 <例>.py` で実行した。本物の ②〜④ は API キーと Qdrant（規程コレクション）が要るので、
+> 4.1.1 は `tests/conftest.py` のスタブで差し替えている。実データで流すときは E2E（`GRACE_E2E=1`。[`backend/docs/testing.md`](../../../docs/testing.md) §1.2）を使う。
+
+#### 4.1.1 基本: `run_review_agent_core()` で 1 周流す
+
+Web API の runner（`_review_runner`）と同じ関数を呼ぶ。`tests/conftest.py` の `install_review_stub()` は、② 検索・③ 判定・④ 根拠検証・⑦ 実行を
+固定応答へ差し替える（テストの `review_stub` フィクスチャの中身）。既定の ③ は「重大リスク語を含むセグメントだけ違反」とする素朴な判定器である。
+
+```python
+import pytest
+
+from backend.app.core.review_agent import run_review_agent_core
+from tests.conftest import _default_review_stub, install_review_stub
+
+# テストと同じスタブ（② 検索 / ③ 判定 / ④ 根拠検証 / ⑦ 実行）を差し込む
+mp = pytest.MonkeyPatch()
+install_review_stub(mp, _default_review_stub())
+
+doc = "春の新商品LP\n\n業界最高の保湿力を実現しました。\n- 返品は7日以内に限ります"
+events = []
+result = run_review_agent_core(doc, ruleset="ec_ad", emit=events.append)
+print(result.summary)
+for f in result.findings:
+    print(f.rule_id, f.severity, f.status, repr(doc[f.start:f.end]))
+print([f"{e.step}:{e.status}" for e in events if e.type == "step" and e.status != "started"])
+mp.undo()
+
+# 実行結果:
+# FindingSummary(high=1, medium=0, low=0, confirmed=1, review_required=0, suppressed=0)
+# keihyo-01 high confirmed '最高'
+# ['ruleset:finished', 'segment:finished', 'retrieve:finished', 'detect:finished', 'ground:finished', 'suppress:finished', 'web:skipped', 'severity:finished', 'action:finished']
+```
+
+> 📌 本物を呼ぶときも形は同じ（`run_review_agent_core(doc, ruleset="ec_ad", emit=..., confirm=...)`）。API キーが無いと例外を出さず `None` を返す。
+> `confirm` を省くと承認は自動（`dry_run=True` が既定なので ⑦ の実行は `[DRY-RUN]`）。Web API からは `InterventionBridge.resolver` を渡す。
+
+
+#### 4.1.2 基本的なワークフロー（① 文書分割）
 
 `split_segments()` は **LLM を呼ばない決定的な純関数**なので、単体で試せる。
 `run_review_agent_core()` 全体は Qdrant と API キーを要するため、
@@ -419,7 +475,7 @@ for s in segments:
 > ⚠️ **見出し・箇条書きは 1 行 1 セグメント**になる（段落としてまとめない）。
 > 指摘の位置を行単位で示せるようにするためで、`max_chars` を超える段落は文末で再分割される。
 
-#### 4.1.2 ステップ ID と UI タイムラインの対応
+#### 4.1.3 ステップ ID と UI タイムラインの対応
 
 ```python
 from backend.app.core.review_agent import REVIEW_STEP_IDS
@@ -432,7 +488,7 @@ print(REVIEW_STEP_IDS)
 
 > ⚠️ **番号（S1・①〜⑦）は Support との対応を示す呼称で、実行順とは一致しない。**
 > 上のタプルが実行順であり、**⑥ `web` が ⑤ `severity` より先**に来る。
-> UI のタイムラインもこの並びで描画される（[`review_flow.md`](../review_flow.md) §概要）。
+> UI のタイムラインもこの並びで描画される（[`review_flow.md`](../../../docs/review_flow.md) §概要）。
 
 
 ### 4.2 ① 文書分割
@@ -746,6 +802,47 @@ REVIEW_STEP_IDS = (
 > 上限を置かずに本番投入してはならない。入力段では `schemas.MAX_DOCUMENT_CHARS`（50,000）が
 > 二重に効く。
 
+### 5.4 並列数と Web 裏取りの待ち時間
+
+| 定数・関数 | 既定 | 環境変数 | 不正値・範囲外のとき |
+|---|---|---|---|
+| `DEFAULT_JUDGE_WORKERS` / `_judge_workers()` | `4` | `GRACE_REVIEW_WORKERS` | 数値でない・空 → 既定の `4`。0 以下 → `1`（完全に直列） |
+| `DEFAULT_WEB_TIMEOUT` / `_web_timeout()` | `5.0` 秒 | `GRACE_REVIEW_WEB_TIMEOUT` | 数値でない・空・0 以下 → 既定の `5.0`（無制限にしない） |
+
+```python
+import os
+from backend.app.core import review_agent as ra
+
+for v in ("8", "0", "abc"):
+    os.environ["GRACE_REVIEW_WORKERS"] = v
+    print("workers", repr(v), ra._judge_workers())
+os.environ["GRACE_REVIEW_WEB_TIMEOUT"] = "0"
+print("timeout", ra._web_timeout())
+
+# 実行結果（2026-10-11）:
+# workers '8' 8
+# workers '0' 1
+# workers 'abc' 4
+# timeout 5.0
+```
+
+> ⚠️ `_judge_workers()` の docstring は「不正値・0 以下は既定値ではなく直列（1）へ倒す」と書くが、実装は**数値でないときは既定の 4**、
+> 0 以下のときだけ 1 である（上の実行結果）。上げすぎると API のレート制限に当たる。
+> Web 裏取りの 5 秒は実測から決めた値（返る検索は 0.16〜1.7 秒、遅い検索は 14.8 秒以上で中間が無い。コードのコメント）。
+
+### 5.5 ③ Detect の補い（文字列の事実・文書の文脈）
+
+| 定数 | 値 | 用途 |
+|---|---|---|
+| `_MISSING_SHIPPING` | `DetectVerdict(violates=True, message="購入時の送料（…）が広告文に書かれていません。…", suggestion="「送料: 〇〇円」または「送料無料」…")` | `_apply_missing_fact()` が LLM の「違反なし」を置き換える判定（tokusho-01） |
+| `DOCUMENT_CONTEXT_CHARS` | `600` | `_document_context()` が添える本文の上限。超えたら `…（以下略）` を付けて切る |
+
+- `_apply_missing_fact(rule, document, verdict)` は、`rule.missing_fact_check == "purchase_shipping"` で、LLM が「違反なし」と答え、
+  `review_facts.purchase_shipping_shown(document)` が `False` のときだけ `(_MISSING_SHIPPING, 説明)` を返す。LLM が違反ありとした・
+  判定に失敗した（`verdict is None`）ときは補わない（[`review_facts.md`](review_facts.md)）。
+- `_document_context(document, title)` は `題名: …`（題名が空・`無題` なら付けない）と冒頭 600 文字を返す。段落だけでは商品の種類が分からず、
+  食品のルールで化粧品を指摘していた（実測 2026-10-02・grace_v2_local のローカル LLM）ため、判定材料として添える。
+
 ---
 
 ## 6. 使用例
@@ -829,6 +926,7 @@ else:
 | 1.4 | 2026-09-16 | 3 階建て再編（`reference/` へ移設）に伴い、冒頭へ**位置づけと上位文書への導線**を追加した |
 | 1.5 | 2026-09-24 | 目次の §5.2 へのリンクが見出しの丸数字（①）を含むアンカーと一致せず切れていたのを修正 |
 | 1.6 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |
+| 1.7 | 2026-10-11 | `backend/docs/reference/core_review_agent.md` から移した（`a_cross_doc_md_format.md` §1.1.2。リンクを付け替えた）。§4.1.1 に `run_review_agent_core()` をテストと同じスタブで 1 周流す例を追加し（以前は入口の例が無かった）、既存の 2 例を 4.1.2・4.1.3 へ繰り下げた。すべて実行して確かめた。未記載だった 10 シンボル（`_Job` / `_Judged`・`DEFAULT_JUDGE_WORKERS` / `_judge_workers`・`DEFAULT_WEB_TIMEOUT` / `_web_timeout`・`_MISSING_SHIPPING` / `_apply_missing_fact`・`DOCUMENT_CONTEXT_CHARS` / `_document_context`）を §3・§5.4・§5.5 に追加した。`_judge_workers()` の docstring と実装の食い違い（数値でないときは直列ではなく既定の 4）を実行で確かめて注記 |
 
 ---
 

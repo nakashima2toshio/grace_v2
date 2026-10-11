@@ -1,19 +1,19 @@
 # api/qdrant.py - Qdrant 参照 API ドキュメント
 
-**Version 1.3** | 最終更新: 2026-10-10
+**Version 1.4** | 最終更新: 2026-10-11
 
 > **本書の位置づけ**: `backend/app/api/qdrant.py`（Qdrant 参照系（読み取り専用）と入力ファイル一覧）の **IPO リファレンス**。
 > 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。
 >
 > | 知りたいこと | 参照先 |
 > |---|---|
-> | エンドポイント一覧とステータス方針 | [`api_contract.md` §1.4・§5](../api_contract.md) |
-> | コレクションの作り方 | [`data_pipeline.md`](../data_pipeline.md) |
-> | 文書全体の地図 | [`README.md`](../README.md) |
+> | エンドポイント一覧とステータス方針 | [`api_contract.md` §1.4・§5](../../../docs/api_contract.md) |
+> | コレクションの作り方 | [`data_pipeline.md`](../../../docs/data_pipeline.md) |
+> | 文書全体の地図 | [`README.md`](../../../docs/README.md) |
 
 > **参考ドキュメント**
-> - [`backend/docs/reference/api_data.md`](./api_data.md) — 登録・削除（副作用のある系）のジョブ API
-> - [`backend/docs/data_pipeline.md`](../data_pipeline.md) — データ準備パイプライン全体の設計
+> - [`backend/app/api/docs/data.md`](./data.md) — 登録・削除（副作用のある系）のジョブ API
+> - [`backend/docs/data_pipeline.md`](../../../docs/data_pipeline.md) — データ準備パイプライン全体の設計
 
 ---
 
@@ -36,7 +36,7 @@
 
 チャンキング → Q/A 生成 → Qdrant 登録 というデータ準備パイプラインのうち、
 **副作用のない参照系**だけをここに置く。登録・削除はジョブ基盤（`core/jobs.py`）と
-HITL CONFIRM を経由するため、別ルータ（[`api/data.py`](./api_data.md)）になる。
+HITL CONFIRM を経由するため、別ルータ（[`api/data.py`](./data.md)）になる。
 
 実処理は `services/qdrant_service.py` が持つ。本モジュールは
 `services/data_pipeline_service.py` を挟んで **JSON 化するだけの薄い層**である。
@@ -141,13 +141,17 @@ style EXT fill:#1a1a1a,stroke:#fff,color:#fff
 
 ### 3.1 使用例
 
-#### 3.1.1 基本的なワークフロー（Qdrant の状態を見る）
+| # | パターン | いつ使うか | 例 |
+|---|---------|-----------|----|
+| 1 | **基本**: 疎通 → コレクション一覧（起動時・未起動時） | 画面のデータ管理タブを開いたときと同じ順 | 3.1.1 |
+| 2 | 1 コレクションの詳細とポイントのプレビュー | 登録した中身を確かめる | 3.1.2 |
 
-本モジュールは**読み取り専用**。Qdrant が落ちていても 500 にせず、
-「使えない」ことを返す（画面を白くしないため）。
+> 📝 **確かめ方（2026-10-11）**: どちらも `PYTHONPATH=. python3 <例>.py` で実行した。3.1.1 は VM の Qdrant（`docker compose`）を起動した状態と、
+> `docker stop` で止めた状態の 2 回。3.1.2 は 4 次元の一時コレクションを作って実行し、最後に消した。
 
-> 📌 **`TestClient` を使うとサーバを起動せずに試せる**（実 API キー・Qdrant 不要の範囲）。
-> 実サーバへ投げるなら `./run_dev.sh` の後に `curl http://localhost:8000/...`。
+#### 3.1.1 基本: 疎通 → コレクション一覧
+
+本モジュールは**読み取り専用**。Qdrant が落ちていても 500 にせず、「使えない」ことを返す（画面を白くしないため）。
 
 ```python
 from fastapi.testclient import TestClient
@@ -157,41 +161,61 @@ c = TestClient(app)
 
 # 1. まず疎通を見る（未起動でも 200 で available=False が返る）
 h = c.get("/api/qdrant/health")
-print(h.status_code, h.json()["available"], h.json()["message"])
+print(h.status_code, h.json()["available"], h.json()["message"], h.json()["collections_count"])
 
 # 2. コレクション一覧（未起動なら空配列。例外を投げない）
 r = c.get("/api/qdrant/collections")
-print(r.status_code, r.json())
+print(r.status_code, [x["name"] for x in r.json()][:2])
 
-# 出力例（Qdrant 未起動の環境で実測）:
-# 200 False Connection refused (port closed)
+# 実行結果（Qdrant を起動した状態。コレクションは VM にあった 5 個）:
+# 200 True Connected 5
+# 200 ['document_chunks_test', 'document_qa']
+#
+# 実行結果（docker stop で止めた状態）:
+# 200 False Connection refused (port closed) None
 # 200 []
 ```
 
-> ⚠️ **未起動と「コレクションが 0 件」は区別できない。** 先に `/api/qdrant/health` を見ること。
+> ⚠️ **未起動と「コレクションが 0 件」は一覧だけでは区別できない。** 先に `/api/qdrant/health` を見ること。
 > 画面もこの順で呼び、`available=False` ならバナーを出す。
 
 #### 3.1.2 コレクションの中身をのぞく
 
 ```python
 from fastapi.testclient import TestClient
+from qdrant_client import QdrantClient
+from qdrant_client.models import Distance, PointStruct, VectorParams
+
 from backend.app.main import app
 
+# 例のための一時コレクション（4 次元・2 件。本物は 3072 次元）
+q = QdrantClient(url="http://localhost:6333")
+q.create_collection("qdrantdoc_demo", vectors_config=VectorParams(size=4, distance=Distance.COSINE))
+q.upsert("qdrantdoc_demo", points=[
+    PointStruct(id=1, vector=[1, 0, 0, 0], payload={"question": "送料はいくら？", "answer": "全国一律600円"}),
+    PointStruct(id=2, vector=[0, 1, 0, 0], payload={"question": "返品できる？", "answer": "到着後14日以内"}),
+])
+
 c = TestClient(app)
-
 # 1. 詳細（件数・次元・距離）
-c.get("/api/qdrant/collections/gov_faq_anthropic")
+print(c.get("/api/qdrant/collections/qdrantdoc_demo").json())
+# 2. ポイントのプレビュー（payload を表にした形。limit は 1〜500）
+pts = c.get("/api/qdrant/collections/qdrantdoc_demo/points", params={"limit": 5}).json()
+print({k: v for k, v in pts.items() if k != "rows"}, pts["rows"][0])
+# 3. 存在しないコレクションは 404、limit の範囲外は 422
+print(c.get("/api/qdrant/collections/nope").status_code,
+      c.get("/api/qdrant/collections/qdrantdoc_demo/points", params={"limit": 0}).status_code)
 
-# 2. ポイントのプレビュー（ページング付き）
-c.get("/api/qdrant/collections/gov_faq_anthropic/points", params={"limit": 5})
+q.delete_collection("qdrantdoc_demo")
 
-# 3. 存在しないコレクションは 404
-print(c.get("/api/qdrant/collections/nope").status_code)
-
-# 出力例:
-# 404
+# 実行結果:
+# {'name': 'qdrantdoc_demo', 'points_count': 2, 'vectors_count': 2, 'indexed_vectors': 0, 'status': 'green', 'vector_size': 4, 'distance': 'Cosine', 'sources': {'unknown': {'sample_count': 2, 'method': 'unknown', 'domain': 'unknown', 'estimated_total': 2, 'percentage': 100.0}}, 'sample_size': 2, 'error': None}
+# {'name': 'qdrantdoc_demo', 'columns': ['ID', 'question', 'answer'], 'limit': 5} {'ID': 1, 'question': '送料はいくら？', 'answer': '全国一律600円'}
+# 404 422
 ```
 
+> 📌 `sources` は先頭からのサンプル（`sample_size` 件）を payload の `source` で数えた内訳（`generation_method` / `domain` も添える）。項目が無ければ `unknown` にまとまる。
+> プレビューの `columns` は payload のキーを `ID` の後ろに並べたもの（画面の表の見出し）。
 
 ### 3.2 `_get_client`
 
@@ -332,3 +356,4 @@ curl 'http://localhost:8000/api/files?dir=OUTPUT'
 | 1.1 | 2026-09-15 | **§3.1「使用例」を新設**（2026-09-15）。ドキュメント規約 `a_class_method_md_format.md` §6.1 が IPO 詳細セクションの冒頭に必須としている代表ワークフローが欠落していた。疎通確認 → コレクション一覧（未起動でも 200 が返ること）、コレクションの中身をのぞく 2 本を追加し、**実行して出力を確認した**（外部依存が要る例はその旨を明記）。旧 §3.1〜§3.6 は §3.2〜§3.7 へ繰り下げ |
 | 1.2 | 2026-09-16 | 3 階建て再編（`reference/` へ移設）に伴い、冒頭へ**位置づけと上位文書への導線**を追加した |
 | 1.3 | 2026-10-10 | 概要の「各責務対応のモジュール」を「主な責務」（3 項目）と 1:1 に揃えた（「整形」「クライアント生成」は責務 2 の説明へ移し、説明列を足した）。変更履歴を 3 列へ移した |
+| 1.4 | 2026-10-11 | `backend/docs/reference/api_qdrant.md` から移した（`a_cross_doc_md_format.md` §1.1.2。リンクを付け替えた）。§3.1 を作り直した。3.1.1 は Qdrant の起動時と停止時（`docker stop`）の両方で、3.1.2 は一時コレクションで詳細とプレビューを実行して確かめた |
