@@ -169,7 +169,7 @@ head -3 "$QA_CSV"
 python qa_qdrant/register_to_qdrant.py --input-file "$QA_CSV" --collection document_qa --recreate
 
 # 4. 件数と次元を確かめる
-python -m qa_qdrant.command.list_collections --detail | grep -A1 document_qa
+python -m qa_qdrant.command.list_collections --detail | grep -A1 "document_qa "
 
 # 出力例（2・4 の部分）:
 # question,answer,chunk_id,topic,dataset_type
