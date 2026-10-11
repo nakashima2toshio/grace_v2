@@ -275,9 +275,9 @@ GRACE_E2E=1 GRACE_E2E_REPEAT=3 uv run --no-sync pytest tests/e2e -m e2e -rs   # 
 |---|---|---|---|
 | 1 | **設定ファイル（正）** | `config/grace_config.yml` の `llm.model` / `llm.light_model` | `grace/config.py::ConfigLoader` 経由で planner / reasoning / groundedness / ReAct |
 | 2 | **モジュール定数** | `backend/app/core/verticals.py::INTENT_MODEL`（リテラル） | 判定系（意図分類・情報なし判定）。**yml を一切見ない** |
-| 3 | **Python 定数** | `config.py::ModelConfig.DEFAULT_MODEL` | 上記以外（Q&A 生成の CLI・`QAPipeline`・`SmartQAGenerator`・`helper_rag_qa` の生成器の既定）。**ここでは文字列を直書きせず `ModelConfig.DEFAULT_MODEL` を参照する**（2026-10-08 まで旧既定 `claude-sonnet-5` が直書きで残り、画面と CLI で Q&A 生成のモデルが割れていた。`tests/test_qa_default_model.py` が検査）。**チャンキングは分けて `ModelConfig.CHUNKING_MODEL`（`claude-haiku-5-5`）** を参照する（`ChunkingRequest` / `ChunkingParams` / `chunks_all_async` / チャンク化 CLI の `--model` / `CHUNK_DEFAULT_MODEL` / `AsyncAPIClient`。`tests/test_chunking_default_model.py` が検査）。`DEFAULT_MODEL` を変えてもチャンキングは変わらない |
+| 3 | **Python 定数** | `config.py::ModelConfig.DEFAULT_MODEL` | 上記以外（Q&A 生成の CLI・`QAPipeline`・`SmartQAGenerator`・`qa_service` の既定）。**ここでは文字列を直書きせず `ModelConfig.DEFAULT_MODEL` を参照する**（2026-10-08 まで旧既定 `claude-sonnet-5` が直書きで残り、画面と CLI で Q&A 生成のモデルが割れていた。`tests/test_qa_default_model.py` が検査）。**チャンキングは分けて `ModelConfig.CHUNKING_MODEL`（`claude-haiku-5-5`）** を参照する（`ChunkingRequest` / `ChunkingParams` / `chunks_all_async` / チャンク化 CLI の `--model` / `CHUNK_DEFAULT_MODEL` / `AsyncAPIClient`。`tests/test_chunking_default_model.py` が検査）。`DEFAULT_MODEL` を変えてもチャンキングは変わらない |
 | 4 | **リクエスト単位の上書き** | UI のモデルセレクタ → `QueryRequest.model` / `ReviewRequest.model` → コアが `config.llm.model` を差し替え | その 1 リクエストの生成・推論・根拠検証・③ Detect |
-| 5 | **直下 `config.yml`** | `config.yml` の `models.default`（`services/config_service.py` が読める） | **読むコードは無い**（唯一の読み手だった `services/agent_service.py`〔Legacy ReAct〕は 2026-10-10 に削除）。読んだ人が旧モデルを既定と誤解しないよう、値は経路 3 とそろえておく（`tests/test_model_selection.py` が一致を検査）。2026-09-24 まで `claude-sonnet-4-6` のまま残っていた |
+| 5 | **直下 `config.yml`** | `config.yml` の `models.default` | **読むコードは無い**（唯一の読み手だった `services/agent_service.py`〔Legacy ReAct〕は 2026-10-10 に、`config.yml` を読む `services/config_service.py` も 2026-10-11 に削除）。読んだ人が旧モデルを既定と誤解しないよう、値は経路 3 とそろえておく（`tests/test_model_selection.py` が一致を検査）。2026-09-24 まで `claude-sonnet-4-6` のまま残っていた |
 
 **経路 4 は経路 1 を「そのリクエストだけ」上書きする**（`copy.deepcopy(get_config())` の
 コピーに対して行うので、他のジョブへは漏れない）。選択肢は
@@ -349,10 +349,9 @@ GRACE_E2E=1 GRACE_E2E_REPEAT=3 uv run --no-sync pytest tests/e2e -m e2e -rs   # 
   §3 の「Gemini 系 LLM 既定は負債」に**該当しない**（死んでいるので実害が無い）。
   毎回調べ直さないよう、ここに結論を残す。
 - 直下 `config.yml` の `gemini:` セクション（LLM 既定 `gemini-2.5-flash`・`available_models`・`thinking`）と
-  `provider:` セクション（`default_llm: "gemini"`）— **読み手ゼロ**（2026-09-25 grep 実測）。`config.yml` を読むのは
-  `services/config_service.py` だけで、コードが引くキーは `models.default` / `agent.*` / `cache.*` / `api.*` のみ
-  （`model_pricing:` / `samples:` / `audio:` も同様に未参照）。上と同じ理由で**触らなくてよい**。
-  経路 5（`models.default`）も 2026-10-10 以降は読み手が無いが、値は §3.1 の検査対象として残している。
+  `provider:` セクション（`default_llm: "gemini"`）— **読み手ゼロ**（2026-09-25 grep 実測）。`config.yml` を読んでいた唯一のモジュール
+  `services/config_service.py` は 2026-10-11 に削除したので、**直下 `config.yml` を読むコードはもう無い**。上と同じ理由で**触らなくてよい**。
+  経路 5（`models.default`）の値は §3.1 の検査対象として残している。
 
 ---
 
@@ -715,6 +714,9 @@ grace_v2 に**存在しない**: `setup.py` / `server.py` / a-prefixed scripts
 残っていた `benchmark.py` を含む `grace/step_trace/` 全体は 2026-10-10 に削除）。
 **`services/agent_service.py`**（`ReActAgent`）/ **`agent_parallel_search.py`** / **`agent_cache.py`** も存在しない
 （Legacy ReAct 経路。2026-10-10 に削除。経緯は `services/docs/archive/agent_service.md`・`services/docs/README_services.md` §1）。
+**`services/config_service.py`** / **`cache_service.py`** / **`json_service.py`**、**`helper/helper_rag.py`** / **`helper_rag_qa.py`** /
+**`helper_embedding_fastembed.py`** も存在しない（呼び出し元が無かったため 2026-10-11 に削除。`helper/helper_text.py` は `clean_text()` だけ残した。
+経緯は `services/docs/README_services.md` §1・`helper/docs/README_helper.md` §1）。
 
 > ⚠️ **`start_celery.sh` は存在する**（2026-09-12 訂正）。以前この一覧に
 > 入っていたが、Q/A 生成の Celery 並列（CLI の `--use-celery` / データ管理タブの

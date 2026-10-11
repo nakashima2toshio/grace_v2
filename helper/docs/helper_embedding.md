@@ -1,6 +1,6 @@
 # helper_embedding.py - Embedding クライアント抽象化レイヤー ドキュメント
 
-**Version 1.0** | 最終更新: 2026-10-11
+**Version 1.1** | 最終更新: 2026-10-11
 
 ---
 
@@ -22,12 +22,13 @@
 
 `helper_embedding.py` は、テキストを Embedding（密ベクトル）に変える**クライアントの抽象化レイヤー**である。
 抽象基底クラス `EmbeddingClient` と、Gemini（既定・3072 次元）/ OpenAI（1536 次元）の実装、
-プロバイダ名から実装を選ぶファクトリ `create_embedding_client()` を持つ。ローカルの FastEmbed は別モジュール
-（`helper_embedding_fastembed.py`）にあり、`provider="fastembed"` のときだけ遅延 import する。
+プロバイダ名から実装を選ぶファクトリ `create_embedding_client()` を持つ。
+（ローカルの FastEmbed 用の分岐と `helper_embedding_fastembed.py` は、本番から使われていなかったため 2026-10-11 に削除した。
+hybrid 検索の疎ベクトルは別モジュール `helper_embedding_sparse.py` で、`fastembed` ライブラリを引き続き使う。）
 
 本プロジェクトの Embedding は **Gemini `gemini-embedding-001`（3072 次元）だけ**を使う（CLAUDE.md §3）。モデル名・次元・単価の
 定義は `config.py::ModelConfig`（`EMBEDDING_MODEL` / `EMBEDDING_DIMS` / `EMBEDDING_PRICING`）の 1 箇所で、本モジュールはそこを参照する。
-OpenAI / FastEmbed の分岐は後方互換のために残っており、本番では選ばれない（既定は環境変数 `EMBEDDING_PROVIDER`、無ければ `gemini`）。
+OpenAI の分岐は後方互換のために残っており、本番では選ばれない（既定は環境変数 `EMBEDDING_PROVIDER`、無ければ `gemini`）。
 
 ### 主な責務
 
@@ -45,7 +46,7 @@ OpenAI / FastEmbed の分岐は後方互換のために残っており、本番�
 | 1 | 共通インターフェース | `helper_embedding.py` | `EmbeddingClient`（`dimensions` / `embed_text` / `embed_texts`） |
 | 2 | Gemini Embedding | `helper_embedding.py` | `GeminiEmbedding` |
 | 3 | OpenAI Embeddings（後方互換） | `helper_embedding.py` | `OpenAIEmbedding` |
-| 4 | ファクトリと既定次元 | `helper_embedding.py`（FastEmbed は `helper_embedding_fastembed.py`） | `create_embedding_client()` / `get_default_embedding_client()` / `get_embedding_dimensions()` |
+| 4 | ファクトリと既定次元 | `helper_embedding.py` | `create_embedding_client()` / `get_default_embedding_client()` / `get_embedding_dimensions()` |
 | 5 | 1 件 = 1 Content に包む | `helper_embedding.py` | `separate_contents()`（`grace/confidence.py` も使う） |
 | 6 | 単価の参照 | `helper_embedding.py`（定義は `config.py::ModelConfig`） | `EMBEDDING_PRICING` / `get_embedding_model_pricing()` |
 
@@ -53,7 +54,7 @@ OpenAI / FastEmbed の分岐は後方互換のために残っており、本番�
 
 | 機能 | 説明 |
 |------|------|
-| `create_embedding_client(provider="gemini", **kwargs)` | `"gemini"` / `"openai"` / `"fastembed"` から実装を作る（毎回新しいインスタンス） |
+| `create_embedding_client(provider="gemini", **kwargs)` | `"gemini"` / `"openai"` から実装を作る（毎回新しいインスタンス） |
 | `GeminiEmbedding.embed_text(text, task_type=None)` | 1 件を埋め込む（検索クエリは `task_type="retrieval_query"`） |
 | `GeminiEmbedding.embed_texts(texts, batch_size=100)` | 100 件ずつ `task_type="retrieval_document"` で埋め込む。失敗したまとまりは**ゼロベクトル** |
 | `separate_contents(texts)` | 文字列を 1 件ずつ `types.Content` に包む |
@@ -85,7 +86,6 @@ flowchart TB
     subgraph EXTERNAL["外部"]
         GAPI["Gemini Embedding API<br>gemini-embedding-001（3072 次元）"]
         OAPI["OpenAI Embeddings API"]
-        FE["helper_embedding_fastembed.py<br>（provider=fastembed のときだけ）"]
         CFG["config.py::ModelConfig"]
     end
 
@@ -95,14 +95,13 @@ flowchart TB
     CONF --> SEP
     FAC --> GEM
     FAC --> OAI
-    FAC --> FE
     GEM --> SEP
     GEM --> GAPI
     OAI --> OAPI
     GEM --> CFG
 classDef default fill:#000,stroke:#fff,color:#fff
 classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
-class QCW,QDS,CONF,SEM,FAC,GEM,OAI,SEP,GAPI,OAPI,FE,CFG default
+class QCW,QDS,CONF,SEM,FAC,GEM,OAI,SEP,GAPI,OAPI,CFG default
 style CALLER fill:#1a1a1a,stroke:#fff,color:#fff
 style MODULE fill:#1a1a1a,stroke:#fff,color:#fff
 style EXTERNAL fill:#1a1a1a,stroke:#fff,color:#fff
@@ -175,7 +174,6 @@ style FUNCS fill:#1a1a1a,stroke:#fff,color:#fff
 | モジュール | 用途 |
 |-----------|------|
 | `config.py::ModelConfig` | `EMBEDDING_MODEL` / `EMBEDDING_DIMS` / `EMBEDDING_PRICING`（唯一の定義） |
-| `helper/helper_embedding_fastembed.py` | `provider="fastembed"` のときだけ遅延 import |
 
 ---
 
@@ -330,7 +328,7 @@ for models in [Failing(), Short()]:
 from helper.helper_embedding import (
     create_embedding_client, get_embedding_dimensions, get_embedding_model_pricing, EMBEDDING_PRICING,
 )
-print(get_embedding_dimensions("gemini"), get_embedding_dimensions("openai"), get_embedding_dimensions("fastembed"))
+print(get_embedding_dimensions("gemini"), get_embedding_dimensions("openai"))
 print(get_embedding_model_pricing("gemini-embedding-001"), get_embedding_model_pricing("unknown"), EMBEDDING_PRICING)
 for provider in ["openai", "fastembed", "voyage"]:
     try:
@@ -340,22 +338,21 @@ for provider in ["openai", "fastembed", "voyage"]:
 ```
 
 ```
-# 出力例（OPENAI_API_KEY 無し・fastembed 未導入の環境）:
-# 3072 1536 384
+# 出力例（OPENAI_API_KEY 無しの環境）:
+# 3072 1536
 # 0.0001 0.0 {'gemini-embedding-001': 0.0001, 'gemini-embedding-2': 0.0002, 'text-embedding-3-small': 2e-05, 'text-embedding-3-large': 0.00013}
 # openai ValueError OPENAI_API_KEY が設定されていません
-# fastembed ImportError FastEmbed module load failed: FastEmbed library is missing.. Check if 'fastembed' is installed.
-# voyage ValueError Unknown provider: voyage. Use 'openai', 'gemini', or 'fastembed'
+# fastembed ValueError Unknown provider: fastembed. Use 'openai' or 'gemini'
+# voyage ValueError Unknown provider: voyage. Use 'openai' or 'gemini'
 ```
 
 > ⚠️ **Embedding のモデルを変えると既存の Qdrant コレクションは使えない**（次元が同じでもベクトルの意味が合わず、エラーにならずに検索結果だけが壊れる。CLAUDE.md §3）。
-> `get_embedding_dimensions("fastembed")` の 384 は既定モデル（`BAAI/bge-small-en-v1.5`）の値で、モデルを変えると合わなくなる。
 
 ---
 
 ### 4.2 EmbeddingClient クラス（抽象基底クラス）
 
-**概要**: Embedding クライアントの共通インターフェース。実装は `GeminiEmbedding` / `OpenAIEmbedding` / `FastEmbedEmbedding`（別モジュール）。
+**概要**: Embedding クライアントの共通インターフェース。実装は `GeminiEmbedding` / `OpenAIEmbedding`。
 
 ```python
 class EmbeddingClient(ABC):
@@ -550,13 +547,13 @@ def create_embedding_client(provider: str = "gemini", **kwargs) -> EmbeddingClie
 
 | パラメータ | 型 | デフォルト | 説明 |
 |------------|------|-----------|------|
-| `provider` | `str` | `"gemini"` | `"gemini"` / `"openai"` / `"fastembed"`（大文字小文字は区別しない）。`None` は警告して `"gemini"` |
+| `provider` | `str` | `"gemini"` | `"gemini"` / `"openai"`（大文字小文字は区別しない）。`None` は警告して `"gemini"` |
 | `**kwargs` | — | — | 実装クラスの `__init__` に渡す（`api_key` / `model` / `dims` など） |
 
 | 項目 | 内容 |
 |------|------|
 | **Input** | `provider`・`kwargs` |
-| **Process** | `openai` → `OpenAIEmbedding`、`gemini` → `GeminiEmbedding`、`fastembed` → `helper.helper_embedding_fastembed.FastEmbedEmbedding` を遅延 import（失敗は `ImportError` にまとめ直す）、それ以外は `ValueError` |
+| **Process** | `openai` → `OpenAIEmbedding`、`gemini` → `GeminiEmbedding`、それ以外（`fastembed` を含む）は `ValueError` |
 | **Output** | `EmbeddingClient` |
 
 ```python
@@ -568,7 +565,7 @@ def create_embedding_client(provider: str = "gemini", **kwargs) -> EmbeddingClie
 | 関数 | Input | Process | Output |
 |------|-------|---------|--------|
 | `get_default_embedding_client(**kwargs)` | `kwargs` | `create_embedding_client(DEFAULT_EMBEDDING_PROVIDER, **kwargs)` | `EmbeddingClient` |
-| `get_embedding_dimensions(provider="gemini")` | `provider`（`None` は `gemini`） | `gemini` → 3072、`openai` → 1536、`fastembed` → 384、それ以外 `ValueError` | `int` |
+| `get_embedding_dimensions(provider="gemini")` | `provider`（`None` は `gemini`） | `gemini` → 3072、`openai` → 1536、それ以外 `ValueError` | `int` |
 | `get_embedding_model_pricing(model_name)` | `model_name` | `EMBEDDING_PRICING.get(model_name, 0.0)` | `float`（1K トークンあたりの USD） |
 
 ```python
@@ -598,16 +595,16 @@ print(type(get_default_embedding_client(api_key="dummy")).__name__)
 | # | 制約 | 状態 |
 |---|------|------|
 | 1 | `GeminiEmbedding.embed_texts` は API エラー・件数の合わない応答をゼロベクトルで埋め、例外を出さない | 並びを保つための設計（§4.1.3。`tests/test_gemini_embedding_batch.py`） |
-| 2 | `helper_embedding_fastembed.FastEmbedEmbedding.embed_text` は `task_type` を受け取らないので、`EMBEDDING_PROVIDER=fastembed` で `qdrant_client_wrapper.embed_query_unified`（`task_type=` を渡す）を呼ぶと `TypeError` になる | 本番では fastembed を選ばない（`helper_embedding_fastembed.md` §5） |
+| 2 | ~~`helper_embedding_fastembed.FastEmbedEmbedding.embed_text` は `task_type` を受け取らないので、`EMBEDDING_PROVIDER=fastembed` で `qdrant_client_wrapper.embed_query_unified`（`task_type=` を渡す）を呼ぶと `TypeError` になる~~ | **2026-10-11 に解消**（`provider="fastembed"` の分岐とモジュールを削除） |
 | 3 | `embed_texts_batch` は名前に反して Batch API を使わない | 未実装 |
-| 4 | `OpenAIEmbedding` と `provider="fastembed"` は本番から使われない | 後方互換として残置 |
+| 4 | `OpenAIEmbedding` は本番から使われない | 後方互換として残置（`provider="fastembed"` の分岐は 2026-10-11 に削除） |
 
 ---
 
 ## 6. エクスポート
 
-`__all__` は定義していない。外から使われている名前は `create_embedding_client` / `get_embedding_dimensions`（`services/qdrant_service.py`・`qa_generation/semantic.py`・`helper_rag_qa.py`）、
-`separate_contents`（`grace/confidence.py`）、`EmbeddingClient` / `DEFAULT_*_EMBEDDING_DIMS` ほか（`qdrant_client_wrapper.py`）、`EmbeddingClient`（`helper_embedding_fastembed.py`）。
+`__all__` は定義していない。外から使われている名前は `create_embedding_client` / `get_embedding_dimensions`（`services/qdrant_service.py`・`qa_generation/semantic.py`）、
+`separate_contents`（`grace/confidence.py`）、`EmbeddingClient` / `DEFAULT_*_EMBEDDING_DIMS` ほか（`qdrant_client_wrapper.py`）。
 
 ---
 
@@ -616,6 +613,7 @@ print(type(get_default_embedding_client(api_key="dummy")).__name__)
 | バージョン | 日付 | 変更内容 |
 |-----------|------|---------|
 | 1.0 | 2026-10-11 | 初版。`helper/docs/` の新設にあわせて作成（`a_class_method_md_format.md` 準拠）。§4.1 の使用例 4 本（直接・本番の経路・失敗時のゼロ埋め・プロバイダと次元）を別プロセスで実行して出力を確かめた（Gemini API はスタブ） |
+| 1.1 | 2026-10-11 | 本番から使われていなかった `provider="fastembed"` の分岐と `helper_embedding_fastembed.py` を削除したのに追随。§4.1.4 の例を実行し直して出力を差し替えた |
 
 ---
 
@@ -627,13 +625,10 @@ flowchart LR
     QDS["services/qdrant_service.py"] --> HE
     SEM["qa_generation/semantic.py"] --> HE
     CONF["grace/confidence.py"] --> HE
-    RQA["helper/helper_rag_qa.py"] --> HE
     HE --> CFG["config.py::ModelConfig"]
     HE --> GENAI["google-genai"]
     HE --> OAI["openai"]
-    HE -.->|"provider=fastembed"| FE["helper/helper_embedding_fastembed.py"]
-    FE --> HE
 classDef default fill:#000,stroke:#fff,color:#fff
 classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
-class QCW,QDS,SEM,CONF,RQA,HE,CFG,GENAI,OAI,FE default
+class QCW,QDS,SEM,CONF,HE,CFG,GENAI,OAI default
 ```

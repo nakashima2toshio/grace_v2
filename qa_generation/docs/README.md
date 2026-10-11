@@ -1,6 +1,6 @@
 # qa_generation/ - Q/A 生成パッケージ（データ準備 ②）ドキュメント
 
-**Version 2.6** | 最終更新: 2026-10-11
+**Version 2.7** | 最終更新: 2026-10-11
 
 > 📎 **姉妹版**: [`docs/README.md`](../../docs/README.md)（直下・配置の境界） /
 > [`grace/docs/README_grace.md`](../../grace/docs/README_grace.md) /
@@ -259,7 +259,7 @@ style MOD fill:#1a1a1a,stroke:#fff,color:#fff
 | `config` | `ModelConfig.DEFAULT_MODEL`（生成の既定モデル）/ `ModelConfig.EMBEDDING_MODEL` / `DATASET_CONFIGS` |
 | `helper.helper_llm` | `create_llm_client("anthropic")`・`LLMClient`（構造化出力 `generate_structured`） |
 | `helper.helper_embedding` | `create_embedding_client("gemini")`・`get_embedding_dimensions()` |
-| `helper.helper_rag` | `clean_text()`（`load_uploaded_file()` の本文整形） |
+| `helper.helper_text` | `clean_text()`（`load_uploaded_file()` の本文整形。2026-10-11 までは `helper.helper_rag` 経由） |
 | `models`（直下） | `QAPair` / `QAPairsList` の正本 |
 | `celery_tasks` | `check_celery_workers()` / `submit_unified_qa_generation()` / `collect_results()`（遅延 import） |
 
@@ -393,7 +393,7 @@ style MOD fill:#1a1a1a,stroke:#fff,color:#fff
 | `__init__(embedding_model)` | Gemini Embedding クライアントと tiktoken を用意する |
 | `generate_embeddings(doc_chunks)` / `generate_embedding(text)` / `generate_embeddings_batch(texts, batch_size)` | 埋め込みを作り L2 正規化する |
 | `cosine_similarity(doc_emb, qa_emb)` | コサイン類似度（正規化済みなら内積） |
-| `create_semantic_chunks(document, ...)` | 文書のセマンティック分割（本パイプラインでは未使用。`helper_rag_qa.py` が使う） |
+| `create_semantic_chunks(document, ...)` | 文書のセマンティック分割（本パイプラインでは未使用。使っていた `helper_rag_qa.py` は 2026-10-11 に削除） |
 
 #### Pydantic モデル
 
@@ -947,6 +947,7 @@ __all__ = [
 | 2.4 | 2026-10-10 | `services/docs/` の構成整理（`README.md` → `README_services.md`、`__init__.md` を統合）に合わせてリンクを直した |
 | 2.5 | 2026-10-11 | `qa_qdrant/docs/` の構成整理に追随。`make_qa_qapipeline.md` を本ディレクトリへ移して §3.2 に足し、`qa_qdrant/docs/README.md` → `README_qa_qdrant.md`・`01_install.md` → 直下 `docs/data_prep_install.md`・`celery_quick_start.md` → 直下 `docs/` の移動に合わせてリンクと書き分けの表を直した |
 | 2.6 | 2026-10-11 | `chunking/docs/` の構成整理（`README.md` → `README_chunking.md`）に合わせてリンクを直した |
+| 2.7 | 2026-10-11 | 未使用だった `helper/helper_rag.py` / `helper/helper_rag_qa.py` を 2026-10-11 に削除したのに追随（`clean_text` の import 元・関連モジュール・構成図） |
 
 > v1.x の変更履歴にある節番号（§2〜§7）は旧構成のもの。v2.0 では §2 → §3.2、§3 → §3.3、§4 → §4.1、§5 → §3.4、§6 → §4.2、§7 → §8 に対応する。
 
@@ -969,7 +970,7 @@ flowchart LR
         CFG["config<br>ModelConfig / DATASET_CONFIGS"]
         HLLM["helper.helper_llm<br>create_llm_client / LLMClient"]
         HEMB["helper.helper_embedding<br>create_embedding_client"]
-        HRAG["helper.helper_rag<br>clean_text"]
+        HRAG["helper.helper_text<br>clean_text"]
         ROOTM["models（直下）<br>QAPair / QAPairsList"]
         CT["celery_tasks（遅延 import）"]
     end

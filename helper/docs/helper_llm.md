@@ -1,6 +1,6 @@
 # helper_llm.py - LLM クライアント抽象化レイヤー ドキュメント
 
-**Version 1.0** | 最終更新: 2026-10-11
+**Version 1.1** | 最終更新: 2026-10-11
 
 ---
 
@@ -27,7 +27,7 @@
 > 📌 **GRACE-Support / GRACE-Review の推論は本モジュールを使わない。** エージェント側（planner / executor / 根拠検証 など）の LLM は
 > `grace/llm_compat.py::create_chat_client`（`stop_reason` の検査・思考の扱いなどを持つ別の実装）である。
 > 本モジュールを使うのはチャンク化（`chunking/async_api_client.py`）・Q/A 生成（`qa_generation/smart_qa_generator.py`）・
-> `services/qa_service.py`・`qa_generation/semantic.py`（トークン数だけ）・`helper_rag_qa.py`。
+> `services/qa_service.py`・`qa_generation/semantic.py`（トークン数だけ）。
 > Tool Use（`generate_with_tools` / `build_tool_result_message`）は唯一の呼び出し元だった Legacy ReAct とともに 2026-10-10 に削除した。
 
 ### 主な責務
@@ -74,7 +74,6 @@ flowchart TB
         SQA["qa_generation/smart_qa_generator.py<br>（Q/A 生成・last_usage）"]
         QAS["services/qa_service.py"]
         SEM["qa_generation/semantic.py<br>（count_tokens）"]
-        RQA["helper/helper_rag_qa.py"]
     end
 
     subgraph MODULE["helper_llm.py"]
@@ -96,7 +95,6 @@ flowchart TB
     SQA --> FAC
     QAS --> FAC
     SEM --> FAC
-    RQA --> FAC
     FAC --> ANT
     FAC --> OAI
     FAC --> GEM
@@ -107,7 +105,7 @@ flowchart TB
     GEM --> OTH
 classDef default fill:#000,stroke:#fff,color:#fff
 classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
-class CHK,SQA,QAS,SEM,RQA,FAC,ANT,OAI,GEM,TBL,AAPI,CFG,TIK,OTH default
+class CHK,SQA,QAS,SEM,FAC,ANT,OAI,GEM,TBL,AAPI,CFG,TIK,OTH default
 style CALLER fill:#1a1a1a,stroke:#fff,color:#fff
 style MODULE fill:#1a1a1a,stroke:#fff,color:#fff
 style EXTERNAL fill:#1a1a1a,stroke:#fff,color:#fff
@@ -524,6 +522,7 @@ print(get_available_embedding_models(), get_embedding_model_pricing("gemini-embe
 | バージョン | 日付 | 変更内容 |
 |-----------|------|---------|
 | 1.0 | 2026-10-11 | 初版。`helper/docs/` の新設にあわせて作成（`a_class_method_md_format.md` 準拠）。§4.1 の使用例 4 本（テキスト生成・構造化出力・送る内容の確認・表とプロバイダ名）を別プロセスで実行して出力を確かめ（Anthropic API はスタブ）、`stop_reason` を見ないこと・既定モデルの直書きを §5.3 に記録した |
+| 1.1 | 2026-10-11 | 呼び出し元の 1 つだった `helper/helper_rag_qa.py` を削除したのに追随（呼び出し側の一覧・構成図・依存関係図） |
 
 ---
 
@@ -535,12 +534,11 @@ flowchart LR
     SQA["qa_generation/smart_qa_generator.py"] --> HL
     SEM["qa_generation/semantic.py"] --> HL
     QAS["services/qa_service.py"] --> HL
-    RQA["helper/helper_rag_qa.py"] --> HL
     HL --> CFG["config.py::ModelConfig"]
     HL --> ANT["anthropic"]
     HL --> TIK["tiktoken"]
     HL -.-> OAI["openai / google-genai（後方互換）"]
 classDef default fill:#000,stroke:#fff,color:#fff
 classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
-class CHK,SQA,SEM,QAS,RQA,HL,CFG,ANT,TIK,OAI default
+class CHK,SQA,SEM,QAS,HL,CFG,ANT,TIK,OAI default
 ```

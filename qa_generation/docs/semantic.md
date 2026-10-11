@@ -1,6 +1,6 @@
 # semantic.py - セマンティックチャンク分割・埋め込み ドキュメント
 
-**Version 1.3** | 最終更新: 2026-09-26
+**Version 1.4** | 最終更新: 2026-10-11
 
 ---
 
@@ -61,7 +61,6 @@
 flowchart TB
     subgraph CALLER["呼び出し側"]
         EV["evaluation.analyze_coverage()"]
-        HR["helper/helper_rag_qa.py（後方互換の再公開）"]
     end
     subgraph TARGET["semantic.py"]
         SC["SemanticCoverage（分割・埋め込み・類似度）"]
@@ -72,13 +71,12 @@ flowchart TB
         MEC["MeCab（任意・文分割）"]
     end
     EV --> SC
-    HR --> SC
     SC -->|"埋め込み"| EMB
     SC -->|"トークン数"| TOK
     SC -->|"文分割"| MEC
 classDef default fill:#000,stroke:#fff,color:#fff
 classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
-class EV,HR,SC,EMB,TOK,MEC default
+class EV,SC,EMB,TOK,MEC default
 style CALLER fill:#1a1a1a,stroke:#fff,color:#fff
 style TARGET fill:#1a1a1a,stroke:#fff,color:#fff
 style EXTERNAL fill:#1a1a1a,stroke:#fff,color:#fff
@@ -778,3 +776,4 @@ embeddings = analyzer.generate_embeddings_batch(
 | 1.1 | 2026-09-24 | 基本フォーマット `a_class_method_md_format.md` の章構成へ組み替え。概要に「主な責務」と「各責務対応のモジュール」（1:1）を置き、`## 1. アーキテクチャ構成図`（3 層＋データフロー）を新設。既存の構成図は `## 2. モジュール構成図` へ、使用方法は IPO 詳細の冒頭（`### 6.1 使用例`）へ移した。固有の解説章（「セマンティックチャンク分割」・「埋め込みベクトル生成」）は §1.3 に従い一覧表の前に置き、章・小節に番号を振った。本文の内容は変えていない |
 | 1.2 | 2026-09-26 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所）。`SemanticCoverage.__init__` の既定引数（`ModelConfig.EMBEDDING_MODEL`）を実装に合わせた |
 | 1.3 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
+| 1.4 | 2026-10-11 | 未使用だった `helper/helper_rag.py` / `helper/helper_rag_qa.py` を 2026-10-11 に削除したのに追随（`clean_text` の import 元・関連モジュール・構成図） |
