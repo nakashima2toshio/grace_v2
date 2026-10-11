@@ -681,12 +681,12 @@ def __init__(self, model=ModelConfig.DEFAULT_MODEL, embedding_model=ModelConfig.
 
 | テスト | 件数 | 対象 |
 |-------|------|------|
-| `tests/test_hybrid_qa_generator.py` | 下の表の実測 | `HybridQAGenerator` / `QAGenerationOptimizer` の全 Phase と静的検査 |
-| `tests/test_qa_pair_definitions.py` | 同上 | `QAPair` / `QAPairsList` を書き戻していないこと（`ast`） |
-| `tests/test_qa_default_model.py` | 同上 | 3 クラスの既定モデルが `ModelConfig.DEFAULT_MODEL` |
-| `tests/test_qa_generation_import_side_effects.py` | 同上 | `helper/*.py` の裸 import が無いこと |
+| `tests/test_hybrid_qa_generator.py` | 29 | `HybridQAGenerator` / `QAGenerationOptimizer` の全 Phase と静的検査 |
+| `tests/test_qa_pair_definitions.py` | 6 | `QAPair` / `QAPairsList` を書き戻していないこと（`ast`） |
+| `tests/test_qa_default_model.py` | 9（うち 3） | 3 クラスの既定モデルが `ModelConfig.DEFAULT_MODEL` |
+| `tests/test_qa_generation_import_side_effects.py` | 3（うち 1） | `helper/*.py` の裸 import が無いこと |
 
-件数は `helper/docs/README_helper.md` §5.1 にまとめて実測値を載せる。
+件数は 2026-10-11 の実測（`PYTHONPATH=. .venv/bin/python -m pytest <file> -q`）。
 
 ---
 

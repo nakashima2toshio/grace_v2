@@ -1,6 +1,6 @@
 # README_services.md - services/ ディレクトリ概要
 
-**Version 2.1** | 最終更新: 2026-10-11
+**Version 2.2** | 最終更新: 2026-10-11
 
 `services/` パッケージの入口となる文書。ディレクトリの役割・モジュール索引・組み合わせ方・公開 API・既知の制約をまとめる。
 文書を新しく書く／直す前に、まずここを見る。
@@ -123,7 +123,7 @@ style LOWER fill:#1a1a1a,stroke:#fff,color:#fff
 
 | モジュール | 文書 | 種別 | 行数 | Ver | 概要 |
 |---|---|---|---:|---|---|
-| `qdrant_service.py` | [`qdrant_service.md`](./qdrant_service.md) | E | 1702 | 2.6 | Qdrant の死活確認・登録・確認・統合・削除 |
+| `qdrant_service.py` | [`qdrant_service.md`](./qdrant_service.md) | E | 1714 | 2.7 | Qdrant の死活確認・登録・確認・統合・削除 |
 | `data_pipeline_service.py` | [`data_pipeline_service.md`](./data_pipeline_service.md) | E | 656 | 1.5 | データ管理タブと CLI の共通の層（パス検証・同期化・JSON 化） |
 | `config_service.py` | [`config_service.md`](./config_service.md) | E | 978 | 1.10 | 直下 `config.yml` の設定マネージャとロガー |
 | `token_service.py` | [`token_service.md`](./token_service.md) | E | 946 | 1.7 | トークン数・コスト・上限の見積もり |
@@ -331,7 +331,7 @@ print(sorted(m for m in sys.modules if m.startswith("services.")))
 
 | # | 内容 | 状態 |
 |---|---|---|
-| 1 | qdrant-client 1.19.1（`requirements-test.txt` の `>=1.15` で入る版）では `CollectionInfo.vectors_count` が無く、`QdrantDataFetcher.fetch_collections` / `fetch_collection_info`・`get_all_collections_simple` が件数を返せない（Error の行・`{"error": ...}`）。`backend/app/api/qdrant.py` のコレクション詳細が `fetch_collection_info` を使う | 2026-10-10 に確認。コードは未修正（`qdrant_service.md` §4.1.3） |
+| 1 | qdrant-client 1.19.1（`requirements-test.txt` の `>=1.15` で入る版）では `CollectionInfo.vectors_count` が無く、`QdrantDataFetcher.fetch_collections` / `fetch_collection_info`・`get_all_collections_simple` が件数を返せない（Error の行・`{"error": ...}`）。`backend/app/api/qdrant.py` のコレクション詳細が `fetch_collection_info` を使う | **2026-10-11 に修正**。3 関数とも `qdrant_client_wrapper.collection_vectors_count()` 経由で読み、属性が無い・None なら `points_count` で代用する（`qdrant_service.md` §4.1.3・`tests/test_qdrant_vectors_count.py`） |
 | 2 | `data_pipeline_service.delete_collection` は、コレクションが無くても `True` を返す（docstring は False と書いている） | 実装どおり。呼び出し側は先に `collection_exists` を見ている（`data_pipeline_service.md` §4.1.4） |
 | 3 | `config_service.ConfigManager.get` は無いキーの既定値も `None` もキャッシュするので、既定値や `has` の結果が呼ぶ順番で変わる | 実装どおり（`config_service.md` §4.1.1） |
 | 4 | `token_service` は最初の呼び出しで tiktoken の符号表をインターネットから取る。取れないと簡易推定に切り替わる | 実装どおり（`token_service.md` §4.1.1） |
@@ -351,11 +351,12 @@ print(sorted(m for m in sys.modules if m.startswith("services.")))
 > 重複禁止ルールと正本の一覧は [`docs/README.md`](../../docs/README.md) §4 が持つ。公開シンボルの網羅とリンクの確認は
 > [`grace/docs/README_grace.md` §5.1](../../grace/docs/README_grace.md#51-文書を保守するときの約束) のスクリプトを対象パスだけ差し替えて使う。
 
-**テスト**（2026-10-10 に `pytest --collect-only` で数えた値。記憶で書かないこと）:
+**テスト**（2026-10-10 に `pytest --collect-only` で数えた値。`test_qdrant_vectors_count.py` は 2026-10-11。記憶で書かないこと）:
 
 | テストファイル | 件数 | 対象 |
 |---|---:|---|
 | `tests/test_qdrant_service.py` | 19 | `qdrant_service` |
+| `tests/test_qdrant_vectors_count.py` | 18 | `qdrant_service` と `qdrant_client_wrapper` の件数取得が `CollectionInfo.vectors_count` の無い版（qdrant-client 1.19）でも件数を返すこと（§5 #1 の回帰） |
 | `tests/test_config_service.py` | 7 | `config_service`（既定値が `ModelConfig` と一致すること・既定プロバイダが Anthropic であること） |
 | `tests/test_json_service.py` | 6 | `json_service` |
 | `tests/test_token_service.py` | 6 | `token_service`（既定モデルが単価・上限表に載っていること） |
@@ -391,4 +392,5 @@ uv run --no-sync pytest tests/test_*_service.py tests/test_data_pipeline.py -q
 | 1.7 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |
 | 1.8 | 2026-10-10 | `grace/docs/` の構成整理（`README.md` → `README_grace.md`、`grace.md` / `grace_core.md` / `grace_runtime.md` / `confidence_calibration.md` を `README_grace.md` / `grace_process_flow.md` / `grace_data_flow.md` へ統合）に合わせてリンクを直した |
 | 2.0 | 2026-10-10 | **`README.md` を `README_services.md` へ改称し、ディレクトリ概要に作り直した**（`a_cross_doc_md_format.md` §1.2 の構成）。(1) `__init__.md`（パッケージの構造・再エクスポート対応表）を §3 公開 API と概要へ統合し、`__init__.md` を削除した（`__all__` は 50 件。旧 `__init__.md` §6 の「計 62 シンボル」は誤り）。(2) 旧 §1 目的別の入口・§2 一覧・§3 実装カバレッジを §1 モジュール一覧へ、旧 §5 書き分けの約束・§6 テスト件数を §5.1 へまとめた（テスト件数は再実測。`test_data_jobs.py` 43 → 44、`tests/integration/test_qdrant_live.py` 12 件を追加）。旧 §4 の `agent_service.py` 削除の経緯は §1 の行と `archive/agent_service.md` に残した。(3) 処理フロー・データフローの別文書を置かない理由と、読み書きするファイル・DB の表を §4 に置いた。(4) §2 使い方にモジュールを組み合わせる例 3 本を新設し、本物の Qdrant とスタブの Embedding で実行して出力を確かめた。(5) 9 モジュールの §4.1 使用例を書き直す中で見つかった実装の制約（qdrant-client 1.19 の `vectors_count`・`delete_collection` の戻り値・`ConfigManager.get` のキャッシュ・tiktoken の符号表）を §5 に記録した |
-| 2.1 | 2026-10-11 | 未使用の helper/helper_api.py を 2026-10-11 に削除したのに追随。構成図の呼び出し側から外し、config_service / cache_service / json_service に本番の呼び出し元が無いことを §5 #6 に記録した |
+| 2.1 | 2026-10-11 | §5 #1（qdrant-client 1.19 の `vectors_count`）を修正済みにし、回帰テスト `tests/test_qdrant_vectors_count.py`（18 件・`pytest --collect-only` で実測）を §5.1 の表に足した |
+| 2.2 | 2026-10-11 | 未使用の helper/helper_api.py を 2026-10-11 に削除したのに追随。構成図の呼び出し側から外し、config_service / cache_service / json_service に本番の呼び出し元が無いことを §5 #6 に記録した |
