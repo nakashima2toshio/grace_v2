@@ -1,6 +1,6 @@
 # docs 棚卸し（リポジトリ直下 `docs/`）
 
-**Version 3.13** | 最終更新: 2026-10-10
+**Version 3.14** | 最終更新: 2026-10-11
 
 リポジトリ直下 `docs/` の一覧と、**どのディレクトリに何を置くかの境界**をまとめる。
 各領域の棚卸しは [`backend/docs/README.md`](../backend/docs/README.md) /
@@ -9,7 +9,8 @@
 [`qa_generation/docs/README.md`](../qa_generation/docs/README.md) /
 [`chunking/docs/README.md`](../chunking/docs/README.md) /
 [`qa_qdrant/docs/README.md`](../qa_qdrant/docs/README.md) /
-[`services/docs/README_services.md`](../services/docs/README_services.md) にある（直下の本書を含め全 8 領域）。
+[`services/docs/README_services.md`](../services/docs/README_services.md) /
+[`helper/docs/README_helper.md`](../helper/docs/README_helper.md) にある（直下の本書を含め全 9 領域）。
 
 > ⚠️ **本リポジトリは Anthropic 版。** LLM は `claude-sonnet-5-5`（軽量 `claude-haiku-5-5`）で
 > `ANTHROPIC_API_KEY` が必須、Embedding のみ Gemini `gemini-embedding-001`（3072 次元・`GOOGLE_API_KEY`）。
@@ -53,7 +54,7 @@ CLAUDE.md §9.1 の表を、判断に使える形へ具体化したもの。
 
 | 置き場所 | 置くもの | 判断の目安 |
 |---|---|---|
-| `<package>/docs/<module>.md` | Python モジュールの IPO | **1 ファイル = 1 文書**。`chunking/` `qa_generation/` `qa_qdrant/` `services/` `grace/` |
+| `<package>/docs/<module>.md` | Python モジュールの IPO | **1 ファイル = 1 文書**。`chunking/` `qa_generation/` `qa_qdrant/` `services/` `grace/` `helper/` |
 | `backend/docs/` | `backend/app/**` の IPO ＋ Support / Review の spec・flow | 対象が `backend/app/` に閉じているか |
 | `frontend/docs/` | React コンポーネント 1 件ごと | 対象が `frontend/src/` に閉じているか |
 | **直下 `docs/`** | **2 つ以上の領域にまたがる横断文書**、およびトップレベル `.py` の IPO | 「`backend/` だけ」「`grace/` だけ」で説明しきれないもの |
@@ -250,3 +251,4 @@ EOF
 | 3.11 | 2026-10-10 | 索引の行数・版を実測値へ更新（テストを直下 `tests/` へ移した変更に追随） |
 | 3.12 | 2026-10-10 | `grace/docs/` の構成整理（`README.md` → `README_grace.md`、`grace.md` / `grace_core.md` / `grace_runtime.md` / `confidence_calibration.md` を `README_grace.md` / `grace_process_flow.md` / `grace_data_flow.md` へ統合）に合わせてリンクを直した |
 | 3.13 | 2026-10-10 | `services/docs/` の構成整理（`README.md` → `README_services.md`、`__init__.md` を統合）に合わせてリンクを直した |
+| 3.14 | 2026-10-11 | helper/docs/README_helper.md（2026-10-11 新設）への参照を足した |

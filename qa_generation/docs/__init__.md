@@ -1,6 +1,6 @@
 # \_\_init\_\_.py - qa_generation パッケージ公開 API ドキュメント
 
-**Version 1.6** | 最終更新: 2026-10-10
+**Version 1.7** | 最終更新: 2026-10-11
 
 ---
 
@@ -192,7 +192,7 @@ Celery のログ（`✅ celery_tasks.pyのインポート成功` など）が出
 | `helper/helper_rag_qa.py` | `helper_embedding` / `helper_llm` | **単体では import できなかった**（`No module named 'helper_embedding'`） |
 | `helper/helper_embedding.py` | `helper_embedding_fastembed`（`fastembed` プロバイダ選択時） | `create_embedding_client("fastembed")` が `No module named 'helper_embedding_fastembed'` で失敗し、「fastembed が未導入」と誤ったメッセージを出していた |
 | `helper/helper_embedding_fastembed.py` | `helper_embedding` | 同上の連鎖 |
-| `helper/helper_api.py` | `helper_llm` | 本番の import 元は無い（後方互換モジュール）。同じ理由で直した |
+| `helper/helper_api.py` | `helper_llm` | 本番の import 元は無い（後方互換モジュール）。同じ理由で直した（2026-10-11 にファイルごと削除） |
 
 裸 import が戻らないことは、上のテストの 3 件目（`helper/*.py` を `ast` で走査する静的検査）で固定した。
 
@@ -301,3 +301,4 @@ from qa_generation.evaluation import analyze_coverage
 | 1.4 | 2026-09-25 | §4 を更新。`qa_qdrant/__init__.py`（`make_qa.py` の古い写し 236 行）を docstring のみに置き換えたのに追随（`import qa_qdrant` は 1,406 → 35 モジュール。回帰テスト 2 件） |
 | 1.5 | 2026-09-25 | §5 のエクスポート表を更新（`QAPairsList` も直下 `models.py` の定義へ一本化） |
 | 1.6 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |
+| 1.7 | 2026-10-11 | 表の helper/helper_api.py の行に 2026-10-11 の削除を書き足した |

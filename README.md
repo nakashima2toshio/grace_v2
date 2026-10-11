@@ -1,6 +1,6 @@
 # GRACE（grace_v2）- 業界特化・自律型エージェント基盤 ドキュメント
 
-**Version 4.4** | 最終更新: 2026-10-10
+**Version 4.5** | 最終更新: 2026-10-11
 
 > 日本語 RAG に、根拠検証（groundedness）・Web 裏取り・HITL（Human-In-The-Loop）承認を組み合わせた、
 > 業界特化の自律型エージェント。`./run_dev.sh` で起動し、ブラウザ（http://localhost:5173）の 4 タブから使う。
@@ -521,7 +521,7 @@ python qa_qdrant/register_to_qdrant.py                # 3. 登録のみ
 直接呼ぶ。ステップごとのモジュール対応表の正本は [`grace/docs/grace_process_flow.md` §2.3](grace/docs/grace_process_flow.md#23-grace-support--grace-review-での使われ方)。
 
 リポジトリ直下には、エージェントが使う共用部品として `support_actions.py`（`ActionBackend`・本人確認）/
-`agent_tools.py` / `qdrant_client_wrapper.py`、Embedding・LLM のクライアントとして `helper/` がある。
+`agent_tools.py` / `qdrant_client_wrapper.py`、Embedding・LLM のクライアントとして `helper/`（[`helper/docs/README_helper.md`](helper/docs/README_helper.md)）がある。
 
 ### 6.2 画面系 — `backend/` ・ `frontend/`
 
@@ -769,3 +769,4 @@ cd frontend && npm run lint && npm test && npm run build # frontend
 | 4.2 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |
 | 4.3 | 2026-10-10 | `grace/docs/` の構成整理（`README.md` → `README_grace.md`、`grace.md` / `grace_core.md` / `grace_runtime.md` / `confidence_calibration.md` を `README_grace.md` / `grace_process_flow.md` / `grace_data_flow.md` へ統合）に合わせてリンクを直した |
 | 4.4 | 2026-10-10 | `services/docs/` の構成整理（`README.md` → `README_services.md`、`__init__.md` を統合）に合わせてリンクを直した |
+| 4.5 | 2026-10-11 | helper/docs/README_helper.md（2026-10-11 新設）への参照を足した |
