@@ -58,8 +58,10 @@ python -m chunking.csv_text_to_chunks_text_csv.py \
 
 import argparse
 import asyncio
+import hashlib
 import logging
 import re
+import sys
 from pathlib import Path
 from typing import List, Optional
 
@@ -69,7 +71,7 @@ from tqdm.asyncio import tqdm as async_tqdm
 
 # 既存のインポート
 from chunking.async_api_client import AsyncAPIClient
-from chunking.checkpoint_manager import CheckpointManager
+from chunking.checkpoint_manager import CheckpointManager, ResumeMismatchError
 from chunking.models import ContinuityResult, StructuralResult
 from chunking.prompts import (
     CONTINUITY_CHECK_PROMPT,
@@ -551,6 +553,20 @@ def _enforce_max_chunk_tokens(chunks: List[str], max_tokens: int) -> List[str]:
     return enforced
 
 
+def _job_meta(text: str, model: str, block_size: int, source_file: Optional[str]) -> dict:
+    """チェックポイントの照合に使う、ジョブの入力と設定。
+
+    本文はハッシュで比べる（ファイル名が同じでも中身や `--max-rows` が違えば別ジョブ）。
+    """
+    return {
+        "source_file": source_file or "",
+        "text_chars": len(text),
+        "text_sha256": hashlib.sha256(text.encode("utf-8")).hexdigest(),
+        "block_size": block_size,
+        "model": model,
+    }
+
+
 # ================================================================
 # chunks_all_async関数
 # ================================================================
@@ -565,8 +581,20 @@ async def chunks_all_async(
         dataset_type: str = "custom",
         source_file: Optional[str] = None
 ) -> List[str]:
-    """テキストを3段階で意味的にチャンク化"""
+    """テキストを3段階で意味的にチャンク化
+
+    Raises:
+        ResumeMismatchError: `checkpoint_manager` のジョブが別の入力・設定で作られている
+            （LLM を呼ぶ前に止める）
+    """
     import os
+
+    if checkpoint_manager is None:
+        checkpoint_manager = CheckpointManager()
+
+    # 再開するジョブが別の入力・設定で作られていないかを、LLM を呼ぶ前に確かめる。
+    # 新規ジョブならここで記録する（CLI の --resume とデータ管理タブの再開 ID の両方が通る）。
+    checkpoint_manager.verify_or_record_job(_job_meta(text, model, block_size, source_file))
 
     # [MIGRATION gemini→anthropic] チャンク化の LLM は Anthropic Claude を使用する。
     api_key = os.getenv("ANTHROPIC_API_KEY")
@@ -582,9 +610,6 @@ async def chunks_all_async(
         # 別モデルへ黙って回避されないように）
         default_model=model,
     )
-
-    if checkpoint_manager is None:
-        checkpoint_manager = CheckpointManager()
 
     logger.info("=" * 60)
     logger.info("チャンク化処理開始 (3段階)")
@@ -629,6 +654,28 @@ async def chunks_all_async(
             )
 
     return final_chunks
+
+
+def _parse_structural(result_json: Optional[str], task_id: str) -> Optional[List[str]]:
+    """Step1・Step2 の LLM 応答を段落の本文のリストにする。失敗（None・パース不能・空）は None"""
+    if not result_json:
+        return None
+    try:
+        result = StructuralResult.model_validate_json(result_json)
+    except Exception as e:
+        logger.warning(f"{task_id}: パース失敗: {e}")
+        return None
+    texts = [p.full_text for p in result.paragraphs if p.full_text.strip()]
+    return texts or None
+
+
+def _warn_fallback(step: str, unit: str, indexes: List[int], total: int) -> None:
+    """LLM が失敗して原文のまま残した件数を警告する（データ管理タブにもログで出る）"""
+    if indexes:
+        logger.warning(
+            f"  ⚠️ {step}: LLM が失敗した {len(indexes)}/{total} {unit}"
+            f"（番号 {indexes[:20]}{' …' if len(indexes) > 20 else ''}）は分割せず原文のまま残しました"
+        )
 
 
 async def _step1_hierarchical_split(
@@ -692,18 +739,22 @@ async def _step1_hierarchical_split(
     )
 
     paragraphs = []
-    for result_json in results:
-        if result_json:
-            try:
-                result = StructuralResult.model_validate_json(result_json)
-                for para in result.paragraphs:
-                    para_text = _postprocess_paragraph(para.full_text)
-                    paragraphs.append(para_text)
-            except Exception as e:
-                logger.warning(f"パース失敗: {e}")
+    fallback = []
+    for i, (block, result_json) in enumerate(zip(blocks, results)):
+        parsed = _parse_structural(result_json, f"step1_block_{i}")
+        if parsed is None:
+            # LLM が失敗したブロックは段落に分けず、原文を 1 段落として残す
+            # （捨てると、その本文が Q/A 生成・検索の対象から黙って外れる）
+            fallback.append(i)
+            parsed = [block]
+        for para_text in parsed:
+            para_text = _postprocess_paragraph(para_text)
+            if para_text:
+                paragraphs.append(para_text)
 
+    _warn_fallback("Step1", "ブロック", fallback, len(blocks))
     logger.info(f"  出力: {len(paragraphs)} 段落")
-    checkpoint_manager.save("step1", paragraphs)
+    checkpoint_manager.save("step1", paragraphs, metadata={"fallback_count": len(fallback)})
 
     return paragraphs
 
@@ -762,17 +813,18 @@ async def _step2_semantic_chunking(
     )
 
     chunks = []
-    for result_json in results:
-        if result_json:
-            try:
-                result = StructuralResult.model_validate_json(result_json)
-                for para in result.paragraphs:
-                    chunks.append(para.full_text)
-            except Exception as e:
-                logger.warning(f"パース失敗: {e}")
+    fallback = []
+    for i, (para, result_json) in enumerate(zip(paragraphs, results)):
+        parsed = _parse_structural(result_json, f"step2_para_{i}")
+        if parsed is None:
+            # LLM が失敗した段落は分けずに 1 チャンクとして残す
+            fallback.append(i)
+            parsed = [para]
+        chunks.extend(p for p in parsed if p.strip())
 
+    _warn_fallback("Step2", "段落", fallback, len(paragraphs))
     logger.info(f"  出力: {len(chunks)} チャンク")
-    checkpoint_manager.save("step2", chunks)
+    checkpoint_manager.save("step2", chunks, metadata={"fallback_count": len(fallback)})
 
     return chunks
 
@@ -866,7 +918,7 @@ async def _step3_continuity_check(
 # メイン関数
 # ================================================================
 
-async def main():
+async def main() -> int:
     parser = argparse.ArgumentParser(
         description="LLMベースセマンティックチャンキング（統一版 - make_qa形式互換）"
     )
@@ -940,7 +992,7 @@ async def main():
     input_path = Path(args.input_file)
     if not input_path.exists():
         logger.error(f"入力ファイルが見つかりません: {args.input_file}")
-        return
+        return 1
 
     file_extension = input_path.suffix.lower()
 
@@ -980,16 +1032,20 @@ async def main():
 
     checkpoint_manager = CheckpointManager(job_id=args.resume) if args.resume else CheckpointManager()
 
-    final_chunks = await chunks_all_async(
-        text=text,
-        model=args.model,
-        max_workers=args.workers,
-        block_size=args.block_size,
-        checkpoint_manager=checkpoint_manager,
-        output_file=output_file,
-        dataset_type=dataset_type,
-        source_file=input_path.name
-    )
+    try:
+        final_chunks = await chunks_all_async(
+            text=text,
+            model=args.model,
+            max_workers=args.workers,
+            block_size=args.block_size,
+            checkpoint_manager=checkpoint_manager,
+            output_file=output_file,
+            dataset_type=dataset_type,
+            source_file=input_path.name
+        )
+    except ResumeMismatchError as e:
+        logger.error(str(e))
+        return 1
 
     logger.info("")
     logger.info("=" * 60)
@@ -998,7 +1054,8 @@ async def main():
     logger.info(f"📊 生成チャンク数: {len(final_chunks)}")
     logger.info(f"📁 出力ファイル: {output_file}")
     logger.info("=" * 60)
+    return 0
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    sys.exit(asyncio.run(main()))

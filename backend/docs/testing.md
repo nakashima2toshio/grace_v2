@@ -1,6 +1,6 @@
 # backend テストの地図 ドキュメント
 
-**Version 2.10** | 最終更新: 2026-10-10
+**Version 2.11** | 最終更新: 2026-10-11
 
 ---
 
@@ -329,7 +329,7 @@ GRACE_E2E=1 uv run --no-sync pytest tests/e2e -m e2e -rs
 | `test_job_logs.py` | ログ転送（スレッド絞り込み・level の参照カウント） |
 | `test_done_event_timing.py` | `done` 番兵の `ts` / `started_at` |
 | `test_api.py` | Support API の応答 |
-| `test_data_jobs.py` / `test_data_pipeline.py` / `test_chunking_abort.py` / `test_collection_selection.py` | データ準備 4 ジョブ |
+| `test_data_jobs.py` / `test_data_pipeline.py` / `test_chunking_abort.py` / `test_chunking_fallback_and_resume.py` / `test_collection_selection.py` | データ準備 4 ジョブ（チャンク化は、LLM が失敗したブロックの原文を残すこと・再開時の入力と設定の照合・CLI の終了コードまで） |
 | `test_config_isolation.py` / `test_config_file_and_memory.py` / `test_scope_and_models.py` / `test_model_table_coverage.py` | 設定・モデル解決 |
 | `test_celery_worker_init.py` | Celery ワーカー起動時の初期化（`configure_worker_process`）と `python celery_config.py`（`__main__`）が ERROR を出さず、タスクが実際に使う `qa_generation.smart_qa_generator` を確かめる（削除済みの `qa_generation.generation` を見ていた回帰） |
 | `test_qa_generation_core.py` | **Q/A 生成の中核**（`QAPipeline.run()` / `SmartQAGenerator.process_chunk()` / `analyze_coverage()`）を偽 LLM・偽 Embedding で直接実行する。`test_data_jobs.py` は `run_qa_generation_sync` をスタブにするので、パイプライン本体はここでしか走らない |
@@ -416,3 +416,4 @@ GRACE_E2E=1 uv run --no-sync pytest tests/e2e -m e2e -rs
 | 2.8 | 2026-10-07 | §1.2 に `GRACE_E2E_REPEAT=3` の実測（21 件 passed・242 秒・3 回の結果の比較）を追記 |
 | 2.9 | 2026-10-09 | 地図に `test_qa_generation_core.py`（Q/A 生成の中核 3 つの直接テスト）を追加し、`test_celery_worker_init.py` の対象に `celery_config.py` の `__main__` を追記。§3 に `qa_generation/` を触ったときに流すテストを追加 |
 | 2.10 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |
+| 2.11 | 2026-10-11 | テスト一覧のデータ準備の行に `test_chunking_fallback_and_resume.py` を足した |

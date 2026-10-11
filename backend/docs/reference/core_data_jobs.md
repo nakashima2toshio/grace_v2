@@ -1,6 +1,6 @@
 # core/data_jobs.py - データ準備ジョブ runner ドキュメント
 
-**Version 1.10** | 最終更新: 2026-10-10
+**Version 1.11** | 最終更新: 2026-10-11
 
 > **本書の位置づけ**: `backend/app/core/data_jobs.py`（データ準備 4 ジョブの runner）の **IPO リファレンス**。
 > 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。
@@ -409,6 +409,11 @@ def _ask_confirmation(confirm: ConfirmFn, message: str, reason: str) -> tuple[bo
 > 連続で失敗して中断した場合で、原因と対処はメッセージ側が持っている。
 > `type(e).__name__` を前置きすると読みにくくなるだけなので、そのまま出す。
 > 詳細は [`chunking/docs/async_api_client.md`](../../../chunking/docs/async_api_client.md) §4.4。
+>
+> ⚠️ **`ResumeMismatchError` も同じく分けて捕まえる**（2026-10-11〜）。`resume`（再開 ID）のジョブが別の入力・設定
+> （ファイル名・本文・`block_size`・`model`）で作られているときに `chunks_all_async()` が LLM を呼ぶ前に送出し、出力 CSV は書かれない。
+> メッセージに食い違った項目が並ぶので、そのまま error にする（[`chunking/docs/checkpoint_manager.md`](../../../chunking/docs/checkpoint_manager.md) §4.7・
+> 回帰は `tests/test_data_jobs.py::test_chunking_resume_with_other_input_is_error`）。
 
 ### 5.4 `_qa_runner`
 
@@ -505,3 +510,4 @@ register_runner(DeleteParams,   _delete_runner,   "delete")
 | 1.8 | 2026-10-08 | `QaGenerationParams.model` の既定を実装どおり `claude-sonnet-5` → `claude-sonnet-5-5` へ是正し、注記の理由を「アプリ全体の既定に合わせる」へ直した（2026-10-08） |
 | 1.9 | 2026-10-09 | `QaGenerationParams.batch_chunks` を削除（`QAPipeline` が一度も使っていなかった）。`concurrency` は表示用である旨を注記（2026-10-09） |
 | 1.10 | 2026-10-10 | 概要の「各責務対応のモジュール」を「主な責務」（4 項目）と 1:1 に揃えた（責務の文言をそのまま使い、「イベント型」「実処理」は責務 2・4 の説明へ移し、説明列を足した）。変更履歴を 3 列へ移した |
+| 1.11 | 2026-10-11 | §5.3 に、`_chunking_runner` が `ResumeMismatchError`（再開 ID のジョブが別の入力・設定で作られている）を分けて捕まえることを追記した |
