@@ -1,6 +1,6 @@
 # smart_qa_generator.py - コンテンツ適応型 Q/A 生成 ドキュメント
 
-**Version 1.4** | 最終更新: 2026-10-11
+**Version 1.5** | 最終更新: 2026-10-11
 
 ---
 
@@ -394,8 +394,8 @@ except Exception as e:
 ```
 
 > ⚠️ 失敗時の `analysis` は**空の辞書**なので、`result["analysis"]["qa_count"]` は `KeyError` になる。先に `success` を見る。
-> 呼び出し側（`QAPipeline._generate_sync()` / Celery の `generate_qa_for_chunk_task`）はこの `success=False` を受けてそのチャンクを 0 件として進む
-> （Celery 側の再試行は効かない・[`pipeline.md`](pipeline.md) §4.1.4）。
+> 呼び出し側はこの `success=False` を見てそのチャンクを処理済みにしない（再開で作り直す）。同期の `QAPipeline._generate_sync()` は 0 件として進み、
+> Celery の `generate_qa_for_chunk_task` は例外に変えてタスクを最大 3 回再試行してから失敗にする（[`pipeline.md`](pipeline.md) §4.1.4）。
 
 ### 6.2 SmartQAGenerator.\_\_init\_\_()
 
@@ -621,3 +621,4 @@ class A,B,C,D,E,F,G,H,I default
 | 1.2 | 2026-09-24 | `SmartQAGenerator.__init__()` の `model` 既定値の記述（使用例・IPO・設定表の 3 箇所）が旧既定のままだったのを、実装（`smart_qa_generator.py`）の現行既定へ合わせた |
 | 1.3 | 2026-10-08 | Q/A 生成の既定モデルがコード側で `config.py::ModelConfig.DEFAULT_MODEL` 参照になったのに追随し、既定の記述を `claude-sonnet-5` → `claude-sonnet-5-5` へ是正（使用例・IPO・引数表） |
 | 1.4 | 2026-10-11 | §6.1 使用例を 4 パターン（1 チャンクの生成・統計・分析と生成・失敗時）に書き直し、スタブで動かした出力を載せた。失敗時は `success=False`・`qa_pairs=[]`・`analysis={}` で例外にならないこと、統計では失敗を 0 件として数えることを実行して確かめて注記した。`__init__.md` / `make_qa_qapipeline.md` の統合に追随してリンクを直した |
+| 1.5 | 2026-10-11 | §6.1.4 の注記を、Celery のタスクが `success=False` を例外に変えて再試行するようになったのに追随させた |
