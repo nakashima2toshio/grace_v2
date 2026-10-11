@@ -70,7 +70,7 @@ style EXT fill:#1a1a1a,stroke:#fff,color:#fff
 
 | モジュール | 文書 | 種別 | 行数 | Ver | 概要 |
 |---|---|---|---:|---|---|
-| `list_collections.py`（51 行） | [`list_collections.md`](list_collections.md) | E | — | 1.0 | Qdrant のコレクション一覧（`--detail` でベクトル設定も）を表示する読み取り専用の CLI |
+| `list_collections.py`（51 行） | [`list_collections.md`](list_collections.md) | E | 320 | 1.0 | Qdrant のコレクション一覧（`--detail` でベクトル設定も）を表示する読み取り専用の CLI |
 
 > 行数は文書の行数（実測）。`__init__.py` は空（0 行）なので文書を作らない（§3）。
 
@@ -90,7 +90,7 @@ python qa_qdrant/register_to_qdrant.py \
   --collection document_qa --recreate > /dev/null 2>&1
 
 # 3. 登録後: 件数と次元（3072 = Gemini gemini-embedding-001）を確かめる
-python -m qa_qdrant.command.list_collections --detail | grep -A1 document_qa
+python -m qa_qdrant.command.list_collections --detail | grep -A1 "document_qa "
 
 # 出力例:
 #   - document_qa                               points=       4  status=green
