@@ -31,6 +31,9 @@ pandas
 openai
 anthropic
 google-genai
+# qdrant-client は pyproject.toml（==1.15.1）に合わせて固定しない。CI には最新版が入る
+# （2026-10-10 時点で 1.19.1）。版で API が変わる箇所（1.19 で `CollectionInfo.vectors_count`
+# が無くなった等）はコード側を版に依存しない書き方にし、tests/test_qdrant_vectors_count.py で検査する。
 qdrant-client>=1.15
 tiktoken
 fastapi

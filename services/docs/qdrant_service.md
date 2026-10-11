@@ -1,6 +1,6 @@
 # qdrant_service.py - Qdrant操作サービス ドキュメント
 
-**Version 2.6** | 最終更新: 2026-10-10
+**Version 2.7** | 最終更新: 2026-10-11
 
 ---
 
@@ -218,7 +218,7 @@ style SRCH fill:#1a1a1a,stroke:#fff,color:#fff
 | モジュール | 用途 |
 |-----------|------|
 | `helper.helper_embedding` | `create_embedding_client` / `get_embedding_dimensions`（Embeddingクライアント・次元数） |
-| `qdrant_client_wrapper` | `stable_point_id`（決定的ポイントID生成）。Sparse Vector(SPLADE)生成もこちらが担当 |
+| `qdrant_client_wrapper` | `stable_point_id`（決定的ポイントID生成）・`collection_vectors_count`（qdrant-client の版に依らずベクトル数を読む）。Sparse Vector(SPLADE)生成もこちらが担当 |
 
 ---
 
@@ -409,6 +409,7 @@ from services.qdrant_service import (
     QdrantDataFetcher,
     create_or_recreate_collection_for_qdrant,
     get_all_collections,
+    get_all_collections_simple,
     get_collection_embedding_params,
     get_collection_stats,
 )
@@ -420,26 +421,35 @@ client.upsert(name, points=[models.PointStruct(id=1, vector=[0.1] * 3072,
                                                payload={"question": "住民票は？", "answer": "窓口です", "source": "gov_faq.csv"})])
 
 print([c for c in get_all_collections(client) if c["name"] == name])
+print([c for c in get_all_collections_simple(client) if c["name"] == name])
 print(get_collection_stats(client, name)["vector_config"], get_collection_stats(client, "doc_example_none"))
 print(get_collection_embedding_params(client, name))          # 次元から埋め込みモデルを推定
-df = QdrantDataFetcher(client).fetch_collection_points(name, limit=10)   # payload を列にした DataFrame
+fetcher = QdrantDataFetcher(client)
+info = fetcher.fetch_collection_info(name)                    # 件数・状態・ベクトル設定（データ管理タブの詳細）
+print(info["vectors_count"], info["points_count"], info["config"])
+df = fetcher.fetch_collection_points(name, limit=10)          # payload を列にした DataFrame
 print(list(df.columns), df.iloc[0]["question"])
 
 client.delete_collection(name)   # 片付け
 ```
 
 ```
-# 出力例:
+# 出力例（2026-10-11 に qdrant-client 1.19.1・Qdrant 1.15.1 で実行）:
 # [{'name': 'doc_example_inspect', 'points_count': 1, 'status': <CollectionStatus.GREEN: 'green'>}]
+# [{'name': 'doc_example_inspect', 'vectors_count': 1, 'points_count': 1, 'status': 'green'}]
 # {'default': {'size': 3072, 'distance': 'Cosine'}} None
 # {'model': 'gemini-embedding-001', 'dims': 3072}
+# 1 1 {'vector_size': 3072, 'distance': <Distance.COSINE: 'Cosine'>}
 # ['ID', 'question', 'answer', 'source'] 住民票は？
 ```
 
-> ⚠️ **`QdrantDataFetcher.fetch_collections` / `fetch_collection_info` と `get_all_collections_simple` は、qdrant-client 1.19 では件数が取れない。**
-> `CollectionInfo.vectors_count` を読むが、1.19.1 の `CollectionInfo` にはこの属性が無く、例外を握って「Error / N/A」の行・`{"error": ...}` を返す
-> （2026-10-10 に確認。`pyproject.toml` は 1.15.1 を固定しているが、`requirements-test.txt` は `>=1.15` なので新しい版が入りうる）。
-> 件数は `get_all_collections` / `get_collection_stats`（`points_count` を読む）で取る。
+> ⚠️ **`vectors_count` は qdrant-client の版によって `points_count` で代用した値になる。**
+> qdrant-client 1.19 の `CollectionInfo` には `vectors_count` が無く、1.15 でも新しい Qdrant サーバー相手だと None になる。
+> `QdrantDataFetcher.fetch_collections` / `fetch_collection_info` と `get_all_collections_simple` は
+> `qdrant_client_wrapper.collection_vectors_count()` を通して読み、属性が無い・None のときは `points_count` を返す
+> （1 ポイント = 1 ベクトルとみなす。Named vectors のコレクションでは実数より少ない）。
+> 2026-10-10 までは `info.vectors_count` を直接読んでいたため、1.19.1 では例外を握って「Error / N/A」の行・`{"error": ...}` を返し、
+> データ管理タブのコレクション詳細（`GET /api/qdrant/collections/{name}`）がエラーになっていた（`tests/test_qdrant_vectors_count.py` が検査する）。
 > `fetch_collection_points` の値は 200 字を超えると「...」で切り詰める（表示用）。存在しないコレクションでは例外ではなく `{"Error": [...]}` の 1 列の表を返す。
 
 #### 4.1.4 検索する
@@ -670,7 +680,7 @@ def fetch_collections(self) -> pd.DataFrame
 | 項目 | 内容 |
 |------|------|
 | **Input** | なし（selfのみ） |
-| **Process** | 1. `get_collections()` で一覧取得<br>2. 各コレクションの `get_collection()` で詳細取得<br>3. 失敗時は "N/A"/"Error" を設定<br>4. DataFrameに変換 |
+| **Process** | 1. `get_collections()` で一覧取得<br>2. 各コレクションの `get_collection()` で詳細取得（Vectors Count は `collection_vectors_count()`。`vectors_count` が無い・None なら `points_count`）<br>3. 失敗時は "N/A"/"Error" を設定<br>4. DataFrameに変換 |
 | **Output** | `pd.DataFrame`: Collection / Vectors Count / Points Count / Indexed Vectors / Status |
 
 **戻り値例**:
@@ -733,8 +743,8 @@ def fetch_collection_info(self, collection_name: str) -> Dict[str, Any]
 | 項目 | 内容 |
 |------|------|
 | **Input** | `collection_name: str` |
-| **Process** | 1. `get_collection()` で取得<br>2. 単一/Named Vectors を判定してベクトルサイズ・距離を抽出<br>3. 辞書に整形 |
-| **Output** | `Dict[str, Any]`: `{vectors_count, points_count, indexed_vectors, status, config}`（エラー時 `{"error": ...}`） |
+| **Process** | 1. `get_collection()` で取得<br>2. 単一/Named Vectors を判定してベクトルサイズ・距離を抽出<br>3. 辞書に整形（`vectors_count` は `collection_vectors_count()`。`CollectionInfo.vectors_count` が無い・None なら `points_count`） |
+| **Output** | `Dict[str, Any]`: `{vectors_count, points_count, indexed_vectors, status, config}`（`get_collection()` などが失敗したとき `{"error": ...}`） |
 
 **戻り値例**:
 ```python
@@ -1007,7 +1017,7 @@ def get_all_collections_simple(client: QdrantClient) -> List[Dict[str, Any]]
 | 項目 | 内容 |
 |------|------|
 | **Input** | `client: QdrantClient` |
-| **Process** | 全コレクションを走査し `name/vectors_count/points_count/status` を収集（CSVマッピングなし） |
+| **Process** | 全コレクションを走査し `name/vectors_count/points_count/status` を収集（CSVマッピングなし）。`vectors_count` は `collection_vectors_count()`（`CollectionInfo.vectors_count` が無い・None なら `points_count`）。1 件の取得に失敗したらその行を `vectors_count=0, points_count=0, status="error"` にする |
 | **Output** | `List[Dict[str, Any]]`: コレクション情報のリスト |
 
 **戻り値例**:
@@ -1659,6 +1669,7 @@ batched
 | 2.4 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`）。次元から登録モデルを判別できない注意は、特定のモデル名に依らない書き方にした |
 | 2.5 | 2026-10-10 | §4.1 使用例を処理パターン別（接続確認／Q/A の CSV を登録／中身の確認／検索／統合）の 5 本に書き直し、本物の Qdrant（docker-compose）で全例を実行して出力を確かめた（2026-10-10。Gemini Embedding だけスタブ）。旧例の `client.search`（qdrant-client 1.19.1 に無い）を `query_points` へ直した。qdrant-client 1.19.1 では `vectors_count` が無く `fetch_collections` / `fetch_collection_info` / `get_all_collections_simple` が件数を返せないことを注記 |
 | 2.6 | 2026-10-10 | 4.1.4 の検索例を limit=1 にした（スコアが同点の 2 件目は順番が決まらず、出力例と一致しないことがあった） |
+| 2.7 | 2026-10-11 | qdrant-client 1.19 で `vectors_count` が読めず件数を返せなかった 3 関数（`fetch_collections` / `fetch_collection_info` / `get_all_collections_simple`）を `collection_vectors_count()` 経由に直したのに追随。4.1.3 の注記を「件数が取れない」から「`points_count` で代用する」へ書き換え、使用例に `get_all_collections_simple` と `fetch_collection_info` を足して本物の Qdrant で実行した。3 関数の IPO の Process と §2.3・付録の依存関係図に `collection_vectors_count` を追記 |
 
 ---
 
@@ -1693,9 +1704,10 @@ flowchart LR
     EMB --> E1["create_embedding_client()"]
     EMB --> E2["get_embedding_dimensions()"]
     WRAP --> W1["stable_point_id()"]
+    WRAP --> W2["collection_vectors_count()"]
 classDef default fill:#000,stroke:#fff,color:#fff
 classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
-class MODULE,QC,MODELS,EXC,DF,EMB,WRAP,E1,E2,W1 default
+class MODULE,QC,MODELS,EXC,DF,EMB,WRAP,E1,E2,W1,W2 default
 style QDC fill:#1a1a1a,stroke:#fff,color:#fff
 style PD fill:#1a1a1a,stroke:#fff,color:#fff
 style INT fill:#1a1a1a,stroke:#fff,color:#fff
