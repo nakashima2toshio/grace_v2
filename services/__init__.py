@@ -6,9 +6,6 @@ services - ビジネスロジック分離モジュール
 バックエンド（FastAPI）・CLI・grace から共用するビジネスロジック。
 
 モジュール構成:
-- config_service.py: 設定管理（YAML、環境変数）
-- cache_service.py: メモリキャッシュ（TTL対応）
-- json_service.py: JSON処理（シリアライズ、ファイルI/O）
 - token_service.py: トークン管理（カウント、コスト推定）
 - qdrant_service.py: Qdrant操作（CRUD、ヘルスチェック）
 - data_pipeline_service.py: データ準備（パス検証・Qdrant 操作・データ変換）
@@ -20,35 +17,11 @@ services - ビジネスロジック分離モジュール
    Streamlit 版アプリ（ui/）の時代の名残で、services/__init__.py の
    再エクスポート以外に呼び出し元が 1 件も無かった。
    （実装は git 履歴に残る。経緯は docs/doc_modernization_todo.md）
+⚠️ 2026-10-11 に config_service.py / cache_service.py / json_service.py を削除した。
+   本パッケージの再エクスポートとテスト以外に呼び出し元が無かった
+   （実装は git 履歴に残る。経緯は services/docs/README_services.md）。
 """
 
-from services.cache_service import (
-    MemoryCache,
-    cache,
-    cache_result,
-    get_global_cache,
-    init_cache_from_config,
-)
-from services.config_service import (
-    ConfigManager,
-    config,
-    get_config,
-    logger,
-    reload_config,
-    set_config,
-)
-from services.json_service import (
-    compact_json,
-    is_valid_json,
-    load_json_file,
-    load_json_file_or_default,
-    merge_json_files,
-    pretty_print_json,
-    safe_json_dumps,
-    safe_json_loads,
-    safe_json_serializer,
-    save_json_file,
-)
 from services.qa_service import (
     generate_qa_pairs,
     save_qa_pairs_to_file,
@@ -118,28 +91,4 @@ __all__ = [
     "LLM_PRICING",
     "EMBEDDING_PRICING",
     "MODEL_LIMITS",
-    # config_service
-    "ConfigManager",
-    "config",
-    "logger",
-    "get_config",
-    "set_config",
-    "reload_config",
-    # cache_service
-    "MemoryCache",
-    "cache_result",
-    "cache",
-    "get_global_cache",
-    "init_cache_from_config",
-    # json_service
-    "safe_json_serializer",
-    "safe_json_dumps",
-    "safe_json_loads",
-    "load_json_file",
-    "save_json_file",
-    "load_json_file_or_default",
-    "merge_json_files",
-    "is_valid_json",
-    "pretty_print_json",
-    "compact_json",
 ]

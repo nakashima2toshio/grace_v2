@@ -109,9 +109,10 @@ uv run ruff check .                     # ブロッキングCIゲート
      helper_llm はモジュール直下 `genai` を持つので `helper.helper_llm.genai` を patch。
    - `services.agent_service`（Legacy ReAct）は 2026-10-10 にモジュールごと削除した。これを import / patch する
      テストは書かない（見つけたら削除対象）。
+   - `services.config_service` / `cache_service` / `json_service`・`helper.helper_rag` / `helper_rag_qa` / `helper_embedding_fastembed` も
+     2026-10-11 に削除した（呼び出し元が無かった）。同様に import / patch するテストは書かない。
 3. **既定値ドリフト（期待値を現行へ）**
    - モデル既定 `gemini-2.0-flash` → 現行の既定。**期待値はリテラルで書かず `config.py::ModelConfig.DEFAULT_MODEL` を参照する**（2026-10-09 時点 `claude-sonnet-5-5`。この行は以前 `claude-sonnet-4-6` のまま残っていた）。
-   - `config_service`: env override は `ANTHROPIC_API_KEY` → `api.anthropic_api_key`。
    - ValueError メッセージ `"ANTHROPIC_API_KEY is not set"`。
 4. **削除された挙動**
    - `smart_qa_generator` の2段階フォールバック廃止 → 構造化失敗時は `success=False`/空。
