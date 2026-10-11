@@ -1,6 +1,6 @@
 # README_qa_qdrant.md - qa_qdrant/ ディレクトリ概要
 
-**Version 2.1** | 最終更新: 2026-10-11
+**Version 2.2** | 最終更新: 2026-10-11
 
 `qa_qdrant/` の入口となる文書。ディレクトリの役割・モジュール索引・組み合わせ方・既知の制約をまとめる。
 文書を新しく書く／直す前に、まずここを見る。
@@ -110,11 +110,11 @@ Gemini Embedding → Qdrant のポイント（payload に Q/A）＋ UI 用 CSV�
 | モジュール | 文書 | 種別 | 行数 | Ver | 概要 |
 |---|---|---|---:|---|---|
 | `make_qa.py`（254 行） | [`make_qa.md`](make_qa.md) | E | 520 | 3.8 | Q/A 生成だけの CLI（チャンク済み CSV・データセット） |
-| `make_qa_register_qdrant.py`（699 行） | [`make_qa_register_qdrant.md`](make_qa_register_qdrant.md) | E | 835 | 2.0 | 生成 → 登録の統合 CLI（`.txt` はチャンク化から・Q/A 済み CSV は登録だけ）。旧手順書を統合 |
-| `register_to_qdrant.py`（588 行） | [`register_to_qdrant.md`](register_to_qdrant.md) | E | 690 | 2.4 | 既存 CSV → Qdrant の登録 CLI と関数（データ管理タブが使う） |
+| `make_qa_register_qdrant.py`（702 行） | [`make_qa_register_qdrant.md`](make_qa_register_qdrant.md) | E | 837 | 2.1 | 生成 → 登録の統合 CLI（`.txt` はチャンク化から・Q/A 済み CSV は登録だけ）。旧手順書を統合 |
+| `register_to_qdrant.py`（588 行） | [`register_to_qdrant.md`](register_to_qdrant.md) | E | 694 | 2.6 | 既存 CSV → Qdrant の登録 CLI と関数（データ管理タブが使う） |
 | `command/list_collections.py`（51 行） | [`command/docs/list_collections.md`](../command/docs/list_collections.md) | E | 320 | 1.0 | コレクションの一覧（サブディレクトリ。索引は [`README_command.md`](../command/docs/README_command.md)） |
-| （処理フロー） | [`qa_qdrant_process_flow.md`](qa_qdrant_process_flow.md) | A | 292 | 1.0 | CLI 3 本の受け持ち・Phase 1／2 のステップ・Web との対応・再開 |
-| （データフロー） | [`qa_qdrant_data_flow.md`](qa_qdrant_data_flow.md) | A | 263 | 1.1 | チャンク CSV・Q/A 出力・payload・UI 用 CSV の形と置き場所 |
+| （処理フロー） | [`qa_qdrant_process_flow.md`](qa_qdrant_process_flow.md) | A | 293 | 1.1 | CLI 3 本の受け持ち・Phase 1／2 のステップ・Web との対応・再開 |
+| （データフロー） | [`qa_qdrant_data_flow.md`](qa_qdrant_data_flow.md) | A | 265 | 1.2 | チャンク CSV・Q/A 出力・payload・UI 用 CSV の形と置き場所 |
 
 > 行数は文書の行数（2026-10-11 実測）。`__init__.py`（docstring だけ）は文書を作らない（§3）。
 >
@@ -180,7 +180,7 @@ python -m qa_qdrant.command.list_collections --detail | grep -A1 "document_qa "
 ```
 
 > 📌 1 の `--output` を省くと、`make_qa.py` は**リポジトリ直下の** `qa_output/pipeline/` に書く（カレントディレクトリ基準ではない・[`make_qa.md`](make_qa.md) §5.2）。
-> 3 は `question` ＋ `answer` をベクトル化する。`make_qa_register_qdrant.py` と同じ `question` だけにするなら `--text-col question`（§5 の 2）。
+> 3 は `question` ＋ `answer` をベクトル化する（`make_qa_register_qdrant.py`・データ管理タブも同じ。§5 の 2）。`question` だけにするなら `--text-col question`。
 
 ### 2.2 データ管理タブと同じ組み立て方（Python）
 
@@ -247,12 +247,12 @@ print(ok)
 
 ## 5. 既知の制約・残課題
 
-2026-10-11 に実装を読み、CLI を実行して確かめたもの。**コードは直していない**（本書の改訂は文書の整理のみ）。
+2026-10-11 に実装を読み、CLI を実行して確かめたもの。2 は同日に直した（取り消し線）。ほかはコードを直していない。
 
 | # | 内容 | 影響 | 詳細 |
 |---|------|------|------|
 | 1 | `make_qa.py` は `ANTHROPIC_API_KEY` を起動時に確かめない | キーが無いと全チャンクが失敗し「生成Q/A数: 0」のまま**終了コード 0**。`make_qa_register_qdrant.py` は 2026-09-25 に直してある | [`make_qa.md`](make_qa.md) §5.4 |
-| 2 | **ベクトル化する文が道具で違う**: `make_qa_register_qdrant.py` は `question` だけ、`register_to_qdrant.py`（とデータ管理タブ）は `question` ＋ `answer` | 同じ Q/A CSV でも、どちらで登録したかで検索スコアが変わる。RAG のしきい値の測り直しにも関わるので、どちらへ揃えるかは**ユーザーの判断待ち** | [`register_to_qdrant.md`](register_to_qdrant.md) §5.4 の 2 |
+| 2 | ~~ベクトル化する文が道具で違う~~ → **解決**（`make_qa_register_qdrant.py` も `question` ＋改行＋`answer` にそろえた。組み立ては `register_to_qdrant.detect_text_column()` の 1 か所） | 2026-10-11 より前に `make_qa_register_qdrant.py` で登録したコレクションは `question` だけのベクトルのまま。そろえるなら `--recreate` で登録し直し、`python scripts/measure_rag_threshold.py --vertical each` で RAG のしきい値（`reasoning_min_rag_score` / `rag_sufficient_score`）を測り直す | [`register_to_qdrant.md`](register_to_qdrant.md) §5.4 の 2 |
 | 3 | `register_to_qdrant.py --provider openai` は Embedding に効かず、payload に `text-embedding-3-small` と誤った名前を書く | payload を信じると Embedding モデルを取り違える | [`register_to_qdrant.md`](register_to_qdrant.md) §5.4 の 1 |
 | 4 | `make_qa.py` / `make_qa_register_qdrant.py` のログ書式（`basicConfig(format=...)`）が効かない | ログが `INFO:__main__:...` の形になる（見た目だけ） | [`make_qa_register_qdrant.md`](make_qa_register_qdrant.md) §6.3 |
 | 5 | Qdrant の接続先は `localhost:6333` 固定（3 本の CLI に `--url` が無く、環境変数でも変わらない） | 別ホストの Qdrant へ登録できない | [`make_qa_register_qdrant.md`](make_qa_register_qdrant.md) §3.4 |
@@ -274,15 +274,16 @@ print(ok)
 | `tests/test_make_qa_register_qdrant_startup_checks.py` | 4 | 起動時の検査（`ANTHROPIC_API_KEY`・`--provider`） |
 | `tests/test_qa_pipeline_text_column.py` | 6 | `--text-column` が `QAPipeline` へ渡る（CLI 3・`QAPipeline` 3） |
 | `tests/test_make_qa_register_qdrant_exit_code.py` | 2 | 登録の失敗で終了コード 1 |
+| `tests/test_make_qa_register_qdrant_embedding_text.py` | 3 | Phase 2 が `question` ＋改行＋`answer` を Embedding し、`register_to_qdrant.detect_text_column()` と同じ文になる（§5 の 2） |
 | `tests/test_qa_pipeline_dataset_type.py` | 6 | `--dataset` の種別がデータセット名になる（**間接**） |
 | `tests/integration/test_register_to_qdrant_live.py` | 4 | `register_to_qdrant()` を実 Qdrant へ（件数・payload・再登録の冪等性。Qdrant が無ければ skip） |
-| `tests/test_data_jobs.py` | 44 | データ管理タブのジョブ全体（登録ジョブが `register_to_qdrant` を呼ぶ・**間接**） |
+| `tests/test_data_jobs.py` | 45 | データ管理タブのジョブ全体（登録ジョブが `register_to_qdrant` を呼ぶ・**間接**） |
 | `tests/test_export_ruleset_to_csv.py` | 18 | ルールセット CSV が `detect_text_column` で読める形か（**間接**） |
 | `tests/test_model_table_coverage.py` | 5 | CLI `--model` の既定が単価・上限表に載っている（**間接**） |
 
 ```bash
 uv run --no-sync pytest tests/test_qa_qdrant_package_init.py tests/test_make_qa_register_qdrant_*.py tests/test_qa_pipeline_text_column.py -q
-# 2026-10-11 実測: 17 passed（直接テスト 5 本。結合テストは Qdrant を起動して `uv run --no-sync pytest tests/integration/test_register_to_qdrant_live.py`）
+# 2026-10-11 実測: 20 passed（直接テスト 6 本。結合テストは Qdrant を起動して `uv run --no-sync pytest tests/integration/test_register_to_qdrant_live.py`）
 ```
 
 > ⚠️ **`make_qa.py` と `list_collections.py` のテストは無い。** §5 の 1 を直すときは、修正前のコードで fail するテストを先に書く。
@@ -297,3 +298,4 @@ uv run --no-sync pytest tests/test_qa_qdrant_package_init.py tests/test_make_qa_
 | 1.1〜1.13 | 2026-09-25〜2026-10-10 | `make_qa_register_qdrant.py` の既知の問題 5 件の修正への追随、既定モデル・Embedding の記述の是正、テストの所在の移動、`services/docs/` の改名への追随（各版の内容は git 履歴） |
 | 2.0 | 2026-10-11 | `a_cross_doc_md_format.md` §1.1〜§1.4 に合わせて `README_qa_qdrant.md` へ改名し、共通骨格（主な責務・各責務対応のモジュール・3 層構成図）を持つ構成に書き直した。12 文書を寄せ先へ移し（§1 の表）、`qa_qdrant_process_flow.md` / `qa_qdrant_data_flow.md` を新設、`command/docs/` を作った。§2 のワークフロー 2 本を実行して確かめ、実測で見つけた制約 6 件を §5 に、テスト件数を数え直して §5.1 に記録した |
 | 2.1 | 2026-10-11 | `chunking/docs/` の構成整理（`README.md` → `README_chunking.md`）に合わせてリンクを直した |
+| 2.2 | 2026-10-11 | §5 の 2（ベクトル化する文が道具で違う）を解決済みにし、§2.1 の注記と §5.1 のテスト件数（`test_make_qa_register_qdrant_embedding_text.py` 3 件・`test_data_jobs.py` 45 件・20 passed）を直した |
