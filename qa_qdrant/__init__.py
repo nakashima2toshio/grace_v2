@@ -22,5 +22,5 @@
 `__init__.py` に import や実行コードを置くと、パッケージ内の**どのモジュールを
 読むときでも**その代償を払うことになる。`sys.path` へのプロジェクトルート挿入も
 各モジュールが自前で行っているので、ここでは不要。
-経緯は `qa_generation/docs/__init__.md` §4（姉妹リポジトリ grace_v2_local は 2026-09-21 に同じ整理を実施）。
+経緯は `qa_qdrant/docs/README_qa_qdrant.md` §3（姉妹リポジトリ grace_v2_local は 2026-09-21 に同じ整理を実施）。
 """

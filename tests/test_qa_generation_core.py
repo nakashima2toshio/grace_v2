@@ -4,7 +4,7 @@
 データ管理タブの「② Q/A 作成」と CLI（`make_qa_register_qdrant.py` / `make_qa.py`）は、
 どちらも `QAPipeline.run()` を呼ぶ。にもかかわらず、`test_data_jobs.py` は
 `run_qa_generation_sync` をスタブへ差し替えるため、パイプライン本体は一度も
-実行されていなかった（`qa_generation/docs/README.md` §4.2 の残タスク 8）。
+実行されていなかった（`qa_generation/docs/README_qa_generation.md` §6 の v2.1。当時の残タスク 8）。
 
 実 LLM / Embedding / ネットワークは使わない。
 - LLM: `SmartQAGenerator` を偽物へ差し替える（または `client` を偽物にする）

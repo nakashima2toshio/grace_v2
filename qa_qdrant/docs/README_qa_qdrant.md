@@ -1,12 +1,12 @@
 # README_qa_qdrant.md - qa_qdrant/ ディレクトリ概要
 
-**Version 2.2** | 最終更新: 2026-10-11
+**Version 2.3** | 最終更新: 2026-10-11
 
 `qa_qdrant/` の入口となる文書。ディレクトリの役割・モジュール索引・組み合わせ方・既知の制約をまとめる。
 文書を新しく書く／直す前に、まずここを見る。
 
 > 📌 **データ準備 3 工程のうち ② Q/A 生成・③ Qdrant 登録の CLI を持つ。**
-> ① チャンク化は [`chunking/`](../../chunking/docs/README_chunking.md)、Q/A 生成の本体は [`qa_generation/`](../../qa_generation/docs/README.md)、
+> ① チャンク化は [`chunking/`](../../chunking/docs/README_chunking.md)、Q/A 生成の本体は [`qa_generation/`](../../qa_generation/docs/README_qa_generation.md)、
 > 運用手順の入口は [`README_DATA.md`](../../README_DATA.md)、環境構築は [`docs/data_prep_install.md`](../../docs/data_prep_install.md)。
 >
 > ⚠️ **本リポジトリは Anthropic 版。** Q/A 生成の LLM は Anthropic Claude（`--model` 既定 `claude-sonnet-5-5` = `config.py::ModelConfig.DEFAULT_MODEL`、
@@ -130,7 +130,7 @@ Gemini Embedding → Qdrant のポイント（payload に Q/A）＋ UI 用 CSV�
 > | `asyncio_vs_celery.md` / `generation_vs_SmartGeneration.md` / `smart_generation_upgrade.md` | `archive/`（要点は [`qa_qdrant_process_flow.md`](qa_qdrant_process_flow.md) §2.2・§3.4） | 意思決定の記録（種別 B）。本文は当時のまま |
 > | `img_make_qa_register_qdrant.png` | `images/`（[`make_qa_register_qdrant.md`](make_qa_register_qdrant.md) §3.1 に掲載） | 画像は `images/` |
 > | `qdrant_delete_collection.md` | [`docs/qdrant_delete_collection.md`](../../docs/qdrant_delete_collection.md) | 対象がリポジトリ直下の `qdrant_delete_collection.py` |
-> | `make_qa_qapipeline.md` | [`qa_generation/docs/make_qa_qapipeline.md`](../../qa_generation/docs/make_qa_qapipeline.md) | 対象が `qa_generation/` の `QAPipeline` ＋ `SmartQAGenerator` |
+> | `make_qa_qapipeline.md` | [`qa_generation/docs/qa_generation_process_flow.md`](../../qa_generation/docs/qa_generation_process_flow.md)（2026-10-11 に `qa_generation/docs/` の構成整理で改名・書き直し） | 対象が `qa_generation/` の `QAPipeline` ＋ `SmartQAGenerator` |
 > | `01_install.md` | [`docs/data_prep_install.md`](../../docs/data_prep_install.md) | `chunking/`・`qa_generation/`・`qa_qdrant/` にまたがる環境構築（種別 B） |
 > | `celery_quick_start.md` | [`docs/celery_quick_start.md`](../../docs/celery_quick_start.md) | 対象が直下の `celery_config.py` / `celery_tasks.py` / `start_celery.sh` |
 > | `qa_qdrant/_embedding_fix_note.txt` | `archive/embedding_fix_note.txt` | `run_registration()` を `question` だけのベクトル化へ寄せたときのメモ（コード片） |
@@ -229,7 +229,7 @@ print(ok)
 パッケージの `__init__.py` はパッケージ内のどのモジュールを import しても先に実行されるため、データ管理タブの Qdrant 登録ジョブ
 （`from qa_qdrant.register_to_qdrant import ...`）のたびに `config` と `qa_generation.pipeline` まで読み込まれていた
 （`import qa_qdrant` だけで **1,406 モジュール → 整理後 35**）。`main` / `PROJECT_ROOT` / `logger` を `qa_qdrant` から参照するコードは無かった。
-整理後は docstring だけにし、`tests/test_qa_qdrant_package_init.py`（2 件）で固定した。経緯は [`qa_generation/docs/__init__.md`](../../qa_generation/docs/__init__.md) §4。
+整理後は docstring だけにし、`tests/test_qa_qdrant_package_init.py`（2 件）で固定した。`qa_generation/__init__.py` は公開 API を持つので空にはできず、Celery の遅延 import で副作用だけを消した（[`README_qa_generation.md`](../../qa_generation/docs/README_qa_generation.md) §3）。
 
 ---
 
@@ -299,3 +299,4 @@ uv run --no-sync pytest tests/test_qa_qdrant_package_init.py tests/test_make_qa_
 | 2.0 | 2026-10-11 | `a_cross_doc_md_format.md` §1.1〜§1.4 に合わせて `README_qa_qdrant.md` へ改名し、共通骨格（主な責務・各責務対応のモジュール・3 層構成図）を持つ構成に書き直した。12 文書を寄せ先へ移し（§1 の表）、`qa_qdrant_process_flow.md` / `qa_qdrant_data_flow.md` を新設、`command/docs/` を作った。§2 のワークフロー 2 本を実行して確かめ、実測で見つけた制約 6 件を §5 に、テスト件数を数え直して §5.1 に記録した |
 | 2.1 | 2026-10-11 | `chunking/docs/` の構成整理（`README.md` → `README_chunking.md`）に合わせてリンクを直した |
 | 2.2 | 2026-10-11 | §5 の 2（ベクトル化する文が道具で違う）を解決済みにし、§2.1 の注記と §5.1 のテスト件数（`test_make_qa_register_qdrant_embedding_text.py` 3 件・`test_data_jobs.py` 45 件・20 passed）を直した |
+| 2.3 | 2026-10-11 | `qa_generation/docs/` の構成整理（`README.md` → `README_qa_generation.md`、`__init__.md` を統合、`make_qa_qapipeline.md` → `qa_generation_process_flow.md`）に合わせてリンクを直した |
