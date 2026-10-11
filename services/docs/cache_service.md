@@ -1,6 +1,6 @@
 # cache_service.py - TTLベースメモリキャッシュサービス ドキュメント
 
-**Version 1.4** | 最終更新: 2026-10-10
+**Version 1.5** | 最終更新: 2026-10-11
 
 ---
 
@@ -335,7 +335,7 @@ print(shared is cache, shared.stats())  # cache は後方互換の別名（同�
 ```
 
 > 📝 グローバルキャッシュは import 時に既定値（有効・3600 秒・100 件）で作られ、`init_cache_from_config` を呼んだときだけ
-> 設定値で上書きされる。本番コードでこれを呼んでいる箇所は無い（`helper/helper_api.py` が `cache` / `cache_result` を再エクスポートしているだけ）。
+> 設定値で上書きされる。本番コードでこれを呼んでいる箇所は無い（`cache` / `cache_result` を再エクスポートしていた `helper/helper_api.py` も 2026-10-11 に削除した）。
 
 ---
 
@@ -924,6 +924,7 @@ __all__ = [
 | 1.2 | 2026-09-26 | 現在の Embedding の記述を `gemini-embedding-001` から `gemini-embedding-2` へ是正（2026-09-26 に変更。定義は `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所） |
 | 1.3 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
 | 1.4 | 2026-10-10 | §4.1 使用例を処理パターン別（値の出し入れ／期限と件数の上限／`@cache_result`／設定から作る共有キャッシュ）の 4 本に書き直した（2026-10-10。`grace/docs/executor.md` §4.1 を手本に、処理パターンの表 → パターンごとの例 → 落とし穴の注記の形にし、別プロセスで全例を実行して出力を確かめた）。`None` を返す関数はキャッシュされないこと・キーは引数の `str()` の MD5 であること・直下 `config.yml` に `cache:` 節が無いことを明記 |
+| 1.5 | 2026-10-11 | helper/helper_api.py の削除（2026-10-11）に追随 |
 
 ---
 
