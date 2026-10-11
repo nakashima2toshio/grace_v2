@@ -1,16 +1,16 @@
 # qa_generation/ - Q/A 生成パッケージ（データ準備 ②）ドキュメント
 
-**Version 2.4** | 最終更新: 2026-10-10
+**Version 2.5** | 最終更新: 2026-10-11
 
 > 📎 **姉妹版**: [`docs/README.md`](../../docs/README.md)（直下・配置の境界） /
 > [`grace/docs/README_grace.md`](../../grace/docs/README_grace.md) /
 > [`backend/docs/README.md`](../../backend/docs/README.md) /
 > [`chunking/docs/README.md`](../../chunking/docs/README.md) /
-> [`qa_qdrant/docs/README.md`](../../qa_qdrant/docs/README.md) /
+> [`qa_qdrant/docs/README_qa_qdrant.md`](../../qa_qdrant/docs/README_qa_qdrant.md) /
 > [`services/docs/README_services.md`](../../services/docs/README_services.md)
 
 > 📌 **データ準備 3 工程のうち ② にあたるパッケージ。**
-> ① チャンク化は [`chunking/`](../../chunking/docs/README.md)、③ Qdrant 登録は [`qa_qdrant/`](../../qa_qdrant/docs/README.md)。
+> ① チャンク化は [`chunking/`](../../chunking/docs/README.md)、③ Qdrant 登録は [`qa_qdrant/`](../../qa_qdrant/docs/README_qa_qdrant.md)。
 > 運用手順の入口は [`README_DATA.md`](../../README_DATA.md)。
 
 > ⚠️ **本リポジトリは Anthropic 版。** LLM は `claude-sonnet-5-5`（`config.py::ModelConfig.DEFAULT_MODEL`・
@@ -279,8 +279,9 @@ style MOD fill:#1a1a1a,stroke:#fff,color:#fff
 | **入力 CSV の読み方・出力ファイルの仕様を知る** | [`data_io.md`](data_io.md) |
 | **Q/A のスキーマ（Pydantic）を知る** | [`models.md`](models.md) |
 | **パッケージの公開 API・import 副作用を知る** | [`__init__.md`](__init__.md) |
-| **CLI から動かす** | [`../../qa_qdrant/docs/01_install.md`](../../qa_qdrant/docs/01_install.md) §6 / [`../../qa_qdrant/docs/make_qa_register_qdrant.md`](../../qa_qdrant/docs/make_qa_register_qdrant.md) |
-| **Celery で並列に動かす** | [`../../qa_qdrant/docs/celery_quick_start.md`](../../qa_qdrant/docs/celery_quick_start.md) |
+| [`make_qa_qapipeline.md`](make_qa_qapipeline.md) | `pipeline.py` ＋ `smart_qa_generator.py` の連携（横断。2026-10-11 に `qa_qdrant/docs/` から移した。本ディレクトリの構成整理のとき `pipeline.md` / `smart_qa_generator.md` へ統合する） | — | 937 | 1.7 | ★☆☆ |
+| **CLI から動かす** | [`docs/data_prep_install.md`](../../docs/data_prep_install.md) §6 / [`../../qa_qdrant/docs/make_qa_register_qdrant.md`](../../qa_qdrant/docs/make_qa_register_qdrant.md) |
+| **Celery で並列に動かす** | [`docs/celery_quick_start.md`](../../docs/celery_quick_start.md) |
 | **Web（データ管理タブ）から動かす** | [`../../backend/docs/data_pipeline.md`](../../backend/docs/data_pipeline.md) |
 
 ### 3.2 文書一覧
@@ -312,9 +313,9 @@ style MOD fill:#1a1a1a,stroke:#fff,color:#fff
 
 | 置き場所 | 書くもの | 書かないもの |
 |---|---|---|
-| `<module>.md` | IPO（入出力・副作用・使用例） | 運用手順（`qa_qdrant/docs/01_install.md` へリンク） |
+| `<module>.md` | IPO（入出力・副作用・使用例） | 運用手順（`docs/data_prep_install.md` へリンク） |
 | 本書（`README.md`） | パッケージ全体の IPO 概要・文書索引・棚卸し・テスト一覧 | 1 モジュールの全メソッドの詳細（各 `<module>.md` へ） |
-| `qa_qdrant/docs/` | CLI の実行手順・環境構築・Celery の起動 | `qa_generation/` 内部の実装 |
+| `qa_qdrant/docs/`・直下 `docs/data_prep_install.md` / `docs/celery_quick_start.md` | CLI の使い方（前者）・環境構築と Celery の起動（後者） | `qa_generation/` 内部の実装 |
 | `backend/docs/` | Web（データ管理タブ）からの呼び出し経路 | `qa_generation/` 内部の実装 |
 | 直下 `docs/` | 2 領域以上にまたがる横断文書 | 1 モジュールの IPO |
 
@@ -494,7 +495,7 @@ print(analyze_qa_statistics([result]))
 ```python
 from qa_generation import QAPipeline
 
-# 前提: Redis とワーカーを起動済み（./start_celery.sh。手順は qa_qdrant/docs/celery_quick_start.md）
+# 前提: Redis とワーカーを起動済み（./start_celery.sh。手順は docs/celery_quick_start.md）
 pipeline = QAPipeline(input_file="output_chunked/cc_news_1per_chunks.csv")
 
 # 1 回目が途中で落ちても、qa_output/pipeline/qa_progress_cc_news_1per_chunks.jsonl に
@@ -944,6 +945,7 @@ __all__ = [
 | 2.2 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |
 | 2.3 | 2026-10-10 | `grace/docs/` の構成整理（`README.md` → `README_grace.md`、`grace.md` / `grace_core.md` / `grace_runtime.md` / `confidence_calibration.md` を `README_grace.md` / `grace_process_flow.md` / `grace_data_flow.md` へ統合）に合わせてリンクを直した |
 | 2.4 | 2026-10-10 | `services/docs/` の構成整理（`README.md` → `README_services.md`、`__init__.md` を統合）に合わせてリンクを直した |
+| 2.5 | 2026-10-11 | `qa_qdrant/docs/` の構成整理に追随。`make_qa_qapipeline.md` を本ディレクトリへ移して §3.2 に足し、`qa_qdrant/docs/README.md` → `README_qa_qdrant.md`・`01_install.md` → 直下 `docs/data_prep_install.md`・`celery_quick_start.md` → 直下 `docs/` の移動に合わせてリンクと書き分けの表を直した |
 
 > v1.x の変更履歴にある節番号（§2〜§7）は旧構成のもの。v2.0 では §2 → §3.2、§3 → §3.3、§4 → §4.1、§5 → §3.4、§6 → §4.2、§7 → §8 に対応する。
 

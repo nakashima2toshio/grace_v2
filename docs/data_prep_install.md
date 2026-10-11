@@ -1,6 +1,6 @@
 # インストール・環境構築ガイド（Q/A 生成・Qdrant 登録まわり）
 
-**Version 2.7** | 最終更新: 2026-10-08
+**Version 2.8** | 最終更新: 2026-10-11
 
 ---
 
@@ -35,7 +35,7 @@
 > （Gemini は Embedding 専用）。
 >
 > **アプリ全体のセットアップ（uv / Node.js / .env / 起動）は
-> [`backend/docs/install_and_setup.md`](../../backend/docs/install_and_setup.md) が正。**
+> [`backend/docs/install_and_setup.md`](../backend/docs/install_and_setup.md) が正。**
 > 本書はそれを前提に、パイプライン固有の準備だけを扱う。
 
 > **種別 B**（`a_cross_doc_md_format.md` §6）。**状態: 現行（2026-09-20 改訂。手順書）**
@@ -109,7 +109,7 @@ class User,React,API,Anthropic,Gemini,Qdrant,Redis,Celery default
 > `python -m venv` ＋ `pip install -r requirements.txt` の手順は現行ではない。
 >
 > Python・`uv`・Node.js の導入と依存インストールは
-> **[`backend/docs/install_and_setup.md`](../../backend/docs/install_and_setup.md) §2〜§3** が正。
+> **[`backend/docs/install_and_setup.md`](../backend/docs/install_and_setup.md) §2〜§3** が正。
 
 ```bash
 # 依存インストール（リポジトリルートで）
@@ -134,7 +134,7 @@ cd frontend && npm install
 > 📌 **`streamlit` / `altair` / `pydeck` は 2026-09-12 に依存から削除済み**
 > （Streamlit 版アプリ（`ui/`）の名残で、コード中の `import streamlit` は 0 件だった）。
 > 削除の確認手順は
-> [`docs/doc_modernization_todo.md`](../../docs/doc_modernization_todo.md) §10.1 にある。
+> [`docs/doc_modernization_todo.md`](../docs/doc_modernization_todo.md) §10.1 にある。
 
 ### 2.4 MeCabのインストール(日本語処理用)
 
@@ -861,3 +861,4 @@ grace_v2/
 | 2.5 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
 | 2.6 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
 | 2.7 | 2026-10-08 | 現在の既定 LLM の記述（構成図・依存表・API キー表の 3 箇所）を `claude-sonnet-5` → 実装（`config.py::ModelConfig.DEFAULT_MODEL`）どおり `claude-sonnet-5-5` へ是正（2026-10-08） |
+| 2.8 | 2026-10-11 | `qa_qdrant/docs/01_install.md` から直下 `docs/data_prep_install.md` へ改名して移した（`chunking/`・`qa_generation/`・`qa_qdrant/` にまたがる環境構築のため。`a_cross_doc_md_format.md` §1.4）。相対リンクを移動先に合わせた。本文は変えていない |

@@ -1,6 +1,6 @@
 # QAPipeline & SmartQAGenerator - Q/Aペア生成システム ドキュメント
 
-**Version 1.6** | 最終更新: 2026-10-09
+**Version 1.7** | 最終更新: 2026-10-11
 
 ---
 
@@ -796,6 +796,7 @@ def analyze_qa_statistics(results: List[Dict]) -> Dict
 | 1.4 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
 | 1.5 | 2026-10-08 | Q/A 生成の既定モデルがコード側で `config.py::ModelConfig.DEFAULT_MODEL` 参照になったのに追随し、既定の記述を `claude-sonnet-5` → `claude-sonnet-5-5` へ是正（構成図・依存表・`QAPipeline` / `SmartQAGenerator` のシグネチャ・引数表・使用例・§5.2）（2026-10-08） |
 | 1.6 | 2026-10-09 | `QAPipeline` から処理に効いていなかった `client` / `batch_chunks` を削除したのに追随（`__init__` には実装どおり `text_column` を記載）。`concurrency` はログ表示用である旨を注記（2026-10-09） |
+| 1.7 | 2026-10-11 | `qa_qdrant/docs/` から `qa_generation/docs/` へ移した（対象の `QAPipeline` / `SmartQAGenerator` は `qa_generation/` にあるため。`a_cross_doc_md_format.md` §1.4）。`qa_generation/` の構成整理のときに `pipeline.md` / `smart_qa_generator.md` へ統合する予定。本文は変えていない |
 
 ---
 

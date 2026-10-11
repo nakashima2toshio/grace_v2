@@ -1,6 +1,6 @@
 # Celery + スマート生成 クイックスタートガイド
 
-**Version 2.4** | 最終更新: 2026-10-08
+**Version 2.5** | 最終更新: 2026-10-11
 
 ---
 
@@ -522,3 +522,4 @@ python -c "from celery_tasks import purge_queue; purge_queue()"
 | 2.2 | 2026-09-24 | `a_cross_doc_md_format.md` の種別 B の骨格へ揃えた（2026-09-24）。H1＋Version ヘッダー、番号なしの「概要」（状態・結論・対象モジュール）、目次の作り直し（装飾絵文字付き見出しのアンカー切れを解消）、本文 H2 の番号付けを行った。本文は当時の記録として変えていない |
 | 2.3 | 2026-09-25 | テスト2（手動テスト）の `submit_unified_qa_generation()` 呼び出し例を実装に合わせた（存在しない `use_smart_generation` 引数を外し、モデルを Gemini から Anthropic の既定へ）（2026-09-25） |
 | 2.4 | 2026-10-08 | テスト2 の呼び出し例のモデルを現在の既定 `claude-sonnet-5-5` へ（2026-10-08） |
+| 2.5 | 2026-10-11 | `qa_qdrant/docs/` から直下 `docs/` へ移した（対象の `celery_config.py` / `celery_tasks.py` / `start_celery.sh` はリポジトリ直下にあり、`qa_generation/` と `qa_qdrant/` の両方が使うため。`a_cross_doc_md_format.md` §1.4）。本文は変えていない |

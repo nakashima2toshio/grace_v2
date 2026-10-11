@@ -7,7 +7,7 @@
 - `--text-column body` で `body` 列しか無い CSV → 判定は通るのに生成で ValueError
 - `body` と `text` の両方がある CSV → 指定を無視して `text` 列を使う
 
-となっていた（経緯は `qa_qdrant/docs/make_qa_register_qdrant_ipo.md` §3.3 の 4）。
+となっていた（経緯は `qa_qdrant/docs/make_qa_register_qdrant.md` §3.3 の 4）。
 `QAPipeline(text_column=...)` を足し、CLI から渡すよう直した。既定 `None` は従来の自動検出のままなので、
 データ管理タブ（`services/data_pipeline_service.py`）と `make_qa.py` の挙動は変わらない。
 

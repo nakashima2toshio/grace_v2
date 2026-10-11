@@ -8,7 +8,7 @@
     make_qa_register_qdrant.py  Q/A 生成 → Qdrant 登録の統合
     register_to_qdrant.py       既存 CSV → Qdrant 登録
 
-環境構築と実行手順は `qa_qdrant/docs/01_install.md`。
+各 CLI の使い方は `qa_qdrant/docs/README_qa_qdrant.md`、環境構築は `docs/data_prep_install.md`。
 
 ⚠️ **本ファイルには処理を書かないこと。**
 
