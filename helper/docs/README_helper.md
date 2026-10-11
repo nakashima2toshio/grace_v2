@@ -1,6 +1,6 @@
 # README_helper.md - helper/ ディレクトリ概要
 
-**Version 1.0** | 最終更新: 2026-10-11
+**Version 1.1** | 最終更新: 2026-10-11
 
 `helper/` の入口となる文書。ディレクトリの役割・モジュール索引・組み合わせ方・import のしかた・既知の制約をまとめる。
 文書を新しく書く／直す前に、まずここを見る。
@@ -264,7 +264,7 @@ print(root.level, len(root.handlers))
 |---|---|
 | 検索（dense＋sparse・hybrid） | `grace/docs/tools.md`・`grace/docs/grace_process_flow.md` |
 | 登録（Q/A CSV → Embedding → Qdrant） | `services/docs/qdrant_service.md`・`backend/docs/data_pipeline.md` |
-| チャンク化・Q/A 生成 | `chunking/docs/README.md`・`qa_generation/docs/README.md` |
+| チャンク化・Q/A 生成 | `chunking/docs/README_chunking.md`・`qa_generation/docs/README.md` |
 
 読み書きするファイル・外部 API:
 
@@ -322,5 +322,6 @@ print(root.level, len(root.handlers))
 ## 6. 変更履歴
 
 | バージョン | 日付 | 変更内容 |
-|-----------|------|---------|
+|---|---|---|
 | 1.0 | 2026-10-11 | 初版。`helper/docs/` を新設し、7 モジュールの文書（`a_class_method_md_format.md`）と本 README（`a_cross_doc_md_format.md` §1.2）を作成した。未使用だった `helper_api.py`（誰も import していない）と `helper_rag_ui.py`（削除済みの `ui/` を import し、読み込めない）を削除した。各文書の §4.1 使用例と本 README の §2 を別プロセスで実行して出力を確かめ（外部 API・spaCy・fastembed はスタブ）、見つかった制約を §5 にまとめた |
+| 1.1 | 2026-10-11 | `chunking/docs/` の構成整理（`README.md` → `README_chunking.md`）に合わせてリンクを直した |

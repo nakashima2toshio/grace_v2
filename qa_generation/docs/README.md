@@ -1,16 +1,16 @@
 # qa_generation/ - Q/A 生成パッケージ（データ準備 ②）ドキュメント
 
-**Version 2.5** | 最終更新: 2026-10-11
+**Version 2.6** | 最終更新: 2026-10-11
 
 > 📎 **姉妹版**: [`docs/README.md`](../../docs/README.md)（直下・配置の境界） /
 > [`grace/docs/README_grace.md`](../../grace/docs/README_grace.md) /
 > [`backend/docs/README.md`](../../backend/docs/README.md) /
-> [`chunking/docs/README.md`](../../chunking/docs/README.md) /
+> [`chunking/docs/README_chunking.md`](../../chunking/docs/README_chunking.md) /
 > [`qa_qdrant/docs/README_qa_qdrant.md`](../../qa_qdrant/docs/README_qa_qdrant.md) /
 > [`services/docs/README_services.md`](../../services/docs/README_services.md)
 
 > 📌 **データ準備 3 工程のうち ② にあたるパッケージ。**
-> ① チャンク化は [`chunking/`](../../chunking/docs/README.md)、③ Qdrant 登録は [`qa_qdrant/`](../../qa_qdrant/docs/README_qa_qdrant.md)。
+> ① チャンク化は [`chunking/`](../../chunking/docs/README_chunking.md)、③ Qdrant 登録は [`qa_qdrant/`](../../qa_qdrant/docs/README_qa_qdrant.md)。
 > 運用手順の入口は [`README_DATA.md`](../../README_DATA.md)。
 
 > ⚠️ **本リポジトリは Anthropic 版。** LLM は `claude-sonnet-5-5`（`config.py::ModelConfig.DEFAULT_MODEL`・
@@ -946,6 +946,7 @@ __all__ = [
 | 2.3 | 2026-10-10 | `grace/docs/` の構成整理（`README.md` → `README_grace.md`、`grace.md` / `grace_core.md` / `grace_runtime.md` / `confidence_calibration.md` を `README_grace.md` / `grace_process_flow.md` / `grace_data_flow.md` へ統合）に合わせてリンクを直した |
 | 2.4 | 2026-10-10 | `services/docs/` の構成整理（`README.md` → `README_services.md`、`__init__.md` を統合）に合わせてリンクを直した |
 | 2.5 | 2026-10-11 | `qa_qdrant/docs/` の構成整理に追随。`make_qa_qapipeline.md` を本ディレクトリへ移して §3.2 に足し、`qa_qdrant/docs/README.md` → `README_qa_qdrant.md`・`01_install.md` → 直下 `docs/data_prep_install.md`・`celery_quick_start.md` → 直下 `docs/` の移動に合わせてリンクと書き分けの表を直した |
+| 2.6 | 2026-10-11 | `chunking/docs/` の構成整理（`README.md` → `README_chunking.md`）に合わせてリンクを直した |
 
 > v1.x の変更履歴にある節番号（§2〜§7）は旧構成のもの。v2.0 では §2 → §3.2、§3 → §3.3、§4 → §4.1、§5 → §3.4、§6 → §4.2、§7 → §8 に対応する。
 
