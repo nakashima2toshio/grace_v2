@@ -93,7 +93,7 @@ flowchart LR
     C["チャンク dict<br>id, text, type, tokens, dataset_type"]
     D["Q/A dict<br>question, answer, chunk_id, topic, dataset_type"]
     E["Q/A CSV / JSON"]
-    F["ベクトル化する文<br>question（または question＋answer）"]
+    F["ベクトル化する文<br>question＋改行＋answer（本文 CSV なら本文の列）"]
     G["3072 次元ベクトル"]
     H["PointStruct<br>id＝内容ハッシュ / vector / payload"]
     I["UI 用 CSV<br>question, answer"]
