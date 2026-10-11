@@ -1,6 +1,6 @@
 # データ準備パイプライン（チャンキング / Q/A 生成 / 登録 / 削除） ドキュメント
 
-**Version 1.9** | 最終更新: 2026-10-10
+**Version 1.10** | 最終更新: 2026-10-11
 
 ---
 
@@ -385,7 +385,11 @@ style L4 fill:#1a1a1a,stroke:#fff,color:#fff
 #### 0 件生成は「成功」にしない
 
 例外が出なくても `qa_count == 0` なら error で返す。そのまま通すと、
-後続の Qdrant 登録が空のファイルを掴んで空振りする。
+後続の Qdrant 登録が空のファイルを掴んで空振りする。LLM が全チャンクで失敗したときは、2026-10-11 から
+`QAPipeline.run()` 自体が `RuntimeError` を出すので、生成ステップの失敗として返る。
+一部のチャンクだけ失敗したとき（`failed_chunks` が空でない）は成功のまま、失敗したチャンクの ID と
+「同じ設定でもう一度実行すると、失敗したチャンクだけを作り直す」旨をジョブのログに出す
+（`qa_generation/docs/pipeline.md` §4.1.7）。
 
 #### 出力先の既定が `qa_output` 直下である理由
 
@@ -524,6 +528,7 @@ CHUNKING_STEP_LABELS, QA_STEP_LABELS, REGISTER_STEP_LABELS, DELETE_STEP_LABELS
 | 1.7 | 2026-09-30 | 付録 A の登録コマンドに `--no-create-ui-csv` を追加し、理由（登録スクリプトが既定で UI 用 CSV = `question` / `answer` の 2 列を `qa_output/<入力と同じファイル名>` へ書き、入力 CSV 自身を上書きして `topic` 列が消える）を明記 |
 | 1.8 | 2026-10-09 | `QaGenerationParams` から処理に効いていなかった `batch_chunks` を削除したのに追随 |
 | 1.9 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |
+| 1.10 | 2026-10-11 | Q/A 生成の失敗の扱いを変えたのに追随（全チャンクの失敗は `QAPipeline.run()` が `RuntimeError`、一部の失敗は `failed_chunks` をジョブのログに出す） |
 
 ---
 

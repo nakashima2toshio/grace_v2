@@ -22,7 +22,8 @@ from pydantic import BaseModel, Field
 from config import ModelConfig
 from helper.helper_llm import create_llm_client
 
-logging.basicConfig(level=logging.INFO)
+# ⚠️ モジュールの先頭で logging.basicConfig() を呼ばない。import しただけでルートロガーが INFO になり、
+# 呼び出し側（CLI など）のログ設定が後から効かなくなる（2026-10-11 まではそうなっていた）。
 logger = logging.getLogger(__name__)
 
 
@@ -225,6 +226,8 @@ def analyze_qa_statistics(results: List[Dict]) -> Dict:
 
 if __name__ == "__main__":
     import os
+
+    logging.basicConfig(level=logging.INFO)
 
     api_key = os.getenv("ANTHROPIC_API_KEY")
     if not api_key:

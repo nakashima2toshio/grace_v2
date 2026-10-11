@@ -1,6 +1,6 @@
 # semantic.py - セマンティックチャンク分割・埋め込み ドキュメント
 
-**Version 1.5** | 最終更新: 2026-10-11
+**Version 1.6** | 最終更新: 2026-10-11
 
 ---
 
@@ -367,8 +367,9 @@ except ValueError as e:
 # ValueError: GOOGLE_API_KEY (または GEMINI_API_KEY) が設定されていません
 ```
 
-> ⚠️ **Embedding の失敗はゼロベクトルになり、例外にならない**（`helper_embedding` がバッチごとにゼロで埋める）。ゼロベクトルとの類似度は 0 なので、
-> カバレージは「0%」として黙って出る。カバレージが不自然に低いときは、ログの `Batch error` / `zero vectors` を探す。
+> ⚠️ **Embedding の失敗はゼロベクトルになり、ここでは例外にならない**（`helper_embedding` がバッチごとにゼロで埋める）。
+> ゼロベクトルとの類似度は 0 なので、そのまま数えるとカバレージが黙って下がる。カバレージを数える `evaluation.analyze_coverage()` は
+> ゼロベクトルを見つけると `RuntimeError` で止める（2026-10-11〜。[`evaluation.md`](evaluation.md) §5.1.4）。直接この関数を使うときは、ノルム 0 の行を自分で確かめる。
 > キーが無いときは `SemanticCoverage()` の生成で止まる（`QAPipeline.run(analyze_coverage=True)` ならカバレージの段で `ValueError` になる。
 > 生成済みの Q/A は逐次保存ファイルに残るので、キーを設定して同じ引数で再実行すれば LLM を呼び直さない。2026-10-11 実測）。
 > 実装に残る `has_api_key` のゼロ返しの分岐は、生成が成功したときしか `True` にならないので通らない。
@@ -798,3 +799,4 @@ embeddings = analyzer.generate_embeddings_batch(
 | 1.3 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
 | 1.4 | 2026-10-11 | 未使用だった `helper/helper_rag.py` / `helper/helper_rag_qa.py` を 2026-10-11 に削除したのに追随（`clean_text` の import 元・関連モジュール・構成図） |
 | 1.5 | 2026-10-11 | §6.1 使用例を 4 パターン（Embedding と類似度行列・1 組の類似度・失敗時・`create_semantic_chunks`）に書き直し、スタブで動かした出力を載せた。API が失敗するとゼロベクトルを返してカバレージが 0% になること、キーが無いとコンストラクタが `ValueError` を出し `QAPipeline` はカバレージの段で止まる（逐次保存ファイルは残る）ことを実行して確かめて注記した |
+| 1.6 | 2026-10-11 | §6.1.3 の注記を、`analyze_coverage()` がゼロベクトルで止めるようになったのに追随させた |
