@@ -1,6 +1,6 @@
 # core/data_jobs.py - データ準備ジョブ runner ドキュメント
 
-**Version 1.11** | 最終更新: 2026-10-11
+**Version 1.12** | 最終更新: 2026-10-11
 
 > **本書の位置づけ**: `backend/app/core/data_jobs.py`（データ準備 4 ジョブの runner）の **IPO リファレンス**。
 > 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。
@@ -432,6 +432,10 @@ def _ask_confirmation(confirm: ConfirmFn, message: str, reason: str) -> tuple[bo
 
 > ⚠️ **`qa_count == 0` は成功にしない。** 例外が出ていなくても、そのまま通すと
 > 後続の Qdrant 登録が空のファイルを掴んで空振りする。
+>
+> 📌 **一部のチャンクだけ失敗したら、成功のままログに出す**（2026-10-11〜）。`result["failed_chunks"]` が空でなければ、
+> `⚠️ N チャンクで Q/A 生成に失敗しました（ID…）。同じ設定でもう一度実行すると、失敗したチャンクだけを作り直します` を
+> generate ステップのログに出す（`tests/test_data_jobs.py::test_qa_partial_failure_is_reported`）。
 
 ### 5.5 `_register_runner`
 
@@ -511,3 +515,4 @@ register_runner(DeleteParams,   _delete_runner,   "delete")
 | 1.9 | 2026-10-09 | `QaGenerationParams.batch_chunks` を削除（`QAPipeline` が一度も使っていなかった）。`concurrency` は表示用である旨を注記（2026-10-09） |
 | 1.10 | 2026-10-10 | 概要の「各責務対応のモジュール」を「主な責務」（4 項目）と 1:1 に揃えた（責務の文言をそのまま使い、「イベント型」「実処理」は責務 2・4 の説明へ移し、説明列を足した）。変更履歴を 3 列へ移した |
 | 1.11 | 2026-10-11 | §5.3 に、`_chunking_runner` が `ResumeMismatchError`（再開 ID のジョブが別の入力・設定で作られている）を分けて捕まえることを追記した |
+| 1.12 | 2026-10-11 | Q/A 生成の失敗の扱いを変えたのに追随（全チャンクの失敗は `QAPipeline.run()` が `RuntimeError`、一部の失敗は `failed_chunks` をジョブのログに出す） |
