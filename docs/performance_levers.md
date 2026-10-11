@@ -1,6 +1,6 @@
 # 性能改善レバー — 回答品質とレイテンシ・コストを決めている箇所
 
-**Version 2.8** | 最終更新: 2026-10-10
+**Version 2.9** | 最終更新: 2026-10-11
 
 ---
 
@@ -550,8 +550,8 @@ gov / saas / ec のコレクションが 1 つも無ければ、検索スコー�
 | `docs/archive/agent_parallel_search.md` | 並列検索基盤（2026-10-10 に削除。P-03b を作るときの参考） |
 | `backend/docs/support_flow.md` | 複数質問（0-(A)）の設計（§6） |
 | `backend/docs/archive/review_false_positive_todo.md` | Review の誤検知対応 TODO（§6 の関連） |
-| `backend/docs/reference/core_gates.md` | `_answer_gate` 等の判定純関数（P-07 の対象） |
-| `backend/docs/reference/core_review_agent.md` | Review コア（§6 の対象） |
+| `backend/app/core/docs/gates.md` | `_answer_gate` 等の判定純関数（P-07 の対象） |
+| `backend/app/core/docs/review_agent.md` | Review コア（§6 の対象） |
 
 ---
 
@@ -576,3 +576,4 @@ gov / saas / ec のコレクションが 1 つも無ければ、検索スコー�
 | 2.6 | 2026-10-08 | 現在の既定 LLM の記述を `claude-sonnet-5` から実装（`config.py::ModelConfig.DEFAULT_MODEL` / `config/grace_config.yml` の `llm.model`）どおり `claude-sonnet-5-5` へ是正（技術スタック・モデル階層の yml 例・§8.5）（2026-10-08） |
 | 2.7 | 2026-10-10 | Legacy ReAct 経路（`services/agent_service.py`・`agent_parallel_search.py`・`agent_cache.py`・`executor._execute_legacy_agent_step`・`run_legacy_agent` アクション）を 2026-10-10 に削除したのに追随 |
 | 2.8 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |
+| 2.9 | 2026-10-11 | backend のモジュール文書を移したのに追随（パスの付け替え） |

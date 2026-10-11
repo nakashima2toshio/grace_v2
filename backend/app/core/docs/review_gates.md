@@ -1,16 +1,16 @@
 # core/review_gates.py - 文書レビューの判定・抑止ロジック ドキュメント
 
-**Version 1.4** | 最終更新: 2026-10-08
+**Version 1.5** | 最終更新: 2026-10-11
 
 > **本書の位置づけ**: `backend/app/core/review_gates.py`（Review の判定ロジック（二段判定・抑止・救済・重大度））の **IPO リファレンス**。
 > 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。
 >
 > | 知りたいこと | 参照先 |
 > |---|---|
-> | 各段のどこで呼ばれるか・なぜその判定か | [`review_flow.md` §4](../review_flow.md) |
-> | Support 側の同型ロジック | [`core_gates.md`](./core_gates.md) |
-> | モデル解決（`detect_model`） | [`config_and_providers.md` §2](../config_and_providers.md) |
-> | 文書全体の地図 | [`README.md`](../README.md) |
+> | 各段のどこで呼ばれるか・なぜその判定か | [`review_flow.md` §4](../../../docs/review_flow.md) |
+> | Support 側の同型ロジック | [`core/docs/gates.md`](./gates.md) |
+> | モデル解決（`detect_model`） | [`config_and_providers.md` §2](../../../docs/config_and_providers.md) |
+> | 文書全体の地図 | [`README.md`](../../../docs/README.md) |
 
 ---
 
@@ -257,7 +257,8 @@ style PUREFN fill:#1a1a1a,stroke:#fff,color:#fff
 
 | 関数名 | 概要 |
 |-------|------|
-| `select_candidate_rules(segment_text, ruleset)` | 第1段の候補選択（LLM 不要） |
+| `select_candidate_rules(segment_text, ruleset)` | 第1段の候補選択（キーワード型のみ・LLM 不要） |
+| `_mask_excludes(text, rule)` | `keyword_excludes` の語を伏せた本文（第1段の照合用） |
 | `select_document_rules(ruleset)` | **文書全体**に対して第2段へ回すルール候補（`always_check=True`）を返す |
 | `should_force_high(text, ruleset, classify)` | 重大リスク語の二段判定 |
 | `detect_vacuous_finding(message, judge)` | 実質性の二段判定 |
@@ -282,6 +283,14 @@ style PUREFN fill:#1a1a1a,stroke:#fff,color:#fff
 ## 4. クラス・関数 IPO詳細
 
 ### 4.1 使用例
+
+| # | パターン | いつ使うか | 例 |
+|---|---------|-----------|----|
+| 1 | **基本**: 指摘ゲート（④） | confirmed / review_required / suppressed の分かれ目 | 4.1.1 |
+| 2 | 重大度の調整（根拠が弱い指摘を 1 段下げる） | ⑤ severity の振る舞い | 4.1.2 |
+| 3 | 誤検知抑止からの救済 | ④' で落とした指摘を戻す条件 | 4.1.3 |
+
+> 📝 **確かめ方（2026-10-11）**: 4.1.1〜4.1.3 はすべて `PYTHONPATH=. python3 <例>.py` で実行し、出力が記載どおりであることを確かめた（LLM は呼ばない）。
 
 #### 4.1.1 基本的なワークフロー（指摘ゲート）
 
@@ -353,8 +362,9 @@ print(should_rescue_finding("suppressed", True, 2, "最上級表現の根拠が�
 
 #### `select_candidate_rules`
 
-**概要**: セグメントに対して第2段へ回すルール候補を選ぶ。ここで候補が 0 件なら
-LLM 呼び出しは 1 回も発生しない。
+**概要**: セグメントに対して第2段へ回すルール候補を選ぶ（**キーワード型のみ**）。ここで候補が 0 件なら
+LLM 呼び出しは 1 回も発生しない。**`always_check` のルール（表記漏れ）はここには含まれない**——文書全体で判定するため
+`select_document_rules()` が別に返す。
 
 ```python
 def select_candidate_rules(
@@ -371,32 +381,35 @@ def select_candidate_rules(
 | 項目 | 内容 |
 |------|------|
 | **Input** | `segment_text: str`, `ruleset: Optional[RuleSet]` |
-| **Process** | 1. `ruleset is None` なら空リスト<br>2. `always_check_rules` を全件候補に加える<br>3. `keyword_rules` を `_match_keyword` で部分一致判定し、一致したものを加える |
-| **Output** | `List[RuleCandidate]`: 候補ルール。空なら第2段は走らない |
-
-**戻り値例**:
-```python
-[
-    RuleCandidate(rule_id="tokusho-01", matched_keyword=None, always_check=True),
-    RuleCandidate(rule_id="tokusho-02", matched_keyword=None, always_check=True),
-    RuleCandidate(rule_id="keihyo-03", matched_keyword="No.1", always_check=False),
-]
-```
+| **Process** | 1. `ruleset is None` か本文が空なら空リスト<br>2. `keyword_rules` の各ルールについて、`_mask_excludes()` で `rule.keyword_excludes` の語を空白に伏せた本文へ `_match_keyword` で部分一致判定し、一致したものを加える |
+| **Output** | `List[RuleCandidate]`（`always_check=False`・`matched_keyword` に一致した語）。空なら第2段は走らない |
 
 ```python
-# 使用例
-from backend.app.core.review_gates import select_candidate_rules
+from backend.app.core.review_gates import select_candidate_rules, select_document_rules
 from backend.app.core.rulesets import get_ruleset
 
 ruleset = get_ruleset("ec_ad")
-candidates = select_candidate_rules("当社は業界No.1の品質です。", ruleset)
-print([c.rule_id for c in candidates])
-# ['tokusho-01', ..., 'tokusho-06', 'keihyo-03']
+print(select_candidate_rules("当社は業界No.1の品質です。", ruleset))
+# keyword_excludes の語は伏せてから照合する（「期間限定」の「限定」で keihyo-09 を拾わない）
+print([c.rule_id for c in select_candidate_rules("期間限定セール！", ruleset)])
+print([c.rule_id for c in select_candidate_rules("期間限定セール！限定100個", ruleset)])
+# 表記漏れ（always_check）は文書全体で別に選ぶ
+print([c.rule_id for c in select_document_rules(ruleset)])
+
+# 実行結果（2026-10-11）:
+# [RuleCandidate(rule_id='keihyo-03', matched_keyword='No.1', always_check=False)]
+# ['keihyo-07']
+# ['keihyo-07', 'keihyo-09']
+# ['tokusho-01', 'tokusho-02', 'tokusho-03', 'tokusho-04', 'tokusho-05', 'tokusho-06', 'policy-01']
 ```
 
-> **`always_check` が常に候補になる理由**: 特商法の表記漏れ（販売業者名が「無い」こと）は
-> キーワード一致では原理的に検出できない。「無いこと」を確かめるには本文全体を見る必要が
-> あるため、キーワード不問で第2段へ送る。
+> **`_mask_excludes(text, rule)`**: `rule.keyword_excludes` の語を空白に置き換えた本文を返す（第1段の照合用）。「期間限定」の中の「限定」を
+> 数量限定（keihyo-09）の一致と数えないためのもので、同じ段落に「限定100個」があればそちらで一致する（上の 2・3 行目）。
+>
+> **表記漏れが文書全体なのは**: 特商法の表記漏れ（販売業者名が「無い」こと）はキーワード一致では原理的に検出できず、
+> 「無いこと」を確かめるには本文全体を見る必要がある。以前はセグメントごとに候補へ入れていたため、判定 LLM に 1 行だけが渡り
+> 「事業者の氏名・住所が含まれていない」と誤検知していた（実際は同じ文書の別の行にある。実測 2026-08-17）。判定回数もセグメント数 × ルール数だった
+> （`select_document_rules` の docstring・§4 の `select_document_rules`）。
 
 ---
 
@@ -886,6 +899,7 @@ from backend.app.core.review_gates import (
 | 1.2 | 2026-09-15 | **§4.1「使用例」を新設**（2026-09-15）。ドキュメント規約 `a_class_method_md_format.md` §6.1 が IPO 詳細セクションの冒頭に必須としている代表ワークフローが欠落していた。指摘ゲート・重大度の調整・誤検知抑止からの救済の 3 本を追加し、**実行して出力を確認した**（外部依存が要る例はその旨を明記）。旧 §4.1〜§4.6 は §4.2〜§4.7 へ繰り下げ |
 | 1.3 | 2026-09-16 | 3 階建て再編（`reference/` へ移設）に伴い、冒頭へ**位置づけと上位文書への導線**を追加した |
 | 1.4 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随 |
+| 1.5 | 2026-10-11 | `backend/docs/reference/core_review_gates.md` から移した（`a_cross_doc_md_format.md` §1.1.2。リンクを付け替えた）。§4.1 の 3 例を実行して記載どおりであることを確かめ、パターンの表を追加。§4 の `select_candidate_rules` が「`always_check` を全件候補に加える」と実装と逆のことを書いていたのを是正し（表記漏れは `select_document_rules` が文書全体で返す）、未記載だった `_mask_excludes` を追加した。例は実行で確かめた |
 
 ---
 

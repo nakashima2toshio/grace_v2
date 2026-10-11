@@ -1,6 +1,6 @@
 # GRACE-Support 処理フローと設計 ドキュメント
 
-**Version 3.9** | 最終更新: 2026-10-10
+**Version 3.10** | 最終更新: 2026-10-11
 
 > **本書の位置づけ**: GRACE-Support（問い合わせ → 回答）の**処理フロー（HOW）と
 > 設計判断（WHY）を 1 本にまとめた正本**。v3.0 で `support_spec.md` を統合した。
@@ -11,7 +11,7 @@
 > | なぜこの判定・しきい値・ポリシーなのか | 本書 §5（設計判断）・§6（複数質問） |
 > | 業界プロファイル（gov / saas / ec）の中身 | [`verticals_and_rulesets.md` §1](./verticals_and_rulesets.md) |
 > | ジョブ・SSE・HITL の機構 | [`job_runtime.md`](./job_runtime.md) |
-> | 関数・クラスのシグネチャ | [`reference/core_support_agent.md`](./reference/core_support_agent.md) / [`reference/core_gates.md`](./reference/core_gates.md) |
+> | 関数・クラスのシグネチャ | [`core/docs/support_agent.md`](../app/core/docs/support_agent.md) / [`core/docs/gates.md`](../app/core/docs/gates.md) |
 
 > **関連ドキュメント**
 > - [`architecture.md`](./architecture.md) — backend の層構造と外部境界
@@ -265,9 +265,9 @@ style BRIDGE fill:#1a1a1a,stroke:#fff,color:#fff
 ## 3. ステップ ↔ 実装対応と信頼度フロー
 
 > 📎 **関数の一覧表は本書に持たない。** 公開シンボルの正本は
-> [`reference/core_support_agent.md`](./reference/core_support_agent.md) /
-> [`reference/core_gates.md`](./reference/core_gates.md) /
-> [`reference/core_verticals.md`](./reference/core_verticals.md) である
+> [`core/docs/support_agent.md`](../app/core/docs/support_agent.md) /
+> [`core/docs/gates.md`](../app/core/docs/gates.md) /
+> [`core/docs/verticals.md`](../app/core/docs/verticals.md) である
 > （以前は本書 §3.2 に同じ一覧を持っていたが、3 重管理になっていた）。
 
 ### 3.1 ステップ ↔ 実装対応表
@@ -293,7 +293,7 @@ style BRIDGE fill:#1a1a1a,stroke:#fff,color:#fff
 
 > 📝 旧 `confidence_flow_grace_vs_backend.md`（v1.1）を統合した節。
 > 測定の詳細は [`grace/docs/grace_process_flow.md` §2.2](../../grace/docs/grace_process_flow.md#22-全体信頼度の算出)、
-> 判定の詳細は [`core_gates.md`](./reference/core_gates.md) が正本。
+> 判定の詳細は [`core/docs/gates.md`](../app/core/docs/gates.md) が正本。
 
 **測定の心臓部（`GroundednessVerifier` による支持率）は両者で共有**している。違うのは
 「その支持率を最終的にどう判定へ落とすか」である。
@@ -446,7 +446,7 @@ style BACKEND fill:#1a1a1a,stroke:#fff,color:#fff
 
 > 📎 設計判断（なぜ絞るのか・なぜ自動選定しないのか・安全側の向き）は
 > [本書 §6](#6-0-a-複数質問クエリと担当範囲外) を参照。
-> 関数仕様は [`core_gates.md`](./reference/core_gates.md) が正本。
+> 関数仕様は [`core/docs/gates.md`](../app/core/docs/gates.md) が正本。
 
 ```python
 # run_support_agent_core 内（support_agent.py）
@@ -1080,10 +1080,10 @@ class Q,CLS,RAG,GND,GATE,ANS,WARN,WEB,ESC,ACT,HITL,DO,OUT default
 
 | 型 | 実装位置 | 仕様の正本 |
 |---|---|---|
-| `SupportResult` | `backend/app/core/support_agent.py` | [`core_support_agent.md`](./reference/core_support_agent.md) |
-| `ActionRequest` / `VerticalProfile` | `backend/app/core/verticals.py` | [`core_verticals.md`](./reference/core_verticals.md) |
-| `QuestionCluster` | `backend/app/core/support_agent.py` | [`core_support_agent.md`](./reference/core_support_agent.md) |
-| API レスポンス（Pydantic） | `backend/app/schemas.py` | [`schemas.md`](./reference/schemas.md) |
+| `SupportResult` | `backend/app/core/support_agent.py` | [`core/docs/support_agent.md`](../app/core/docs/support_agent.md) |
+| `ActionRequest` / `VerticalProfile` | `backend/app/core/verticals.py` | [`core/docs/verticals.md`](../app/core/docs/verticals.md) |
+| `QuestionCluster` | `backend/app/core/support_agent.py` | [`core/docs/support_agent.md`](../app/core/docs/support_agent.md) |
+| API レスポンス（Pydantic） | `backend/app/schemas.py` | [`docs/schemas.md`](../app/docs/schemas.md) |
 
 > ⚠️ **フィールド表を本書に置かない。** 以前は本書の前身（`agent_support_example.md` §3）が
 > dataclass 定義を丸ごと複製していたが、`SupportResult` に 0-(A) の 7 フィールドが
@@ -1714,6 +1714,7 @@ InterventionBridge
 | 3.7 | 2026-10-09 | 「指示に従うかはモデル次第」の 2026-08-29 実測表のモデル名を `claude-sonnet-5` → 当時の既定 `claude-sonnet-4-6` へ戻した。2026-09-16 の既定変更の一括置換で、計測していないモデル名に書き換わっていた（`gates.py` / `test_multi_question.py` の同じ表は `claude-sonnet-4-6` のまま正しかった）。現在の既定 `claude-sonnet-5-5` では未計測であること、コード側の担保はモデルに依存しないことを注記（2026-10-09） |
 | 3.8 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |
 | 3.9 | 2026-10-10 | `grace/docs/` の構成整理（`README.md` → `README_grace.md`、`grace.md` / `grace_core.md` / `grace_runtime.md` / `confidence_calibration.md` を `README_grace.md` / `grace_process_flow.md` / `grace_data_flow.md` へ統合）に合わせてリンクを直した |
+| 3.10 | 2026-10-11 | backend のモジュール文書を `backend/docs/reference/` から `backend/app/docs/`・`backend/app/api/docs/`・`backend/app/core/docs/` へ移したのに追随（リンクの付け替え） |
 
 > 統合元 `support_spec.md` の変更履歴（v1.0〜v1.2）と、さらにその統合元 3 文書の履歴は
 > git で追える（`git log --follow --all -- backend/docs/support_flow.md`）。

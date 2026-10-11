@@ -1,16 +1,16 @@
 # core/jobs.py - ジョブ管理（インメモリ）ドキュメント
 
-**Version 1.7** | 最終更新: 2026-10-10
+**Version 1.8** | 最終更新: 2026-10-11
 
 > **本書の位置づけ**: `backend/app/core/jobs.py`（ジョブ管理・runner 注入・イベント蓄積）の **IPO リファレンス**。
 > 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。
 >
 > | 知りたいこと | 参照先 |
 > |---|---|
-> | **共有基盤の正本**（ライフサイクル・リプレイ・runner 注入） | [`job_runtime.md`](../job_runtime.md) |
-> | 依存の向き（`jobs.py` が Review を知らない理由） | [`architecture.md` §5](../architecture.md) |
-> | SSE のワイヤ形式 | [`api_contract.md` §3](../api_contract.md) |
-> | 文書全体の地図 | [`README.md`](../README.md) |
+> | **共有基盤の正本**（ライフサイクル・リプレイ・runner 注入） | [`job_runtime.md`](../../../docs/job_runtime.md) |
+> | 依存の向き（`jobs.py` が Review を知らない理由） | [`architecture.md` §5](../../../docs/architecture.md) |
+> | SSE のワイヤ形式 | [`api_contract.md` §3](../../../docs/api_contract.md) |
+> | 文書全体の地図 | [`README.md`](../../../docs/README.md) |
 
 ---
 
@@ -307,6 +307,13 @@ def done_event(job: "Job") -> Dict[str, Any]
 
 ### 4.1 使用例
 
+| # | パターン | いつ使うか | 例 |
+|---|---------|-----------|----|
+| 1 | **基本**: 独自 runner を登録して実行する | 新しいジョブ種別を足す | 4.1.1 |
+| 2 | イベントの再購読（タブ離脱後の復元） | SSE の張り直し・消えたジョブの扱い | 4.1.2 |
+
+> 📝 **確かめ方（2026-10-11）**: 4.1.1・4.1.2 はすべて `PYTHONPATH=. python3 <例>.py` で実行し、出力が記載どおりであることを確かめた。
+
 #### 4.1.1 基本的なワークフロー（独自 runner を登録して実行する）
 
 ジョブ基盤は Support / Review / データ準備で共用する。`params` の**型**から runner を
@@ -335,7 +342,7 @@ register_runner(EchoParams, echo_runner, kind="echo")
 # 4. 起動すると別スレッドで走る
 mgr = JobManager()
 job = mgr.start(EchoParams(text="hello"))
-print(f"kind={job.kind} status={job.status}")
+print(f"kind={job.kind}")   # status は起動直後でも completed のことがある（別スレッドが先に終わる）
 
 # 5. SSE と同じイベント列を購読する（先頭からリプレイされる）
 for ev in job.stream_events():
@@ -348,7 +355,7 @@ for ev in job.stream_events():
 print("result:", mgr.get(job.job_id).result)
 
 # 出力例:
-# kind=echo status=running
+# kind=echo
 # step echo started
 # step echo finished
 # result: {'echoed': 'hello'}
@@ -364,13 +371,33 @@ print("result:", mgr.get(job.job_id).result)
 
 ```python
 from backend.app.core.jobs import JobManager
+from backend.app.core.support_agent import SupportEvent
+
+
+def runner(params, emit, confirm):
+    for step in ("plan", "execute"):
+        emit(SupportEvent(type="step", step=step, status="finished"))
+    return {"ok": True}
+
 
 mgr = JobManager()
-job = mgr.get(job_id)          # 消えていれば None（API は 404 を返す）
-if job is not None:
-    for ev in job.stream_events():   # seq 0 から全件流れてくる
-        ...
+job = mgr.start({"any": "params"}, runner=runner)   # runner を明示すれば型の登録は要らない（kind="custom"）
+
+# 1 回目の購読（タブを開いていた）
+first = [(ev["seq"], ev["step"]) for ev in job.stream_events() if ev is not None]
+# 2 回目の購読（タブを離れて戻った）: seq 0 から全件が流れ直す
+again = mgr.get(job.job_id)          # 消えていれば None（API は 404 を返す）
+second = [(ev["seq"], ev["step"]) for ev in again.stream_events() if ev is not None]
+print(job.kind, first, first == second)
+print(mgr.get("no-such-job"))
+
+# 実行結果:
+# custom [(0, 'plan'), (1, 'execute')] True
+# None
 ```
+
+> 📌 `stream_events()` はジョブが終わるまで新しいイベントを待ち、終われば抜ける（承認待ちなどで止まっている間は `None` を流して keepalive にする）。
+> 完了したジョブは `MAX_FINISHED_JOBS`（50）を超えると古いものから消えるので、再購読の前に `get()` で存在を確かめる。
 
 
 ### 4.2 JobParams クラス
@@ -401,7 +428,7 @@ JobParams(
 > 現在は `params.identity` を素通しする。実際に照合されるのは
 > **`require_identity` のプロファイル（`ec`）＋ `dry_run=False` ＋ `SUPPORT_IDENTITY_FILE` 設定**
 > の経路だけで、`dry_run=True` ではデモ照合が値を見ない
-> （[`core_verticals.md`](./core_verticals.md) / `support_actions.create_identity_verifier`）。
+> （[`core/docs/verticals.md`](./verticals.md) / `support_actions.create_identity_verifier`）。
 > 回帰は `test_jobs_generic.py::test_identity_is_passed_through_to_core` で固定。
 
 | 項目 | 内容 |
@@ -742,6 +769,7 @@ register_runner, done_event, job_manager, MAX_FINISHED_JOBS
 | 1.5 | 2026-09-16 | 3 階建て再編（`reference/` へ移設）に伴い、冒頭へ**位置づけと上位文書への導線**を追加した |
 | 1.6 | 2026-10-08 | keepalive の定数 `SSE_KEEPALIVE`（`event: keepalive` の名前付きイベント。3 つの SSE ストリームで共用）を追加したのに追随。コメント行だとフロントから見えず、黙って止まった接続を検知できなかった |
 | 1.7 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |
+| 1.8 | 2026-10-11 | `backend/docs/reference/core_jobs.md` から移した（`a_cross_doc_md_format.md` §1.1.2。リンクを付け替えた）。§4.1.2 を断片から実行できる例へ作り直した（2 回の購読で同じ列がリプレイされる）。§4.1.1 の `status=running` は起動直後でも completed になり得るので出力から外した。パターンの表を追加 |
 
 ---
 

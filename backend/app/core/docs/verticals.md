@@ -1,15 +1,15 @@
 # core/verticals.py - 業界プロファイル定義 ドキュメント
 
-**Version 1.5** | 最終更新: 2026-10-08
+**Version 1.6** | 最終更新: 2026-10-11
 
 > **本書の位置づけ**: `backend/app/core/verticals.py`（`VerticalProfile` / `PROFILES` / `ActionRequest`）の **IPO リファレンス**。
 > 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。
 >
 > | 知りたいこと | 参照先 |
 > |---|---|
-> | プロファイルの中身と増やし方 | [`verticals_and_rulesets.md` §1・§3.1](../verticals_and_rulesets.md) |
-> | プロファイルが効く段 | [`support_flow.md` §4.1](../support_flow.md) |
-> | 文書全体の地図 | [`README.md`](../README.md) |
+> | プロファイルの中身と増やし方 | [`verticals_and_rulesets.md` §1・§3.1](../../../docs/verticals_and_rulesets.md) |
+> | プロファイルが効く段 | [`support_flow.md` §4.1](../../../docs/support_flow.md) |
+> | 文書全体の地図 | [`README.md`](../../../docs/README.md) |
 
 ---
 
@@ -207,6 +207,14 @@ style PROFILES fill:#1a1a1a,stroke:#fff,color:#fff
 
 ### 4.1 使用例
 
+| # | パターン | いつ使うか | 例 |
+|---|---------|-----------|----|
+| 1 | **基本**: プロファイルの解決と参照 | `vertical` からコレクション・閾値を引く | 4.1.1 |
+| 2 | 3 プロファイルの差を一覧する | 業界ごとの違いを比べる | 4.1.2 |
+| 3 | プロンプトへ注入される 2 種類の文字列 | LLM へ渡る指示を確かめる | 4.1.3 |
+
+> 📝 **確かめ方（2026-10-11）**: 4.1.1〜4.1.3 はすべて `PYTHONPATH=. python3 <例>.py` で実行し、出力が記載どおりであることを確かめた（LLM・Qdrant は使わない）。
+
 #### 4.1.1 基本的なワークフロー（プロファイルの解決と参照）
 
 ```python
@@ -264,7 +272,7 @@ print(gov.build_closing_instruction(["明日の東京の天気は？"]).splitlin
 # 【この問い合わせに含まれる担当範囲外の質問】
 ```
 
-> 📎 なぜ位置を分けるのかは [`support_flow.md` §5.5](../support_flow.md#65-担当範囲外の質問断って窓口案内する)
+> 📎 なぜ位置を分けるのかは [`support_flow.md` §5.5](../../../docs/support_flow.md#65-担当範囲外の質問断って窓口案内する)
 > を参照（業務方針側に混ぜると、後段の【回答の構成ルール】に負けてモデルが断りを落とす）。
 
 
@@ -564,6 +572,7 @@ ActionRequest, VerticalProfile, PROFILES
 | 1.3 | 2026-09-15 | **§4.1「使用例」を新設**（2026-09-15）。ドキュメント規約 `a_class_method_md_format.md` §6.1 が IPO 詳細セクションの冒頭に必須としている代表ワークフローが欠落していた。プロファイルの解決と参照、3 プロファイルの差の一覧、注入される 2 種類の文字列の 3 本を追加し、**実行して出力を確認した**（外部依存が要る例はその旨を明記）。旧 §4.1〜§4.2 は §4.2〜§4.3 へ繰り下げ |
 | 1.4 | 2026-09-16 | 3 階建て再編（`reference/` へ移設）に伴い、冒頭へ**位置づけと上位文書への導線**を追加した |
 | 1.5 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随 |
+| 1.6 | 2026-10-11 | `backend/docs/reference/core_verticals.md` から移した（`a_cross_doc_md_format.md` §1.1.2。リンクを付け替えた）。§4.1 の 3 例を実行して記載どおりであることを確かめ、パターンの表を追加 |
 
 ---
 

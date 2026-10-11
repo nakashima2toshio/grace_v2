@@ -1,19 +1,19 @@
 # core/job_logs.py - ジョブ進捗へのログ転送 ドキュメント
 
-**Version 1.3** | 最終更新: 2026-09-24
+**Version 1.4** | 最終更新: 2026-10-11
 
 > **本書の位置づけ**: `backend/app/core/job_logs.py`（既存パッケージの `logging` を進捗イベントへ転送）の **IPO リファレンス**。
 > 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。
 >
 > | 知りたいこと | 参照先 |
 > |---|---|
-> | **機構の正本**（スレッド絞り込み・level の参照カウント） | [`job_runtime.md` §5](../job_runtime.md) |
-> | 唯一の利用者 | [`core_data_jobs.md`](./core_data_jobs.md) |
-> | 文書全体の地図 | [`README.md`](../README.md) |
+> | **機構の正本**（スレッド絞り込み・level の参照カウント） | [`job_runtime.md` §5](../../../docs/job_runtime.md) |
+> | 唯一の利用者 | [`core/docs/data_jobs.md`](./data_jobs.md) |
+> | 文書全体の地図 | [`README.md`](../../../docs/README.md) |
 
 > **参考ドキュメント**
-> - [`backend/docs/reference/core_data_jobs.md`](./core_data_jobs.md) — 本モジュールの唯一の利用者
-> - [`backend/docs/reference/core_jobs.md`](./core_jobs.md) — ジョブ基盤（`Job.emit` の実体）
+> - [`backend/app/core/docs/data_jobs.md`](./data_jobs.md) — 本モジュールの唯一の利用者
+> - [`backend/app/core/docs/jobs.md`](./jobs.md) — ジョブ基盤（`Job.emit` の実体）
 
 ---
 
@@ -151,6 +151,13 @@ style OUT fill:#1a1a1a,stroke:#fff,color:#fff
 
 ### 3.1 使用例
 
+| # | パターン | いつ使うか | 例 |
+|---|---------|-----------|----|
+| 1 | **基本**: `with capture_logs(...)` の間だけ転送する | runner が既存パッケージを呼ぶ区間 | 3.1.1 |
+| 2 | 段の切り替え（`set_step`）と、転送しないもの（別スレッド・低い level） | 1 つの runner が複数の段を持つとき・同時実行の確認 | 3.1.2 |
+
+> 📝 **確かめ方（2026-10-11）**: どちらも `PYTHONPATH=. python3 <例>.py` で実行した（標準出力だけを載せている。ルートの logging が同じ行を標準エラーにも出す）。
+
 #### 3.1.1 基本的なワークフロー（既存パッケージのログを SSE へ流す）
 
 `chunking/` などの既存パッケージは**無改修**のまま、`logging` の出力だけを
@@ -181,6 +188,42 @@ for e in events:
 
 > ⚠️ **`step` を渡すと、その間のログが UI のどの段に属するかが決まる。**
 > runner はステップの切り替わりで `set_step()` を呼び、ログ行を正しい段へ寄せる。
+
+#### 3.1.2 段の切り替えと、転送しないもの
+
+```python
+import logging
+import threading
+
+from backend.app.core.job_logs import capture_logs
+
+events = []
+logger = logging.getLogger("qa_generation.demo")
+
+with capture_logs(events.append, logger_names=["qa_generation"], step="generate") as handler:
+    logger.info("Q/A を生成中")
+    handler.set_step("save")                      # 以降のログは ⑵ 保存の段へ
+    logger.info("CSV を保存しました")
+    # 別スレッド（＝同時に走る別のジョブ）のログは転送しない
+    t = threading.Thread(target=lambda: logger.info("別ジョブのログ"))
+    t.start(); t.join()
+    logger.debug("DEBUG は既定の level=INFO より低いので転送しない")
+
+for e in events:
+    print(f"{e.type} step={e.step} {e.message}")
+
+# with を抜けると logger の level は元に戻る（未設定 = 0 = 親を継承）
+print(logger.getEffectiveLevel() == logging.getLogger().getEffectiveLevel(),
+      logging.getLogger("qa_generation").level)
+
+# 実行結果:
+# log step=generate Q/A を生成中
+# log step=save CSV を保存しました
+# True 0
+```
+
+> 📌 「別ジョブのログ」は転送されない。ハンドラは作ったスレッド（＝ジョブのワーカースレッド）のレコードだけを通す（§5.1）。
+> logger の level は with の間だけ下げ、抜けると元（ここでは未設定の `0`）へ戻す。同時に走る複数のジョブは参照カウントで level を共有する（§5.2）。
 
 
 ### 3.2 `JobLogHandler.__init__`
@@ -342,3 +385,4 @@ with capture_logs(emit, step="embed") as handler:
 | 1.1 | 2026-09-15 | **§3.1「使用例」を新設**（2026-09-15）。ドキュメント規約 `a_class_method_md_format.md` §6.1 が IPO 詳細セクションの冒頭に必須としている代表ワークフローが欠落していた。既存パッケージの logging を進捗イベントへ転送する 1 本を追加し、**実行して出力を確認した**（外部依存が要る例はその旨を明記）。旧 §3.1〜§3.5 は §3.2〜§3.6 へ繰り下げ |
 | 1.2 | 2026-09-16 | 3 階建て再編（`reference/` へ移設）に伴い、冒頭へ**位置づけと上位文書への導線**を追加した |
 | 1.3 | 2026-09-24 | 概要の「各責務対応の要素」（4 行・主な責務 3 項目と非対応）を、基本フォーマットの「各責務対応のモジュール」（主な責務と 1:1 の 3 行）へ置き換えた（2026-09-24） |
+| 1.4 | 2026-10-11 | `backend/docs/reference/core_job_logs.md` から移した（`a_cross_doc_md_format.md` §1.1.2。リンクを付け替えた）。§3.1.2（段の切り替え・別スレッドと低い level は転送しない）を追加し、§3.1 の 2 例を実行して確かめた |

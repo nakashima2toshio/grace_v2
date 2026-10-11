@@ -1,22 +1,22 @@
 # core/data_jobs.py - データ準備ジョブ runner ドキュメント
 
-**Version 1.12** | 最終更新: 2026-10-11
+**Version 1.13** | 最終更新: 2026-10-11
 
 > **本書の位置づけ**: `backend/app/core/data_jobs.py`（データ準備 4 ジョブの runner）の **IPO リファレンス**。
 > 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。
 >
 > | 知りたいこと | 参照先 |
 > |---|---|
-> | パイプラインの中身 | [`data_pipeline.md`](../data_pipeline.md) |
-> | ジョブ基盤・runner 注入 | [`job_runtime.md` §3](../job_runtime.md) |
-> | LLM と Embedding のプロバイダ分離 | [`config_and_providers.md`](../config_and_providers.md) |
-> | 文書全体の地図 | [`README.md`](../README.md) |
+> | パイプラインの中身 | [`data_pipeline.md`](../../../docs/data_pipeline.md) |
+> | ジョブ基盤・runner 注入 | [`job_runtime.md` §3](../../../docs/job_runtime.md) |
+> | LLM と Embedding のプロバイダ分離 | [`config_and_providers.md`](../../../docs/config_and_providers.md) |
+> | 文書全体の地図 | [`README.md`](../../../docs/README.md) |
 
 > **参考ドキュメント**
-> - [`backend/docs/reference/api_data.md`](./api_data.md) — 本モジュールを起動する API 層
-> - [`backend/docs/reference/core_jobs.md`](./core_jobs.md) — ジョブ基盤（`register_runner` / `JobManager`）
-> - [`backend/docs/reference/core_job_logs.md`](./core_job_logs.md) — `capture_logs()` の仕組み
-> - [`backend/docs/data_pipeline.md`](../data_pipeline.md) — パイプライン全体の設計
+> - [`backend/app/api/docs/data.md`](../../api/docs/data.md) — 本モジュールを起動する API 層
+> - [`backend/app/core/docs/jobs.md`](./jobs.md) — ジョブ基盤（`register_runner` / `JobManager`）
+> - [`backend/app/core/docs/job_logs.md`](./job_logs.md) — `capture_logs()` の仕組み
+> - [`backend/docs/data_pipeline.md`](../../../docs/data_pipeline.md) — パイプライン全体の設計
 
 ---
 
@@ -222,6 +222,13 @@ runner は `step_started(id, LABELS[id], ...)` の形でラベルを引く。
 
 ### 4.1 使用例
 
+| # | パターン | いつ使うか | 例 |
+|---|---------|-----------|----|
+| 1 | **基本**: パラメータとステップ定義を見る | 画面のステップ表示・承認の要否を確かめる | 4.1.1 |
+| 2 | ジョブとして起動する（`JobManager.start`） | runner の解決と失敗の返り方を確かめる | 4.1.2 |
+
+> 📝 **確かめ方（2026-10-11）**: 4.1.1・4.1.2 はすべて `PYTHONPATH=. python3 <例>.py` で実行し、出力が記載どおりであることを確かめた（LLM・Qdrant は使わない）。
+
 #### 4.1.1 基本的なワークフロー（パラメータとステップ定義）
 
 4 種の runner は `params` の**型**で解決される（`register_runner()` 済み）。
@@ -253,17 +260,30 @@ print(f"{type(d).__name__}: {d.collections} / steps={DELETE_STEP_IDS}")
 #### 4.1.2 ジョブとして起動する
 
 ```python
-from backend.app.core.jobs import JobManager
 from backend.app.core.data_jobs import ChunkingParams
+from backend.app.core.jobs import JobManager
 
 mgr = JobManager()
-job = mgr.start(ChunkingParams(input_file="OUTPUT/cc_news_1per.csv"))
-# → params の型から _chunking_runner が解決される（kind="data"）
-# → 進捗は job.stream_events() / GET /api/data/stream/{job_id} で購読する
+job = mgr.start(ChunkingParams(input_file="OUTPUT/no_such.csv"))
+# → params の型から _chunking_runner が解決される（kind="chunking"）
+for ev in job.stream_events():          # GET /api/data/stream/{job_id} と同じ列
+    if ev is not None:
+        print(ev["type"], ev.get("step"), ev.get("status"), (ev.get("message") or "")[:50])
+print(job.kind, job.status, job.result)
+
+# 実行結果（ANTHROPIC_API_KEY が無い環境）:
+# error None None ⚠️ ANTHROPIC_API_KEY が未設定です。.env に設定してください。
+# chunking failed None
+#
+# 実行結果（キーがある環境。入力ファイルの検証で止まる）:
+# step load started
+# error None None ❌ 入力ファイルを開けません: ファイルが見つかりません: OUTPUT/no_such.csv
+# chunking failed None
 ```
 
-> 実行には入力 CSV と（登録ジョブでは）Qdrant が要るため、ここでは起動までを示す。
-> 画面から実行する手順は [`data_pipeline.md` §5](../data_pipeline.md#5-使用例)。
+> 📌 失敗は例外ではなく `error` イベント → `status: failed`（`result` は `None`）で返る。API はこれをそのまま SSE と `GET /api/data/result` に出す
+> （[`api/docs/data.md` §3.1.1](../../api/docs/data.md#31-使用例)）。実際にチャンク化まで進めると LLM を呼ぶ（課金される）ので、ここでは手前で止まる入力にした。
+> 画面から実行する手順は [`data_pipeline.md` §5](../../../docs/data_pipeline.md#5-使用例)。
 
 
 ### 4.2 `ChunkingParams`
@@ -408,11 +428,11 @@ def _ask_confirmation(confirm: ConfirmFn, message: str, reason: str) -> tuple[bo
 > ⚠️ **`ChunkingAbortedError` は他の例外と分けて捕まえる。** LLM 呼び出しが
 > 連続で失敗して中断した場合で、原因と対処はメッセージ側が持っている。
 > `type(e).__name__` を前置きすると読みにくくなるだけなので、そのまま出す。
-> 詳細は [`chunking/docs/async_api_client.md`](../../../chunking/docs/async_api_client.md) §4.4。
+> 詳細は [`chunking/docs/async_api_client.md`](../../../../chunking/docs/async_api_client.md) §4.4。
 >
 > ⚠️ **`ResumeMismatchError` も同じく分けて捕まえる**（2026-10-11〜）。`resume`（再開 ID）のジョブが別の入力・設定
 > （ファイル名・本文・`block_size`・`model`）で作られているときに `chunks_all_async()` が LLM を呼ぶ前に送出し、出力 CSV は書かれない。
-> メッセージに食い違った項目が並ぶので、そのまま error にする（[`chunking/docs/checkpoint_manager.md`](../../../chunking/docs/checkpoint_manager.md) §4.7・
+> メッセージに食い違った項目が並ぶので、そのまま error にする（[`chunking/docs/checkpoint_manager.md`](../../../../chunking/docs/checkpoint_manager.md) §4.7・
 > 回帰は `tests/test_data_jobs.py::test_chunking_resume_with_other_input_is_error`）。
 
 ### 5.4 `_qa_runner`
@@ -516,3 +536,4 @@ register_runner(DeleteParams,   _delete_runner,   "delete")
 | 1.10 | 2026-10-10 | 概要の「各責務対応のモジュール」を「主な責務」（4 項目）と 1:1 に揃えた（責務の文言をそのまま使い、「イベント型」「実処理」は責務 2・4 の説明へ移し、説明列を足した）。変更履歴を 3 列へ移した |
 | 1.11 | 2026-10-11 | §5.3 に、`_chunking_runner` が `ResumeMismatchError`（再開 ID のジョブが別の入力・設定で作られている）を分けて捕まえることを追記した |
 | 1.12 | 2026-10-11 | Q/A 生成の失敗の扱いを変えたのに追随（全チャンクの失敗は `QAPipeline.run()` が `RuntimeError`、一部の失敗は `failed_chunks` をジョブのログに出す） |
+| 1.13 | 2026-10-11 | `backend/docs/reference/core_data_jobs.md` から移した（`a_cross_doc_md_format.md` §1.1.2。リンクを付け替えた）。§4.1.2 を起動だけの断片から実行できる例へ作り直し、kind の記載を `data` → `chunking`（実装どおり）に是正。パターンの表を追加 |

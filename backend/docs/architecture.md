@@ -1,6 +1,6 @@
 # backend アーキテクチャ ドキュメント
 
-**Version 1.2** | 最終更新: 2026-10-10
+**Version 1.3** | 最終更新: 2026-10-11
 
 > **本書の位置づけ**: `backend/` を理解するときに**最初に読む 1 枚**。
 > 層構造・モジュールの責務・外側のパッケージとの境界・依存の向きを示す。
@@ -31,8 +31,8 @@
 
 ## 概要
 
-`backend/app/` は **FastAPI の薄い層**である。17 モジュール・約 7,400 行のうち、
-API 層（`api/*.py` + `main.py`）は合計 724 行しかなく、やっていることは
+`backend/app/` は **FastAPI の薄い層**である。18 モジュール・約 8,200 行のうち、
+API 層（`api/*.py` + `main.py`）は合計 778 行しかなく（2026-10-11 実測）、やっていることは
 
 1. Pydantic でリクエストを検証し、
 2. ジョブを起動し（`core/jobs.py`）、
@@ -145,34 +145,35 @@ style Outside fill:#1a1a1a,stroke:#fff,color:#fff
 
 ## 2. モジュール一覧
 
-行数は 2026-09-16 の `wc -l` 実測値。
+行数は 2026-10-11 の `wc -l` 実測値。各モジュールの IPO 文書は `backend/app/docs/`・`backend/app/api/docs/`・`backend/app/core/docs/`（索引は各 `README_<dir>.md`）。
 
 ### 2.1 API 層（`backend/app/`）
 
 | モジュール | 行数 | 責務 | prefix |
 |---|---:|---|---|
 | `main.py` | 66 | FastAPI 組み立て・CORS・ルータ登録・`.env` 読み込み | — |
-| `schemas.py` | 462 | 全リクエスト / レスポンス / イベントの Pydantic モデル | — |
-| `api/support.py` | 89 | Support のジョブ起動 / SSE / HITL 応答 / 結果取得 | `/api/support` |
-| `api/review.py` | 104 | Review の同上（構造は support.py と同一） | `/api/review` |
-| `api/data.py` | 197 | データ準備 4 ジョブの起動 + 共通 SSE / HITL / 結果 | `/api` |
+| `schemas.py` | 568 | 全リクエスト / レスポンス / イベントの Pydantic モデル | — |
+| `api/support.py` | 90 | Support のジョブ起動 / SSE / HITL 応答 / 結果取得 | `/api/support` |
+| `api/review.py` | 105 | Review の同上（構造は support.py と同一） | `/api/review` |
+| `api/data.py` | 196 | データ準備 4 ジョブの起動 + 共通 SSE / HITL / 結果 | `/api` |
 | `api/qdrant.py` | 200 | Qdrant 参照系（読み取り専用）・入力ファイル一覧 | `/api` |
-| `api/meta.py` | 68 | 業界プロファイル / ルールセット一覧・ヘルスチェック | `/api` |
+| `api/meta.py` | 121 | モデルの選択肢と既定値・業界プロファイル / ルールセット一覧・ヘルスチェック | `/api` |
 
 ### 2.2 core 層（`backend/app/core/`）
 
 | モジュール | 行数 | 系統 | 責務 |
 |---|---:|---|---|
-| `jobs.py` | 302 | 共有 | ジョブ管理・runner 注入・イベント蓄積とリプレイ |
+| `jobs.py` | 319 | 共有 | ジョブ管理・runner 注入・イベント蓄積とリプレイ |
 | `intervention_bridge.py` | 139 | 共有 | HITL の同期コールバック ↔ 非同期 API の橋渡し |
 | `job_logs.py` | 193 | 共有 | 既存パッケージの `logging` を進捗イベントへ転送 |
-| `support_agent.py` | 916 | Support | `run_support_agent_core`（0-(A)〜⑥ の 1 周） |
-| `gates.py` | 1,367 | Support | 質問分析・回答ゲート・救済・スコープ判定・情報なし検知 |
-| `verticals.py` | 256 | Support | `VerticalProfile`（gov / saas / ec） |
-| `review_agent.py` | 1,093 | Review | `run_review_agent_core`（S1・①〜⑦ の 1 周） |
-| `review_gates.py` | 510 | Review | 二段判定・誤検知抑止・救済・重大度調整 |
-| `rulesets.py` | 643 | Review | `RuleSet` / `RuleItem`（EC 広告 23 ルール） |
-| `data_jobs.py` | 767 | データ準備 | 4 種の runner（chunking / qa / register / delete） |
+| `support_agent.py` | 961 | Support | `run_support_agent_core`（0-(A)〜⑥ の 1 周） |
+| `gates.py` | 1,431 | Support | 質問分析・回答ゲート・救済・スコープ判定・情報なし検知 |
+| `verticals.py` | 257 | Support | `VerticalProfile`（gov / saas / ec） |
+| `review_agent.py` | 1,405 | Review | `run_review_agent_core`（S1・①〜⑦ の 1 周） |
+| `review_gates.py` | 542 | Review | 二段判定・誤検知抑止・救済・重大度調整 |
+| `rulesets.py` | 712 | Review | `RuleSet` / `RuleItem`（EC 広告 23 ルール） |
+| `review_facts.py` | 150 | Review | 文字列だけで決まる事実（購入時の送料の有無・返品条件の比較）で ③ / ④' を補う |
+| `data_jobs.py` | 781 | データ準備 | 4 種の runner（chunking / qa / register / delete） |
 
 ---
 
@@ -317,7 +318,7 @@ architecture.md（本書）
 api_contract.md             フロント / API 利用者はここから
 config_and_providers.md     モデル・キーを触る前に
 pitfalls.md                 コードを触る前に
-reference/*.md              引く（通読しない）
+../app/**/docs/*.md         モジュール文書（引く。通読しない。索引は各 README_<dir>.md）
 ```
 
 ---
@@ -329,3 +330,4 @@ reference/*.md              引く（通読しない）
 | 1.0 | 2026-09-16 | 新規作成。層構造・モジュール一覧・外部境界・依存の向きを実装から書き起こした |
 | 1.1 | 2026-09-24 | `a_cross_doc_md_format.md` v1.1（種別 A）に準拠（2026-09-24）。概要に主な責務・各責務対応のモジュール・アーキテクチャ構成図（§1 へのリンクとデータフロー）を追加。本文の章番号は変えていない |
 | 1.2 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |
+| 1.3 | 2026-10-11 | モジュール文書を `backend/docs/reference/` から `backend/app/docs/`・`backend/app/api/docs/`・`backend/app/core/docs/` へ移したのに追随。§2 の行数を 2026-10-11 の実測へ更新し、抜けていた `core/review_facts.py` を足した（概要の「17 モジュール・約 7,400 行」→「18 モジュール・約 8,200 行」、API 層 724 → 778 行） |

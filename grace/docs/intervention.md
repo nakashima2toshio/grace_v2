@@ -1,6 +1,6 @@
 # intervention.py - HITL介入システム ドキュメント
 
-**Version 1.10** | 最終更新: 2026-10-10
+**Version 1.11** | 最終更新: 2026-10-11
 
 ---
 
@@ -497,7 +497,7 @@ print(f"承認={approved} 修正回数={flow.modification_count} 1 手目={final
 | `action` | `ConfirmModal.tsx` | ⑥ アクション実行の承認（承認 / 拒否の 2 択） |
 | `question` | `QuestionSelectModal.tsx` | 0-(A) 主質問の選択（N 択） |
 
-詳細は [`backend/docs/reference/core_intervention_bridge.md`](../../backend/docs/reference/core_intervention_bridge.md) と
+詳細は [`backend/app/core/docs/intervention_bridge.md`](../../backend/app/core/docs/intervention_bridge.md) と
 [`frontend/docs/ConfirmModal.md`](../../frontend/docs/ConfirmModal.md) を参照。
 
 > 📌 **v1 にあった Streamlit（`st.session_state` / `st.button`）の統合例は削除した。**
@@ -1601,6 +1601,7 @@ __all__ = [
 | 1.8 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
 | 1.9 | 2026-10-06 | 現在の既定モデルの記載 `claude-sonnet-5` を実装（`grace/config.py` の `LLMConfig.model` / `grace/llm_compat.py` の `DEFAULT_ANTHROPIC_MODEL` = `claude-sonnet-5-5`）に合わせて是正（2026-10-06。CLAUDE.md §9.3。旧既定は履歴の記述にだけ残す） |
 | 1.10 | 2026-10-10 | §4.1 使用例を処理パターン 4 通り（レベルごとの振り分け・コールバックが無いときのタイムアウト・しきい値の学習・計画の確認と修正）＋ Web UI とのつなぎ方に書き直し、実行して出力を確かめた。旧版は `input()` で止まり、4.1.3 は `ExecutionPlan(steps=[...])` が不正で動かなかった。`DynamicThresholdAdjuster` / `ConfirmationFlow` に本番の呼び出し元が無いことを注記した |
+| 1.11 | 2026-10-11 | backend のモジュール文書を `backend/docs/reference/` から `backend/app/docs/`・`backend/app/api/docs/`・`backend/app/core/docs/` へ移したのに追随（リンクの付け替え） |
 
 ---
 

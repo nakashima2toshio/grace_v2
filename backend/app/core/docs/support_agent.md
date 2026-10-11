@@ -1,16 +1,16 @@
 # core/support_agent.py - GRACE-Support コアサービス ドキュメント
 
-**Version 1.5** | 最終更新: 2026-10-10
+**Version 1.6** | 最終更新: 2026-10-11
 
 > **本書の位置づけ**: `backend/app/core/support_agent.py`（GRACE-Support のコアパイプライン（`run_support_agent_core`））の **IPO リファレンス**。
 > 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。
 >
 > | 知りたいこと | 参照先 |
 > |---|---|
-> | 各段の IPO と設計判断 | [`support_flow.md`](../support_flow.md) |
-> | ジョブ・SSE・HITL の機構 | [`job_runtime.md`](../job_runtime.md) |
-> | 判定ロジックの詳細 | [`core_gates.md`](./core_gates.md) |
-> | 文書全体の地図 | [`README.md`](../README.md) |
+> | 各段の IPO と設計判断 | [`support_flow.md`](../../../docs/support_flow.md) |
+> | ジョブ・SSE・HITL の機構 | [`job_runtime.md`](../../../docs/job_runtime.md) |
+> | 判定ロジックの詳細 | [`core/docs/gates.md`](./gates.md) |
+> | 文書全体の地図 | [`README.md`](../../../docs/README.md) |
 
 ---
 
@@ -249,6 +249,17 @@ class QuestionCluster:
 
 ### 4.1 使用例
 
+| # | パターン | いつ使うか | 例 |
+|---|---------|-----------|----|
+| 1 | **基本**: 本物の呼び出し（`run_support_agent_core`） | Web API の runner と同じ呼び方 | 4.1.1 |
+| 2 | テストと同じスタブで 1 周流す（イベントと承認） | API キー・Qdrant なしで流れを確かめる | 4.1.2 |
+| 3 | ステップ ID と実行順 | 画面のタイムラインとの対応を見る | 4.1.3 |
+| 4 | 結果の JSON 化 | API レスポンス・`result` イベントの形を見る | 4.1.4 |
+
+> 📝 **確かめ方（2026-10-11）**: 4.1.2〜4.1.4 は `PYTHONPATH=. python3 <例>.py` で実行した。4.1.1 は API キーと Qdrant（実データ）が要るので
+> **この VM では出力を確かめていない**（キーが無いと `None` が返り、`error` イベントに「ANTHROPIC_API_KEY が未設定です」が出ることだけ確かめた）。
+> 実データで流すときは E2E（`GRACE_E2E=1`。[`backend/docs/testing.md`](../../../docs/testing.md) §1.2）を使う。
+
 #### 4.1.1 基本的なワークフロー（パイプラインの実行）
 
 `run_support_agent_core()` は **Web API から呼ばれる唯一の入口**。
@@ -269,10 +280,41 @@ print(result.citations)
 # ['[社内] gov_faq_anthropic: 住民票の交付']
 ```
 
-> ⚠️ **上のコードだけは実行して出力を確認していない**（実 API キーと Qdrant を要するため）。
-> 以下 4.1.2 / 4.1.3 は外部依存なしで動き、出力例は実測値である。
+> ⚠️ **上のコードだけは実行して出力を確認していない**（実 API キーと Qdrant を要するため）。出力例は形を示すためのもの。
+> キーが無いときは例外を出さず `None` を返し、`emit` に `error` イベントを 1 つ流す（2026-10-11 実測）。
 
-#### 4.1.2 ステップ ID と実行順
+#### 4.1.2 テストと同じスタブで 1 周流す
+
+`tests/conftest.py` の `install_pipeline_stub()` は、planner / executor / 根拠検証 / ツール / 判定器を固定応答に差し替える
+（テストの `pipeline_stub` フィクスチャの中身）。`pytest.MonkeyPatch()` を使えば、テストの外でも同じスタブで流せる。
+
+```python
+import pytest
+
+from backend.app.core.support_agent import AUTO_PROCEED, run_support_agent_core
+from tests.conftest import PipelineStub, install_pipeline_stub
+
+# テストと同じスタブ（planner / executor / 根拠検証 / ツール / 判定器）を差し込む
+mp = pytest.MonkeyPatch()
+install_pipeline_stub(mp, PipelineStub())
+
+events = []
+result = run_support_agent_core("パスワードを忘れました", emit=events.append,
+                                confirm=lambda _req: AUTO_PROCEED)
+print(result.decision, result.citations, result.action.action_type, result.action_result[:10])
+print([f"{e.step}:{e.status}" for e in events if e.type == "step" and e.status != "started"])
+mp.undo()
+
+# 実行結果:
+# answer ['[社内] faq.md'] send_reply [DRY-RUN]
+# ['analyze:skipped', 'profile:skipped', 'plan:finished', 'execute:finished', 'confidence:finished', 'gate:finished', 'web:skipped', 'no_info:finished', 'action:finished']
+```
+
+> 📌 `confirm` に `AUTO_PROCEED` を返す関数を渡すと、⑥ Action の承認を自動で通す（`dry_run=True` が既定なので実行は `[DRY-RUN]`）。
+> 単一の質問なので 0-(A) は第 1 段（LLM を呼ばない判定）で終わり `skipped`、`vertical` を省いたので 0-(B) も `skipped`、`use_web=False`（既定）なので ⑤ も `skipped` になる。
+> Web API から呼ぶときの `confirm` は `InterventionBridge.resolver`（[`intervention_bridge.md`](intervention_bridge.md)）。
+
+#### 4.1.3 ステップ ID と実行順
 
 ```python
 from backend.app.core.support_agent import STEP_IDS
@@ -284,9 +326,9 @@ print(STEP_IDS)
 ```
 
 > ⚠️ **このタプルが実行順である。** 呼称（0-(A) / ①〜⑥ / ④'）とは並びが違い、
-> **④' `no_info` は ⑤ `web` の後**に来る（[`support_flow.md` §4](../support_flow.md) の対応表）。
+> **④' `no_info` は ⑤ `web` の後**に来る（[`support_flow.md` §4](../../../docs/support_flow.md) の対応表）。
 
-#### 4.1.3 結果の JSON 化（API レスポンス・`result` イベント）
+#### 4.1.4 結果の JSON 化（API レスポンス・`result` イベント）
 
 ```python
 from backend.app.core.support_agent import SupportResult, result_to_dict
@@ -309,7 +351,7 @@ print(f"multi-question 既定: is_multi_question={d['is_multi_question']} "
 ```
 
 > 0-(A) 由来の 7 フィールドは**すべて optional**で、単一質問では既定値のまま返る。
-> 既存のフロント・API クライアントの挙動は変わらない（[`support_flow.md` §5.4](../support_flow.md#64-返すものsupportresult)）。
+> 既存のフロント・API クライアントの挙動は変わらない（[`support_flow.md` §5.4](../../../docs/support_flow.md#64-返すものsupportresult)）。
 
 
 ### 4.2 SupportEvent クラス
@@ -519,7 +561,7 @@ config.web_search.preferred_domains = list(profile.preferred_domains) if profile
 > 📝 **なぜ生成側でスコープを担保するか（W-2）**: 検索スコープが効くのは内部 RAG だけで、
 > ⑤ Web フォールバックと executor の動的 `web_search` にはドメイン制限が無い。
 > よって「担当範囲外の話題を回答しない」ことは `SCOPE_POLICY` の注入で担保する。
-> 詳細は [`core_verticals.md`](./core_verticals.md) §5.2。
+> 詳細は [`core/docs/verticals.md`](./verticals.md) §5.2。
 
 > 📝 **W-1 は絞り込みではない**: `preferred_domains` は一致した結果を加点して上位へ
 > 並べ替えるだけで、非一致も残す。絞り込むと 0 件化 → 情報なし回答 → ④' の誤エスカレへ連鎖する。
@@ -534,7 +576,7 @@ verify_sources = internal_source_texts or [_citation_text(c) for c in internal_c
 
 識別子（ファイル名）だけを渡すとどの主張も裏付けられず全 neutral になり、
 `support_rate = supported / (supported + contradicted)` の**分母が 0** になる
-（詳細は [`core_gates.md`](./core_gates.md) §4.4 `_collect_source_texts`）。
+（詳細は [`core/docs/gates.md`](./gates.md) §4.4 `_collect_source_texts`）。
 
 ### 4.5 アクション関数
 
@@ -682,6 +724,7 @@ ConfirmFn     # type alias: Callable[[InterventionRequest], InterventionResponse
 | 1.3 | 2026-09-15 | **§4.1「使用例」を新設**（2026-09-15）。ドキュメント規約 `a_class_method_md_format.md` §6.1 が IPO 詳細セクションの冒頭に必須としている代表ワークフローが欠落していた。パイプラインの実行、ステップ ID と実行順、結果の JSON 化の 3 本を追加し、**実行して出力を確認した**（外部依存が要る例はその旨を明記）。旧 §4.1〜§4.4 は §4.2〜§4.5 へ繰り下げ |
 | 1.4 | 2026-09-16 | 3 階建て再編（`reference/` へ移設）に伴い、冒頭へ**位置づけと上位文書への導線**を追加した |
 | 1.5 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |
+| 1.6 | 2026-10-11 | `backend/docs/reference/core_support_agent.md` から移した（`a_cross_doc_md_format.md` §1.1.2。リンクを付け替えた）。§4.1.2 にテストと同じスタブで 1 周流す例を追加し（既存を 4.1.3・4.1.4 へ繰り下げ）、実行して確かめた。4.1.1（本物）はキーが無い環境では `None` と `error` イベントになることを確かめて注記した |
 
 ---
 

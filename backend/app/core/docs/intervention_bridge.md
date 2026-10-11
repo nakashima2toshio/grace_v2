@@ -1,15 +1,15 @@
 # core/intervention_bridge.py - HITL 非同期ブリッジ ドキュメント
 
-**Version 1.2** | 最終更新: 2026-09-16
+**Version 1.3** | 最終更新: 2026-10-11
 
 > **本書の位置づけ**: `backend/app/core/intervention_bridge.py`（HITL 承認の非同期ブリッジ）の **IPO リファレンス**。
 > 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。
 >
 > | 知りたいこと | 参照先 |
 > |---|---|
-> | **機構の正本**（承認の往復・タイムアウト＝安全側） | [`job_runtime.md` §4](../job_runtime.md) |
-> | CONFIRM の API 契約 | [`api_contract.md` §4](../api_contract.md) |
-> | 文書全体の地図 | [`README.md`](../README.md) |
+> | **機構の正本**（承認の往復・タイムアウト＝安全側） | [`job_runtime.md` §4](../../../docs/job_runtime.md) |
+> | CONFIRM の API 契約 | [`api_contract.md` §4](../../../docs/api_contract.md) |
+> | 文書全体の地図 | [`README.md`](../../../docs/README.md) |
 
 ---
 
@@ -192,6 +192,13 @@ style BRIDGE fill:#1a1a1a,stroke:#fff,color:#fff
 
 ### 4.1 使用例
 
+| # | パターン | いつ使うか | 例 |
+|---|---------|-----------|----|
+| 1 | **基本**: 承認待ちと注入（ワーカー ⇔ API） | HITL の往復を確かめる | 4.1.1 |
+| 2 | タイムアウト時は安全側へ倒れる | 承認が来ないときの振る舞いを確かめる | 4.1.2 |
+
+> 📝 **確かめ方（2026-10-11）**: 4.1.1・4.1.2 はすべて `PYTHONPATH=. python3 <例>.py` で実行し、出力が記載どおりであることを確かめた。
+
 #### 4.1.1 基本的なワークフロー（承認待ちと注入）
 
 ワーカースレッドは `resolver` で**同期的にブロック**し、API 側は `resolve()` で
@@ -239,9 +246,32 @@ print(f"emit された type: {[e.type for e in events]}")
 API 側から `resolve()` が来なくてもワーカーは必ず終了する。
 
 ```python
-bridge = InterventionBridge(emit=lambda e: None, timeout_seconds=0.5)
+import time
+from backend.app.core.intervention_bridge import InterventionBridge
+from grace import InterventionRequest
+from grace.confidence import InterventionLevel
+
+events = []
+bridge = InterventionBridge(emit=events.append, timeout_seconds=0.5)
+
 # resolve() を呼ばずに放置すると、0.5 秒後に resolver が戻る
+t0 = time.time()
+resp = bridge.resolver(InterventionRequest(level=InterventionLevel.CONFIRM,
+                                           message="チケットを起票しますか？"))
+print(f"{time.time() - t0:.1f}s action={resp.action} timeout_reached={resp.timeout_reached}")
+print([(e.type, e.status) for e in events])
+print("pending:", bridge.pending)
+# タイムアウトの後に届いた承認は効かない（待機中の介入が無い）
+print("late resolve:", bridge.resolve(events[0].data["intervention_id"], approve=True))
+
+# 実行結果:
+# 0.5s action=InterventionAction.CANCEL timeout_reached=True
+# [('intervention', 'waiting'), ('intervention', 'timeout')]
+# pending: None
+# late resolve: False
 ```
+
+> 📌 API の `POST /confirm` はこのとき `not_waiting` を返す（`JobManager.confirm()`）。画面は承認モーダルを閉じ、結果の表示を待つ。
 
 
 ### 4.2 PendingIntervention クラス
@@ -432,6 +462,7 @@ PendingIntervention, InterventionBridge, DEFAULT_CONFIRM_TIMEOUT
 | 1.0 | — | 初版作成（PendingIntervention / InterventionBridge の IPO ドキュメント） |
 | 1.1 | 2026-09-15 | **§4.1「使用例」を新設**（2026-09-15）。ドキュメント規約 `a_class_method_md_format.md` §6.1 が IPO 詳細セクションの冒頭に必須としている代表ワークフローが欠落していた。ワーカーの承認待ちと API からの注入、タイムアウト時に安全側へ倒れることの 2 本を追加し、**実行して出力を確認した**（外部依存が要る例はその旨を明記）。旧 §4.1〜§4.2 は §4.2〜§4.3 へ繰り下げ |
 | 1.2 | 2026-09-16 | 3 階建て再編（`reference/` へ移設）に伴い、冒頭へ**位置づけと上位文書への導線**を追加した |
+| 1.3 | 2026-10-11 | `backend/docs/reference/core_intervention_bridge.md` から移した（`a_cross_doc_md_format.md` §1.1.2。リンクを付け替えた）。§4.1.2 を断片から実行できる例へ作り直した（0.5 秒でタイムアウト → CANCEL・遅れた承認は効かない）。パターンの表を追加 |
 
 ---
 

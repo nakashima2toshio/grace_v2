@@ -1,6 +1,6 @@
 # GRACE-Review 処理フローと設計 ドキュメント
 
-**Version 3.6** | 最終更新: 2026-10-10
+**Version 3.7** | 最終更新: 2026-10-11
 
 > **本書の位置づけ**: GRACE-Review（文書 → 指摘）の**処理フロー（HOW）と設計判断（WHY）を
 > 1 本にまとめた正本**。v2.0 で `review_spec.md`（1,080 行）を統合した。
@@ -11,7 +11,7 @@
 > | ルールセット（`ec_ad`・23 ルール）の中身 | [`verticals_and_rulesets.md` §2](./verticals_and_rulesets.md) |
 > | ジョブ・SSE・HITL の機構（Support と共通） | [`job_runtime.md`](./job_runtime.md) |
 > | エンドポイントと SSE の契約 | [`api_contract.md`](./api_contract.md) |
-> | 関数・クラスのシグネチャ | [`reference/core_review_agent.md`](./reference/core_review_agent.md) / [`reference/core_review_gates.md`](./reference/core_review_gates.md) |
+> | 関数・クラスのシグネチャ | [`core/docs/review_agent.md`](../app/core/docs/review_agent.md) / [`core/docs/review_gates.md`](../app/core/docs/review_gates.md) |
 > | テストの地図 | [`testing.md`](./testing.md) |
 
 > **関連ドキュメント**
@@ -331,7 +331,7 @@ config = copy.deepcopy(get_config())
 > `config.llm.prompt_addendum` を RuleSet に合わせて書き換えるため、シングルトンを
 > そのまま使うと `jobs.py` がジョブごとに立てるワーカースレッド同士で値を奪い合う
 > （**Review の検索スコープが並走中の Support のスコープを上書きする**等）。
-> Support 側の同じ対処は [`core_support_agent.md`](./reference/core_support_agent.md) §4.3.1。
+> Support 側の同じ対処は [`core/docs/support_agent.md`](../app/core/docs/support_agent.md) §4.3.1。
 
 ---
 
@@ -447,7 +447,7 @@ def _retrieve_evidence(
 
 > 📝 **表示用と検証用を分けるのは Support と同じ設計**。識別子だけを検証器へ渡すと
 > どの主張も裏付けられず全 neutral になるため、本文を別に集める
-> （[`core_gates.md`](./reference/core_gates.md) §4.3 `_collect_source_texts` の議論と同じ）。
+> （[`core/docs/gates.md`](../app/core/docs/gates.md) §4.3 `_collect_source_texts` の議論と同じ）。
 
 **フォールバック**: `source_texts` が空なら `RuleItem.public_description()`（要旨）、
 `citations` が空なら `rule.citation()` を使う。
@@ -1084,6 +1084,7 @@ _emit(SupportEvent(
 | 3.4 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
 | 3.5 | 2026-10-08 | 現在の既定 LLM の記述を `claude-sonnet-5` から実装（`config.py::ModelConfig.DEFAULT_MODEL` / `config/grace_config.yml` の `llm.model`）どおり `claude-sonnet-5-5` へ是正（技術スタック表）（2026-10-08） |
 | 3.6 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |
+| 3.7 | 2026-10-11 | backend のモジュール文書を `backend/docs/reference/` から `backend/app/docs/`・`backend/app/api/docs/`・`backend/app/core/docs/` へ移したのに追随（リンクの付け替え） |
 
 > 統合元 `review_spec.md` の変更履歴（v1.0〜v1.4）は git で追える
 > （`git log --follow --all -- backend/docs/review_flow.md`）。

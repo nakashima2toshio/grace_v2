@@ -1,6 +1,6 @@
 # API 契約（エンドポイント・SSE・ステータス） ドキュメント
 
-**Version 1.6** | 最終更新: 2026-10-08
+**Version 1.7** | 最終更新: 2026-10-11
 
 ---
 
@@ -22,7 +22,7 @@
 > **本書の位置づけ**: backend が外へ約束している**契約**をまとめる。
 > エンドポイント一覧・SSE のワイヤ形式・HTTP ステータスの使い分け・
 > `frontend/src/types.ts` との対応。フィールド単位の定義は
-> [`schemas.md`](./reference/schemas.md)（`backend/app/schemas.py` の逐条解説）を参照する。
+> [`docs/schemas.md`](../app/docs/schemas.md)（`backend/app/schemas.py` の逐条解説）を参照する。
 
 > ⚠️ **これは内部仕様ではなく契約である。** CI の frontend ゲートは
 > `frontend/src/types.ts` の型エラー 1 個でマージを止める。
@@ -30,8 +30,8 @@
 
 > **関連ドキュメント**
 > - [`architecture.md`](./architecture.md) / [`job_runtime.md`](./job_runtime.md)
-> - [`schemas.md`](./reference/schemas.md) — Pydantic モデルのフィールド定義
-> - [`reference/api_support.md`](./reference/api_support.md) ほか `reference/api_*.md`
+> - [`docs/schemas.md`](../app/docs/schemas.md) — Pydantic モデルのフィールド定義
+> - [`api/docs/README_api.md`](../app/api/docs/README_api.md) — ルーター 5 本の索引（各エンドポイントの IPO は `backend/app/api/docs/*.md`）
 
 ### 主な責務
 
@@ -299,3 +299,4 @@ Qdrant が落ちていても 200 を返し、本文の `available: false` と理
 | 1.4 | 2026-10-08 | §3 の keepalive をコメント行から名前付きイベント（`event: keepalive`）へ変更したのに追随。フロントの張り直しと `seq` による読み飛ばしを追記（姉妹リポジトリ grace_v2_local で、長い処理中に画面への配信が黙って止まった件の移植） |
 | 1.5 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随 |
 | 1.6 | 2026-10-08 | モデル選択の契約の選択肢を実装（`ModelConfig.SELECTABLE_MODELS`）どおり `claude-sonnet-5` → `claude-sonnet-5-5` へ是正 |
+| 1.7 | 2026-10-11 | backend のモジュール文書を `backend/docs/reference/` から `backend/app/docs/`・`backend/app/api/docs/`・`backend/app/core/docs/` へ移したのに追随（リンクの付け替え） |
