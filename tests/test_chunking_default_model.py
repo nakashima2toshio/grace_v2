@@ -46,9 +46,13 @@ def test_library_defaults_follow_chunking_model():
     assert CHUNK_DEFAULT_MODEL == ModelConfig.CHUNKING_MODEL
 
 
-def test_chunks_all_async_gives_the_client_the_same_model(monkeypatch):
+def test_chunks_all_async_gives_the_client_the_same_model(monkeypatch, tmp_path):
     """クライアントの既定（モデル名が渡らなかったときの回避先）も選んだモデルにする。"""
     import chunking.csv_text_to_chunks_text_csv as mod
+
+    # chunks_all_async() はクライアントを作る前に ./checkpoints/<ジョブ ID>/ を作る
+    # （入力と設定の照合のため）。リポジトリに残さないよう tmp で動かす
+    monkeypatch.chdir(tmp_path)
 
     captured = {}
 

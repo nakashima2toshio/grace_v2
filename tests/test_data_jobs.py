@@ -413,6 +413,54 @@ def test_chunking_happy_path(monkeypatch, tmp_path):
     assert set(finished) == {"load", "chunk", "save"}
 
 
+def test_chunking_resume_with_other_input_is_error(monkeypatch, tmp_path):
+    """再開 ID のジョブが別の入力で作られていれば error（LLM を呼ばず、CSV も書かない）。
+
+    CLI の `--resume` と同じ照合（`CheckpointManager.verify_or_record_job`）が
+    データ管理タブの再開 ID でも効くこと。2026-10-11 までは照合が無く、
+    前のジョブのチャンクが今回の入力名の CSV に書かれていた。
+    """
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "dummy")
+    monkeypatch.chdir(tmp_path)  # CheckpointManager の既定 ./checkpoints を tmp に置く
+
+    import json
+
+    job_dir = tmp_path / "checkpoints" / "j1"
+    job_dir.mkdir(parents=True)
+    (job_dir / "job.json").write_text(json.dumps({
+        "source_file": "other.csv", "text_chars": 1, "text_sha256": "x",
+        "block_size": 1000, "model": "m",
+    }), encoding="utf-8")
+
+    csv = tmp_path / "input.csv"
+    csv.write_text("Text\nあいうえお\n", encoding="utf-8")
+
+    import services.data_pipeline_service as dps
+
+    monkeypatch.setattr(dps, "resolve_input_file", lambda _p, base=None: csv)
+
+    import chunking.csv_text_to_chunks_text_csv as cm
+
+    def _no_llm(**_kw):
+        raise AssertionError("LLM クライアントを作ってはいけない")
+
+    monkeypatch.setattr(cm, "AsyncAPIClient", _no_llm)
+
+    events = EventCollector()
+    result = _chunking_runner(
+        ChunkingParams(input_file="OUTPUT/input.csv", output_dir=str(tmp_path / "out"), resume="j1"),
+        events,
+        approve,
+    )
+
+    assert result is None
+    assert events.has_error()
+    error = [e.message for e in events.events if e.type == "error"][0]
+    assert "ジョブ j1 は別の入力・設定で作られています" in error
+    assert "source_file" in error
+    assert not (tmp_path / "out" / "input_chunks.csv").exists()
+
+
 def test_chunking_empty_text_is_error(monkeypatch, tmp_path):
     """空テキストは error（LLM を呼ばない）。"""
     monkeypatch.setenv("ANTHROPIC_API_KEY", "dummy")

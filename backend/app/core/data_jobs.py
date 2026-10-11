@@ -236,6 +236,7 @@ def _chunking_runner(
     import os
 
     from chunking.async_api_client import ChunkingAbortedError
+    from chunking.checkpoint_manager import ResumeMismatchError
     from services.data_pipeline_service import (
         load_input_text,
         resolve_input_file,
@@ -297,6 +298,10 @@ def _chunking_runner(
                 source_file=input_path.name,
                 job_id=params.resume,
             )
+    except ResumeMismatchError as e:
+        # 再開 ID のジョブが別の入力・設定で作られている（LLM を呼ぶ前に止まる）
+        error(f"❌ {e}")
+        return None
     except ChunkingAbortedError as e:
         # LLM が連続で失敗して中断した。原因と対処はメッセージ側が持っている
         # （型名を前置きすると読みにくくなるだけなので、そのまま出す）。
