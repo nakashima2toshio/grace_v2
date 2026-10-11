@@ -1,6 +1,6 @@
 # csv_text_to_chunks_text_csv.py - LLMベースセマンティックチャンキング（統一版） ドキュメント
 
-**Version 1.11** | 最終更新: 2026-10-10
+**Version 1.12** | 最終更新: 2026-10-11
 
 ---
 
@@ -21,6 +21,14 @@
 ## 概要
 
 `csv_text_to_chunks_text_csv.py` は、テキストまたは CSV ファイルを入力として受け取り、LLM ベースの 3 段階アルゴリズム（階層構造化 → 意味的チャンキング → 文脈連続性チェック）で意味的なチャンクに分割するパイプラインモジュールです。`asyncio` による並列化、`CheckpointManager` による再開機能、最終チャンクの最大トークン数強制（Embedding の無言切り捨て防止）、CSV 出力時の改行正規化、メタデータ付き CSV とシンプル CSV（`Text` カラムのみ）の二系統同時出力を提供します。
+
+> 📎 `chunking/` 全体の入口は [`README_chunking.md`](README_chunking.md)、3 段階の流れは [`chunking_process_flow.md`](chunking_process_flow.md)。
+> 補助モジュールは [`async_api_client.md`](async_api_client.md) / [`checkpoint_manager.md`](checkpoint_manager.md) / [`models.md`](models.md) /
+> [`prompts.md`](prompts.md) / [`regex_string.md`](regex_string.md) / [`utils.md`](utils.md)。
+>
+> ⚠️ **2026-10-11 に CLI を動かして見つけた既知の問題が 6 件ある**（[§5.3](#53-既知の問題2026-10-11-実測)）。
+> とくに「1 ブロックの LLM 呼び出しが失敗すると、その本文が**黙って消えたまま終了コード 0**」と
+> 「`--resume` に別の入力を渡すと前のジョブのチャンクが出力される」は、出力の中身が静かに壊れる。
 
 ### 主な責務
 
@@ -261,67 +269,126 @@ style CLIB fill:#1a1a1a,stroke:#fff,color:#fff
 
 ### 4.1 使用例
 
-#### 4.1.1 基本ワークフロー（CLI）
+| # | パターン | いつ使うか | 例 |
+|---|---------|-----------|----|
+| 1 | **基本**: テキストファイルをチャンク CSV にする（CLI） | 文書 1 本を Q/A 生成の入力にする | 4.1.1 |
+| 2 | CSV を入力にする（列の指定・行数の制限） | ニュース・FAQ など行ごとに本文がある CSV | 4.1.2 |
+| 3 | 中断したジョブを再開する（`--resume`） | 長いチャンク化が途中で落ちた | 4.1.3 |
+| 4 | Python から呼ぶ（`chunks_all_async()`） | 自作スクリプト・ほかのパイプラインから使う | 4.1.4 |
+| 5 | 止まるとき・止まらないとき | キー・入力ファイルの不備、LLM の失敗 | 4.1.5 |
+
+> 📝 **確かめ方（2026-10-11）**: 4.1.1〜4.1.5 はすべて実行した。LLM（Anthropic）はスタブに差し替えた
+> （Step1・Step2 は入力を「。」で文に割って 1 文 1 段落で返し、Step3 は常に「つながらない」と答える）。出力例のチャンク数・本文はそのときのもので、
+> 実 LLM では段落・話題のまとまりで切れる（1 チャンクに複数の文が入る）。入力は 4 文の `data/document.txt` と、
+> `Combined_Text` 列を持つ 3 行の `OUTPUT/gov_faq.csv`。カレントディレクトリに `checkpoints/` と `logs/` もできる。
+> 3 工程を通した手順は [`README_chunking.md`](README_chunking.md) §2、次の Q/A 生成・登録は
+> [`qa_qdrant/docs/make_qa_register_qdrant.md`](../../qa_qdrant/docs/make_qa_register_qdrant.md) §5.1。
+
+#### 4.1.1 基本: テキストファイルをチャンク CSV にする
 
 ```bash
-# Step1: テキスト/CSV → チャンク CSV
-uv run python -m chunking.csv_text_to_chunks_text_csv \
-  --input-file OUTPUT/cc_news_2per.csv \
+# 前提: .env に ANTHROPIC_API_KEY。--output を省くと chunks_output/ に書く（CLAUDE.md §8.2 の例は output_chunked/）
+python -m chunking.csv_text_to_chunks_text_csv \
+  --input-file data/document.txt \
+  --output output_chunked
+
+head -3 output_chunked/document_chunks.csv
+head -2 output_chunked/document_chunks_simple.csv
+
+# 出力例:
+# chunk_id,text,tokens,chunk_idx,dataset_type,type,sentence_count,source_file
+# document_chunk_0,住民票の写しは市役所の窓口で取得できます。,23,0,document,llm_chunk,1,document.txt
+# document_chunk_1,手数料は1通300円です。,10,1,document,llm_chunk,1,document.txt
+# Text
+# 住民票の写しは市役所の窓口で取得できます。
+```
+
+> ⚠️ `python -m` で起動すると、最初に `RuntimeWarning: 'chunking.csv_text_to_chunks_text_csv' found in sys.modules ...` が出る。
+> `chunking/__init__.py` が本モジュールを import しているためで、動作には影響しない（[`README_chunking.md`](README_chunking.md) §5）。
+> 出力ファイル名は常に `<入力名>_chunks.csv`（同じ入力なら**上書き**。`--timestamp` は無い・CLAUDE.md §8.2）。
+
+#### 4.1.2 CSV を入力にする
+
+```bash
+# 本文の列を指定し、先頭 2 行だけで試す（列を省くと text → content → Combined_Text → body ... の順に探す）
+python -m chunking.csv_text_to_chunks_text_csv \
+  --input-file OUTPUT/gov_faq.csv \
   --output output_chunked \
-  --model claude-haiku-5-5 \
-  --workers 2
+  --text-column Combined_Text \
+  --max-rows 2
 
-# 出力:
-#   output_chunked/cc_news_2per_chunks.csv        (メタデータ付き)
-#   output_chunked/cc_news_2per_chunks_simple.csv (Text カラムのみ)
+cut -d, -f1,2 output_chunked/gov_faq_chunks.csv
+
+# 出力例:
+# chunk_id,text
+# gov_faq_chunk_0,東京都の住民票は区役所で取得できます。
+# gov_faq_chunk_1,手数料は300円です。
+# gov_faq_chunk_2,マイナンバーカードがあればコンビニでも取れます。
 ```
 
-#### 4.1.2 後続バッチへの連携
+> ⚠️ CSV の各行は空行（`\n\n`）でつないで **1 本のテキスト**にしてからチャンク化する。行（文書）の境界は保証されず、
+> 隣の行と同じチャンクに入ることがある。`--combine-rows` は付けても付けなくても同じ結果になる（§5.3 の 4）。
+
+#### 4.1.3 中断したジョブを再開する
 
 ```bash
-# Step2: Q/A 生成 + Qdrant 登録（後続パイプライン）
-uv run python qa_qdrant/make_qa_register_qdrant.py \
-  --input-file output_chunked/cc_news_2per_chunks.csv \
-  --collection cc_news_2per \
-  --concurrency 2 \
-  --recreate
+# 1 回目。チェックポイントは ./checkpoints/<JOB_ID>/step1〜3.json（JOB_ID は実行時刻）
+python -m chunking.csv_text_to_chunks_text_csv --input-file OUTPUT/gov_faq.csv --output output_chunked
+JOB_ID=$(ls -t checkpoints | head -1)
+
+# 2 回目: 同じ入力で --resume を付けると、済んだ段は LLM を呼ばずに読み戻す
+python -m chunking.csv_text_to_chunks_text_csv --input-file OUTPUT/gov_faq.csv --output output_chunked --resume "$JOB_ID" 2>&1 | grep -c "チェックポイントから再開"
+
+# 出力例:
+# 3
 ```
 
-#### 4.1.3 Python API としての利用
+> ⚠️ **ジョブと入力の対応は確かめない。** 別の入力で `--resume` すると前のジョブのチャンクが新しい入力名の CSV に書かれる（§5.3 の 2）。
+
+#### 4.1.4 Python から呼ぶ
 
 ```python
-# 使用例
 import asyncio
-from chunking.csv_text_to_chunks_text_csv import (
-    load_text_from_csv,
-    chunks_all_async,
-)
 from chunking.checkpoint_manager import CheckpointManager
+from chunking.csv_text_to_chunks_text_csv import chunks_all_async, load_text_from_csv
 
-text = load_text_from_csv("data/sample.csv", max_rows=50)
-
+text = load_text_from_csv("OUTPUT/gov_faq.csv", text_column="Combined_Text")
 chunks = asyncio.run(chunks_all_async(
     text=text,
-    model="claude-haiku-5-5",
+    model="claude-haiku-5-5",            # 既定は config.py::ModelConfig.CHUNKING_MODEL
     max_workers=8,
     block_size=1000,
-    checkpoint_manager=CheckpointManager(),
-    output_file="output_chunked/sample_chunks.csv",
-    dataset_type="sample",
-    source_file="sample.csv",
+    checkpoint_manager=CheckpointManager(checkpoint_dir="ckpt_api"),
+    output_file="output_chunked/gov_faq_api_chunks.csv",   # .csv なら _simple.csv も書く。None なら書かない
+    dataset_type="gov_faq",
+    source_file="gov_faq.csv",
 ))
-print(f"生成: {len(chunks)} チャンク")
+print(len(chunks), chunks[0])
+
+# 実行結果:
+# 5 東京都の住民票は区役所で取得できます。
 ```
 
-#### 4.1.4 応用: 再開（resume）と詳細ログ
+> 📌 データ管理タブと `make_qa_register_qdrant.py` の `.txt` 入力は、同じ `chunks_all_async()` を
+> `services/data_pipeline_service.py::run_chunking_sync()`（`asyncio.run()` で包んだ同期版）から呼ぶ
+> （[`services/docs/data_pipeline_service.md`](../../services/docs/data_pipeline_service.md)）。
+
+#### 4.1.5 止まるとき・止まらないとき
 
 ```bash
-uv run python -m chunking.csv_text_to_chunks_text_csv \
-  --input-file ./data/large_doc.txt \
-  --output chunks_output \
-  --resume <既存ジョブID> \
-  --verbose
+# ANTHROPIC_API_KEY が無い → ValueError のトレースバックで終了コード 1
+env -u ANTHROPIC_API_KEY python -m chunking.csv_text_to_chunks_text_csv --input-file data/document.txt --output output_chunked 2>&1 | tail -1
+# ValueError: ANTHROPIC_API_KEYが設定されていません
+
+# ⚠️ 入力ファイルが無い → エラーログは出るが終了コード 0（§5.3 の 3）
+python -m chunking.csv_text_to_chunks_text_csv --input-file no_such.txt --output output_chunked 2>&1 | grep ERROR
+echo "exit=${PIPESTATUS[0]}"
+# 2026-10-11 07:44:46 [ERROR] __main__: 入力ファイルが見つかりません: no_such.txt
+# exit=0
 ```
+
+> 📌 LLM 呼び出しが**連続 3 回**失敗すると `ChunkingAbortedError` で止まる（終了コード 1・[`async_api_client.md`](async_api_client.md) §4.1）。
+> **1 回だけ**の失敗では止まらず、そのブロックの本文が出力から消える（§5.3 の 1）。
 
 ### 4.2 トークン・テキスト補助関数
 
@@ -945,14 +1012,10 @@ CLI 引数:
 None
 ```
 
-```bash
-# 使用例（CLI）
-uv run python -m chunking.csv_text_to_chunks_text_csv \
-  --input-file OUTPUT/cc_news_2per.csv \
-  --output output_chunked \
-  --model claude-haiku-5-5 \
-  --workers 2
-```
+使用例は 4.1.1〜4.1.3・4.1.5。
+
+> ⚠️ 入力ファイルが無いときは `logger.error` を出して**そのまま戻る**（終了コード 0）。`ANTHROPIC_API_KEY` が無いときは
+> `chunks_all_async()` の `ValueError` がそのまま上がる（終了コード 1）。
 
 ---
 
@@ -994,6 +1057,21 @@ uv run python -m chunking.csv_text_to_chunks_text_csv \
 > Haiku 5.5 は思考が既定で ON なので、`helper/helper_llm.py` が `thinking: disabled` を明示して
 > 構造化 JSON が途中で切れないようにしている。
 
+### 5.3 既知の問題（2026-10-11 実測）
+
+LLM をスタブにして CLI を動かして確かめた。**コードは直していない**（本書の改訂は文書の整理のみ）。
+
+| # | 問題 | 実測・根拠 | 影響 |
+|---|------|-----------|------|
+| 1 | **1 ブロックの LLM 呼び出しが失敗すると、その本文が黙って消える** | `AsyncAPIClient` はリトライし尽くすと `None` を返し、ログに `Failed after 3 retries. Using fallback.` と出す。だが Step1・Step2 は `if result_json:` で `None` を**飛ばすだけ**で、代わりの処理（フォールバック）は無い。`--block-size 40` で 3 ブロックに分け、2 番目だけ失敗させると、そのブロックの本文（「ンバーカードがあれば…23時ま」）が出力 CSV から消え、**終了コード 0** だった | 一時的な API エラーで文書の一部が Q/A 生成・検索の対象から外れる。連続 3 回の失敗だけが中断（`ChunkingAbortedError`）になる |
+| 2 | **`--resume` にジョブと違う入力を渡しても気づかない** | `gov_faq.csv` のジョブ ID で `document.txt` を `--resume` すると、`document_chunks.csv` に `gov_faq` のチャンクが書かれ、終了コード 0 | 入力名と中身が食い違った CSV ができる。チェックポイントに入力ファイル名・`--block-size`・`--model` を残して照合する必要がある |
+| 3 | 入力ファイルが無くても終了コード 0 | `main()` が `logger.error(...)` のあと `return` する | シェル・ジョブから失敗を検知できない |
+| 4 | `--combine-rows` が効かない | `load_text_from_csv()` の `combine_rows` が真でも偽でも同じ `"\n\n".join(texts)`（ログの文言だけ違う）。2 つの出力 CSV は `cmp` で一致 | オプションが何もしない |
+| 5 | Step1 のブロックが**文や語の途中で切れる** | `--block-size` 文字ごとに機械的に切る（`text[i:i + block_size]`）。`--block-size 40` で「マイナ／ンバー」「23時ま／でです」に分かれた。つなぎ直すのは Step3（LLM の判定）だけ | ブロック境目の文が 2 つのチャンクに割れることがある。既定の 1000 文字なら境目は少ないが、無くはならない |
+| 6 | モジュール docstring の例が古い | `python -m chunking.csv_text_to_chunks_text_csv.py`（`-m` に `.py` を付けると動かない）、`tep2` の誤字、`OUTPUT/cc_news_2per_anthropic.csv` など | 例をそのまま写すと動かない（本書 §4.1 が正） |
+
+> 📌 Step3 は結合時にトークン数を見ない（`_enforce_max_chunk_tokens()` の docstring は「Step3 は結合時のみ上限を見て」と書くが、
+> `_step3_continuity_check()` に上限の判定は無い）。結合で 512 トークンを超えたチャンクは、最後の `_enforce_max_chunk_tokens()` が文境界で割り直す。
 
 ---
 
@@ -1032,6 +1110,7 @@ from chunking.csv_text_to_chunks_text_csv import (
 | 1.9 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
 | 1.10 | 2026-10-08 | チャンキングの既定を、回答生成・Q/A 生成の `ModelConfig.DEFAULT_MODEL` から分けた `config.py::ModelConfig.CHUNKING_MODEL`（`claude-haiku-5-5`）の 1 箇所で決めるようにしたのに追随（2026-10-08） |
 | 1.11 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |
+| 1.12 | 2026-10-11 | `chunking/docs/` の構成整理に合わせて改訂。§4.1 の使用例を処理パターン（`.txt` → CSV・CSV 入力・再開・Python から・止まるとき）ごとの 5 本に書き直し、LLM をスタブにして実行して確かめた（存在しない入力ファイルを使う例をやめた）。実測で見つけた既知の問題 6 件（1 ブロックの失敗で本文が消える・`--resume` が入力を照合しない・入力が無くても終了コード 0・`--combine-rows` が効かない・ブロックが語の途中で切れる・docstring の例が古い）を §5.3 に記録。§4.5 の `main` に終了コードの注意を足した
 
 ---
 

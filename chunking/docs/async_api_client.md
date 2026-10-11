@@ -1,6 +1,6 @@
 # async_api_client.py - チャンク化用 非同期APIクライアント ドキュメント
 
-**Version 2.5** | 最終更新: 2026-10-10
+**Version 2.6** | 最終更新: 2026-10-11
 
 ---
 
@@ -115,7 +115,7 @@ style EXT fill:#1a1a1a,stroke:#fff,color:#fff
 5. 失敗 → 指数バックオフで `max_retries` 回まで再試行
 6. 使い切ったら連続失敗カウントを 1 増やし、
    **上限に達していれば `ChunkingAbortedError` を送出**。達していなければ `None` を返す
-   （呼び出し側は機械的分割へフォールバックして次のブロックへ進む）
+   （呼び出し側の Step1・Step2 はそのブロックの本文を捨てて次へ進む。代わりの処理は無い・§4.1.3）
 
 ---
 
@@ -206,42 +206,133 @@ style CLS fill:#1a1a1a,stroke:#fff,color:#fff
 
 ### 4.1 使用例
 
-#### 4.1.1 基本（チャンク化の 3 段階から）
+| # | パターン | いつ使うか | 例 |
+|---|---------|-----------|----|
+| 1 | **基本**: 1 件を構造化出力で呼び、検証して読む | チャンク化の各段と同じ使い方 | 4.1.1 |
+| 2 | 並列に投げて統計を見る | 多数のブロックを `max_workers` 本ずつ処理する | 4.1.2 |
+| 3 | 失敗したとき（1 件だけ失敗・連続失敗で中断・中断を無効にする） | API の不調・キーの誤り | 4.1.3 |
+| 4 | モデル名の扱い（Claude 以外の名前は既定へ回避） | 古い設定から Gemini のモデル名が渡ってきた | 4.1.4 |
+
+> 📝 **確かめ方（2026-10-11）**: 4.1.1〜4.1.4 はすべて実行した。LLM（Anthropic）はスタブに差し替えた
+> （段落分割の依頼には入力を「。」で文に割って返し、環境変数 `FAKE_FAIL_SUBSTR` を含む依頼だけ例外を投げる）。
+> リトライの待ち（1 回目の失敗後 1 秒・2 回目の後 2 秒）は実際に待つので、4.1.3 は数秒かかる。最後の試行のあとは待たないが、
+> ログには `Retrying in 4s (attempt 3/3)` と出る（文言だけ。`max_retries=1` でも `Retrying in 1s` と出る）。
+
+#### 4.1.1 基本: 1 件を構造化出力で呼び、検証して読む
+
+```python
+import asyncio
+from chunking.async_api_client import AsyncAPIClient
+from chunking.models import StructuralResult
+from chunking.prompts import PARAGRAPH_SEPARATION_PROMPT
+
+client = AsyncAPIClient(max_workers=8, max_retries=3, max_output_tokens=16384)   # 既定モデルは ModelConfig.CHUNKING_MODEL
+
+json_text = asyncio.run(client.generate_content(
+    model="claude-haiku-5-5",
+    contents=f"{PARAGRAPH_SEPARATION_PROMPT}\n\n【入力テキスト】\n住民票は区役所で取れます。手数料は300円です。",
+    response_schema=StructuralResult,
+    task_id="step1_block_0",
+))
+result = StructuralResult.model_validate_json(json_text)   # 戻り値は検証済みの JSON 文字列
+print([p.full_text for p in result.paragraphs])
+
+# 実行結果（スタブ）:
+# ['住民票は区役所で取れます。', '手数料は300円です。']
+```
+
+#### 4.1.2 並列に投げて統計を見る
+
+```python
+import asyncio
+from chunking.async_api_client import AsyncAPIClient
+from chunking.models import ContinuityResult
+from chunking.prompts import CONTINUITY_CHECK_PROMPT
+
+client = AsyncAPIClient(max_workers=2)        # 同時に走る呼び出しは 2 本まで（Semaphore）
+pairs = [("住民票は区役所で取れます。", "手数料は300円です。")] * 5
+
+async def run():
+    tasks = [
+        client.generate_content(
+            model="claude-haiku-5-5",
+            contents=f"{CONTINUITY_CHECK_PROMPT}\n\n【前のテキスト】\n{a}\n\n【次のテキスト】\n{b}",
+            response_schema=ContinuityResult,
+            task_id=f"step3_pair_{i}",
+        )
+        for i, (a, b) in enumerate(pairs)
+    ]
+    return await asyncio.gather(*tasks)
+
+results = asyncio.run(run())
+print(len(results), ContinuityResult.model_validate_json(results[0]).is_connected)
+print(client.get_stats())
+
+# 実行結果（スタブ）:
+# 5 False
+# {'total_requests': 5, 'failed_requests': 0, 'truncated_responses': 0, 'success_rate': 100.0, 'concurrency': 2}
+```
+
+> 📌 `truncated_responses` は数える処理が無く、常に 0（Gemini 時代の名残）。
+
+#### 4.1.3 失敗したとき
+
+```python
+import asyncio, os
+from chunking.async_api_client import AsyncAPIClient, ChunkingAbortedError
+from chunking.models import StructuralResult
+
+def call(client, text, i):
+    return client.generate_content("claude-haiku-5-5", f"【入力テキスト】\n{text}", StructuralResult, task_id=f"block_{i}")
+
+os.environ["FAKE_FAIL_SUBSTR"] = "失敗"          # スタブ: この文字列を含む依頼だけ例外を投げる
+
+# (a) 1 件だけ失敗 → リトライ 3 回のあと None（例外にはならない）
+client = AsyncAPIClient(max_retries=3, abort_after_consecutive_failures=3)
+print(asyncio.run(call(client, "失敗するブロック。", 0)))
+print(client.get_stats()["failed_requests"])
+
+# (b) 続けて失敗 → (a) と合わせて連続 3 件目で ChunkingAbortedError（呼び出し側はこれで処理全体を止める）
+async def many(client):
+    for i in range(1, 4):
+        await call(client, "失敗するブロック。", i)
+try:
+    asyncio.run(many(client))
+except ChunkingAbortedError as e:
+    print(type(e).__name__, str(e).splitlines()[0])
+
+# (c) abort_after_consecutive_failures=0 なら何回失敗しても止めない（環境変数 CHUNKING_ABORT_AFTER_FAILURES=0 と同じ）
+client0 = AsyncAPIClient(max_retries=1, abort_after_consecutive_failures=0)
+print([asyncio.run(call(client0, "失敗するブロック。", i)) for i in range(4)])
+
+# 実行結果（スタブ）:
+# None
+# 1
+# ChunkingAbortedError LLM 呼び出しが 3 回連続で失敗したためチャンク化を中断しました。最後のエラー: 500 Internal Server Error (stub)
+# [None, None, None, None]
+```
+
+> ⚠️ **`None` を受け取った側に代わりの処理（フォールバック）は無い。** ログは `Failed after 3 retries. Using fallback.` と出すが、
+> チャンク化の Step1・Step2 はそのブロック（段落）の本文を**捨てて先へ進む**（[`csv_text_to_chunks_text_csv.md`](csv_text_to_chunks_text_csv.md) §5.3 の 1）。
+> v2.5 までの本書の例は「機械的分割へフォールバック」と書いていたが、そのような処理は実装に無い。
+>
+> 📌 データ管理タブのチャンク化ジョブ（`backend/app/core/data_jobs.py::_chunking_runner`）は `ChunkingAbortedError` を捕まえ、
+> メッセージをそのままエラーイベントにする。
+
+#### 4.1.4 モデル名の扱い
 
 ```python
 from chunking.async_api_client import AsyncAPIClient
 
-client = AsyncAPIClient(max_workers=8, max_retries=3, max_output_tokens=16384)
+# Claude 以外の名前（例: 古い設定の gemini-2.5-flash）・None は、既定モデルへ黙って置き換える
+print(AsyncAPIClient._resolve_model("gemini-2.5-flash", "claude-haiku-5-5"))
+print(AsyncAPIClient._resolve_model(None, "claude-haiku-5-5"))
+print(AsyncAPIClient._resolve_model("claude-sonnet-5-5", "claude-haiku-5-5"))
 
-json_text = await client.generate_content(
-    model="claude-sonnet-5-5",
-    contents=prompt,
-    response_schema=Step1Response,
-    task_id="step1_block_3",
-)
-if json_text is None:
-    ...   # このブロックだけ失敗 → 機械的分割へフォールバック
-else:
-    result = Step1Response.model_validate_json(json_text)
-```
-
-#### 4.1.2 中断を捕まえる（ジョブ runner 側）
-
-```python
-from chunking.async_api_client import ChunkingAbortedError
-
-try:
-    chunks = run_chunking_sync(text, model=model, ...)
-except ChunkingAbortedError as e:
-    # 原因と対処はメッセージ側が持っている。型名を前置きしない
-    error(f"❌ {e}")
-    return None
-```
-
-#### 4.1.3 中断を無効にする
-
-```bash
-CHUNKING_ABORT_AFTER_FAILURES=0 python -m chunking.csv_text_to_chunks_text_csv
+# 実行結果:
+# claude-haiku-5-5
+# claude-haiku-5-5
+# claude-sonnet-5-5
 ```
 
 ### 4.2 `AsyncAPIClient.__init__`
@@ -351,7 +442,7 @@ async def generate_content(
 
 #### なぜ中断が要るのか
 
-`None` を返して次のブロックへ進む（＝機械的分割へのフォールバック）は、
+`None` を返して次のブロックへ進む（＝そのブロックを捨てる。機械的分割のような代わりの処理は無い・§4.1.3）は、
 **1 ブロックだけ落ちたとき**には正しい。しかし
 
 - API キー切れ・権限不足
@@ -411,7 +502,7 @@ DEFAULT_ABORT_AFTER_CONSECUTIVE_FAILURES = int(
 | 値 | 挙動 |
 |---|---|
 | `3`（既定） | 3 ブロック連続で失敗したら中断する |
-| `0` | 中断しない（従来どおりフォールバックで進む） |
+| `0` | 中断しない（失敗したブロックを捨てて進む） |
 | `1` | 最初の失敗で中断する |
 
 ### 5.3 レート制限の判定キーワード
@@ -445,6 +536,7 @@ AsyncAPIClient                             # 非同期クライアント
 | 2.3 | 2026-10-08 | 既定モデル（`default_model`）がコード側で `config.py::ModelConfig.DEFAULT_MODEL` 参照になったのに追随し、記述（5 箇所）を `claude-sonnet-5` → `claude-sonnet-5-5` へ是正（チャンク化は呼び出し側が軽量 `claude-haiku-5-5` を渡す）（2026-10-08） |
 | 2.4 | 2026-10-08 | チャンキングの既定を、回答生成・Q/A 生成の `ModelConfig.DEFAULT_MODEL` から分けた `config.py::ModelConfig.CHUNKING_MODEL`（`claude-haiku-5-5`）の 1 箇所で決めるようにしたのに追随（2026-10-08） |
 | 2.5 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |
+| 2.6 | 2026-10-11 | `chunking/docs/` の構成整理に合わせて §4.1 を書き直した。v2.5 までの例はトップレベルの `await`・未定義の `Step1Response`・存在しない「機械的分割へのフォールバック」を書いており、そのままでは動かなかった。処理パターン（基本・並列と統計・失敗時〔1 件・連続で中断・中断を無効〕・モデル名の回避）ごとの 4 本にし、LLM をスタブにして実行して確かめた。`None` を受けた側に代わりの処理が無いこと、`truncated_responses` が常に 0 であることを記録 |
 
 ---
 

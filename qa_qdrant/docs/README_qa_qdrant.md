@@ -1,12 +1,12 @@
 # README_qa_qdrant.md - qa_qdrant/ ディレクトリ概要
 
-**Version 2.0** | 最終更新: 2026-10-11
+**Version 2.1** | 最終更新: 2026-10-11
 
 `qa_qdrant/` の入口となる文書。ディレクトリの役割・モジュール索引・組み合わせ方・既知の制約をまとめる。
 文書を新しく書く／直す前に、まずここを見る。
 
 > 📌 **データ準備 3 工程のうち ② Q/A 生成・③ Qdrant 登録の CLI を持つ。**
-> ① チャンク化は [`chunking/`](../../chunking/docs/README.md)、Q/A 生成の本体は [`qa_generation/`](../../qa_generation/docs/README.md)、
+> ① チャンク化は [`chunking/`](../../chunking/docs/README_chunking.md)、Q/A 生成の本体は [`qa_generation/`](../../qa_generation/docs/README.md)、
 > 運用手順の入口は [`README_DATA.md`](../../README_DATA.md)、環境構築は [`docs/data_prep_install.md`](../../docs/data_prep_install.md)。
 >
 > ⚠️ **本リポジトリは Anthropic 版。** Q/A 生成の LLM は Anthropic Claude（`--model` 既定 `claude-sonnet-5-5` = `config.py::ModelConfig.DEFAULT_MODEL`、
@@ -114,7 +114,7 @@ Gemini Embedding → Qdrant のポイント（payload に Q/A）＋ UI 用 CSV�
 | `register_to_qdrant.py`（588 行） | [`register_to_qdrant.md`](register_to_qdrant.md) | E | 690 | 2.4 | 既存 CSV → Qdrant の登録 CLI と関数（データ管理タブが使う） |
 | `command/list_collections.py`（51 行） | [`command/docs/list_collections.md`](../command/docs/list_collections.md) | E | 320 | 1.0 | コレクションの一覧（サブディレクトリ。索引は [`README_command.md`](../command/docs/README_command.md)） |
 | （処理フロー） | [`qa_qdrant_process_flow.md`](qa_qdrant_process_flow.md) | A | 292 | 1.0 | CLI 3 本の受け持ち・Phase 1／2 のステップ・Web との対応・再開 |
-| （データフロー） | [`qa_qdrant_data_flow.md`](qa_qdrant_data_flow.md) | A | 262 | 1.0 | チャンク CSV・Q/A 出力・payload・UI 用 CSV の形と置き場所 |
+| （データフロー） | [`qa_qdrant_data_flow.md`](qa_qdrant_data_flow.md) | A | 263 | 1.1 | チャンク CSV・Q/A 出力・payload・UI 用 CSV の形と置き場所 |
 
 > 行数は文書の行数（2026-10-11 実測）。`__init__.py`（docstring だけ）は文書を作らない（§3）。
 >
@@ -296,3 +296,4 @@ uv run --no-sync pytest tests/test_qa_qdrant_package_init.py tests/test_make_qa_
 | 1.0 | 2026-09-25 | 新規作成（旧名 `qa_qdrant/docs/README.md`・棚卸し索引）。12 文書を形式別に整理し、実装カバレッジ・`__init__.py` の整理の経緯・テスト件数・残タスクを記載 |
 | 1.1〜1.13 | 2026-09-25〜2026-10-10 | `make_qa_register_qdrant.py` の既知の問題 5 件の修正への追随、既定モデル・Embedding の記述の是正、テストの所在の移動、`services/docs/` の改名への追随（各版の内容は git 履歴） |
 | 2.0 | 2026-10-11 | `a_cross_doc_md_format.md` §1.1〜§1.4 に合わせて `README_qa_qdrant.md` へ改名し、共通骨格（主な責務・各責務対応のモジュール・3 層構成図）を持つ構成に書き直した。12 文書を寄せ先へ移し（§1 の表）、`qa_qdrant_process_flow.md` / `qa_qdrant_data_flow.md` を新設、`command/docs/` を作った。§2 のワークフロー 2 本を実行して確かめ、実測で見つけた制約 6 件を §5 に、テスト件数を数え直して §5.1 に記録した |
+| 2.1 | 2026-10-11 | `chunking/docs/` の構成整理（`README.md` → `README_chunking.md`）に合わせてリンクを直した |
