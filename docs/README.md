@@ -1,6 +1,6 @@
 # docs 棚卸し（リポジトリ直下 `docs/`）
 
-**Version 3.17** | 最終更新: 2026-10-11
+**Version 3.18** | 最終更新: 2026-10-11
 
 リポジトリ直下 `docs/` の一覧と、**どのディレクトリに何を置くかの境界**をまとめる。
 各領域の棚卸しは [`backend/docs/README.md`](../backend/docs/README.md) /
@@ -10,7 +10,8 @@
 [`chunking/docs/README_chunking.md`](../chunking/docs/README_chunking.md) /
 [`qa_qdrant/docs/README_qa_qdrant.md`](../qa_qdrant/docs/README_qa_qdrant.md) /
 [`services/docs/README_services.md`](../services/docs/README_services.md) /
-[`helper/docs/README_helper.md`](../helper/docs/README_helper.md) にある（直下の本書を含め全 9 領域）。
+[`helper/docs/README_helper.md`](../helper/docs/README_helper.md) /
+[`scripts/docs/README_scripts.md`](../scripts/docs/README_scripts.md) にある（直下の本書を含め全 10 領域）。
 
 > ⚠️ **本リポジトリは Anthropic 版。** LLM は `claude-sonnet-5-5`（軽量 `claude-haiku-5-5`）で
 > `ANTHROPIC_API_KEY` が必須、Embedding のみ Gemini `gemini-embedding-001`（3072 次元・`GOOGLE_API_KEY`）。
@@ -258,3 +259,4 @@ EOF
 | 3.15 | 2026-10-11 | `qa_qdrant/docs/` の構成整理に合わせ、移ってきた 3 文書（`data_prep_install.md`（旧 `qa_qdrant/docs/01_install.md`）・`celery_quick_start.md`・`qdrant_delete_collection.md`）を §3.1・§3.2 に足し、`qa_qdrant/docs/README.md` → `README_qa_qdrant.md` の改名に合わせてリンクを直した |
 | 3.16 | 2026-10-11 | `chunking/docs/` の構成整理（`README.md` → `README_chunking.md`）に合わせてリンクを直した |
 | 3.17 | 2026-10-11 | `qa_generation/docs/` の構成整理（`README.md` → `README_qa_generation.md`、`__init__.md` を統合、`make_qa_qapipeline.md` → `qa_generation_process_flow.md`）に合わせてリンクを直した |
+| 3.18 | 2026-10-11 | `scripts/docs/README_scripts.md`（2026-10-11 新設）への参照を足した（全 10 領域） |
