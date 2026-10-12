@@ -1,6 +1,6 @@
 # CollectionPanel.tsx - コレクション管理（一覧・詳細・削除） ドキュメント
 
-**Version 1.5** | 最終更新: 2026-10-10
+**Version 1.6** | 最終更新: 2026-10-12
 
 ---
 
@@ -317,6 +317,13 @@ payload のキーはコレクションごとに違うため、**列を固定で�
 | `confirm` | ② HITL CONFIRM（承認が必要） | `承認済み` / `中止` |
 | `delete` | ③ 削除実行 | `削除 N 件` |
 
+#### 接続の見張りと張り直し（`state/streamWatch.ts`）
+
+切断（`onerror`）や 60 秒の無音では `subscribeStream` が張り直し、リプレイ分は `seq` で読み飛ばす（2026-10-08〜）。
+`dataReducer` に同じイベントは二度届かない。何も受け取れないまま 5 回失敗したときだけ `onError` が呼ばれ、
+`dispatch({type:'failed'})` になる。きっかけは grace_v2_local のチャンク化で、38 分ログが出ない間に配信がエラーなしで止まったこと。
+詳細は [`api/client.md`](api/client.md) §3.2・[`state/streamWatch.md`](state/streamWatch.md)。
+
 ---
 
 ## 6. ユーザー操作フロー
@@ -415,7 +422,7 @@ Qdrant の Named vectors 構成では、`fetch_collection_info()` が
 
 | テストファイル | 対象 | ケース数 | 実行 |
 |---|---|:---:|---|
-| `src/state/dataReducer.test.ts` | 削除ジョブの畳み込み（`kind='delete'` を含む） | 21 | `npm test` |
+| `src/state/dataReducer.test.ts` | 削除ジョブの畳み込み（`kind='delete'` を含む） | 24 | `npm test` |
 | （本コンポーネントの専用テストなし） | — | — | — |
 
 **バックエンド側で削除の安全性を検証している。**
@@ -449,3 +456,4 @@ Qdrant の Named vectors 構成では、`fetch_collection_info()` が
 | 1.3 | 2026-09-12 | **中止バナーに `role="status"` を追加。** 「削除は実行されませんでした」だけ `role` が無く、支援技術に伝わっていなかった。利用者の拒否／承認待ちのタイムアウトはどちらも**非破壊で安全側に倒れた結果**なので、割り込む `alert` ではなく polite な `status` を選んだ。あわせて「エラーが支援技術に伝わるか」の記述を実態（どのバナーに何が付いているか）へ精緻化 |
 | 1.4 | 2026-09-24 | `a_react_page_md_format.md` v1.1 に追随（2026-09-24）。概要に「各責務対応のモジュール」（主な責務と 1:1）を追加し、`## 1.` を「アーキテクチャ構成図」として **1.1 システム全体での位置づけ（3 層）** と 1.2 コンポーネントツリー図の 2 枚構成にした。Mermaid の `classDef subgraphStyle` の欠落を補った |
 | 1.5 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |
+| 1.6 | 2026-10-12 | テスト件数を 2026-10-12 の `npx vitest run` の実測へ更新（`dataReducer` 21 → 24）。§5 に SSE の張り直しの注記を追加 |

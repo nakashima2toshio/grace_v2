@@ -1,6 +1,6 @@
 # App.tsx - 4 タブのルートコンテナ ドキュメント
 
-**Version 1.7** | 最終更新: 2026-09-26
+**Version 1.8** | 最終更新: 2026-10-12
 
 ---
 
@@ -352,7 +352,7 @@ class Start,Show,Tab,Same,Swap,New default
 | テストファイル | 対象 | 実行 |
 |---|---|---|
 | `src/state/tabKeys.test.ts` | タブの矢印キー移動（`handleTabKeyDown`） | `npm test`（12 件） |
-| `src/state/modelLabel.test.ts` | 見出し文字列と単価つきラベル（`modelOptionLabel`。ヘッダーの選択肢が使う） | `npm test`（2 件） |
+| `src/state/modelLabel.test.ts` | 見出し文字列と単価つきラベル（`modelOptionLabel`。ヘッダーの選択肢が使う） | `npm test`（5 件） |
 | `src/state/headerModel.test.ts` | ヘッダーのモデルセレクタ（タブごとのスロット・表示値・選択肢・論理層の注記） | `npm test`（16 件） |
 
 **`App.tsx` 自体のレンダリングテストは未整備。** `@testing-library/react` を導入していないため、
@@ -381,3 +381,4 @@ JSX のレンダリングテストは持たない。ガードは以下 2 つ。
 | 1.5 | 2026-09-23 | **データ管理タブもヘッダーでモデルを選ぶ**ようにした。工程ごとに「① チャンキング」「② Q/A 作成」の 2 つを並べ（既定は `chunking_model` / `qa_model`）、`DataPanel` へ `chunkingModel` / `qaModel` prop で渡す。並べる内容は `headerSlots()` が決める（vitest 16 件） |
 | 1.6 | 2026-09-24 | `a_react_page_md_format.md` v1.1 に追随（2026-09-24）。概要に「各責務対応のモジュール」（主な責務と 1:1）を追加し、`## 1.` を「アーキテクチャ構成図」として **1.1 システム全体での位置づけ（3 層）** と 1.2 コンポーネントツリー図の 2 枚構成にした。Mermaid の `classDef subgraphStyle` の欠落を補った |
 | 1.7 | 2026-09-26 | Embedding を `gemini-embedding-2` へ変更し、モデル名の定義を `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所へ集約（2026-09-26）。`DataPanel` に `embeddingLabel` を渡すようにした。§4.2 のコード例が実装（モデル prop 追加後）より古かったので実装に合わせた |
+| 1.8 | 2026-10-12 | テスト件数を 2026-10-12 の `npx vitest run` の実測へ更新（`modelLabel` 2 → 5） |

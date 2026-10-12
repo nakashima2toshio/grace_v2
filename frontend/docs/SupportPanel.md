@@ -1,6 +1,6 @@
 # SupportPanel.tsx - 問い合わせ → 回答 パネル ドキュメント
 
-**Version 1.8** | 最終更新: 2026-10-10
+**Version 1.9** | 最終更新: 2026-10-12
 
 ---
 
@@ -144,8 +144,8 @@ flowchart TB
         Clock["JobClock.tsx<br>ステートレス"]
     end
 
-    App -->|"variant + key"| SP
-    SP -->|"verticals, running, showVertical, multiline / onSubmit"| Form
+    App -->|"variant, model + key"| SP
+    SP -->|"verticals, model, running, showVertical, multiline / onSubmit"| Form
     SP -->|"state"| Timeline
     SP -->|"result, timing"| Answer
     SP -->|"intervention, actionStep, submitting / onRespond"| Modal
@@ -243,7 +243,7 @@ export function SupportPanel({
 | `event` | `SupportEvent` | 種別に応じて `steps` / `intervention` / `result` / `error` / `phase` を更新 |
 | `confirm_sent` | — | `intervention` をクリア（モーダルを閉じる） |
 | `failed` | `message` | `phase='failed'`、`error` を設定 |
-| `reset` | — | 初期状態へ戻す |
+| `reset` | — | 初期状態へ戻す（**どこからも dispatch していない**。[`state/jobReducer.md`](state/jobReducer.md) §3.2） |
 
 #### 状態遷移図
 
@@ -263,6 +263,7 @@ stateDiagram-v2
 | 値 | 供給元 | 本コンポーネントでの扱い |
 |---|---|---|
 | `variant` | `App.tsx` の `useState(tab)` | 読み取りのみ。`showVertical` の導出に使う |
+| `model` | `App.tsx` の `headerModels.basic` / `headerModels.support` | `QueryForm` へ素通しするだけ（空文字 = サーバーの既定値） |
 
 ### 3.4 派生値
 
@@ -282,7 +283,6 @@ stateDiagram-v2
 | # | 目的 | 依存配列 | クリーンアップ | 備考 |
 |---|---|---|---|---|
 | 1 | 業界プロファイル一覧の取得 | `[showVertical, loadVerticals]` | `() => unsubscribeRef.current?.()` | **基本版（`showVertical=false`）では取得せず、クリーンアップだけ返す** |
-| 2 | モデル選択肢・既定モデルの取得 | `[]` | なし | **両タブで取得する**。失敗しても**バナーを出さない**（後述） |
 
 取得の本体は `useCallback` に切り出してある。`MetaErrorBanner` の「再取得」からも
 同じ関数を呼ぶためで、`useEffect` の中に直書きすると再取得の経路が作れない。
@@ -389,6 +389,12 @@ class User,Form,Unsub,Start,JobId,Started,Sub,Ev,Red,UI,Fail default
 
 > ⚠️ **`done` を受けたら `api/client.ts` が `source.close()` する。** 閉じないと
 > `EventSource` が自動再接続し、同じジョブのイベントを再送させてしまう。
+
+### 5.2.1 接続の見張りと張り直し（`state/streamWatch.ts`）
+
+切断（`onerror`）や 60 秒の無音では `subscribeStream` が張り直し、リプレイ分は `seq` で読み飛ばす（2026-10-08〜）。
+本パネルの `jobReducer` には同じイベントが二度届かない。何も受け取れないまま 5 回失敗したときだけ `onError` が呼ばれ、
+`dispatch({type:'failed'})` になる。詳細は [`api/client.md`](api/client.md) §3.2・[`state/streamWatch.md`](state/streamWatch.md)。
 
 ### 5.3 シーケンス図
 
@@ -527,24 +533,25 @@ class S,V,R,Go,Err,Fail,Stream,I,M,D default
 
 ## 9. テスト
 
-本パネルが依存する純関数のテスト（**2026-09-12 に `npm test` を実行した実測値**）。
+本パネルが依存する純関数のテスト（**2026-10-12 に `npx vitest run` で実測した値**）。各モジュールの規則は `state/*.md` にある。
 
 | テストファイル | 対象 | 件数 |
 |---|---|---:|
-| `src/state/jobReducer.test.ts` | reducer の畳み込み | 7 |
-| `src/state/queryParams.test.ts` | 送信ペイロードの組み立て | 25 |
-| `src/state/interventionKind.test.ts` | 承認待ちの種別判定 | 4 |
-| `src/state/metaFetch.test.ts` | メタ取得失敗の文言 | 10 |
-| `src/state/elapsed.test.ts` | 所要時間の整形 | 22 |
-| `src/state/serverTiming.test.ts` | サーバ権威タイムスタンプの反映 | 16 |
-| `src/state/submitKey.test.ts` | 送信キー（IME 変換中は送信しない） | 10 |
-| `src/state/formMemory.test.ts` | タブ切替時の入力退避 | 13 |
+| `src/state/jobReducer.test.ts` | reducer の畳み込み（[`state/jobReducer.md`](state/jobReducer.md)） | 7 |
+| `src/state/queryParams.test.ts` | 送信ペイロードの組み立て（[`state/queryParams.md`](state/queryParams.md)） | 27 |
+| `src/state/interventionKind.test.ts` | 承認待ちの種別判定（[`state/interventionKind.md`](state/interventionKind.md)） | 4 |
+| `src/state/metaFetch.test.ts` | メタ取得失敗の文言（[`state/metaFetch.md`](state/metaFetch.md)） | 10 |
+| `src/state/elapsed.test.ts` | 所要時間の整形（[`state/elapsed.md`](state/elapsed.md)） | 22 |
+| `src/state/serverTiming.test.ts` | サーバ権威タイムスタンプの反映（同上） | 16 |
+| `src/state/submitKey.test.ts` | 送信キー（IME 変換中は送信しない）（[`state/submitKey.md`](state/submitKey.md)） | 10 |
+| `src/state/formMemory.test.ts` | タブ切替時の入力退避（[`state/formMemory.md`](state/formMemory.md)） | 13 |
+| `src/api/client.test.ts` | SSE の張り直し（[`api/client.md`](api/client.md)） | 6 |
 
 `tests/test_api.py` が呼び先の API（ジョブ起動・SSE・confirm）を押さえる
 （`uv run pytest tests`）。
 
-> 📌 **フロント全体は 18 ファイル / 266 件**（同上の実測）。件数は記憶で書かず、
-> 変更時に `npm test` を実行して数え直すこと。
+> 📌 **フロント全体は 26 ファイル / 346 件**（同上の実測）。件数は記憶で書かず、
+> 変更時に `npx vitest run` を実行して数え直すこと。
 
 ### テスト方針
 
@@ -566,8 +573,8 @@ class S,V,R,Go,Err,Fail,Stream,I,M,D default
 | バージョン | 日付 | 変更内容 |
 |---|---|---|
 | 1.0 | 2026-08-01 | 初版作成。基本版 / GRACE-Support で共用する `variant` 方式に基づく。早期 return でもクリーンアップを返す必要があること、多重購読を 2 段で防いでいること、承認待ち中は実行中バナーを出さないことを明記 |
-| 1.1b | 2026-08-29 | 承認待ちモーダルを 2 種類に分岐（`state/interventionKind.ts` の純関数で判定）。0-(A) の主質問選択は `QuestionSelectModal`、従来のアクション承認は `ConfirmModal`。`respond` が `selectedOption` を受け取る（既定 `null` で従来呼び出しと互換） |
 | 1.1 | 2026-08-05 | エラーバナーに `role="alert"` を追加 |
+| 1.1b | 2026-08-29 | 承認待ちモーダルを 2 種類に分岐（`state/interventionKind.ts` の純関数で判定）。0-(A) の主質問選択は `QuestionSelectModal`、従来のアクション承認は `ConfirmModal`。`respond` が `selectedOption` を受け取る（既定 `null` で従来呼び出しと互換） |
 | 1.2 | 2026-08-30 | **業界プロファイル取得の失敗を握りつぶしていた不具合を修正。** `.catch(() => setVerticals([]))` だとバックエンド停止時に「（なし）しか選べない」としか見えなかったため、`MetaErrorBanner` で理由と復旧手順を表示し再取得できるようにした |
 | 1.3 | 2026-09-12 | **本文を実装へ追随させた（それまで §4.1 は修正前のコード `.catch(() => setVerticals([]))` を載せたままだった）。** v1.1〜1.2 で実装済みの `MetaErrorBanner` / `QuestionSelectModal` / `interventionKind` を本文（概要・ツリー図・props・状態管理・副作用・表示の出し分け）へ反映。`useJobTiming` による開始・完了行（`JobClock`）と基本版の複数行入力（`multiline`）を追記。テスト件数を `npm test` の実測値へ差し替え。版番号の重複（1.1 が 2 行）を解消 |
 | 1.4 | 2026-09-12 | **アクセシビリティ記述の訂正。** 「実行中であることが伝わるか」を ❌ としていたが誤りだった。`Timeline` が `sr-only` の `aria-live="polite"` で「実行中: <ステップ名>」を読み上げており（`state/timelineAnnounce.ts`）、実行中であることは支援技術へ伝わっている。`.running-banner` にライブ領域を足すと二重読み上げになるため、あえて付けない |
@@ -575,3 +582,4 @@ class S,V,R,Go,Err,Fail,Stream,I,M,D default
 | 1.6 | 2026-09-23 | **モデル選択をヘッダー（`App`）へ移した。** `models` / `modelInfo` の state と取得の副作用を削除し、`model` prop を受け取って `QueryForm` へ渡すだけにした |
 | 1.7 | 2026-09-24 | `a_react_page_md_format.md` v1.1 に追随（2026-09-24）。概要に「各責務対応のモジュール」（主な責務と 1:1）を追加し、`## 1.` を「アーキテクチャ構成図」として **1.1 システム全体での位置づけ（3 層）** と 1.2 コンポーネントツリー図の 2 枚構成にした。Mermaid の `classDef subgraphStyle` の欠落を補った |
 | 1.8 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |
+| 1.9 | 2026-10-12 | 実装と突き合わせ: §4.1 から 2026-09-23 に `App` へ移した「モデル選択肢・既定モデルの取得」の行を削除（コードには無い）。§5.2.1（SSE の張り直し）を追加。§9 のテスト件数を実測へ更新（`queryParams` 25 → 27・全体 18 ファイル / 266 件 → 26 ファイル / 346 件。`api/client.test.ts` を追加）し、新設した `state/*.md` へリンク。§3.3 とツリー図に `model` prop を追加。変更履歴の 1.1b を日付順の位置へ移した |

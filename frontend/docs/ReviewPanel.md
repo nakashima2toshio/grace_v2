@@ -1,6 +1,6 @@
 # ReviewPanel.tsx - 文書 → 指摘 パネル ドキュメント
 
-**Version 1.7** | 最終更新: 2026-10-10
+**Version 1.8** | 最終更新: 2026-10-12
 
 ---
 
@@ -24,11 +24,11 @@
 
 | 項目 | 内容 |
 |---|---|
-| ファイル | `frontend/src/components/ReviewPanel.tsx`（215 行） |
+| ファイル | `frontend/src/components/ReviewPanel.tsx`（219 行） |
 | 種別 | **コンテナコンポーネント**（reducer・副作用・API 呼び出しを束ねる） |
 | 親 | `App.tsx`（`tab === 'review'` のとき） |
 | 子 | `ReviewForm` / `ReviewTimeline` / `DocumentView` / `FindingList`（`FindingSummaryBar`）/ `ConfirmModal` / `MetaErrorBanner` / `JobClock` |
-| 主な依存 | `../api/client` / `../state/reviewReducer` / `../state/metaFetch` / `../state/useJobTiming` |
+| 主な依存 | `../api/client` / `../state/reviewReducer` / `../state/metaFetch` / `../state/staleResult` / `../state/useJobTiming` |
 | 対応バックエンド | `backend/app/core/review_agent.py`（`REVIEW_STEP_IDS`）/ `api/review.py` |
 
 GRACE-Review（**文書 → 指摘**）のタブ本体。
@@ -72,6 +72,7 @@ GRACE-Review（**文書 → 指摘**）のタブ本体。
 | メタ取得失敗の可視化 | `metaErrorMessage()` + `MetaErrorBanner` | **握りつぶさない**。`onRetry` で再取得 |
 | 所要時間の表示 | `useJobTiming(state.phase)` | 開始は押下時、完了は phase の決着で自動記録 |
 | 打ち切りの警告 | `result.truncated` | 「分割して再実行してください」 |
+| 結果が古いことの警告 | `isResultStale(state.document, draftDocument, running)` | 入力欄の文書がチェックした文書と違えば警告し、結果を薄く表示する（[`state/staleResult.md`](state/staleResult.md)） |
 
 ---
 
@@ -122,7 +123,7 @@ flowchart TB
         App["App.tsx<br>useState(tab)"]
     end
     subgraph Container["コンテナ（状態の所有者）"]
-        RP["ReviewPanel.tsx<br>useReducer(reviewReducer)<br>useState(rulesets, rulesetsError,<br>loadingRulesets, confirming)<br>useJobTiming(timing)<br>useRef(unsubscribe)"]
+        RP["ReviewPanel.tsx<br>useReducer(reviewReducer)<br>useState(rulesets, rulesetsError,<br>loadingRulesets, confirming, draftDocument)<br>useJobTiming(timing)<br>useRef(unsubscribe)"]
     end
     subgraph Presentational["表示・入力コンポーネント"]
         RF["ReviewForm.tsx<br>useState × 8"]
@@ -134,8 +135,8 @@ flowchart TB
         MB["MetaErrorBanner.tsx<br>ステートレス"]
         JC["JobClock.tsx<br>ステートレス"]
     end
-    App -->|"（props なし）"| RP
-    RP -->|"rulesets, running / onSubmit"| RF
+    App -->|"model"| RP
+    RP -->|"rulesets, model, running / onSubmit, onDocumentChange"| RF
     RP -->|"state"| RT
     RP -->|"summary"| SB
     RP -->|"document, findings, selectedFindingId / onSelect"| DV
@@ -174,7 +175,7 @@ export function ReviewPanel({
 
 | 子 | 渡す props |
 |---|---|
-| `ReviewForm` | `rulesets` / `model`（素通し）/ `running`（`phase === 'running'`）/ `onSubmit` |
+| `ReviewForm` | `rulesets` / `model`（素通し）/ `running`（`phase === 'running'`）/ `onSubmit` / `onDocumentChange`（`setDraftDocument`） |
 | `ReviewTimeline` | `state`（`ReviewJobState` 全体） |
 | `FindingSummaryBar` | `summary`（`result.summary`） |
 | `DocumentView` | `document`（`state.document`）/ `findings` / `selectedFindingId` / `onSelect` |
@@ -191,6 +192,7 @@ export function ReviewPanel({
 | `onRespond`（← `ConfirmModal`） | 承認 / 拒否ボタンの `click` | `confirmReviewIntervention()` を送り、モーダルを閉じる |
 | `onSelect`（← `DocumentView` / `FindingList`） | 指摘のクリック | `dispatch('select_finding')`。**左右ペインが同じ state を見る** |
 | `onRetry`（← `MetaErrorBanner`） | 「再取得」の `click` | `loadRulesets()` を再実行 |
+| `onDocumentChange`（← `ReviewForm`） | 入力欄の文書が変わるたび（初回マウント時も） | `draftDocument` に覚える（結果が古いかの判定に使う） |
 
 > ⚠️ **`onRespond` の引数は `approve` の 1 つだけ。** Support 側は
 > `(approve, selectedOption)` の 2 引数（0-(A) の主質問選択があるため）だが、
@@ -208,6 +210,7 @@ export function ReviewPanel({
 | `rulesetsError` | `string \| null` | `null` | `loadRulesets()` の成否 | 取得失敗の理由。非 null で `MetaErrorBanner` |
 | `loadingRulesets` | `boolean` | `false` | `loadRulesets()` の前後 | 再取得中。バナーのボタンを `disabled` |
 | `confirming` | `boolean` | `false` | `respond()` の前後 | 承認送信中 |
+| `draftDocument` | `string \| null` | `null` | `ReviewForm` の `onDocumentChange` | いま入力欄にある文書。`isResultStale` に渡す（`null` = まだ受け取っていない） |
 | `timing` | `JobTiming` | `EMPTY_TIMING` | `beginTiming()` / `observeTiming()` | `useJobTiming(state.phase)` が返す |
 | `unsubscribeRef` | `useRef<(() => void) \| null>` | `null` | 購読開始時 | SSE 解除関数（**再レンダリングで消えないよう ref**） |
 
@@ -258,7 +261,7 @@ export function ReviewPanel({
 | `confirm_sent` | — | `intervention` をクリア |
 | `select_finding` | `findingId` | `selectedFindingId` を更新（`null` で選択解除） |
 | `failed` | `message` | `phase='failed'`、`error` を設定 |
-| `reset` | — | 初期状態へ戻す |
+| `reset` | — | 初期状態へ戻す（**どこからも dispatch していない**。[`state/reviewReducer.md`](state/reviewReducer.md) §3.2） |
 
 #### 状態遷移図
 
@@ -275,7 +278,9 @@ stateDiagram-v2
 
 ### 3.3 親から渡る状態（props 由来）
 
-**なし**（props を取らない）。
+| 値 | 供給元 | 本コンポーネントでの扱い |
+|---|---|---|
+| `model` | `App.tsx` の `headerModels.review` | `ReviewForm` へ素通しするだけ（空文字 = サーバーの既定値） |
 
 ### 3.4 派生値
 
@@ -283,6 +288,7 @@ stateDiagram-v2
 |---|---|---|
 | `running` | `state.phase === 'running'` | `ReviewForm` の入力無効化 |
 | `result` | `state.result` | 結果ブロック全体の描画可否 |
+| `stale` | `isResultStale(state.document, draftDocument, state.phase === 'running')` | 結果が古いときの警告と `.review-result-stale` |
 
 ---
 
@@ -293,7 +299,8 @@ stateDiagram-v2
 | # | 目的 | 依存配列 | クリーンアップ | 備考 |
 |---|---|---|---|---|
 | 1 | ルールセット一覧の取得 | `[loadRulesets]` | `() => unsubscribeRef.current?.()` | **Support と違い常に取得する**（Review にタブの変種が無いため） |
-| 2 | モデル選択肢・既定モデルの取得 | `[]` | なし | 失敗しても**バナーを出さない**（`SupportPanel.md` §4.1 と同じ理由） |
+
+> 📝 **モデルの選択肢・既定モデルはここでは取得しない**（2026-09-23 以降。ヘッダーの `App` が取得する）。
 
 ```tsx
 const loadRulesets = useCallback(() => {
@@ -381,6 +388,9 @@ Support と同じ型を使う。`step` の値だけが `REVIEW_STEP_IDS` 系に�
 | `result` | 最終結果 | `result`（`ReviewResult`）を設定 |
 | `error` | エラー | `error` を設定 |
 | `done` | 配信終了 | `phase` を `completed` / `failed` に |
+
+> 📌 **切断・無音では `subscribeStream` が張り直し、リプレイ分を `seq` で読み飛ばす**（2026-10-08〜。[`state/streamWatch.md`](state/streamWatch.md)）。
+> 本パネルの reducer に同じイベントは二度届かない。
 
 > ⚠️ **未知の `step` は握りつぶす。** `isReviewStepId()` が偽なら state を変えずに
 > 返す。バックエンドがステップを増やしてもフロントが壊れないための保険だが、
@@ -542,7 +552,7 @@ class S,V,R,Go,Err,Fail,Stream,I,M,D,Sel default
 
 ## 9. テスト
 
-本パネルが依存する純関数のテスト（**2026-09-12 に `npm test` を実行した実測値**）。
+本パネルが依存する純関数のテスト（**2026-10-12 に `npx vitest run` を実行した実測値**）。各モジュールの規則は `state/*.md` にある。
 
 | テストファイル | 対象 | 件数 |
 |---|---|---:|
@@ -550,9 +560,10 @@ class S,V,R,Go,Err,Fail,Stream,I,M,D,Sel default
 | `src/state/staleResult.test.ts` | 結果が入力欄の文書のものか（2026-10-03 追加） | 6 |
 | `src/components/ReviewForm.examples.test.ts` | 例文チップの中身 | 17 |
 | `src/state/metaFetch.test.ts` | メタ取得失敗の文言 | 10 |
-| `src/state/highlight.test.ts` | 原文ハイライトの算出 | 13 |
+| `src/state/highlight.test.ts` | 原文ハイライトの算出 | 18 |
 | `src/state/citations.test.ts` | 出典の派生値 | 13 |
 | `src/state/elapsed.test.ts` / `serverTiming.test.ts` | 所要時間・サーバ時刻 | 22 / 16 |
+| `src/api/client.test.ts` | SSE の張り直し（[`api/client.md`](api/client.md)） | 6 |
 
 `tests/test_review_api.py` ほか Review 系の pytest が呼び先の API を押さえる
 （`uv run pytest tests`）。
@@ -582,3 +593,4 @@ class S,V,R,Go,Err,Fail,Stream,I,M,D,Sel default
 | 1.5 | 2026-09-24 | `a_react_page_md_format.md` v1.1 に追随（2026-09-24）。概要に「各責務対応のモジュール」（主な責務と 1:1）を追加し、`## 1.` を「アーキテクチャ構成図」として **1.1 システム全体での位置づけ（3 層）** と 1.2 コンポーネントツリー図の 2 枚構成にした。Mermaid の `classDef subgraphStyle` の欠落を補った |
 | 1.6 | 2026-10-03 | **結果が古いことを表示する。** `ReviewForm` の `onDocumentChange` で入力欄の文書を `draftDocument` に持ち、チェックした文書（`state.document`）と違えば警告（`role="status"`）を出して結果ブロックを薄くする（判定は `state/staleResult.ts`・vitest 6 件）。実測 2026-10-03: 例文ボタンで「OK 例」へ切り替えただけで実行せず、前回（表記漏れLP案）の結果を「OK 例が NG」と読み違えた |
 | 1.7 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |
+| 1.8 | 2026-10-12 | 実装と突き合わせ: §4.1 から 2026-09-23 に `App` へ移した「モデル選択肢・既定モデルの取得」の行を削除。v1.6 で足した `draftDocument`（`useState`）・`onDocumentChange`・`stale` を §3.1・子へ渡す props・コールバックの契約・§3.4・ツリー図へ反映（§6.2 にしか無かった）。§3.3 の「props を取らない」を `model` に訂正。行数 215 → 219。§5.2 に張り直しの注記。テスト件数を 2026-10-12 の `npx vitest run` の実測へ更新（`highlight` 13 → 18。`api/client.test.ts` を追加） |

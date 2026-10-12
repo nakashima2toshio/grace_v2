@@ -1,6 +1,6 @@
 # DataPanel.tsx - データ管理タブのルート ドキュメント
 
-**Version 1.5** | 最終更新: 2026-09-26
+**Version 1.6** | 最終更新: 2026-10-12
 
 ---
 
@@ -325,7 +325,7 @@ class Open,C1,C2,C3,C4 default
 | テストファイル | 対象 | 実行 |
 |---|---|---|
 | `src/state/dataReducer.test.ts` | 子が使う reducer（24 ケース） | `npm test` |
-| `src/state/dataParams.test.ts` | 子が使うフォーム純関数（34 ケース） | `npm test` |
+| `src/state/dataParams.test.ts` | 子が使うフォーム純関数（35 ケース） | `npm test` |
 | `src/state/tabKeys.test.ts` | 矢印キーの移動先計算（12 ケース） | `npm test` |
 | （本コンポーネントの専用テストなし） | — | — |
 
@@ -347,3 +347,4 @@ JSX のレンダリングテストが書けず、`tsc --noEmit` でガードし�
 | 1.3 | 2026-09-23 | **モデルの選択をヘッダーへ移した変更に追随。** `chunkingModel` / `qaModel` prop を受け取り `DataJobPanel` へ渡すようにした（Props なし → 2 つ） |
 | 1.4 | 2026-09-24 | `a_react_page_md_format.md` v1.1 に追随（2026-09-24）。概要に「各責務対応のモジュール」（主な責務と 1:1）を追加し、`## 1.` を「アーキテクチャ構成図」として **1.1 システム全体での位置づけ（3 層）** と 1.2 コンポーネントツリー図の 2 枚構成にした。Mermaid の `classDef subgraphStyle` の欠落を補った |
 | 1.5 | 2026-09-26 | Embedding を `gemini-embedding-2` へ変更し、モデル名の定義を `config.py::ModelConfig.EMBEDDING_MODEL` の 1 箇所へ集約（2026-09-26）。`embeddingLabel` prop を受け取り `DataJobPanel` へ渡すようにした（Props 2 → 3） |
+| 1.6 | 2026-10-12 | テスト件数を 2026-10-12 の `npx vitest run` の実測へ更新（`dataParams` 34 → 35） |
