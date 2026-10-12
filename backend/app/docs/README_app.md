@@ -1,6 +1,6 @@
 # README_app.md - backend/app/ ディレクトリ概要
 
-**Version 1.0** | 最終更新: 2026-10-11
+**Version 1.1** | 最終更新: 2026-10-12
 
 `backend/app/` の入口となる文書。FastAPI の起動口（`main.py`）と、API の入出力の型（`schemas.py`）を置く。
 ルーター（`api/`）とパイプライン本体・ジョブ基盤（`core/`）は**別のディレクトリ**で、それぞれの `docs/` に README がある。
@@ -87,13 +87,13 @@ style EXT fill:#1a1a1a,stroke:#fff,color:#fff
 
 | モジュール | 文書 | 種別 | 行数 | Ver | 概要 |
 |---|---|---|---:|---|---|
-| `main.py`（66 行） | [`main.md`](main.md) | E | 503 | 1.8 | FastAPI アプリ。`.env`・CORS・5 ルーター（25 エンドポイント） |
-| `schemas.py`（568 行） | [`schemas.md`](schemas.md) | E | 1188 | 1.15 | API の入出力の型（Pydantic）。`frontend/src/types.ts` と対で保つ |
+| `main.py`（66 行） | [`main.md`](main.md) | E | 504 | 1.9 | FastAPI アプリ。`.env`・CORS・5 ルーター（25 エンドポイント） |
+| `schemas.py`（568 行） | [`schemas.md`](schemas.md) | E | 1189 | 1.16 | API の入出力の型（Pydantic）。`frontend/src/types.ts` と対で保つ |
 
-> 行数は文書の行数（実測）。`__init__.py` は空（§3）。処理フロー・データフローは backend 全体にまたがるので `backend/docs/` に置く（§4）。
+> 行数は文書の行数（実測）。`__init__.py` は空（§3）。Support / Review の 1 周の流れは `core/docs/core_process_flow.md`、backend 全体の構造は本書 §4 にある。
 
 **関連する README**: [`api/docs/README_api.md`](../api/docs/README_api.md)（ルーター）/ [`core/docs/README_core.md`](../core/docs/README_core.md)（パイプライン・ジョブ基盤）/
-[`backend/docs/README.md`](../../docs/README.md)（backend 全体の地図）。
+本書 §4（backend 全体の地図・目的別の早見表）。
 
 ---
 
@@ -103,7 +103,7 @@ style EXT fill:#1a1a1a,stroke:#fff,color:#fff
 
 | やりたいこと | 入口 | 使用例 |
 |---|---|---|
-| 開発サーバを起動する（backend + frontend） | `./run_dev.sh` | [`backend/docs/install_and_setup.md` §6](../../docs/install_and_setup.md#6-起動手順) |
+| 開発サーバを起動する（backend + frontend） | `./run_dev.sh` | 直下 [`README.md`](../../../README.md) §7 |
 | API だけを起動して確かめる | `uvicorn backend.app.main:app` | §2.1・[`main.md`](main.md) §4.1 |
 | サーバを立てずに API を叩く（テスト） | `fastapi.testclient.TestClient(app)` | [`main.md`](main.md) §4.1.2 |
 | リクエストの形・422 になる入力を確かめる | `schemas.QueryRequest` ほか | [`schemas.md`](schemas.md) §4.1 |
@@ -134,14 +134,29 @@ curl -s localhost:8000/openapi.json | python3 -c "import json,sys; print(len(jso
 
 ## 4. 処理フロー・データフロー
 
-このディレクトリだけで閉じる流れは無い。1 回のリクエストの流れは backend 全体の文書にある。
+backend の文書は `backend/app/docs/`（本書）・`backend/app/api/docs/`・`backend/app/core/docs/` の 3 か所だけにある
+（2026-10-12 に `backend/docs/` を廃止した）。
 
 | 知りたいこと | 文書 |
 |---|---|
-| 層構造・モジュールの責務・依存の向き | [`backend/docs/architecture.md`](../../docs/architecture.md) |
-| 全エンドポイント・SSE のワイヤ形式・HTTP ステータス・`types.ts` との対応 | [`backend/docs/api_contract.md`](../../docs/api_contract.md) |
-| ブラウザ → FastAPI → コア → 描画の end-to-end | [`backend/docs/webapp_flow.md`](../../docs/webapp_flow.md) |
-| モデル名の解決経路（リクエスト単位の上書き = `schemas` の `model`） | [`backend/docs/config_and_providers.md`](../../docs/config_and_providers.md) |
+| backend の層構造・依存の向き・backend が持たないもの | 本書 §4.1・§4.2 |
+| モデル名の解決（既定・UI からの上書き・世代ごとの送り方）・API キー | 本書 §4.3 |
+| 全エンドポイント・SSE のワイヤ形式・HITL の往復・HTTP ステータス・`types.ts` との対応 | [`api/docs/README_api.md`](../api/docs/README_api.md) §4 |
+| GRACE-Support / GRACE-Review の 1 周・設計判断・ジョブ基盤の流れ | [`core/docs/core_process_flow.md`](../core/docs/core_process_flow.md) |
+| 各モジュールの引数・戻り値 | 各ディレクトリの README の索引（§1・`README_api.md` §1・`README_core.md` §1） |
+
+**目的別の早見表**
+
+| やりたいこと | 読む文書 |
+|---|---|
+| 新しいエンドポイントを足す | `README_api.md` §4 → `core_process_flow.md` §3（runner 注入） |
+| 新しいジョブ種別を足す | `core_process_flow.md` §3 → `README_core.md` §5.2（チェックリスト）→ `core/docs/data_jobs.md` |
+| 回答が escalate に倒れる理由を追う | `core_process_flow.md` §1 → `core/docs/gates.md` |
+| 指摘が出ない・誤検知する理由を追う | `core_process_flow.md` §2 → `core/docs/review_gates.md` |
+| 業界プロファイル / ルールを増やす | `core/docs/verticals.md` / `core/docs/rulesets.md`（どちらも「増やすときの手順」） |
+| 規程コレクション（`ec_ad_rules_anthropic`）を作り直す | `core/docs/rulesets.md`（規程コレクションの準備） |
+| 既定モデルを変える | 本書 §4.3.5・CLAUDE.md §3.1 |
+| 触る前に落とし穴を確認する | `README_core.md` §5.2・CLAUDE.md |
 
 | データ | 形式 | 作る側 | 使う側 |
 |---|---|---|---|
@@ -149,6 +164,153 @@ curl -s localhost:8000/openapi.json | python3 -c "import json,sys; print(len(jso
 | 受付 | `QueryAccepted`（`job_id` / `stream_url`） | `api/` | 画面（SSE を購読する） |
 | 結果 | `JobStatusResponse` / `ReviewJobStatusResponse` / `DataJobStatusResponse` | `api/`（runner の dict を検証） | 画面 |
 | メタ情報 | `ModelChoice` / `ModelInfo` / `VerticalInfo` / `RuleSetInfo` | `api/meta.py` | 画面のセレクタ・ヘッダー |
+
+### 4.1 依存の向き
+
+守られている規律は 3 つ。**ここを崩すと循環 import になる。**
+
+1. **`core/` は `api/` を知らない。** 逆向きの import は存在しない。
+2. **`jobs.py` は Review・データ準備を知らない。** Support の runner だけを自分で登録し、Review / データ準備の runner は
+   `review_agent.py` / `data_jobs.py` が**自分の import 時に** `register_runner()` で登録する（[`core_process_flow.md`](../core/docs/core_process_flow.md) §3）。
+3. **判定ロジックは `*_gates.py` に集める。** `review_gates.py` は `gates.py` から `_match_keyword` / `judge_model` を再利用する（Review → Support の一方向）。
+
+```mermaid
+flowchart LR
+    ApiLayer["api/*.py"] --> JobsMod["core/jobs.py"]
+    ApiLayer --> CoreAgents["core/*_agent.py"]
+    JobsMod --> SupportAgent["core/support_agent.py"]
+    ReviewAgent["core/review_agent.py"] -->|register_runner| JobsMod
+    DataJobs["core/data_jobs.py"] -->|register_runner| JobsMod
+    SupportAgent --> Gates["core/gates.py"]
+    ReviewAgent --> ReviewGates["core/review_gates.py"]
+    ReviewGates -->|_match_keyword / judge_model| Gates
+classDef default fill:#000,stroke:#fff,color:#fff
+classDef subgraphStyle fill:#1a1a1a,stroke:#fff,color:#fff
+class ApiLayer,JobsMod,CoreAgents,SupportAgent,ReviewAgent,DataJobs,Gates,ReviewGates default
+```
+
+### 4.2 backend が持たないもの（外部境界）
+
+`backend/app/` が import している**リポジトリ内の外部モジュール**は次がすべてである（標準ライブラリ・FastAPI・Pydantic を除く）。
+**この表の裏返しが「backend を読むだけでは分からないこと」**で、RAG 検索・planner のプロンプト・Qdrant への upsert などは
+`grace/docs/`・`services/docs/`・`chunking/docs/`・`qa_qdrant/docs/` 側の文書にある。
+
+| 外部モジュール | 使う側 | 何を委ねているか |
+|---|---|---|
+| `grace`（`create_intervention_handler` / `create_tool_registry` / `get_config`） | `support_agent.py` / `review_agent.py` | エージェント基盤の生成・設定解決 |
+| `grace.confidence.create_groundedness_verifier` | `support_agent.py` / `review_agent.py` | ③④ 根拠検証（**Support / Review 共用**） |
+| `grace.intervention`（`InterventionRequest` / `InterventionResponse` / `InterventionAction`） | `intervention_bridge.py` | HITL の型とアクション |
+| `grace.llm_compat.create_chat_client` | `gates.py` / `review_gates.py` | 判定系の LLM 呼び出し |
+| `support_actions`（`create_action_backend` / `create_identity_verifier`） | `support_agent.py` / `review_agent.py` | ⑥⑦ アクション実行・本人確認（**共用**） |
+| `services.qdrant_service` / `services.data_pipeline_service` | `api/qdrant.py` / `data_jobs.py` | Qdrant の参照・入力ファイル解決・コレクション操作 |
+| `chunking.csv_text_to_chunks_text_csv` / `chunking.async_api_client` | `data_jobs.py` | チャンク化本体 |
+| `qa_qdrant.register_to_qdrant` | `data_jobs.py` | Qdrant 登録本体 |
+| `qdrant_client_wrapper.get_qdrant_client` | `api/qdrant.py` | Qdrant クライアント生成 |
+| `config.ModelConfig` / `config.get_selectable_models` | `schemas.py` / `api/meta.py` / `data_jobs.py` / `review_gates.py` / `support_agent.py` / `review_agent.py` | モデルの選択肢・既定値・単価 |
+
+> ⚠️ **共用部品は Support と Review の両方に効く。** `GroundednessVerifier` / `InterventionBridge` / `support_actions.py` を
+> 触った変更は、Support のつもりでも Review を壊す。共用部品を触ったら `tests/test_review_*.py` も流す。
+
+### 4.3 モデル名の解決と API キー
+
+プロバイダの方針（LLM は Anthropic・Embedding は Gemini）と 5 本の解決経路の一覧は CLAUDE.md §3・§3.1 が正。ここには backend 側の仕組みを書く。
+
+#### 4.3.1 判定系と ③ Detect は解決関数を通す
+
+```python
+# backend/app/core/gates.py — 軽量モデル（意図分類・情報なし判定・言及分類・空疎判定）
+def judge_model(config) -> str:   # config.llm.light_model → 無ければ verticals.INTENT_MODEL
+
+# backend/app/core/review_gates.py — 本モデル（③ Detect の第2段）
+def detect_model(config) -> str:  # config.llm.model → 無ければ ModelConfig.DEFAULT_MODEL
+```
+
+**`INTENT_MODEL` / `ModelConfig.DEFAULT_MODEL` を直接参照しない。** フォールバックは `llm` 属性を持たないテスト用スタブのためにある。
+`detect_model()` が無かった頃、姉妹リポジトリで Review の Detect 33 回がすべて 404 になり、指摘が全件「自動判定に失敗したため要確認」に落ちた。
+
+| 使う場所 | 解決 | 既定 |
+|---|---|---|
+| planner / executor / reasoning / groundedness（`grace/`） | `config/grace_config.yml` の `llm.model` | `claude-sonnet-5-5` |
+| 意図分類・情報なし判定・言及分類・空疎判定 | `judge_model()` | `llm.light_model` = `claude-haiku-5-5` |
+| ③ Detect 第2段 | `detect_model()` | `llm.model` |
+| チャンク化（`ChunkingRequest.model`） | `ModelConfig.CHUNKING_MODEL` | `claude-haiku-5-5` |
+| Q/A 生成（`QaGenerationRequest.model`） | `ModelConfig.DEFAULT_MODEL` | `claude-sonnet-5-5` |
+| Qdrant 登録の Embedding（`RegisterRequest.provider`） | リクエスト既定 | `gemini`（**変えない**。次元が変わり既存コレクションが使えなくなる） |
+
+#### 4.3.2 UI から選ぶ（リクエスト単位の上書き）
+
+選択肢は `config.py::ModelConfig.SELECTABLE_MODELS`（= `get_selectable_models()`）の 1 か所で決まる:
+`claude-fable-5-1` / `claude-opus-5-5` / `claude-sonnet-5-5` / `claude-haiku-5-5`。
+
+| 読む側 | 何に使うか |
+|---|---|
+| `GET /api/models` | セレクタの選択肢（単価つき） |
+| `schemas.py::_validate_model_choice` / `_require_model_choice` | 受付時の検証（範囲外は **422**） |
+| `run_support_agent_core` / `run_review_agent_core` | コア側の再検証（スキーマを通らない呼び出しのため） |
+
+選ばれたモデルは `copy.deepcopy(get_config())` のコピーに対して `config.llm.model = model` とするだけで、他のジョブへは漏れない
+（`support_agent.py` / `review_agent.py`）。
+
+| フィールド | 上書きするか | 理由 |
+|---|---|---|
+| `llm.model` | **する** | 生成・推論・根拠検証・③ Detect が読む |
+| `llm.light_model` | **しない** | 判定系は 2 値を返す定型判定で、上位モデルにしても精度は変わらず単価だけ上がる |
+| `llm.heavy_model` | しない | `""` のとき `model` へフォールバックするので、選んだモデルへ自動でそろう |
+
+> ⚠️ **`AVAILABLE_MODELS` と混同しない。** あちらは「単価・上限を知っているモデル」の一覧で、旧世代
+> （`claude-sonnet-4-6` / `claude-haiku-4-5` / `claude-haiku-4-5-20251001` / `claude-sonnet-5` / `claude-opus-5`）も含む。
+> どれも実在する有効なモデル名なので消さない（CLAUDE.md R1）。**選択肢に出さないだけ**である。
+>
+> 📌 「（既定値）」に出す名前は `GET /api/model` が返す**解決後**の値を使う（`model` / `light_model` / `heavy_model` /
+> `chunking_model` / `qa_model` / `embedding_model` / `embedding_dims`）。データ準備の既定はエージェントの既定と別物なので、
+> データ管理タブは `chunking_model` / `qa_model` を出す（`schemas.md`・`api/docs/meta.md`）。
+
+#### 4.3.3 モデル世代で API への送り方が違う
+
+`grace/llm_compat.py` と `helper/helper_llm.py` は `ModelConfig` の 3 つの表を見てリクエストを組み立てる。
+**選択肢にモデルを足すときは、この表にも載せる**（載せないと旧世代扱いで `temperature` や `{"type": "disabled"}` を送り、API が 400 を返す）。
+
+| 表 | 該当モデル（2026-10-12 の `config.py`） | 意味 |
+|---|---|---|
+| `NO_TEMPERATURE_MODELS` | Sonnet 5.5 / Sonnet 5 / Opus 5 / Opus 5.5 / Fable 5.1 / Haiku 5.5 | `temperature` を送らない（送ると 400） |
+| `ADAPTIVE_THINKING_MODELS` | 同上 | 思考を有効にするときは `{"type": "adaptive"}`（`budget_tokens` は 400） |
+| `ALWAYS_THINKING_MODELS` | **Sonnet 5.5** / Opus 5.5 / Fable 5.1 | 思考を無効化できない。`thinking` を省略し `output_config.effort = "low"`、`max_tokens` を 4096 以上に広げる |
+
+- **Haiku 5.5** は `ALWAYS_THINKING_MODELS` に入れない（effort high 以下なら `{"type": "disabled"}` を受け付ける）。thinking を省略すると
+  思考が既定で ON になり `max_tokens` を食うので、`{"type": "disabled"}` を明示する。同じ文章でトークン数が約 30% 増える。
+- Haiku 4.5・Sonnet 4.6 はどの表にも載らず、従来どおり `{"type": "disabled"}` ＋ `temperature` で送る。
+- **effort は現在すべて `low` 固定**で、呼び出しごとの調整は**未実装・要評価**。JSON を返す数ステップの推論（Groundedness・③ Detect）は
+  `low` だと事前に思考せず精度が落ちうるため、適応型思考にしてプロンプト末尾へ `Think the problem through before you answer.` を足すか
+  effort を上げる案がある。Sonnet 5.5 には最も低い思考設定 `{"type": "between_tools"}` もあるが、使っていない。
+- `grace/llm_compat.py` は `stop_reason` の `refusal` を `LLMRefusalError`、JSON 応答の `max_tokens` 打ち切りを（1 回再試行のうえ）
+  `LLMTruncatedError` にする。
+
+#### 4.3.4 API キーと起動ガード
+
+`.env`（リポジトリルート）を `main.py` が `load_dotenv()` で読む（未導入でも起動は続行）。
+
+| キー | 必須 | 用途 |
+|---|:--:|---|
+| `ANTHROPIC_API_KEY` | ✅ | すべての LLM 用途 |
+| `GOOGLE_API_KEY` | ✅ | Embedding（検索・登録） |
+| `SERPAPI_KEY` | — | ⑤ Web フォールバック |
+| `QDRANT_URL` | — | 既定 `http://localhost:6333` |
+
+`ANTHROPIC_API_KEY` の欠落は**アプリ起動を止めない**。各 runner の冒頭（`support_agent.py` / `review_agent.py` / `data_jobs.py`）で確認し、
+`⚠️ ANTHROPIC_API_KEY が未設定です。.env に設定してください。` の `error` イベントを出してジョブを `failed` にする。
+設定の有無は `GET /api/health` で確認できる（値は返さない）。
+
+設定は `config/grace_config.yml` → 環境変数（接頭辞 `GRACE_`）→ `GraceConfig`（pydantic で検証）の順に読む。
+**セクション名は先頭 1 語のみ**なので、`GRACE_WEB_SEARCH_*` は `web.search_*` と解釈されて効かない（yml で直す）。API キーは yml に書かない。
+
+#### 4.3.5 既定モデルを変えるときの手順
+
+1. `config/grace_config.yml` の `llm.model` / `llm.light_model` を変える（**正**）
+2. `verticals.py::INTENT_MODEL`（フォールバック）・`config.py::ModelConfig.DEFAULT_MODEL` / `CHUNKING_MODEL`・直下 `config.yml` の `models.default` を確認する（CLAUDE.md §3.1 の 5 経路）
+3. `MODEL_PRICING` / `MODEL_LIMITS` と §4.3.3 の 3 つの表に新しいモデルがあるか確認する
+4. `ModelConfig.SELECTABLE_MODELS` に載っているか確認する（**既定は選択肢にも含める**）
+5. **モデル名のマッピングは作らない**（CLAUDE.md R1）。`judge_model()` / `detect_model()` を通さない直接参照を足していないか grep する
+6. `tests/test_model_selection.py` を通す（yml と `ModelConfig` の既定が割れていないことをここが見ている）
 
 ---
 
@@ -181,3 +343,4 @@ PYTHONPATH=. .venv/bin/python -m pytest tests/test_api.py tests/test_model_selec
 | バージョン | 日付 | 変更内容 |
 |---|---|---|
 | 1.0 | 2026-10-11 | 新規作成（`a_cross_doc_md_format.md` §1.1.2・§1.2）。`backend/docs/reference/main.md` / `schemas.md` を本ディレクトリへ移し、索引・使い方・既知の制約をまとめた。§2.1 は uvicorn を起動して確かめた |
+| 1.1 | 2026-10-12 | `backend/docs/` の廃止にあわせ、§4 に `architecture.md`（依存の向き・外部境界）と `config_and_providers.md`（モデル名の解決・UI からの上書き・世代ごとの送り方・API キー・既定を変える手順）と `README.md`（目的別の早見表）の内容を移した。§4.3.3 の表は 2026-10-12 の `config.py` に合わせ、Haiku 5.5 を `NO_TEMPERATURE_MODELS` / `ADAPTIVE_THINKING_MODELS` に入れた（移す前の文書は載せていなかった） |

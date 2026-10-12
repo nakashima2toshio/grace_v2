@@ -1,16 +1,16 @@
 # core/review_agent.py - GRACE-Review コアパイプライン ドキュメント
 
-**Version 1.7** | 最終更新: 2026-10-11
+**Version 1.8** | 最終更新: 2026-10-12
 
 > **本書の位置づけ**: `backend/app/core/review_agent.py`（GRACE-Review のコアパイプライン（`run_review_agent_core`））の **IPO リファレンス**。
 > 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。
 >
 > | 知りたいこと | 参照先 |
 > |---|---|
-> | 各段の IPO と設計仕様 | [`review_flow.md` §4](../../../docs/review_flow.md) |
-> | ルールセットの中身 | [`verticals_and_rulesets.md` §2](../../../docs/verticals_and_rulesets.md) |
-> | ジョブ・SSE・HITL の機構 | [`job_runtime.md`](../../../docs/job_runtime.md) |
-> | 文書全体の地図 | [`README.md`](../../../docs/README.md) |
+> | 各段の IPO と設計仕様 | [`core_process_flow.md` §2.3](core_process_flow.md) |
+> | ルールセットの中身 | [`rulesets.md`](rulesets.md) |
+> | ジョブ・SSE・HITL の機構 | [`core_process_flow.md` §3](core_process_flow.md) |
+> | 文書全体の地図 | [`README_app.md`](../../docs/README_app.md) |
 
 ---
 
@@ -488,7 +488,7 @@ print(REVIEW_STEP_IDS)
 
 > ⚠️ **番号（S1・①〜⑦）は Support との対応を示す呼称で、実行順とは一致しない。**
 > 上のタプルが実行順であり、**⑥ `web` が ⑤ `severity` より先**に来る。
-> UI のタイムラインもこの並びで描画される（[`review_flow.md`](../../../docs/review_flow.md) §概要）。
+> UI のタイムラインもこの並びで描画される（[`core_process_flow.md` §2.2](core_process_flow.md)）。
 
 
 ### 4.2 ① 文書分割
@@ -927,6 +927,7 @@ else:
 | 1.5 | 2026-09-24 | 目次の §5.2 へのリンクが見出しの丸数字（①）を含むアンカーと一致せず切れていたのを修正 |
 | 1.6 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |
 | 1.7 | 2026-10-11 | `backend/docs/reference/core_review_agent.md` から移した（`a_cross_doc_md_format.md` §1.1.2。リンクを付け替えた）。§4.1.1 に `run_review_agent_core()` をテストと同じスタブで 1 周流す例を追加し（以前は入口の例が無かった）、既存の 2 例を 4.1.2・4.1.3 へ繰り下げた。すべて実行して確かめた。未記載だった 10 シンボル（`_Job` / `_Judged`・`DEFAULT_JUDGE_WORKERS` / `_judge_workers`・`DEFAULT_WEB_TIMEOUT` / `_web_timeout`・`_MISSING_SHIPPING` / `_apply_missing_fact`・`DOCUMENT_CONTEXT_CHARS` / `_document_context`）を §3・§5.4・§5.5 に追加した。`_judge_workers()` の docstring と実装の食い違い（数値でないときは直列ではなく既定の 4）を実行で確かめて注記 |
+| 1.8 | 2026-10-12 | backend/docs/ の横断文書の廃止（2026-10-12）に追随し、参照先を backend/app/docs/README_app.md・backend/app/api/docs/README_api.md・backend/app/core/docs/core_process_flow.md などへ付け替えた |
 
 ---
 

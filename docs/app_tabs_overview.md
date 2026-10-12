@@ -1,6 +1,6 @@
 # app_tabs_overview.md - 処理 3 タブ（基本版 / GRACE-Support / GRACE-Review）の概要
 
-**Version 1.3** | 最終更新: 2026-10-10
+**Version 1.4** | 最終更新: 2026-10-12
 
 ---
 
@@ -26,7 +26,7 @@
 画面（`./run_dev.sh` → http://localhost:5173）の**処理を行う 3 タブ**を、
 タブごとに「**業界特化**」「**処理フロー**」「**回答（出力）**」の 3 点でまとめる。
 4 つ目の「データ管理」タブ（チャンク化 → Q/A 作成 → Qdrant 登録 → コレクション管理）は、
-3 タブが検索するコレクションを用意する側なので本書では扱わない（[`backend/docs/data_pipeline.md`](../backend/docs/data_pipeline.md)）。
+3 タブが検索するコレクションを用意する側なので本書では扱わない（[`data_jobs.md`](../backend/app/core/docs/data_jobs.md)）。
 
 本書は**読み始めの入口**である。ステップ ID の対照表・基本版と Support の差（9 項目）・
 モード別ガードレールの有効表の**正本は [`pipelines.md`](pipelines.md)** にあり、本書では繰り返さない。
@@ -364,8 +364,8 @@ grace 全体を読むときの入口は次の 3 本（索引は [`grace/docs/REA
 | [`guardrails.md`](guardrails.md) | ゲート・しきい値・失敗時にどちらへ倒すか（GA〜G9） |
 | [`reasoning_flow.md`](reasoning_flow.md) | Support の回答生成（reasoning）と Review の指摘生成（detect）のプロンプト構造 |
 | [`../README.md`](../README.md) | 画面・操作とプログラムの対応、スクリーンショット |
-| [`../backend/docs/review_flow.md`](../backend/docs/review_flow.md) | GRACE-Review の設計 |
-| [`../backend/docs/data_pipeline.md`](../backend/docs/data_pipeline.md) | データ管理タブ（チャンク化 → 登録） |
+| [`core_process_flow.md` §2](../backend/app/core/docs/core_process_flow.md) | GRACE-Review の設計 |
+| [`data_jobs.md`](../backend/app/core/docs/data_jobs.md) | データ管理タブ（チャンク化 → 登録） |
 | [`../grace/docs/README_grace.md`](../grace/docs/README_grace.md) | grace コアモジュールの構成と役割 |
 
 ---
@@ -378,3 +378,4 @@ grace 全体を読むときの入口は次の 3 本（索引は [`grace/docs/REA
 | 1.1 | 2026-10-06 | §5 のステップ × モジュール表を `grace/docs/README.md`「概要」へ移して正本をそちらに一本化し、本書はリンクと要点だけにした（2026-10-06。同じ表を 2 箇所に置かないため）。§4.3 の ⑦ Action の説明を実装に合わせて是正（high の指摘は承認なしで `escalate_to_human`、それ以外は承認後に `create_ticket`） |
 | 1.2 | 2026-10-07 | §3.3・§4.3 に E2E の実行例（Support 4 ケース・Review 3 例文を各 3 回・2026-10-07 実測）の表を追加。元ログは `backend/docs/GRACE-Support_例文4件.txt` / `GRACE-Review_例文3件.txt` |
 | 1.3 | 2026-10-10 | `grace/docs/` の構成整理（`README.md` → `README_grace.md`、`grace.md` / `grace_core.md` / `grace_runtime.md` / `confidence_calibration.md` を `README_grace.md` / `grace_process_flow.md` / `grace_data_flow.md` へ統合）に合わせてリンクを直した |
+| 1.4 | 2026-10-12 | backend/docs/ の横断文書の廃止（2026-10-12）に追随し、参照先を backend/app/docs/README_app.md・backend/app/api/docs/README_api.md・backend/app/core/docs/core_process_flow.md などへ付け替えた |

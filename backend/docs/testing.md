@@ -1,6 +1,6 @@
 # backend テストの地図 ドキュメント
 
-**Version 2.11** | 最終更新: 2026-10-11
+**Version 2.12** | 最終更新: 2026-10-12
 
 ---
 
@@ -25,9 +25,9 @@
 > CI の設定は `.github/workflows/ci.yml` が正本。
 
 > **関連ドキュメント**
-> - [`architecture.md`](./architecture.md) — どのモジュールが何を担うか
-> - [`pitfalls.md`](./pitfalls.md) — 共用部品を壊さないための注意
-> - [`install_and_setup.md`](./install_and_setup.md) — 実行環境の準備
+> - [`README_app.md` §4](../app/docs/README_app.md) — どのモジュールが何を担うか
+> - [`README_core.md` §5.2](../app/core/docs/README_core.md) — 共用部品を壊さないための注意
+> - [`README.md` §7](../../README.md) — 実行環境の準備
 
 ### 結論
 
@@ -417,3 +417,4 @@ GRACE_E2E=1 uv run --no-sync pytest tests/e2e -m e2e -rs
 | 2.9 | 2026-10-09 | 地図に `test_qa_generation_core.py`（Q/A 生成の中核 3 つの直接テスト）を追加し、`test_celery_worker_init.py` の対象に `celery_config.py` の `__main__` を追記。§3 に `qa_generation/` を触ったときに流すテストを追加 |
 | 2.10 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |
 | 2.11 | 2026-10-11 | テスト一覧のデータ準備の行に `test_chunking_fallback_and_resume.py` を足した |
+| 2.12 | 2026-10-12 | backend/docs/ の横断文書の廃止（2026-10-12）に追随し、参照先を backend/app/docs/README_app.md・backend/app/api/docs/README_api.md・backend/app/core/docs/core_process_flow.md などへ付け替えた |

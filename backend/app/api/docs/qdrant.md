@@ -1,19 +1,19 @@
 # api/qdrant.py - Qdrant 参照 API ドキュメント
 
-**Version 1.4** | 最終更新: 2026-10-11
+**Version 1.5** | 最終更新: 2026-10-12
 
 > **本書の位置づけ**: `backend/app/api/qdrant.py`（Qdrant 参照系（読み取り専用）と入力ファイル一覧）の **IPO リファレンス**。
 > 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。
 >
 > | 知りたいこと | 参照先 |
 > |---|---|
-> | エンドポイント一覧とステータス方針 | [`api_contract.md` §1.4・§5](../../../docs/api_contract.md) |
-> | コレクションの作り方 | [`data_pipeline.md`](../../../docs/data_pipeline.md) |
-> | 文書全体の地図 | [`README.md`](../../../docs/README.md) |
+> | エンドポイント一覧とステータス方針 | [`README_api.md` §4.0・§4.3](README_api.md) |
+> | コレクションの作り方 | [`data_jobs.md`](../../core/docs/data_jobs.md) |
+> | 文書全体の地図 | [`README_app.md`](../../docs/README_app.md) |
 
 > **参考ドキュメント**
 > - [`backend/app/api/docs/data.md`](./data.md) — 登録・削除（副作用のある系）のジョブ API
-> - [`backend/docs/data_pipeline.md`](../../../docs/data_pipeline.md) — データ準備パイプライン全体の設計
+> - [`data_jobs.md`](../../core/docs/data_jobs.md) — データ準備パイプライン全体の設計
 
 ---
 
@@ -357,3 +357,4 @@ curl 'http://localhost:8000/api/files?dir=OUTPUT'
 | 1.2 | 2026-09-16 | 3 階建て再編（`reference/` へ移設）に伴い、冒頭へ**位置づけと上位文書への導線**を追加した |
 | 1.3 | 2026-10-10 | 概要の「各責務対応のモジュール」を「主な責務」（3 項目）と 1:1 に揃えた（「整形」「クライアント生成」は責務 2 の説明へ移し、説明列を足した）。変更履歴を 3 列へ移した |
 | 1.4 | 2026-10-11 | `backend/docs/reference/api_qdrant.md` から移した（`a_cross_doc_md_format.md` §1.1.2。リンクを付け替えた）。§3.1 を作り直した。3.1.1 は Qdrant の起動時と停止時（`docker stop`）の両方で、3.1.2 は一時コレクションで詳細とプレビューを実行して確かめた |
+| 1.5 | 2026-10-12 | backend/docs/ の横断文書の廃止（2026-10-12）に追随し、参照先を backend/app/docs/README_app.md・backend/app/api/docs/README_api.md・backend/app/core/docs/core_process_flow.md などへ付け替えた |

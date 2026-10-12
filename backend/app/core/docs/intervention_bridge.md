@@ -1,15 +1,15 @@
 # core/intervention_bridge.py - HITL 非同期ブリッジ ドキュメント
 
-**Version 1.3** | 最終更新: 2026-10-11
+**Version 1.4** | 最終更新: 2026-10-12
 
 > **本書の位置づけ**: `backend/app/core/intervention_bridge.py`（HITL 承認の非同期ブリッジ）の **IPO リファレンス**。
 > 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。
 >
 > | 知りたいこと | 参照先 |
 > |---|---|
-> | **機構の正本**（承認の往復・タイムアウト＝安全側） | [`job_runtime.md` §4](../../../docs/job_runtime.md) |
-> | CONFIRM の API 契約 | [`api_contract.md` §4](../../../docs/api_contract.md) |
-> | 文書全体の地図 | [`README.md`](../../../docs/README.md) |
+> | **機構の正本**（承認の往復・タイムアウト＝安全側） | [`core_process_flow.md` §3.2](core_process_flow.md) |
+> | CONFIRM の API 契約 | [`README_api.md` §4.2](../../api/docs/README_api.md) |
+> | 文書全体の地図 | [`README_app.md`](../../docs/README_app.md) |
 
 ---
 
@@ -463,6 +463,7 @@ PendingIntervention, InterventionBridge, DEFAULT_CONFIRM_TIMEOUT
 | 1.1 | 2026-09-15 | **§4.1「使用例」を新設**（2026-09-15）。ドキュメント規約 `a_class_method_md_format.md` §6.1 が IPO 詳細セクションの冒頭に必須としている代表ワークフローが欠落していた。ワーカーの承認待ちと API からの注入、タイムアウト時に安全側へ倒れることの 2 本を追加し、**実行して出力を確認した**（外部依存が要る例はその旨を明記）。旧 §4.1〜§4.2 は §4.2〜§4.3 へ繰り下げ |
 | 1.2 | 2026-09-16 | 3 階建て再編（`reference/` へ移設）に伴い、冒頭へ**位置づけと上位文書への導線**を追加した |
 | 1.3 | 2026-10-11 | `backend/docs/reference/core_intervention_bridge.md` から移した（`a_cross_doc_md_format.md` §1.1.2。リンクを付け替えた）。§4.1.2 を断片から実行できる例へ作り直した（0.5 秒でタイムアウト → CANCEL・遅れた承認は効かない）。パターンの表を追加 |
+| 1.4 | 2026-10-12 | backend/docs/ の横断文書の廃止（2026-10-12）に追随し、参照先を backend/app/docs/README_app.md・backend/app/api/docs/README_api.md・backend/app/core/docs/core_process_flow.md などへ付け替えた |
 
 ---
 

@@ -28,7 +28,7 @@ export interface ActionRequestInfo {
 
 /**
  * 1 つの主質問と、それに従属する関連質問のまとまり（複数質問クエリの採用単位）。
- * 設計: backend/docs/support_spec.md §5.9
+ * 設計: backend/app/core/docs/core_process_flow.md §1.6
  */
 export interface QuestionCluster {
   main: string;
@@ -56,7 +56,7 @@ export interface SupportResult {
   no_info_detected: boolean;
   web_reused: boolean;
 
-  // --- 複数質問クエリ（backend/docs/support_spec.md §5.4）---------------
+  // --- 複数質問クエリ（backend/app/core/docs/core_process_flow.md §1.6）---------------
   // ⚠️ すべて optional。単一質問では既定値のまま返るため、これらを参照しない
   //    既存コンポーネントの挙動は変わらない。
   is_multi_question: boolean;

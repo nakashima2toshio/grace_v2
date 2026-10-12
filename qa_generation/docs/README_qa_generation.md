@@ -1,6 +1,6 @@
 # README_qa_generation.md - qa_generation/ ディレクトリ概要
 
-**Version 3.2** | 最終更新: 2026-10-11
+**Version 3.3** | 最終更新: 2026-10-12
 
 `qa_generation/` の入口となる文書。ディレクトリの役割・モジュール索引・組み合わせ方・公開 API・既知の制約をまとめる。
 各クラス・関数の引数と戻り値は各モジュールの文書（IPO）に置き、ここには書かない。
@@ -134,7 +134,7 @@ style EXT fill:#1a1a1a,stroke:#fff,color:#fff
 |---|---|---|
 | チャンク CSV から Q/A を作り、そのまま Qdrant へ登録する | `python qa_qdrant/make_qa_register_qdrant.py --input-file output_chunked/<名前>_chunks.csv --collection <名前>` | [`make_qa_register_qdrant.md`](../../qa_qdrant/docs/make_qa_register_qdrant.md) §5.1 |
 | Q/A を作るだけ | `python qa_qdrant/make_qa.py --input-file output_chunked/<名前>_chunks.csv` | [`make_qa.md`](../../qa_qdrant/docs/make_qa.md) §4.1 |
-| 画面から作る | データ管理タブ「② Q/A 作成」（`POST /api/qa/generate`） | [`backend/docs/data_pipeline.md`](../../backend/docs/data_pipeline.md) |
+| 画面から作る | データ管理タブ「② Q/A 作成」（`POST /api/qa/generate`） | [`data_jobs.md`](../../backend/app/core/docs/data_jobs.md) |
 | Python から作る（同期・再開・Celery・本文列の指定・データセット） | `QAPipeline(...).run(...)` | [`pipeline.md`](pipeline.md) §4.1 |
 | 1 チャンクだけ作って中身を見る | `SmartQAGenerator().process_chunk(text)` | [`smart_qa_generator.md`](smart_qa_generator.md) §6.1 |
 | Celery で並列に作る | `./start_celery.sh start -w <数>` → `run(use_celery=True)` | [`docs/celery_quick_start.md`](../../docs/celery_quick_start.md)・[`pipeline.md`](pipeline.md) §4.1.4 |
@@ -302,5 +302,6 @@ uv run --no-sync pytest tests/test_qa_generation_core.py tests/test_qa_pair_defi
 | 3.0 | 2026-10-11 | **`a_cross_doc_md_format.md` §1.1〜§1.4 に合わせて `README.md` から `README_qa_generation.md` へ改名し、ディレクトリ概要の構成（主な責務・各責務対応のモジュール・3 層構成図・モジュール索引・使い方・公開 API・処理フローとデータフロー・既知の制約）に書き直した。** 1 モジュールの IPO の重複（旧 §5〜§7・§9）は各モジュールの文書へ任せて外し、`__init__.md` を §3 に、`make_qa_qapipeline.md` を `qa_generation_process_flow.md`（新設）と各モジュールの文書に統合した。各モジュールの使用例を処理パターン別に書き直して実行し、そこで見つけた制約 7 件を §5 に記録した（`dataset_name` で `max_docs` が効かない・Celery で失敗チャンクが処理済みになる など）。§2.2 を実行して確かめ、§5.1 のテスト件数を数え直した（`test_qa_pair_definitions.py` 5 件・`test_qa_default_model.py` 6 件・`test_data_jobs.py` 45 件） |
 | 3.1 | 2026-10-11 | §5 の 1（`dataset_name` で `max_docs` が効かない）と 2（Celery で失敗チャンクが処理済みになる）を直した（修正前のコードで fail する `tests/test_qa_generation_failure_paths.py` 7 件を先に書いた）。§5.1 のテスト一覧に足し、件数を数え直した（42 passed） |
 | 3.2 | 2026-10-11 | §5 の 3〜7 を直した（修正前のコードで fail する `tests/test_qa_generation_known_limits.py` 14 件を先に書いた）。§3 のログの記述、§4 の途中経過の形、§5 の表、§5.1 のテスト一覧（56 passed・`test_data_jobs.py` 46 件）を更新した。これで §5 に未対処のものは無い |
+| 3.3 | 2026-10-12 | backend/docs/ の横断文書の廃止（2026-10-12）に追随し、参照先を backend/app/docs/README_app.md・backend/app/api/docs/README_api.md・backend/app/core/docs/core_process_flow.md などへ付け替えた |
 
 > v1.x の変更履歴にある節番号（§2〜§7）は旧構成のもの。v2.x の節番号も v3.0 で変わった（旧 §4 棚卸し → §5 の注記）。

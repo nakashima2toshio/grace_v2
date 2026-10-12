@@ -1,16 +1,16 @@
 # core/support_agent.py - GRACE-Support コアサービス ドキュメント
 
-**Version 1.6** | 最終更新: 2026-10-11
+**Version 1.7** | 最終更新: 2026-10-12
 
 > **本書の位置づけ**: `backend/app/core/support_agent.py`（GRACE-Support のコアパイプライン（`run_support_agent_core`））の **IPO リファレンス**。
 > 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。
 >
 > | 知りたいこと | 参照先 |
 > |---|---|
-> | 各段の IPO と設計判断 | [`support_flow.md`](../../../docs/support_flow.md) |
-> | ジョブ・SSE・HITL の機構 | [`job_runtime.md`](../../../docs/job_runtime.md) |
+> | 各段の IPO と設計判断 | [`core_process_flow.md` §1](core_process_flow.md) |
+> | ジョブ・SSE・HITL の機構 | [`core_process_flow.md` §3](core_process_flow.md) |
 > | 判定ロジックの詳細 | [`core/docs/gates.md`](./gates.md) |
-> | 文書全体の地図 | [`README.md`](../../../docs/README.md) |
+> | 文書全体の地図 | [`README_app.md`](../../docs/README_app.md) |
 
 ---
 
@@ -326,7 +326,7 @@ print(STEP_IDS)
 ```
 
 > ⚠️ **このタプルが実行順である。** 呼称（0-(A) / ①〜⑥ / ④'）とは並びが違い、
-> **④' `no_info` は ⑤ `web` の後**に来る（[`support_flow.md` §4](../../../docs/support_flow.md) の対応表）。
+> **④' `no_info` は ⑤ `web` の後**に来る（[`core_process_flow.md` §1.2](core_process_flow.md) の対応表）。
 
 #### 4.1.4 結果の JSON 化（API レスポンス・`result` イベント）
 
@@ -351,7 +351,7 @@ print(f"multi-question 既定: is_multi_question={d['is_multi_question']} "
 ```
 
 > 0-(A) 由来の 7 フィールドは**すべて optional**で、単一質問では既定値のまま返る。
-> 既存のフロント・API クライアントの挙動は変わらない（[`support_flow.md` §5.4](../../../docs/support_flow.md#64-返すものsupportresult)）。
+> 既存のフロント・API クライアントの挙動は変わらない（[`core_process_flow.md` §1.6](core_process_flow.md)）。
 
 
 ### 4.2 SupportEvent クラス
@@ -725,6 +725,7 @@ ConfirmFn     # type alias: Callable[[InterventionRequest], InterventionResponse
 | 1.4 | 2026-09-16 | 3 階建て再編（`reference/` へ移設）に伴い、冒頭へ**位置づけと上位文書への導線**を追加した |
 | 1.5 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |
 | 1.6 | 2026-10-11 | `backend/docs/reference/core_support_agent.md` から移した（`a_cross_doc_md_format.md` §1.1.2。リンクを付け替えた）。§4.1.2 にテストと同じスタブで 1 周流す例を追加し（既存を 4.1.3・4.1.4 へ繰り下げ）、実行して確かめた。4.1.1（本物）はキーが無い環境では `None` と `error` イベントになることを確かめて注記した |
+| 1.7 | 2026-10-12 | backend/docs/ の横断文書の廃止（2026-10-12）に追随し、参照先を backend/app/docs/README_app.md・backend/app/api/docs/README_api.md・backend/app/core/docs/core_process_flow.md などへ付け替えた |
 
 ---
 

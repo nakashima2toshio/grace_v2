@@ -1,6 +1,6 @@
 # パイプライン 3 モード対照（基本版 / GRACE-Support / GRACE-Review）
 
-**Version 1.6** | 最終更新: 2026-10-11
+**Version 1.7** | 最終更新: 2026-10-12
 
 ---
 
@@ -230,11 +230,11 @@ style REV fill:#1a1a1a,stroke:#fff,color:#fff
 | モードの違い・ステップの対応 | **本書** |
 | なぜ escalate したか／どの閾値が効いたか | `docs/guardrails.md` |
 | 回答（と指摘）がどう生成されるか・プロンプトの中身 | `docs/reasoning_flow.md` |
-| 複数質問（0-(A)）の設計 | `backend/docs/support_flow.md` §6 |
+| 複数質問（0-(A)）の設計 | `backend/app/core/docs/core_process_flow.md` §1.6 |
 | Support コアの IPO | `backend/app/core/docs/support_agent.md` |
 | Review コアの IPO | `backend/app/core/docs/review_agent.md` / `backend/app/core/docs/review_gates.md` |
 | ゲート純関数の IPO | `backend/app/core/docs/gates.md` |
-| データ準備（チャンク化・登録） | `backend/docs/data_pipeline.md` |
+| データ準備（チャンク化・登録） | `backend/app/core/docs/data_jobs.md` |
 
 ---
 
@@ -249,3 +249,4 @@ style REV fill:#1a1a1a,stroke:#fff,color:#fff
 | 1.4 | 2026-10-06 | §4 の G7（Review）を実装に合わせて是正（2026-10-06）。「常に `escalate_to_human`」と書いていたが、`review_agent.py::_decide_review_action` は high の指摘があれば `escalate_to_human`（承認不要）、なければ `create_ticket`（要承認）を返す |
 | 1.5 | 2026-10-08 | 現在の既定 LLM の記述を `claude-sonnet-5` から実装（`config.py::ModelConfig.DEFAULT_MODEL` / `config/grace_config.yml` の `llm.model`）どおり `claude-sonnet-5-5` へ是正（技術スタック）（2026-10-08） |
 | 1.6 | 2026-10-11 | backend のモジュール文書を移したのに追随（パスの付け替え） |
+| 1.7 | 2026-10-12 | backend/docs/ の横断文書の廃止（2026-10-12）に追随し、参照先を backend/app/docs/README_app.md・backend/app/api/docs/README_api.md・backend/app/core/docs/core_process_flow.md などへ付け替えた |

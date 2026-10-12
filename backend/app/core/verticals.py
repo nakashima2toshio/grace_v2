@@ -4,7 +4,7 @@
 かつての CLI（`agent_support_example.py`）から移設した（React マイグレーション）。
 CLI 本体は 2026-09-19 に削除済みで、現在の参照元は `support_agent.py` /
 `gates.py` / `api/meta.py`。
-設計: `backend/docs/verticals_and_rulesets.md` §1.1/§1.6。
+設計: `backend/app/core/docs/verticals.md`。
 """
 from __future__ import annotations
 
@@ -57,7 +57,7 @@ class ActionRequest:
 
 @dataclass
 class VerticalProfile:
-    """業界プロファイル（差し替えの共通枠）。設計: `backend/docs/verticals_and_rulesets.md` §1.1/§1.6。"""
+    """業界プロファイル（差し替えの共通枠）。設計: `backend/app/core/docs/verticals.md`。"""
 
     name: str
     collections: List[str] = field(default_factory=list)   # 検索スコープ（実 Qdrant コレクション名）

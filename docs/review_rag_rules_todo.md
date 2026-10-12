@@ -1,6 +1,6 @@
 # GRACE-Review 規程 RAG の整備 TODO
 
-**Version 3.9** | 作成日: 2026-09-30 | 最終更新: 2026-10-10 | 対象コミット: `2e9f3a3`（master）＋本 PR
+**Version 3.10** | 作成日: 2026-09-30 | 最終更新: 2026-10-12 | 対象コミット: `2e9f3a3`（master）＋本 PR
 
 ---
 
@@ -21,8 +21,8 @@
 「化粧品LP案」（シミが治る）で**登録した条文が根拠に届かない**問題は、grace_v2 と grace_v2_local の
 **両方で解消した**（2026-10-01）。原因は登録ではなく検索で、セグメント型ルールが広告の文をクエリにして
 スコアが下限 0.70 を割っていた。ルール自身の文で検索するよう改め（PR #238）、grace_v2_local へも移植した。
-設計は [`backend/docs/review_flow.md`](../backend/docs/review_flow.md)、登録手順は
-[`backend/docs/data_pipeline.md`](../backend/docs/data_pipeline.md) 付録 A。
+設計は [`core_process_flow.md` §2](../backend/app/core/docs/core_process_flow.md)、登録手順は
+[`rulesets.md`](../backend/app/core/docs/rulesets.md) §6.4。
 
 ### 0.1 済んだこと
 
@@ -243,3 +243,4 @@ class A,B,C,D,E,F,G,H default
 | 3.7 | 2026-10-03 | 2.1 を完了に（監修者 nakashima。`status` を監修済み・`reviewer` を記入。2026-10-03） |
 | 3.8 | 2026-10-03 | §0.3.4 に 2.17 / 2.18 の後の実測（OK 例が指摘 0・抑止 1、表記漏れLP案で tokusho-01 を検出、古い結果の警告）を追加。3.3（gemma4 の判定の質）を現状に更新（2026-10-03） |
 | 3.9 | 2026-10-10 | Legacy ReAct 経路（`services/agent_service.py`・`agent_parallel_search.py`・`agent_cache.py`・`executor._execute_legacy_agent_step`・`run_legacy_agent` アクション）を 2026-10-10 に削除したのに追随 |
+| 3.10 | 2026-10-12 | backend/docs/ の横断文書の廃止（2026-10-12）に追随し、参照先を backend/app/docs/README_app.md・backend/app/api/docs/README_api.md・backend/app/core/docs/core_process_flow.md などへ付け替えた |

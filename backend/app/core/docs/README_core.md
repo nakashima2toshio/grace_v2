@@ -1,6 +1,6 @@
 # README_core.md - backend/app/core/ ディレクトリ概要
 
-**Version 1.0** | 最終更新: 2026-10-11
+**Version 1.1** | 最終更新: 2026-10-12
 
 `backend/app/core/` の入口となる文書。2 つのエージェント（GRACE-Support / GRACE-Review）のパイプライン本体と、
 データ準備を含む 3 系統が共有するジョブ基盤を置く。各モジュールの引数・戻り値は各モジュールの文書（IPO）に置き、ここには書かない。
@@ -132,19 +132,20 @@ style EXT fill:#1a1a1a,stroke:#fff,color:#fff
 
 | モジュール | 文書 | 種別 | 行数 | Ver | 概要 |
 |---|---|---|---:|---|---|
-| `support_agent.py`（961 行） | [`support_agent.md`](support_agent.md) | E | 774 | 1.6 | GRACE-Support の 1 周（`run_support_agent_core`） |
-| `gates.py`（1,431 行） | [`gates.md`](gates.md) | E | 1059 | 1.7 | Support の判定（回答ゲート・救済・複数質問・担当範囲・情報なし・出典） |
-| `verticals.py`（257 行） | [`verticals.md`](verticals.md) | E | 606 | 1.6 | 業界プロファイル（gov / saas / ec） |
-| `review_agent.py`（1,405 行） | [`review_agent.md`](review_agent.md) | E | 964 | 1.7 | GRACE-Review の 1 周（`run_review_agent_core`） |
-| `review_gates.py`（542 行） | [`review_gates.md`](review_gates.md) | E | 930 | 1.5 | Review の判定（二段判定・指摘ゲート・救済・重大度） |
-| `rulesets.py`（712 行） | [`rulesets.md`](rulesets.md) | E | 820 | 1.7 | ルールセット（EC 広告 23 ルール） |
+| `support_agent.py`（961 行） | [`support_agent.md`](support_agent.md) | E | 775 | 1.7 | GRACE-Support の 1 周（`run_support_agent_core`） |
+| `gates.py`（1,431 行） | [`gates.md`](gates.md) | E | 1060 | 1.8 | Support の判定（回答ゲート・救済・複数質問・担当範囲・情報なし・出典） |
+| `verticals.py`（257 行） | [`verticals.md`](verticals.md) | E | 621 | 1.7 | 業界プロファイル（gov / saas / ec） |
+| `review_agent.py`（1,405 行） | [`review_agent.md`](review_agent.md) | E | 965 | 1.8 | GRACE-Review の 1 周（`run_review_agent_core`） |
+| `review_gates.py`（542 行） | [`review_gates.md`](review_gates.md) | E | 931 | 1.6 | Review の判定（二段判定・指摘ゲート・救済・重大度） |
+| `rulesets.py`（712 行） | [`rulesets.md`](rulesets.md) | E | 879 | 1.8 | ルールセット（EC 広告 23 ルール） |
 | `review_facts.py`（150 行） | [`review_facts.md`](review_facts.md) | E | 421 | 1.0 | 文字列だけで決まる事実（送料・返品条件） |
-| `jobs.py`（319 行） | [`jobs.md`](jobs.md) | E | 816 | 1.8 | ジョブの管理・runner の登録・SSE の keepalive と終端 |
-| `intervention_bridge.py`（139 行） | [`intervention_bridge.md`](intervention_bridge.md) | E | 504 | 1.3 | HITL の承認待ち（同期 ⇔ 非同期） |
-| `job_logs.py`（193 行） | [`job_logs.md`](job_logs.md) | E | 388 | 1.4 | `logging` → 進捗イベント |
-| `data_jobs.py`（781 行） | [`data_jobs.md`](data_jobs.md) | E | 539 | 1.13 | データ準備の 4 種の runner |
+| `jobs.py`（319 行） | [`jobs.md`](jobs.md) | E | 817 | 1.9 | ジョブの管理・runner の登録・SSE の keepalive と終端 |
+| `intervention_bridge.py`（139 行） | [`intervention_bridge.md`](intervention_bridge.md) | E | 505 | 1.4 | HITL の承認待ち（同期 ⇔ 非同期） |
+| `job_logs.py`（193 行） | [`job_logs.md`](job_logs.md) | E | 389 | 1.5 | `logging` → 進捗イベント |
+| `data_jobs.py`（781 行） | [`data_jobs.md`](data_jobs.md) | E | 566 | 1.14 | データ準備の 4 種の runner |
+| —（ディレクトリ全体） | [`core_process_flow.md`](core_process_flow.md) | A | 438 | 1.0 | Support / Review の 1 周・設計判断とジョブ基盤の流れ（2026-10-12 新設。旧 `backend/docs/support_flow.md` / `review_flow.md` / `job_runtime.md`） |
 
-> 行数は文書の行数（実測）。`__init__.py` は空（§3）。処理フローは `api/` とまたがるので `backend/docs/` に置く（§4）。
+> 行数は文書の行数（実測）。`__init__.py` は空（§3）。1 周の処理フローは [`core_process_flow.md`](core_process_flow.md)（本書 §4 に案内）。
 
 ---
 
@@ -214,16 +215,17 @@ mp.undo()
 
 ## 4. 処理フロー・データフロー
 
-1 周の流れと設計判断は backend 全体の文書が正本（`api/` とまたがるため、`core_process_flow.md` には分けない。`a_cross_doc_md_format.md` §1.1.2）。
+1 周の流れと設計判断は [`core_process_flow.md`](core_process_flow.md) にある（2026-10-12 に `backend/docs/` の
+`support_flow.md` / `review_flow.md` / `job_runtime.md` の要点をまとめた）。
 
 | 知りたいこと | 文書 |
 |---|---|
-| GRACE-Support の処理フロー（0-(A)〜⑥）と設計判断 | [`backend/docs/support_flow.md`](../../../docs/support_flow.md) |
-| GRACE-Review の処理フロー（S1・①〜⑦）と設計判断 | [`backend/docs/review_flow.md`](../../../docs/review_flow.md) |
-| データ準備（チャンク化 → Q/A 生成 → Qdrant 登録） | [`backend/docs/data_pipeline.md`](../../../docs/data_pipeline.md) |
-| ジョブ・SSE・HITL・ログ転送の共有基盤 | [`backend/docs/job_runtime.md`](../../../docs/job_runtime.md) |
-| 業界プロファイル・ルールセットのカタログと増やし方 | [`backend/docs/verticals_and_rulesets.md`](../../../docs/verticals_and_rulesets.md) |
-| モデル名の解決経路（`judge_model()` / `detect_model()`） | [`backend/docs/config_and_providers.md`](../../../docs/config_and_providers.md) |
+| GRACE-Support の処理フロー（0-(A)〜⑥）・設計判断・複数質問クエリ・KPI | [`core_process_flow.md`](core_process_flow.md) §1 |
+| GRACE-Review の処理フロー（S1・①〜⑦）・設計方針・データモデル・未決事項 | [`core_process_flow.md`](core_process_flow.md) §2 |
+| ジョブ・SSE・HITL・runner 注入・失敗の扱い・制約（3 系統の共有基盤） | [`core_process_flow.md`](core_process_flow.md) §3 |
+| データ準備（チャンク化 → Q/A 生成 → Qdrant 登録 → 削除） | [`data_jobs.md`](data_jobs.md)・[`api/docs/data.md`](../../api/docs/data.md) |
+| 業界プロファイル・ルールセットの一覧と増やし方・規程コレクションの準備 | [`verticals.md`](verticals.md)・[`rulesets.md`](rulesets.md) |
+| モデル名の解決（`judge_model()` / `detect_model()`）・UI からの上書き | [`README_app.md`](../../docs/README_app.md) §4.3 |
 
 | データ | 形式 | 作る側 | 使う側 |
 |---|---|---|---|
@@ -238,12 +240,32 @@ mp.undo()
 
 | # | 内容 | 詳細 |
 |---|------|------|
-| 1 | ジョブはインメモリ・シングルプロセス前提（永続化しない）。完了ジョブは `MAX_FINISHED_JOBS`（50）を超えると古いものから消える | [`jobs.md`](jobs.md)・[`job_runtime.md`](../../../docs/job_runtime.md) |
+| 1 | ジョブはインメモリ・シングルプロセス前提（永続化しない）。完了ジョブは `MAX_FINISHED_JOBS`（50）を超えると古いものから消える | [`jobs.md`](jobs.md)・[`core_process_flow.md`](core_process_flow.md) §3.3 |
 | 2 | `run_support_agent_core` / `run_review_agent_core` は API キーが無いと**例外を出さず `None` を返し**、`error` イベントを 1 つ流す。パイプラインの途中の API 失敗も安全側の結果になるので、E2E は `api_errors` を見る（CLAUDE.md §2） | [`support_agent.md`](support_agent.md) §4.1.1 |
 | 3 | `review_agent._judge_workers()` の docstring は「不正値は直列（1）」と書くが、実装は数値でないとき既定の 4（0 以下のときだけ 1） | [`review_agent.md`](review_agent.md) §5.4 |
 | 4 | `capture_logs()` を同時に走らせたジョブが違う `level` を要求すると、先に入った方が勝つ（全ジョブが既定の INFO を使う限り問題にならない） | [`job_logs.md`](job_logs.md) |
 | 5 | `review_facts` は「返品」を含む文だけを返品条件として読む（別の文の「返送料はお客様負担」は数えない）。読めないときは判定しないので、誤検知の抑止が働かないだけで誤った抑止はしない | [`review_facts.md`](review_facts.md) §4.1.3 |
 | 6 | 文書の点検は §4.1 の使用例の実行とシンボルの網羅（未記載 0）までで、本文の記述を 1 行ずつ実装と突き合わせてはいない。2026-10-11 の点検で見つかった記述の誤り（`review_gates.md` の `select_candidate_rules`・`rulesets.md` の `description` 全文・`data_jobs.md` の kind）は直した | 各文書の変更履歴 |
+
+### 5.2 触るときの注意（落とし穴とチェックリスト）
+
+| 注意 | 理由 |
+|---|---|
+| **Support と Review は部品を共用している**（`GroundednessVerifier` / `InterventionBridge` / `support_actions.py` / `jobs.py` / `gates.py::_match_keyword` / `judge_model`） | Support のつもりで入れた変更が Review を壊す。共用部品を触ったら `tests/test_review_*.py` も流す |
+| `review_agent.py` / `data_jobs.py` は **import 時に** `register_runner()` を実行する | 「使われていない import」に見えても消すと `_resolve_runner` が `TypeError: 未登録の params 型です` を出す。逆に `jobs.py` から Review / データ準備を import すると循環 import になる |
+| `capture_logs()` は**プロセス全体のロガー**に付くので、スレッド ID で絞り（別ジョブのログが混ざらない）、ロガー level を参照カウントで戻している（`job_logs.py`） | どちらの守りも消すと実測で壊れる。必ず `with` で使う（外し忘れるとハンドラが積み上がり 1 行が N 回転送される） |
+| HITL のタイムアウトは `CANCEL`（**実行しない**）で、ジョブは失敗させずに続行する | 「返事が無い＝承認」にすると破壊的操作が無人で走る。`AUTO_PROCEED`（自動承認）を Web 経路へ持ち込まない |
+| モデル名は `judge_model(config)` / `detect_model(config)` を通す | `INTENT_MODEL` / `ModelConfig.DEFAULT_MODEL` を直接使うと設定と食い違う（[`README_app.md`](../../docs/README_app.md) §4.3.1） |
+| ステップ番号（①〜⑦）は実行順と一致しない | Support は `web`（⑤）の後に `no_info`（④'）、Review は `web`（⑥）の後に `severity`（⑤）。表示順は `STEP_IDS` / `REVIEW_STEP_IDS` の定義順 |
+
+ジョブ種別を足す・ジョブ基盤を触るときのチェックリスト:
+
+- [ ] `register_runner()` を**そのモジュールの import 時**に呼んでいるか
+- [ ] runner は `(params, emit, confirm) -> Optional[dict]` のシグネチャか。失敗時に `None` を返すなら、**その前に `error` イベントを emit** しているか
+- [ ] 破壊的操作なら CONFIRM を出しているか（タイムアウト＝実行しない、で正しいか）
+- [ ] 外部パッケージの進捗を出したいなら `capture_logs()` を `with` で使ったか
+- [ ] `done_event` の `ts` / `started_at` を落としていないか（画面の所要時間が消える）
+- [ ] 3 系統すべてに効く変更なら、`tests/test_jobs_generic.py` と Review 系のテストを流したか
 
 ### 5.1 テスト件数
 
@@ -276,3 +298,4 @@ PYTHONPATH=. .venv/bin/python -m pytest tests/test_support_agent_core.py tests/t
 | バージョン | 日付 | 変更内容 |
 |---|---|---|
 | 1.0 | 2026-10-11 | 新規作成（`a_cross_doc_md_format.md` §1.1.2・§1.2）。`backend/docs/reference/core_*.md` の 10 本を本ディレクトリへ移し（接頭辞を外した）、文書の無かった `review_facts.py` の文書を足した。§2.1 はテストと同じスタブで実行して確かめた |
+| 1.1 | 2026-10-12 | `backend/docs/` の廃止にあわせ、§4 の参照先を新設の `core_process_flow.md` などへ付け替え、§5.2（`pitfalls.md` の落とし穴と `job_runtime.md` §8 のチェックリスト）を追加した。§4 冒頭の「`core_process_flow.md` には分けない」という方針は、`backend/docs/` を置かないことにしたので改めた |

@@ -1,6 +1,6 @@
 # 性能改善レバー — 回答品質とレイテンシ・コストを決めている箇所
 
-**Version 2.9** | 最終更新: 2026-10-11
+**Version 2.10** | 最終更新: 2026-10-12
 
 ---
 
@@ -548,8 +548,7 @@ gov / saas / ec のコレクションが 1 つも無ければ、検索スコー�
 | `docs/guardrails.md` | 判定（ゲート）の一覧・閾値・第 2 段 LLM 判定 |
 | `docs/reasoning_flow.md` | 生成（`reasoning` / `detect`）とプロンプト構造 |
 | `docs/archive/agent_parallel_search.md` | 並列検索基盤（2026-10-10 に削除。P-03b を作るときの参考） |
-| `backend/docs/support_flow.md` | 複数質問（0-(A)）の設計（§6） |
-| `backend/docs/archive/review_false_positive_todo.md` | Review の誤検知対応 TODO（§6 の関連） |
+| `backend/app/core/docs/core_process_flow.md` | 複数質問（0-(A)）の設計（§1.6）・Review の誤検知抑止（§2.4） |
 | `backend/app/core/docs/gates.md` | `_answer_gate` 等の判定純関数（P-07 の対象） |
 | `backend/app/core/docs/review_agent.md` | Review コア（§6 の対象） |
 
@@ -577,3 +576,4 @@ gov / saas / ec のコレクションが 1 つも無ければ、検索スコー�
 | 2.7 | 2026-10-10 | Legacy ReAct 経路（`services/agent_service.py`・`agent_parallel_search.py`・`agent_cache.py`・`executor._execute_legacy_agent_step`・`run_legacy_agent` アクション）を 2026-10-10 に削除したのに追随 |
 | 2.8 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |
 | 2.9 | 2026-10-11 | backend のモジュール文書を移したのに追随（パスの付け替え） |
+| 2.10 | 2026-10-12 | backend/docs/ の横断文書の廃止（2026-10-12）に追随し、参照先を backend/app/docs/README_app.md・backend/app/api/docs/README_api.md・backend/app/core/docs/core_process_flow.md などへ付け替えた |
