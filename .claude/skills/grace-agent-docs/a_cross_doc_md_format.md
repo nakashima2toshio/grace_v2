@@ -1,6 +1,6 @@
 # 横断文書（直下 `docs/`）ドキュメント フォーマット仕様書
 
-**Version 1.14** | 最終更新: 2026-10-12
+**Version 1.15** | 最終更新: 2026-10-12
 
 ---
 
@@ -148,7 +148,7 @@ backend/app/
 | `pitfalls.md` / `install_and_setup.md` | `README_core.md` §5.2・直下 `README.md` §7・§10 |
 | `webapp_flow.md` / `migration_plan.md` / `docs_audit.md` / `archive/` | 削除（git 履歴に残る） |
 
-- `backend/docs/` に残っている `testing.md` と例文の txt 2 本は、置き場所を決めるまでの**保留**である（新しい文書を足さない）。
+- `testing.md` は直下 `docs/testing.md`、例文の実行ログ（txt）は直下 `docs/examples/` へ移した（2026-10-12）。`backend/docs/` はもう無い。
 - 以前の `backend/docs/reference/<サブパッケージ>_<module>.md` は、接頭辞を外して各 `docs/` へ移した（2026-10-11。
   例: `reference/api_meta.md` → `backend/app/api/docs/meta.md`）。
 - `api/` と `core/` の両方にまたがる流れは、処理の本体がある `core/docs/core_process_flow.md` に書き、`api/docs/README_api.md` は外から見える約束（契約）だけを持つ。
@@ -627,3 +627,4 @@ if __name__ == '__main__':
 | 1.12 | 2026-10-11 | §1.1.2 の `backend/docs/reference/` の移行を「移した」に改め、§1（種別 E）の例を移行先へ直した |
 | 1.13 | 2026-10-12 | §1.1 の区分表の `frontend/` 行に純ロジック文書（`frontend/docs/state/` 等）の置き場所を追記 |
 | 1.14 | 2026-10-12 | §1.1.2 を改めた：backend の文書は backend/app/docs・api/docs・core/docs の 3 か所だけに置く（backend/docs/ の横断文書を廃止。移した先の対応表を追加）。§1.1.1 の区分表・種別の例・§1.3 の関連文書の例・検証コマンドの例から backend/docs/ を外した（grace_v2 で先行。testing.md と例文 txt は保留） |
+| 1.15 | 2026-10-12 | backend/docs/testing.md を直下 docs/testing.md へ、例文の実行ログを docs/examples/ へ移したのに追随（参照の付け替え） |

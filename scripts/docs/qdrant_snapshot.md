@@ -1,6 +1,6 @@
 # qdrant_snapshot.py - E2E 用 Qdrant スナップショットの書き出し・復元 ドキュメント
 
-**Version 1.0** | 最終更新: 2026-10-11
+**Version 1.1** | 最終更新: 2026-10-12
 
 ---
 
@@ -26,7 +26,7 @@ E2E（`tests/e2e/`）は実データを検索して初めて意味を持つが�
 Embedding をやり直さずに**Mac と同じベクトル**を運ぶために使います。
 
 > 📌 VM では、クラウド環境の設定で `GRACE_E2E_SNAPSHOT_URL`（署名付き URL）を入れておくと、SessionStart hook（`.claude/hooks/session-start.sh`）が
-> 自動で `restore` する。手順の全体は [`backend/docs/testing.md`](../../backend/docs/testing.md) §1.2 と CLAUDE.md §2「E2E」。
+> 自動で `restore` する。手順の全体は [`docs/testing.md`](../../docs/testing.md) §1.2 と CLAUDE.md §2「E2E」。
 > grace_v2_local には置かない（Qdrant は共用なので、スナップショットは grace_v2 からだけ作る）。
 
 ### 主な責務
@@ -419,6 +419,7 @@ def main(argv: Optional[List[str]] = None) -> int
 | バージョン | 日付 | 変更内容 |
 |---|---|---|
 | 1.0 | 2026-10-11 | 新規作成（`scripts/docs/` の新設）。実装（378 行）とモジュールの docstring を読み、§4.1 の使用例を実物の Qdrant（検証用の一時コレクション）に対して実行して確かめた |
+| 1.1 | 2026-10-12 | backend/docs/testing.md を直下 docs/testing.md へ、例文の実行ログを docs/examples/ へ移したのに追随（参照の付け替え） |
 
 ---
 

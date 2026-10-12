@@ -1,6 +1,6 @@
 # app_tabs_overview.md - 処理 3 タブ（基本版 / GRACE-Support / GRACE-Review）の概要
 
-**Version 1.4** | 最終更新: 2026-10-12
+**Version 1.5** | 最終更新: 2026-10-12
 
 ---
 
@@ -220,7 +220,7 @@ groundedness（支持率）   1.00（判定可能 6 主張）
 基本版との見え方の違いは、**出典が業界のナレッジ（ここでは `gov_faq.csv`）に限られる**ことと、
 業界の方針（担当課の明示など）に沿った文面になることである。
 
-3 業界の画面例文と範囲外の質問 1 件を、それぞれ 3 回流した実行例（`backend/docs/GRACE-Support_例文4件.txt`・2026-10-07・
+3 業界の画面例文と範囲外の質問 1 件を、それぞれ 3 回流した実行例（`docs/examples/GRACE-Support_例文4件.txt`・2026-10-07・
 `claude-sonnet-5-5`・Web OFF・アクションはドライラン。画面と同じ `run_support_agent_core` を E2E から呼んだもの）:
 
 | 業界 | 質問 | 判定 | 出典 | 支持率（判定可能な主張） | アクション | 所要（3 回） |
@@ -302,7 +302,7 @@ Retrieve・Ground・誤検知抑止・Action は Support と同じ機構を再�
   未検証・根拠 0 件の指摘は消さずに**要確認**にする（Support が escalate に倒すのとは逆）
 - 指摘があれば ⑦ でレポートを作る。重大（high）の指摘があれば承認なしで有人対応へ引き継ぎ（`escalate_to_human`）、なければ HITL 承認のあとに起票する（`create_ticket`）
 
-画面の 3 例文を 3 回ずつ流した実行例（`backend/docs/GRACE-Review_例文3件.txt`・2026-10-07・`claude-sonnet-5-5`・Web 裏取り OFF。
+画面の 3 例文を 3 回ずつ流した実行例（`docs/examples/GRACE-Review_例文3件.txt`・2026-10-07・`claude-sonnet-5-5`・Web 裏取り OFF。
 画面と同じ `run_review_agent_core` を E2E から呼んだもの）:
 
 | 例文 | 指摘 | 重大 / 中 / 軽微 | 確定 / 要確認 / 抑止 | 主な指摘 | 所要（3 回） |
@@ -379,3 +379,4 @@ grace 全体を読むときの入口は次の 3 本（索引は [`grace/docs/REA
 | 1.2 | 2026-10-07 | §3.3・§4.3 に E2E の実行例（Support 4 ケース・Review 3 例文を各 3 回・2026-10-07 実測）の表を追加。元ログは `backend/docs/GRACE-Support_例文4件.txt` / `GRACE-Review_例文3件.txt` |
 | 1.3 | 2026-10-10 | `grace/docs/` の構成整理（`README.md` → `README_grace.md`、`grace.md` / `grace_core.md` / `grace_runtime.md` / `confidence_calibration.md` を `README_grace.md` / `grace_process_flow.md` / `grace_data_flow.md` へ統合）に合わせてリンクを直した |
 | 1.4 | 2026-10-12 | backend/docs/ の横断文書の廃止（2026-10-12）に追随し、参照先を backend/app/docs/README_app.md・backend/app/api/docs/README_api.md・backend/app/core/docs/core_process_flow.md などへ付け替えた |
+| 1.5 | 2026-10-12 | backend/docs/testing.md を直下 docs/testing.md へ、例文の実行ログを docs/examples/ へ移したのに追随（参照の付け替え） |

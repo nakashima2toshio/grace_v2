@@ -1,6 +1,6 @@
 # core/review_agent.py - GRACE-Review コアパイプライン ドキュメント
 
-**Version 1.8** | 最終更新: 2026-10-12
+**Version 1.9** | 最終更新: 2026-10-12
 
 > **本書の位置づけ**: `backend/app/core/review_agent.py`（GRACE-Review のコアパイプライン（`run_review_agent_core`））の **IPO リファレンス**。
 > 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。
@@ -404,7 +404,7 @@ style REG fill:#1a1a1a,stroke:#fff,color:#fff
 | 3 | ステップ ID と UI タイムラインの対応 | 画面のタイムラインとの対応を見る | 4.1.3 |
 
 > 📝 **確かめ方（2026-10-11）**: 4.1.1〜4.1.3 は `PYTHONPATH=. python3 <例>.py` で実行した。本物の ②〜④ は API キーと Qdrant（規程コレクション）が要るので、
-> 4.1.1 は `tests/conftest.py` のスタブで差し替えている。実データで流すときは E2E（`GRACE_E2E=1`。[`backend/docs/testing.md`](../../../docs/testing.md) §1.2）を使う。
+> 4.1.1 は `tests/conftest.py` のスタブで差し替えている。実データで流すときは E2E（`GRACE_E2E=1`。[`docs/testing.md`](../../../../docs/testing.md) §1.2）を使う。
 
 #### 4.1.1 基本: `run_review_agent_core()` で 1 周流す
 
@@ -928,6 +928,7 @@ else:
 | 1.6 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |
 | 1.7 | 2026-10-11 | `backend/docs/reference/core_review_agent.md` から移した（`a_cross_doc_md_format.md` §1.1.2。リンクを付け替えた）。§4.1.1 に `run_review_agent_core()` をテストと同じスタブで 1 周流す例を追加し（以前は入口の例が無かった）、既存の 2 例を 4.1.2・4.1.3 へ繰り下げた。すべて実行して確かめた。未記載だった 10 シンボル（`_Job` / `_Judged`・`DEFAULT_JUDGE_WORKERS` / `_judge_workers`・`DEFAULT_WEB_TIMEOUT` / `_web_timeout`・`_MISSING_SHIPPING` / `_apply_missing_fact`・`DOCUMENT_CONTEXT_CHARS` / `_document_context`）を §3・§5.4・§5.5 に追加した。`_judge_workers()` の docstring と実装の食い違い（数値でないときは直列ではなく既定の 4）を実行で確かめて注記 |
 | 1.8 | 2026-10-12 | backend/docs/ の横断文書の廃止（2026-10-12）に追随し、参照先を backend/app/docs/README_app.md・backend/app/api/docs/README_api.md・backend/app/core/docs/core_process_flow.md などへ付け替えた |
+| 1.9 | 2026-10-12 | backend/docs/testing.md を直下 docs/testing.md へ、例文の実行ログを docs/examples/ へ移したのに追随（参照の付け替え） |
 
 ---
 

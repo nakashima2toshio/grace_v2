@@ -1,6 +1,6 @@
 # core/support_agent.py - GRACE-Support コアサービス ドキュメント
 
-**Version 1.7** | 最終更新: 2026-10-12
+**Version 1.8** | 最終更新: 2026-10-12
 
 > **本書の位置づけ**: `backend/app/core/support_agent.py`（GRACE-Support のコアパイプライン（`run_support_agent_core`））の **IPO リファレンス**。
 > 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。
@@ -258,7 +258,7 @@ class QuestionCluster:
 
 > 📝 **確かめ方（2026-10-11）**: 4.1.2〜4.1.4 は `PYTHONPATH=. python3 <例>.py` で実行した。4.1.1 は API キーと Qdrant（実データ）が要るので
 > **この VM では出力を確かめていない**（キーが無いと `None` が返り、`error` イベントに「ANTHROPIC_API_KEY が未設定です」が出ることだけ確かめた）。
-> 実データで流すときは E2E（`GRACE_E2E=1`。[`backend/docs/testing.md`](../../../docs/testing.md) §1.2）を使う。
+> 実データで流すときは E2E（`GRACE_E2E=1`。[`docs/testing.md`](../../../../docs/testing.md) §1.2）を使う。
 
 #### 4.1.1 基本的なワークフロー（パイプラインの実行）
 
@@ -726,6 +726,7 @@ ConfirmFn     # type alias: Callable[[InterventionRequest], InterventionResponse
 | 1.5 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |
 | 1.6 | 2026-10-11 | `backend/docs/reference/core_support_agent.md` から移した（`a_cross_doc_md_format.md` §1.1.2。リンクを付け替えた）。§4.1.2 にテストと同じスタブで 1 周流す例を追加し（既存を 4.1.3・4.1.4 へ繰り下げ）、実行して確かめた。4.1.1（本物）はキーが無い環境では `None` と `error` イベントになることを確かめて注記した |
 | 1.7 | 2026-10-12 | backend/docs/ の横断文書の廃止（2026-10-12）に追随し、参照先を backend/app/docs/README_app.md・backend/app/api/docs/README_api.md・backend/app/core/docs/core_process_flow.md などへ付け替えた |
+| 1.8 | 2026-10-12 | backend/docs/testing.md を直下 docs/testing.md へ、例文の実行ログを docs/examples/ へ移したのに追随（参照の付け替え） |
 
 ---
 

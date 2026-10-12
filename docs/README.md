@@ -1,6 +1,6 @@
 # docs 棚卸し（リポジトリ直下 `docs/`）
 
-**Version 3.20** | 最終更新: 2026-10-12
+**Version 3.21** | 最終更新: 2026-10-12
 
 リポジトリ直下 `docs/` の一覧と、**どのディレクトリに何を置くかの境界**をまとめる。
 各領域の棚卸しは backend（[`README_app.md`](../backend/app/docs/README_app.md)・[`README_api.md`](../backend/app/api/docs/README_api.md)・[`README_core.md`](../backend/app/core/docs/README_core.md)） /
@@ -106,9 +106,11 @@ CLAUDE.md §9.1 の表を、判断に使える形へ具体化したもの。
 | `reasoning_flow.md` | A | 生成の 2 ステップ（Support の `reasoning` / Review の `detect`） | grace + backend | 393 | 2.7 |
 | `performance_levers.md` | A | 回答品質・レイテンシ・コストを決めている箇所と未実装レバー | 全域 | 579 | 2.10 |
 | `agent_layers.md` | A | **一般エージェント用語 → 実装の対応表**（L0〜L4）。実装を読む前の見取り図 | 全域 | 418 | 1.8 |
-| `app_tabs_overview.md` | A | **処理 3 タブの入口**。基本版 / GRACE-Support / GRACE-Review を「業界特化・処理フロー・回答」の 3 点で、画面の実行例つきでまとめる。ステップ対照表は `pipelines.md` へリンク | backend + frontend + grace | 381 | 1.4 |
+| `app_tabs_overview.md` | A | **処理 3 タブの入口**。基本版 / GRACE-Support / GRACE-Review を「業界特化・処理フロー・回答」の 3 点で、画面の実行例つきでまとめる。ステップ対照表は `pipelines.md` へリンク | backend + frontend + grace | 382 | 1.5 |
 | `data_prep_install.md` | B | データ準備（チャンク化 → Q/A 生成 → Qdrant 登録）の環境構築。MeCab・Docker（Qdrant / Redis）・Celery・API キー（2026-10-11 に `qa_qdrant/docs/01_install.md` から移した） | chunking + qa_generation + qa_qdrant | 865 | 2.9 |
 | `celery_quick_start.md` | B | Celery ワーカーの起動・監視・トラブルシューティング（2026-10-11 に `qa_qdrant/docs/` から移した） | qa_generation + qa_qdrant + 直下 `celery_*.py` | 525 | 2.5 |
+
+| `testing.md` | B | テストの地図。実行方法（結合テスト・E2E）・どこを触ったらどれを流すか・CI の 4 ゲート（2026-10-12 に `backend/docs/` から移した） | tests + backend + frontend + scripts | 421 | 2.13 |
 
 ### 3.2 モジュール IPO（トップレベル `.py`）
 
@@ -129,6 +131,7 @@ CLAUDE.md §9.1 の表を、判断に使える形へ具体化したもの。
 
 | ディレクトリ | 内容 |
 |---|---|
+| `examples/` | 画面の例文を流した実行ログ（`GRACE-Support_例文4件.txt`・`GRACE-Review_例文3件.txt`。直下 README §3.3・§4.3 と `app_tabs_overview.md` が参照。2026-10-12 に `backend/docs/` から移した） |
 | `images/` | README・各文書が参照するスクリーンショット 21 枚 |
 | `LLM/` | モデル別の ReAct 実行ログと比較（`llm_compare.md` ほか 11 ファイル） |
 | `LLM_design/` | 外部モデルによる設計レビュー（`by_gpt56sol.md`） |
@@ -262,3 +265,4 @@ EOF
 | 3.18 | 2026-10-11 | `scripts/docs/README_scripts.md`（2026-10-11 新設）への参照を足した（全 10 領域） |
 | 3.19 | 2026-10-11 | backend のモジュール文書を `backend/docs/reference/` から `backend/app/docs/`・`backend/app/api/docs/`・`backend/app/core/docs/` へ移したのに追随（冒頭の索引・§2 の配置の境界） |
 | 3.20 | 2026-10-12 | backend/docs/ の横断文書の廃止（2026-10-12）に追随し、参照先を backend/app/docs/README_app.md・backend/app/api/docs/README_api.md・backend/app/core/docs/core_process_flow.md などへ付け替えた |
+| 3.21 | 2026-10-12 | backend/docs/testing.md を直下 docs/testing.md へ、例文の実行ログを docs/examples/ へ移したのに追随（参照の付け替え） |

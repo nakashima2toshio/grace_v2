@@ -182,7 +182,7 @@ description: >-
 | `<dir>_data_flow.md` | 必要なら | データフロー（ファイル・DB・外部 API のあいだでデータの形が変わるとき） | 同書 §1.3 |
 
 - `<dir>` はディレクトリ名の最後の 1 段（`qa_qdrant/command/` → `README_command.md`）。画像は `images/`、凍結文書は `archive/`。
-- **`backend/`**: モジュール文書は `backend/app/docs/`・`backend/app/api/docs/`・`backend/app/core/docs/` に分ける（`reference/api_meta.md` → `app/api/docs/meta.md` のように接頭辞を外した。2026-10-11 に移行済み）。backend の文書はこの 3 か所だけに置く。2026-10-12 に `backend/docs/` の横断文書を廃止し、Support / Review の流れとジョブ基盤は `backend/app/core/docs/core_process_flow.md`、API 契約は `README_api.md` §4、全体構成・モデル解決は `README_app.md` §4 へ移した（同書 §1.1.2。`backend/docs/testing.md` と例文 txt は保留中）。
+- **`backend/`**: モジュール文書は `backend/app/docs/`・`backend/app/api/docs/`・`backend/app/core/docs/` に分ける（`reference/api_meta.md` → `app/api/docs/meta.md` のように接頭辞を外した。2026-10-11 に移行済み）。backend の文書はこの 3 か所だけに置く。2026-10-12 に `backend/docs/` の横断文書を廃止し、Support / Review の流れとジョブ基盤は `backend/app/core/docs/core_process_flow.md`、API 契約は `README_api.md` §4、全体構成・モデル解決は `README_app.md` §4 へ移した（同書 §1.1.2。テストの地図は直下 `docs/testing.md`、例文の実行ログは `docs/examples/`）。
 - 構成の検査は `python3 check_docs.py --layout`（同書 §10）。
 
 ### 5.2 領域ごとの所在

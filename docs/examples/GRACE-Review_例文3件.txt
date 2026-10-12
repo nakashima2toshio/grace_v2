@@ -121,7 +121,7 @@ API エラー：21 件とも 0 件（api_errors=[]・errors=[]）
   JSON に記録されていないので、ハイライトがどう変わったかはここからは言えない。
 - 参考：grace_v2_local（Ollama）の同じ例文では、指摘されたルールの組は同じだったが、
   適正LP案は「候補 1 件を ④' で抑止して 0 件」だった（こちらは抑止も 0 件）。
-  local の実行ログは grace_v2_local の backend/docs/GRACE-Review_例文3件.txt。
+  local の実行ログは grace_v2_local の docs/examples/GRACE-Review_例文3件.txt。
 
 ■ 読み方の注意
 
