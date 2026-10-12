@@ -1,6 +1,6 @@
 # インストール・環境構築ガイド（Q/A 生成・Qdrant 登録まわり）
 
-**Version 2.8** | 最終更新: 2026-10-11
+**Version 2.9** | 最終更新: 2026-10-12
 
 ---
 
@@ -35,7 +35,7 @@
 > （Gemini は Embedding 専用）。
 >
 > **アプリ全体のセットアップ（uv / Node.js / .env / 起動）は
-> [`backend/docs/install_and_setup.md`](../backend/docs/install_and_setup.md) が正。**
+> [`README.md` §7](../README.md) が正。**
 > 本書はそれを前提に、パイプライン固有の準備だけを扱う。
 
 > **種別 B**（`a_cross_doc_md_format.md` §6）。**状態: 現行（2026-09-20 改訂。手順書）**
@@ -109,7 +109,7 @@ class User,React,API,Anthropic,Gemini,Qdrant,Redis,Celery default
 > `python -m venv` ＋ `pip install -r requirements.txt` の手順は現行ではない。
 >
 > Python・`uv`・Node.js の導入と依存インストールは
-> **[`backend/docs/install_and_setup.md`](../backend/docs/install_and_setup.md) §2〜§3** が正。
+> **[`README.md` §7.1](../README.md)** が正。
 
 ```bash
 # 依存インストール（リポジトリルートで）
@@ -862,3 +862,4 @@ grace_v2/
 | 2.6 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
 | 2.7 | 2026-10-08 | 現在の既定 LLM の記述（構成図・依存表・API キー表の 3 箇所）を `claude-sonnet-5` → 実装（`config.py::ModelConfig.DEFAULT_MODEL`）どおり `claude-sonnet-5-5` へ是正（2026-10-08） |
 | 2.8 | 2026-10-11 | `qa_qdrant/docs/01_install.md` から直下 `docs/data_prep_install.md` へ改名して移した（`chunking/`・`qa_generation/`・`qa_qdrant/` にまたがる環境構築のため。`a_cross_doc_md_format.md` §1.4）。相対リンクを移動先に合わせた。本文は変えていない |
+| 2.9 | 2026-10-12 | backend/docs/ の横断文書の廃止（2026-10-12）に追随し、参照先を backend/app/docs/README_app.md・backend/app/api/docs/README_api.md・backend/app/core/docs/core_process_flow.md などへ付け替えた |

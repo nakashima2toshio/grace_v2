@@ -1,6 +1,6 @@
 # data_pipeline_service.py - データ準備パイプラインの Web 向けラッパ層 ドキュメント
 
-**Version 1.5** | 最終更新: 2026-10-10
+**Version 1.6** | 最終更新: 2026-10-12
 
 ---
 
@@ -26,7 +26,7 @@
 
 呼び出し元は `backend/app/core/data_jobs.py` の 4 つの runner
 （`chunking` / `qa` / `register` / `delete`）と `backend/app/api/qdrant.py`。
-設計全体は [`backend/docs/data_pipeline.md`](../../backend/docs/data_pipeline.md) を参照。
+設計全体は [`data_jobs.md`](../../backend/app/core/docs/data_jobs.md) を参照。
 
 ### 主な責務
 
@@ -620,6 +620,7 @@ run_chunking_sync, run_qa_generation_sync, load_input_text
 | 1.3 | 2026-10-08 | 使用例の `model` を現行の既定 `claude-sonnet-5-5`（`data_jobs.QaGenerationParams.model` と同じ）へ（2026-10-08） |
 | 1.4 | 2026-10-09 | `run_qa_generation_sync()` から処理に効いていなかった `batch_chunks` を削除。`concurrency` はログ表示用で実際の並列数はワーカーの `-c` で決まること、並列化は Celery の中だけ（`ThreadPoolExecutor` は使っていない）であることへ記述を是正（2026-10-09） |
 | 1.5 | 2026-10-10 | §4.1 使用例を処理パターン別（入力ファイルを選ぶ／チャンク化を同期で呼ぶ／Q/A 生成を同期で呼ぶ／コレクションを確かめて消す・表示用に直す）の 4 本に書き直した（2026-10-10。`grace/docs/executor.md` §4.1 を手本に、処理パターンの表 → パターンごとの例 → 落とし穴の注記の形にし、別プロセスで全例を実行して出力を確かめた）。4.1.4 は本物の Qdrant を使い、`delete_collection` がコレクションが無くても `True` を返すこと（docstring と違う）を見つけて注記。イベントループの中から `run_chunking_sync` を呼ぶと `RuntimeError` になることを例で示した |
+| 1.6 | 2026-10-12 | backend/docs/ の横断文書の廃止（2026-10-12）に追随し、参照先を backend/app/docs/README_app.md・backend/app/api/docs/README_api.md・backend/app/core/docs/core_process_flow.md などへ付け替えた |
 
 ---
 

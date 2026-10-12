@@ -1,6 +1,6 @@
 # QuestionSelectModal.tsx - 主質問の選択モーダル ドキュメント
 
-**Version 1.2** | 最終更新: 2026-10-10
+**Version 1.3** | 最終更新: 2026-10-12
 
 ---
 
@@ -30,7 +30,7 @@
 | 子 | なし |
 | 主な依存 | `../types`（`InterventionInfo`）、`react`（`useState`） |
 | 対応バックエンド | `backend/app/core/support_agent.py`（0-(A) の `analyze` ステップ）、`intervention_bridge.py`（`selected_option`） |
-| 設計 | `backend/docs/support_flow.md` §6 |
+| 設計 | `backend/app/core/docs/core_process_flow.md` §1.6 |
 
 ### 主な責務
 
@@ -242,3 +242,4 @@ interface Props {
 | 1.0 | — | 初版作成（0-(A) 入力・質問分析の主質問選択モーダル） |
 | 1.1 | 2026-09-24 | `a_react_page_md_format.md` v1.1 に追随（2026-09-24）。概要に「各責務対応のモジュール」（主な責務と 1:1）を追加し、`## 1.` を「アーキテクチャ構成図」として **1.1 システム全体での位置づけ（3 層）** と 1.2 コンポーネントツリー図の 2 枚構成にした。Mermaid の `classDef subgraphStyle` の欠落を補った |
 | 1.2 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |
+| 1.3 | 2026-10-12 | backend/docs/ の横断文書の廃止（2026-10-12）に追随し、参照先を backend/app/docs/README_app.md・backend/app/api/docs/README_api.md・backend/app/core/docs/core_process_flow.md などへ付け替えた |

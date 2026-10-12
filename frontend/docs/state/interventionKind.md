@@ -1,6 +1,6 @@
 # interventionKind.ts - 承認待ちの種類の判定 ドキュメント
 
-**Version 1.0** | 最終更新: 2026-10-12
+**Version 1.1** | 最終更新: 2026-10-12
 
 ---
 
@@ -39,8 +39,7 @@ GRACE-Support の承認待ち（`intervention` イベント）は 2 種類あり
 | 1 | 種類の判定 | `interventionKind` / `MULTI_QUESTION_REASON` | `reason` が `multi_question_selection` で、かつ `options` が 1 件以上なら `question` |
 | 2 | 安全側への既定 | `interventionKind` | 上の条件を満たさなければすべて `action` |
 
-> 📌 設計の背景は [`backend/docs/support_flow.md`](../../../backend/docs/support_flow.md) §6（0-(A) 複数質問クエリと担当範囲外）。
-> ソースのコメントにある `support_spec.md §5` は旧名である。
+> 📌 設計の背景は [`core_process_flow.md` §1.6](../../../backend/app/core/docs/core_process_flow.md)（0-(A) 複数質問クエリと担当範囲外）。
 
 ---
 
@@ -148,3 +147,4 @@ action
 | バージョン | 日付 | 変更内容 |
 |---|---|---|
 | 1.0 | 2026-10-12 | 新規作成（`a_react_page_md_format.md` §2.4 の軽量構成）。使用例は esbuild + node で実行して確かめた |
+| 1.1 | 2026-10-12 | backend/docs/ の横断文書の廃止（2026-10-12）に追随し、参照先を backend/app/docs/README_app.md・backend/app/api/docs/README_api.md・backend/app/core/docs/core_process_flow.md などへ付け替えた |

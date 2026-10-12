@@ -1,22 +1,21 @@
 # core/data_jobs.py - データ準備ジョブ runner ドキュメント
 
-**Version 1.13** | 最終更新: 2026-10-11
+**Version 1.14** | 最終更新: 2026-10-12
 
 > **本書の位置づけ**: `backend/app/core/data_jobs.py`（データ準備 4 ジョブの runner）の **IPO リファレンス**。
 > 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。
 >
 > | 知りたいこと | 参照先 |
 > |---|---|
-> | パイプラインの中身 | [`data_pipeline.md`](../../../docs/data_pipeline.md) |
-> | ジョブ基盤・runner 注入 | [`job_runtime.md` §3](../../../docs/job_runtime.md) |
-> | LLM と Embedding のプロバイダ分離 | [`config_and_providers.md`](../../../docs/config_and_providers.md) |
-> | 文書全体の地図 | [`README.md`](../../../docs/README.md) |
+> | ジョブ基盤・runner 注入 | [`core_process_flow.md` §3.2](core_process_flow.md) |
+> | LLM と Embedding のプロバイダ分離 | [`README_app.md` §4.3](../../docs/README_app.md) |
+> | 文書全体の地図 | [`README_app.md`](../../docs/README_app.md) |
 
 > **参考ドキュメント**
 > - [`backend/app/api/docs/data.md`](../../api/docs/data.md) — 本モジュールを起動する API 層
 > - [`backend/app/core/docs/jobs.md`](./jobs.md) — ジョブ基盤（`register_runner` / `JobManager`）
 > - [`backend/app/core/docs/job_logs.md`](./job_logs.md) — `capture_logs()` の仕組み
-> - [`backend/docs/data_pipeline.md`](../../../docs/data_pipeline.md) — パイプライン全体の設計
+> - [`backend/app/core/docs/core_process_flow.md`](./core_process_flow.md) §3 — 3 系統が共有するジョブ基盤の流れ
 
 ---
 
@@ -283,7 +282,7 @@ print(job.kind, job.status, job.result)
 
 > 📌 失敗は例外ではなく `error` イベント → `status: failed`（`result` は `None`）で返る。API はこれをそのまま SSE と `GET /api/data/result` に出す
 > （[`api/docs/data.md` §3.1.1](../../api/docs/data.md#31-使用例)）。実際にチャンク化まで進めると LLM を呼ぶ（課金される）ので、ここでは手前で止まる入力にした。
-> 画面から実行する手順は [`data_pipeline.md` §5](../../../docs/data_pipeline.md#5-使用例)。
+> 画面から実行する手順は 本書 §6。
 
 
 ### 4.2 `ChunkingParams`
@@ -517,6 +516,33 @@ register_runner(DeleteParams,   _delete_runner,   "delete")
 > このモジュールを import するので、**登録漏れは構造的に起きない**
 > （`review_agent.py` と同じ方式）。
 
+### 画面・API から流す手順
+
+> 📝 旧 `backend/docs/data_pipeline.md` §5 をここへ移した（2026-10-12）。
+
+画面からは `./run_dev.sh` → 「データ管理」タブの ① チャンキング → ② Q/A 作成 → ③ Qdrant 登録 → ④ コレクション管理。API を直接叩くときは次のとおり。
+
+```bash
+curl -s localhost:8000/api/qdrant/collections | jq                 # コレクション一覧
+curl -s 'localhost:8000/api/files?dir=OUTPUT' | jq '.files[].path'  # 入力ファイルの候補
+
+JOB=$(curl -s -X POST localhost:8000/api/chunking/run \
+  -H 'Content-Type: application/json' \
+  -d '{"input_file":"OUTPUT/cc_news_1per.csv","workers":8}' | jq -r .job_id)
+curl -N localhost:8000/api/data/stream/$JOB                         # 進捗（先頭からリプレイされる）
+
+# 削除は承認が要る。SSE の intervention から intervention_id を取って承認する
+JOB=$(curl -s -X POST localhost:8000/api/qdrant/delete \
+  -H 'Content-Type: application/json' -d '{"collections":["old_collection"]}' | jq -r .job_id)
+curl -s -X POST localhost:8000/api/data/confirm/$JOB \
+  -H 'Content-Type: application/json' -d '{"intervention_id":"<SSE で受け取った ID>","approve":true}'
+```
+
+- 画面はタブ切替で SSE の購読が切れるが、`job_id` があれば購読し直せる（イベントは先頭からリプレイされ、承認待ちも戻る）。
+  **先に `GET /api/data/result/{job_id}` で存在を確かめる**。完了ジョブは 50 件で消え、消えた ID に SSE でつなぐと「切断されました」という誤ったエラーになる。
+- 承認を経ずに消す API は無い（HTTP の `DELETE` メソッドを使っていないのはこのため）。
+- 大規模バッチや `--resume` は従来どおり CLI の方が向く（`python -m chunking.csv_text_to_chunks_text_csv` / `qa_qdrant/register_to_qdrant.py` / `qdrant_delete_collection.py`）。
+
 ---
 
 ## 7. 変更履歴
@@ -537,3 +563,4 @@ register_runner(DeleteParams,   _delete_runner,   "delete")
 | 1.11 | 2026-10-11 | §5.3 に、`_chunking_runner` が `ResumeMismatchError`（再開 ID のジョブが別の入力・設定で作られている）を分けて捕まえることを追記した |
 | 1.12 | 2026-10-11 | Q/A 生成の失敗の扱いを変えたのに追随（全チャンクの失敗は `QAPipeline.run()` が `RuntimeError`、一部の失敗は `failed_chunks` をジョブのログに出す） |
 | 1.13 | 2026-10-11 | `backend/docs/reference/core_data_jobs.md` から移した（`a_cross_doc_md_format.md` §1.1.2。リンクを付け替えた）。§4.1.2 を起動だけの断片から実行できる例へ作り直し、kind の記載を `data` → `chunking`（実装どおり）に是正。パターンの表を追加 |
+| 1.14 | 2026-10-12 | backend/docs/ の横断文書の廃止（2026-10-12）に追随し、参照先を backend/app/docs/README_app.md・backend/app/api/docs/README_api.md・backend/app/core/docs/core_process_flow.md などへ付け替えた |

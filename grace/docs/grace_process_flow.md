@@ -1,6 +1,6 @@
 # grace_process_flow.md - grace/ 処理フロー
 
-**Version 4.0** | 最終更新: 2026-10-10
+**Version 4.1** | 最終更新: 2026-10-12
 
 GRACE を 1 クエリ動かしたときの**処理の流れ**（どの順で・どのモジュールが・どんな条件で分岐するか）をまとめる。
 各関数の引数・戻り値は各モジュールの文書（IPO）に、外部 API に渡るデータとプロンプトの所在は
@@ -225,7 +225,7 @@ decided      = supported + contradicted
 
 両エージェントのステップごとに、grace のどのモジュール（シンボル）が効くか。ステップの実行順の図は
 [`docs/pipelines.md`](../../docs/pipelines.md) §2、ステップ内部の設計は
-[`backend/docs/support_flow.md`](../../backend/docs/support_flow.md) / [`backend/docs/review_flow.md`](../../backend/docs/review_flow.md) が正本。
+[`core_process_flow.md` §1](../../backend/app/core/docs/core_process_flow.md) / [`core_process_flow.md` §2](../../backend/app/core/docs/core_process_flow.md) が正本。
 
 **GRACE-Support（基本版も同じ）** — `support_agent.py::STEP_IDS` の順。「—」は grace を使わず `backend/app/core/` の純関数だけで判定するステップ。
 
@@ -421,8 +421,8 @@ sequenceDiagram
 | [`grace_data_flow.md`](./grace_data_flow.md) | 外部 API に渡るデータ・プロンプトの所在・実行メモリと較正ファイルの形式 |
 | [`executor.md`](./executor.md) | `Executor` の IPO と使用例（処理パターン 4 通り） |
 | [`confidence.md`](./confidence.md) / [`calibration.md`](./calibration.md) | 信頼度・根拠検証・較正の IPO |
-| [`backend/docs/support_flow.md`](../../backend/docs/support_flow.md) | GRACE-Support の各ステップの設計（grace の外側の判定を含む） |
-| [`backend/docs/review_flow.md`](../../backend/docs/review_flow.md) | GRACE-Review の各ステップの設計 |
+| [`core_process_flow.md` §1](../../backend/app/core/docs/core_process_flow.md) | GRACE-Support の各ステップの設計（grace の外側の判定を含む） |
+| [`core_process_flow.md` §2](../../backend/app/core/docs/core_process_flow.md) | GRACE-Review の各ステップの設計 |
 
 ---
 
@@ -443,3 +443,4 @@ sequenceDiagram
 | 3.6 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
 | 3.7 | 2026-10-10 | `grace/step_trace/`（`benchmark.py` を含む）を 2026-10-10 にディレクトリごと削除したのに追随し、現状を述べる記述から外した（過去の経緯の記述は残す） |
 | 4.0 | 2026-10-10 | **`grace_core.md` を `grace_process_flow.md` へ改称し、処理フローの文書に作り直した**（`a_cross_doc_md_format.md` §1.3）。(1) 概要・モジュール役割サマリー・エクスポート・最小実行サンプルは `README_grace.md` へ、実行メモリの章（旧 §4）は `grace_data_flow.md` §3.3 へ移した。(2) 旧 `confidence_calibration.md` の処理順・ブレンドの式を §2.2 へ、旧 `README.md` の GRACE-Support / GRACE-Review の対応表を §2.3 へ移し、両文書を削除した。(3) 実装と突き合わせて次を是正した: `executor.max_parallel_steps` の既定は 3 ではなく 4、全体信頼度には `decide_action` を掛けない（旧 `confidence_calibration.md` の手順 8 は誤り）、介入で止まるのは ESCALATE と対話モードの CONFIRM だけ、リプランの低信頼の発火は検索ステップに限る、`determine_strategy` は `SKIP` を選ばない。(4) 分岐・例外・中断（§3）と静的パスの 14 段の表（§2.1）を新設した |
+| 4.1 | 2026-10-12 | backend/docs/ の横断文書の廃止（2026-10-12）に追随し、参照先を backend/app/docs/README_app.md・backend/app/api/docs/README_api.md・backend/app/core/docs/core_process_flow.md などへ付け替えた |

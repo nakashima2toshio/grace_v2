@@ -1,13 +1,13 @@
 # データ管理（チャンキング / Q&A 生成 / Qdrant CRUD） — 移転のお知らせ
 
-**Version 2.2** | 最終更新: 2026-10-11
+**Version 2.3** | 最終更新: 2026-10-12
 
 ---
 
-> # 📦 本書の内容は `backend/docs/` へ移転しました
+> # 📦 本書の内容は各モジュールの文書へ移転しました
 >
 > v1.0（2,313 行・2026-08-05）は、データ管理機能の IPO 詳細をこの 1 ファイルに
-> まとめていました。その後 `backend/docs/` に**モジュール単位の文書が整備され、
+> まとめていました。その後 `backend/app/**/docs/`・`services/docs/` などに**モジュール単位の文書が整備され、
 > 記述対象が完全に重複**したため、本書は**索引**に役割を変えます。
 >
 > **v1.0 の内容は git 履歴に残っています**（`git show HEAD~1:README_DATA.md`）。
@@ -34,7 +34,7 @@
 
 | 知りたいこと | 文書 |
 |---|---|
-| **データ準備 3 工程の設計全体**（チャンク化 → Q/A 生成 → Qdrant 登録） | [`backend/docs/data_pipeline.md`](./backend/docs/data_pipeline.md) |
+| **データ準備 3 工程の設計全体**（チャンク化 → Q/A 生成 → Qdrant 登録） | [`data_jobs.md`](backend/app/core/docs/data_jobs.md) |
 | 画面から何ができるか・操作と実装の対応 | [`README.md`](./README.md) §4.5「データ管理画面」 |
 | 環境構築（MeCab / Docker / Celery） | [`docs/data_prep_install.md`](./docs/data_prep_install.md) |
 | Celery 並列の起動手順 | [`docs/celery_quick_start.md`](./docs/celery_quick_start.md) |
@@ -71,7 +71,7 @@
 | `JobLogHandler` / `capture_logs` / `_acquire_level` / `_release_level` | `backend/app/core/docs/job_logs.md` |
 | `ChunkingParams` / `RegisterParams` / `DeleteParams` / `QaGenerationParams` | `backend/app/api/docs/data.md`・`backend/app/core/docs/data_jobs.md` |
 | `_chunking_runner` / `_register_runner` / `_qa_runner` / `_ask_confirmation` | `backend/app/core/docs/data_jobs.md` |
-| `resolve_allowed_dir` / `list_input_files` / `resolve_input_file` | `backend/docs/data_pipeline.md`・`backend/app/api/docs/qdrant.md` |
+| `resolve_allowed_dir` / `list_input_files` / `resolve_input_file` | `services/docs/data_pipeline_service.md`・`backend/app/api/docs/qdrant.md` |
 | `delete_collection` / `collection_exists` | `backend/app/api/docs/data.md`・`backend/app/api/docs/qdrant.md` |
 | `dataframe_to_records` / `collection_columns` | `backend/app/api/docs/qdrant.md` |
 | `run_chunking_sync` / `load_input_text` | `backend/app/core/docs/data_jobs.md` |
@@ -91,3 +91,4 @@
 | 2.0 | 2026-09-12 | **索引へ変更。** 記述対象 18 件がすべて `backend/docs/` 側にも存在し（実測）、かつ v1.0 は「② Q/A 作成」を一切含まない陳腐化状態だったため、内容の二重保守をやめて移転先を示す形にした。v1.0 の本文は git 履歴（`git show <この commit>~1:README_DATA.md`）で参照できる |
 | 2.1 | 2026-10-11 | 環境構築と Celery の手順書へのリンクを、移動先（直下 `docs/data_prep_install.md`（旧 `qa_qdrant/docs/01_install.md`）・`docs/celery_quick_start.md`）に直した |
 | 2.2 | 2026-10-11 | backend のモジュール文書を `backend/docs/reference/` から `backend/app/docs/`・`backend/app/api/docs/`・`backend/app/core/docs/` へ移したのに追随（リンクの付け替え） |
+| 2.3 | 2026-10-12 | backend/docs/ の廃止にあわせ、冒頭の移転先と resolve_allowed_dir ほかの移転先（services/docs/data_pipeline_service.md）を直した |

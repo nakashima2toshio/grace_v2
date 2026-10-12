@@ -1,6 +1,6 @@
 # ガードレール（評価・判定）設計
 
-**Version 1.1** | 最終更新: 2026-10-10
+**Version 1.2** | 最終更新: 2026-10-12
 
 ---
 
@@ -338,7 +338,7 @@ Support の「回答せず escalate」と同じ考え方（誤って人に届け
 ⚠️ **GA（複数質問の構造解析）には専用フラグ `judges.multi_question` がある。**
 他の補助判定は切ってもキーワード判定という同等の代替に倒れるが、GA には代替が無く、
 切ると複数質問の片方が**無言で落ちたまま高信頼として提示される**
-（`backend/docs/support_flow.md`）。そのため向こうでも既定 `true` にしてある。
+（`backend/app/core/docs/core_process_flow.md` §1.6）。そのため向こうでも既定 `true` にしてある。
 
 ---
 
@@ -377,3 +377,4 @@ Support の「回答せず escalate」と同じ考え方（誤って人に届け
 |---|---|---|
 | 1.0 | 2026-09-24 | `a_cross_doc_md_format.md`（横断文書・種別 A）に準拠し、版管理を開始（2026-09-24）。Version ヘッダー・目次・概要（主な責務／各責務対応のモジュール／3 層のアーキテクチャ構成図）・変更履歴を追加。本文の章番号は変えていない |
 | 1.1 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |
+| 1.2 | 2026-10-12 | backend/docs/ の横断文書の廃止（2026-10-12）に追随し、参照先を backend/app/docs/README_app.md・backend/app/api/docs/README_api.md・backend/app/core/docs/core_process_flow.md などへ付け替えた |

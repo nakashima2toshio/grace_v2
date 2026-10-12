@@ -1,16 +1,16 @@
 # core/review_gates.py - 文書レビューの判定・抑止ロジック ドキュメント
 
-**Version 1.5** | 最終更新: 2026-10-11
+**Version 1.6** | 最終更新: 2026-10-12
 
 > **本書の位置づけ**: `backend/app/core/review_gates.py`（Review の判定ロジック（二段判定・抑止・救済・重大度））の **IPO リファレンス**。
 > 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。
 >
 > | 知りたいこと | 参照先 |
 > |---|---|
-> | 各段のどこで呼ばれるか・なぜその判定か | [`review_flow.md` §4](../../../docs/review_flow.md) |
+> | 各段のどこで呼ばれるか・なぜその判定か | [`core_process_flow.md` §2.3](core_process_flow.md) |
 > | Support 側の同型ロジック | [`core/docs/gates.md`](./gates.md) |
-> | モデル解決（`detect_model`） | [`config_and_providers.md` §2](../../../docs/config_and_providers.md) |
-> | 文書全体の地図 | [`README.md`](../../../docs/README.md) |
+> | モデル解決（`detect_model`） | [`README_app.md` §4.3.1](../../docs/README_app.md) |
+> | 文書全体の地図 | [`README_app.md`](../../docs/README_app.md) |
 
 ---
 
@@ -900,6 +900,7 @@ from backend.app.core.review_gates import (
 | 1.3 | 2026-09-16 | 3 階建て再編（`reference/` へ移設）に伴い、冒頭へ**位置づけと上位文書への導線**を追加した |
 | 1.4 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随 |
 | 1.5 | 2026-10-11 | `backend/docs/reference/core_review_gates.md` から移した（`a_cross_doc_md_format.md` §1.1.2。リンクを付け替えた）。§4.1 の 3 例を実行して記載どおりであることを確かめ、パターンの表を追加。§4 の `select_candidate_rules` が「`always_check` を全件候補に加える」と実装と逆のことを書いていたのを是正し（表記漏れは `select_document_rules` が文書全体で返す）、未記載だった `_mask_excludes` を追加した。例は実行で確かめた |
+| 1.6 | 2026-10-12 | backend/docs/ の横断文書の廃止（2026-10-12）に追随し、参照先を backend/app/docs/README_app.md・backend/app/api/docs/README_api.md・backend/app/core/docs/core_process_flow.md などへ付け替えた |
 
 ---
 

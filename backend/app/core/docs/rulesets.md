@@ -1,15 +1,15 @@
 # core/rulesets.py - 文書レビューのルールセット定義 ドキュメント
 
-**Version 1.7** | 最終更新: 2026-10-11
+**Version 1.8** | 最終更新: 2026-10-12
 
 > **本書の位置づけ**: `backend/app/core/rulesets.py`（`RuleSet` / `RuleItem`（`ec_ad`・23 ルール）— **ルール定義の正本**）の **IPO リファレンス**。
 > 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。
 >
 > | 知りたいこと | 参照先 |
 > |---|---|
-> | カタログと増やし方 | [`verticals_and_rulesets.md` §2・§3.2](../../../docs/verticals_and_rulesets.md) |
-> | ルールが効く段 | [`review_flow.md` §4.4](../../../docs/review_flow.md) |
-> | 文書全体の地図 | [`README.md`](../../../docs/README.md) |
+> | カタログと増やし方 | 本書 §6.3 |
+> | ルールが効く段 | [`core_process_flow.md` §2.4](core_process_flow.md) |
+> | 文書全体の地図 | [`README_app.md`](../../docs/README_app.md) |
 
 ---
 
@@ -302,7 +302,7 @@ for law, n in collections.Counter(r.law for r in rs.rules).items():
 
 > ⚠️ **件数を文書へ書くときは、この方法で数える。** 過去に `RuleSet` へルールを足した際、
 > 本書 §5.4 の一覧と `review_spec.md` の表が 21 件のまま取り残された
-> （[`docs_audit.md` §1](../../../docs/docs_audit.md) 問題 #7・#8）。
+> （当時の `backend/docs/docs_audit.md` §1 問題 #7・#8。同文書は 2026-10-12 に削除）。
 
 #### 4.1.3 1 ルールが ②〜④ へ供給するもの
 
@@ -760,6 +760,64 @@ RULESETS[FIN_AD.id] = FIN_AD
 4. `backend/app/schemas.py` の `ReviewRequest.ruleset`（`Literal[...]`）へ ID を追加する
 5. `frontend/src/types.ts` に影響が無いことを確認する（`RuleSetInfo` は ID を文字列で持つため通常は不要）
 
+### 6.3 既存のルールセットへルールを増やす
+
+> 📝 旧 `backend/docs/verticals_and_rulesets.md` §3.2 をここへ移した（2026-10-12）。
+
+1. 該当リスト（`_KEIHYO_RULES` 等）へ `RuleItem` を追加する
+2. `description` の第 1 段落は**条文の要点を自己完結的に**書く。規程コレクションに条文が無いとき、
+   この要旨（`public_description()`）と `article` が ④ Ground の根拠の代わりになる。2 段落目以降は ③ Detect の LLM への指示文で、根拠には使わない
+3. 「表記漏れ」を見るルールは `always_check=True` にし、`keywords` を**持たせない**（排他は `tests/test_rulesets.py` が固定）
+4. 件数や `always_check` / `web_check` の数を変えたら、§5.4 の一覧と概要の件数を直す
+5. 規程コレクションへ、そのルールの行を足して登録し直す（§6.4）
+6. 法務監修を通す（**本ルールセットは技術検証用のサンプルである**）
+
+### 6.4 規程コレクションの準備（`ec_ad_rules_anthropic`）
+
+> 📝 旧 `backend/docs/data_pipeline.md` 付録 A を要約してここへ移した（2026-10-12）。経緯と残作業は
+> [`docs/review_rag_rules_todo.md`](../../../../docs/review_rag_rules_todo.md)。
+
+GRACE-Review が条文つきの指摘を出すには、② Retrieve が引く規程コレクションに条文が入っている必要がある。
+入っていないと根拠はすべて要旨（条文フォールバック）になり、`policy-01` は自社の規程を引けないので機能しない。
+
+**CSV の形式**（`qa_qdrant/register_to_qdrant.py` は `question` と `answer` があれば `question + "\n" + answer` を埋め込む）:
+
+| 列 | 必須 | 用途 |
+|---|---|---|
+| `question` | ✅ | 埋め込み対象。画面の引用ラベル（`[規程] …`）にもなる。**ルールのタイトルを含める**（含めないと検索が当たらない） |
+| `answer` | ✅ | 埋め込み対象。④ Ground へ渡す根拠の本文 |
+| `topic` ほか | — | payload に来歴として残る |
+
+**手順**:
+
+1. 雛形を書き出す: `PYTHONPATH=. python3 scripts/export_ruleset_to_csv.py --ruleset ec_ad` → `qa_output/ec_ad_rules.csv`（全ルール 1 行ずつ。`answer` はこのリポジトリの要旨）
+2. **`answer` を実際の条文・ガイドラインの本文へ置き換える。** 要旨のまま登録しても根拠の中身は条文フォールバックと同じである。
+   置き換え済みの雛形が `qa_output/ec_ad_rules_statutes_template.csv`（**grace_v2 にだけ置く**。CLAUDE.md §5）。
+   1 条が長いときは判定に使う単位で行を分ける
+3. 登録する:
+
+   ```bash
+   python qa_qdrant/register_to_qdrant.py \
+     --input-file qa_output/ec_ad_rules_statutes_template.csv \
+     --collection ec_ad_rules_anthropic --recreate --no-create-ui-csv
+   ```
+
+4. `policy-01` 用の自社規程（返品期限・送料・解約条件などの一覧）は `ec_policy_anthropic` へ**`--recreate` を付けずに**足す
+   （付けると既存の返品・返金 FAQ が消える）
+
+| 注意 | 理由 |
+|---|---|
+| `--provider` は既定（gemini）のまま | 他の Embedding にすると次元が変わり、`RAGSearchTool` の次元不一致の判定で**黙って検索対象から外れる** |
+| `--no-create-ui-csv` を付ける | 付けないと「UI 用 CSV」（2 列）が `qa_output/<同じファイル名>` に書かれ、**入力 CSV 自身が上書きされて `topic` 列が消える**（2026-09-30 実測） |
+| 再登録は冪等 | ポイント ID が `question + answer` の内容ハッシュなので、同じ CSV を入れ直しても重複しない |
+| スコアは 0.70 以上が要る | `evidence_min_score`（§5.1）未満は根拠に採らない。② のクエリは `retrieval_query()`（タイトル＋要旨）なので、`question` にタイトル・`answer` に条文を置けば届く |
+| `policy-01` は条文コレクションを引かない | `evidence_query` / `evidence_collections` で検索を `ec_policy_anthropic` に向けている。ルール文で引くと `ec_ad_rules_anthropic` の自分自身の行が 0.9380 で当たり、本命の規程が `evidence_top_ratio` に阻まれるため（2026-08-19 実測） |
+
+**登録後の確認**: 件数と次元（3072）を `curl -s http://localhost:6333/collections/ec_ad_rules_anthropic` で見たうえで Review を流し、
+ログの `規程 0 件` が `規程 N 件` に変わることを確かめる。`検索: 5 件` のうち**根拠に採られるのが上位 1〜2 件なのは正常**
+（互いに似た条文が並ぶため、`evidence_top_ratio` 0.92 で他ルールの条文を落としている。落とさないと指摘文が他ルールの主題へ越境する）。
+`規程 0 件` のままなら、`[retrieve] 関連度が低い規程を根拠にしません（< 0.70）` のログのスコアを見て `question` の文言を見直す。
+
 ---
 
 ## 7. エクスポート
@@ -791,6 +849,7 @@ RULESETS[FIN_AD.id] = FIN_AD
 | 1.5 | 2026-09-16 | 3 階建て再編（`reference/` へ移設）に伴い、冒頭へ**位置づけと上位文書への導線**を追加した |
 | 1.6 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |
 | 1.7 | 2026-10-11 | `backend/docs/reference/core_rulesets.md` から移した（`a_cross_doc_md_format.md` §1.1.2。リンクを付け替えた）。§4.1 の 3 例を実行して記載どおりであることを確かめ、パターンの表を追加。未記載だった `public_description()` を §3・§4.2 に追加し、`retrieval_query()` / `citation()` / `evidence_query` の説明を実装どおり「`description` 全文」→「第 1 段落（要旨）」に是正した |
+| 1.8 | 2026-10-12 | §6.3 ルールを増やす手順・§6.4 規程コレクションの準備を追加（旧 backend/docs/verticals_and_rulesets.md §3.2 と data_pipeline.md 付録 A を要約して移した。backend/docs/ の廃止に伴う） |
 
 ---
 

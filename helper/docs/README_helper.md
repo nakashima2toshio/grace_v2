@@ -1,6 +1,6 @@
 # README_helper.md - helper/ ディレクトリ概要
 
-**Version 1.4** | 最終更新: 2026-10-11
+**Version 1.5** | 最終更新: 2026-10-12
 
 `helper/` の入口となる文書。ディレクトリの役割・モジュール索引・組み合わせ方・import のしかた・既知の制約をまとめる。
 文書を新しく書く／直す前に、まずここを見る。
@@ -249,7 +249,7 @@ print(root.level, len(root.handlers))
 | 流れ | 文書 |
 |---|---|
 | 検索（dense＋sparse・hybrid） | `grace/docs/tools.md`・`grace/docs/grace_process_flow.md` |
-| 登録（Q/A CSV → Embedding → Qdrant） | `services/docs/qdrant_service.md`・`backend/docs/data_pipeline.md` |
+| 登録（Q/A CSV → Embedding → Qdrant） | `services/docs/qdrant_service.md`・`backend/app/core/docs/data_jobs.md` |
 | チャンク化・Q/A 生成 | `chunking/docs/README_chunking.md`・`qa_generation/docs/README_qa_generation.md` |
 
 読み書きするファイル・外部 API:
@@ -310,3 +310,4 @@ print(root.level, len(root.handlers))
 | 1.2 | 2026-10-11 | 本番の呼び出し元が無かった `helper_rag.py` / `helper_rag_qa.py` / `helper_embedding_fastembed.py` と `helper_text.py` の `clean_text` 以外の関数を削除したのに追随。3 モジュールの文書を `archive/` へ移し、§1 の索引・依存関係・§2.3（import の副作用が無くなった）・§4・§5・§5.1 を更新した。§2 を実行し直して出力を確かめた |
 | 1.3 | 2026-10-11 | `qa_generation/docs/` の構成整理（`README.md` → `README_qa_generation.md`、`__init__.md` を統合、`make_qa_qapipeline.md` → `qa_generation_process_flow.md`）に合わせてリンクを直した |
 | 1.4 | 2026-10-11 | `qa_generation` が import でルートロガーを INFO にしなくなったのに追随し、§ の import 副作用の例の出力（`20 1` → `30 0`）と注記を直した（実行して確かめた） |
+| 1.5 | 2026-10-12 | backend/docs/ の横断文書の廃止（2026-10-12）に追随し、参照先を backend/app/docs/README_app.md・backend/app/api/docs/README_api.md・backend/app/core/docs/core_process_flow.md などへ付け替えた |

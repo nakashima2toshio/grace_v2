@@ -1,7 +1,7 @@
 # backend/app/api/review.py
 """文書レビュー API（ジョブ起動 / SSE 進捗 / HITL 応答 / 結果取得）。
 
-設計: `backend/docs/api_contract.md`。
+設計: `backend/app/api/docs/README_api.md` §4。
 
 `api/support.py` と**構造は同一**で、違うのはジョブのパラメータ型
 （`ReviewParams`）と結果の型（`ReviewResultModel`）だけ。ジョブ基盤・SSE・
@@ -10,7 +10,7 @@ HITL ブリッジは STEP3 で汎用化済みの `jobs.py` をそのまま使う
 
 ⚠️ `backend.app.core.review_agent` の import には副作用がある — import 時に
 `register_runner(ReviewParams, ...)` が走る。`ReviewParams` を使う以上この
-import は必ず発生するので、登録漏れは構造的に起きない（`backend/docs/job_runtime.md` §3）。
+import は必ず発生するので、登録漏れは構造的に起きない（`backend/app/core/docs/core_process_flow.md` §3.2）。
 """
 from __future__ import annotations
 

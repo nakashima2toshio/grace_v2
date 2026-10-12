@@ -1,16 +1,16 @@
 # schemas.py - API スキーマ（Pydantic）ドキュメント
 
-**Version 1.15** | 最終更新: 2026-10-11
+**Version 1.16** | 最終更新: 2026-10-12
 
 > **本書の位置づけ**: `backend/app/schemas.py`（API のリクエスト / レスポンス / イベントの Pydantic スキーマ）の **IPO リファレンス**。
 > 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。
 >
 > | 知りたいこと | 参照先 |
 > |---|---|
-> | エンドポイント一覧・SSE ワイヤ形式・`types.ts` 対応 | [`api_contract.md`](../../docs/api_contract.md) |
-> | SupportResult の各段での埋まり方 | [`support_flow.md`](../../docs/support_flow.md) |
-> | ReviewResult の各段での埋まり方 | [`review_flow.md` §8](../../docs/review_flow.md) |
-> | 文書全体の地図 | [`README.md`](../../docs/README.md) |
+> | エンドポイント一覧・SSE ワイヤ形式・`types.ts` 対応 | [`README_api.md` §4](../api/docs/README_api.md) |
+> | SupportResult の各段での埋まり方 | [`core_process_flow.md` §1](../core/docs/core_process_flow.md) |
+> | ReviewResult の各段での埋まり方 | [`core_process_flow.md` §2.6](../core/docs/core_process_flow.md) |
+> | 文書全体の地図 | [`README_app.md`](README_app.md) |
 
 ---
 
@@ -926,7 +926,7 @@ class ModelInfo(BaseModel):
 >
 > ⚠️ **Embedding は選択肢（`ModelChoice`）に出ない。** Gemini `gemini-embedding-001`（3072 次元）固定。
 > `ModelInfo.embedding_model` / `embedding_dims` は画面の注記に実名を出すためだけに返す
-> （[`config_and_providers.md` §3.1](../../docs/config_and_providers.md)）。
+> （[`README_app.md` §4.3.2](README_app.md)）。
 
 ---
 
@@ -1157,6 +1157,7 @@ ReviewResultModel, ReviewJobStatusResponse, RuleSetInfo
 | 1.13 | 2026-10-09 | `QaGenerationRequest.batch_chunks` を削除（処理に使われていなかった。古いクライアントが送っても無視される）。`concurrency` は表示用である旨を注記 |
 | 1.14 | 2026-10-10 | 概要の「主な責務」と「各責務対応のモジュール」を実クラスに合わせて組み直した（9 項目・1:1）。Review・データ準備・Qdrant 参照系・ルールセット/モデルのメタ情報が欠けており、旧表は責務 5「入力値の制約」と行 5「メタ情報」が食い違っていた。変更履歴を 3 列へ移した |
 | 1.15 | 2026-10-11 | `backend/docs/reference/schemas.md` から移した（`a_cross_doc_md_format.md` §1.1.2。リンクを付け替えた）。§4.1 を、実行しても何も出力しない例から、実行して確かめた 2 パターン（リクエストの検証と 422 になる入力 / 応答モデルが runner の dict を検証する）へ作り直した。§4.13 `RuleSetInfo` の戻り値例を実装どおり（`rule_count` 23・`always_check_count` 7・`laws` に社内規程）に是正 |
+| 1.16 | 2026-10-12 | backend/docs/ の横断文書の廃止（2026-10-12）に追随し、参照先を backend/app/docs/README_app.md・backend/app/api/docs/README_api.md・backend/app/core/docs/core_process_flow.md などへ付け替えた |
 
 ---
 

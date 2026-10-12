@@ -1,15 +1,15 @@
 # core/verticals.py - 業界プロファイル定義 ドキュメント
 
-**Version 1.6** | 最終更新: 2026-10-11
+**Version 1.7** | 最終更新: 2026-10-12
 
 > **本書の位置づけ**: `backend/app/core/verticals.py`（`VerticalProfile` / `PROFILES` / `ActionRequest`）の **IPO リファレンス**。
 > 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。
 >
 > | 知りたいこと | 参照先 |
 > |---|---|
-> | プロファイルの中身と増やし方 | [`verticals_and_rulesets.md` §1・§3.1](../../../docs/verticals_and_rulesets.md) |
-> | プロファイルが効く段 | [`support_flow.md` §4.1](../../../docs/support_flow.md) |
-> | 文書全体の地図 | [`README.md`](../../../docs/README.md) |
+> | プロファイルの中身と増やし方 | 本書 §6.3 |
+> | プロファイルが効く段 | [`core_process_flow.md` §1.2](core_process_flow.md) |
+> | 文書全体の地図 | [`README_app.md`](../../docs/README_app.md) |
 
 ---
 
@@ -272,7 +272,7 @@ print(gov.build_closing_instruction(["明日の東京の天気は？"]).splitlin
 # 【この問い合わせに含まれる担当範囲外の質問】
 ```
 
-> 📎 なぜ位置を分けるのかは [`support_flow.md` §5.5](../../../docs/support_flow.md#65-担当範囲外の質問断って窓口案内する)
+> 📎 なぜ位置を分けるのかは [`core_process_flow.md` §1.6](core_process_flow.md)
 > を参照（業務方針側に混ぜると、後段の【回答の構成ルール】に負けてモデルが断りを落とす）。
 
 
@@ -313,7 +313,7 @@ request = ActionRequest(profile.action_map[matched], {"query": query, "matched":
 ### 4.3 VerticalProfile クラス
 
 **概要**: 業界プロファイル（差し替えの共通枠）。しきい値・エスカレ語・アクション対応・
-本人確認をまとめる。設計: `support_flow.md` §5 / `verticals_and_rulesets.md` §1。
+本人確認をまとめる。設計: [`core_process_flow.md`](core_process_flow.md) §1.3・§1.5 / 本書 §6.3。
 
 ```python
 VerticalProfile(
@@ -548,6 +548,20 @@ PROFILES["fin"] = VerticalProfile(
 )
 ```
 
+### 6.3 プロファイルを増やすときの手順
+
+> 📝 旧 `backend/docs/verticals_and_rulesets.md` §3.1 をここへ移した（2026-10-12）。
+
+1. `PROFILES` に `VerticalProfile` を追加する（`collections` / `escalate_keywords` / `action_map` /
+   `require_identity` / `notify_th` / `confirm_th` / `prompt_addendum`。6.2 の例）
+2. `collections` に挙げた Qdrant コレクションを登録する（`qa_qdrant/register_to_qdrant.py` か「データ管理」タブ）。
+   **未登録だと検索の制限が効かず、警告ログが出るだけ**で動いてしまう
+3. `GET /api/verticals` に出ることを確かめる（画面のセレクタはこの API を読む）
+4. `tests/test_vertical_scope.py` にスコープを固定するテストを足す
+
+> ⚠️ **許可リストに汎用コーパス（`wikipedia_ja` 等）を混ぜない。** 業界の外から根拠が入り込む。
+> 上記のテストがこれを固定している。
+
 ---
 
 ## 7. エクスポート
@@ -573,6 +587,7 @@ ActionRequest, VerticalProfile, PROFILES
 | 1.4 | 2026-09-16 | 3 階建て再編（`reference/` へ移設）に伴い、冒頭へ**位置づけと上位文書への導線**を追加した |
 | 1.5 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随 |
 | 1.6 | 2026-10-11 | `backend/docs/reference/core_verticals.md` から移した（`a_cross_doc_md_format.md` §1.1.2。リンクを付け替えた）。§4.1 の 3 例を実行して記載どおりであることを確かめ、パターンの表を追加 |
+| 1.7 | 2026-10-12 | §6.3 プロファイルを増やすときの手順を追加（旧 backend/docs/verticals_and_rulesets.md §3.1 を移した。backend/docs/ の廃止に伴う） |
 
 ---
 

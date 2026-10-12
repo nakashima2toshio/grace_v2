@@ -1,16 +1,16 @@
 # core/gates.py - 回答ゲート・判定ロジック ドキュメント
 
-**Version 1.7** | 最終更新: 2026-10-11
+**Version 1.8** | 最終更新: 2026-10-12
 
 > **本書の位置づけ**: `backend/app/core/gates.py`（Support の判定ロジック（質問分析・回答ゲート・救済・情報なし検知））の **IPO リファレンス**。
 > 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。
 >
 > | 知りたいこと | 参照先 |
 > |---|---|
-> | 各段のどこで呼ばれるか | [`support_flow.md` §4](../../../docs/support_flow.md) |
-> | なぜこの判定・しきい値なのか | [`support_flow.md` §5・§6](../../../docs/support_flow.md) |
-> | モデル解決（`judge_model`） | [`config_and_providers.md` §2](../../../docs/config_and_providers.md) |
-> | 文書全体の地図 | [`README.md`](../../../docs/README.md) |
+> | 各段のどこで呼ばれるか | [`core_process_flow.md` §1.2](core_process_flow.md) |
+> | なぜこの判定・しきい値なのか | [`core_process_flow.md` §1.3・§1.6](core_process_flow.md) |
+> | モデル解決（`judge_model`） | [`README_app.md` §4.3.1](../../docs/README_app.md) |
+> | 文書全体の地図 | [`README_app.md`](../../docs/README_app.md) |
 
 ---
 
@@ -237,7 +237,7 @@ style CITE fill:#1a1a1a,stroke:#fff,color:#fff
 
 ⚠️ **安全側の向きが上の判定群と逆である。** 判定できないときは「単一質問とみなす」
 （＝現行動作の維持）に倒す。誤って質問を分解する方が害が大きいため。
-設計: `backend/docs/support_flow.md` §6。
+設計: [`core_process_flow.md`](core_process_flow.md) §1.6。
 
 | 関数名 | 概要 |
 |-------|------|
@@ -1026,6 +1026,7 @@ NO_INFO_MARKERS
 | 1.5 | 2026-09-16 | 3 階建て再編（`reference/` へ移設）に伴い、冒頭へ**位置づけと上位文書への導線**を追加した |
 | 1.6 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
 | 1.7 | 2026-10-11 | `backend/docs/reference/core_gates.md` から移した（`a_cross_doc_md_format.md` §1.1.2。リンクを付け替えた）。§4.1 の 3 例を実行して記載どおりであることを確かめ、パターンの表を追加。未記載だった `drop_uncited_web_citations`（回答本文で引用していない Web 出典を表示から外す）と `_CITATION_URL_RE` を §3・§4.4 に追加した（例は実行で確かめた） |
+| 1.8 | 2026-10-12 | backend/docs/ の横断文書の廃止（2026-10-12）に追随し、参照先を backend/app/docs/README_app.md・backend/app/api/docs/README_api.md・backend/app/core/docs/core_process_flow.md などへ付け替えた |
 
 ---
 

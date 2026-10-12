@@ -1,6 +1,6 @@
 # 生成（reasoning / detect）フロー ドキュメント
 
-**Version 2.6** | 最終更新: 2026-10-11
+**Version 2.7** | 最終更新: 2026-10-12
 
 ---
 
@@ -292,9 +292,9 @@ reasoning ステップの入力を組み立てる、回答品質を左右する�
 | `prompt_addendum` | `""` | **業界プロファイル方針の注入口**（0-(B) が設定） |
 | `prompt_closing` | `""` | **担当範囲外の断りの注入口**（GA' が設定。構成ルールの**後ろ**に置かれる） |
 
-> ⚠️ `prompt_addendum` / `prompt_closing` は `support_agent` が**グローバル可変シングルトンへ
-> 書き込む**方式で設定される。並行リクエスト間で汚染し得る既知の課題があり、詳細と改善方針は
-> `backend/docs/support_flow.md` を参照。
+> 📝 `prompt_addendum` / `prompt_closing` は `support_agent` が設定へ書き込む方式で設定される。書き込む先は
+> **リクエストごとにディープコピーした設定**なので、並行リクエスト間で汚染しない（P-08。`backend/app/core/support_agent.py` の
+> `copy.deepcopy(get_config())` と `backend/app/core/docs/support_agent.md` §4.4.1）。
 
 ---
 
@@ -374,7 +374,7 @@ print(result.confidence_factors)   # {'has_sources': True, 'source_count': 1, ..
 | `backend/app/core/docs/review_agent.md` / `review_gates.md` | Review コアとゲートの IPO |
 | `backend/app/core/docs/gates.md` | ④ 回答ゲート・④' 情報なし検知 |
 | `grace/docs/executor.md` / `grace/docs/tools.md` / `grace/docs/llm_compat.md` | 実行エンジン・ツール・互換層の IPO |
-| `backend/docs/support_flow.md` | 複数質問（0-(A)）の設計（§6） |
+| `backend/app/core/docs/core_process_flow.md` | 複数質問（0-(A)）の設計（§1.6） |
 
 ---
 
@@ -390,3 +390,4 @@ print(result.confidence_factors)   # {'has_sources': True, 'source_count': 1, ..
 | 2.4 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
 | 2.5 | 2026-10-08 | 現在の既定 LLM の記述を `claude-sonnet-5` から実装（`config.py::ModelConfig.DEFAULT_MODEL` / `config/grace_config.yml` の `llm.model`）どおり `claude-sonnet-5-5` へ是正（技術スタック・構成図・§5 の設定表）（2026-10-08） |
 | 2.6 | 2026-10-11 | backend のモジュール文書を移したのに追随（パスの付け替え） |
+| 2.7 | 2026-10-12 | backend/docs/ の横断文書の廃止（2026-10-12）に追随し、参照先を backend/app/docs/README_app.md・backend/app/api/docs/README_api.md・backend/app/core/docs/core_process_flow.md などへ付け替えた |
