@@ -247,26 +247,6 @@ mp.undo()
 | 5 | `review_facts` は「返品」を含む文だけを返品条件として読む（別の文の「返送料はお客様負担」は数えない）。読めないときは判定しないので、誤検知の抑止が働かないだけで誤った抑止はしない | [`review_facts.md`](review_facts.md) §4.1.3 |
 | 6 | 文書の点検は §4.1 の使用例の実行とシンボルの網羅（未記載 0）までで、本文の記述を 1 行ずつ実装と突き合わせてはいない。2026-10-11 の点検で見つかった記述の誤り（`review_gates.md` の `select_candidate_rules`・`rulesets.md` の `description` 全文・`data_jobs.md` の kind）は直した | 各文書の変更履歴 |
 
-### 5.2 触るときの注意（落とし穴とチェックリスト）
-
-| 注意 | 理由 |
-|---|---|
-| **Support と Review は部品を共用している**（`GroundednessVerifier` / `InterventionBridge` / `support_actions.py` / `jobs.py` / `gates.py::_match_keyword` / `judge_model`） | Support のつもりで入れた変更が Review を壊す。共用部品を触ったら `tests/test_review_*.py` も流す |
-| `review_agent.py` / `data_jobs.py` は **import 時に** `register_runner()` を実行する | 「使われていない import」に見えても消すと `_resolve_runner` が `TypeError: 未登録の params 型です` を出す。逆に `jobs.py` から Review / データ準備を import すると循環 import になる |
-| `capture_logs()` は**プロセス全体のロガー**に付くので、スレッド ID で絞り（別ジョブのログが混ざらない）、ロガー level を参照カウントで戻している（`job_logs.py`） | どちらの守りも消すと実測で壊れる。必ず `with` で使う（外し忘れるとハンドラが積み上がり 1 行が N 回転送される） |
-| HITL のタイムアウトは `CANCEL`（**実行しない**）で、ジョブは失敗させずに続行する | 「返事が無い＝承認」にすると破壊的操作が無人で走る。`AUTO_PROCEED`（自動承認）を Web 経路へ持ち込まない |
-| モデル名は `judge_model(config)` / `detect_model(config)` を通す | `INTENT_MODEL` / `ModelConfig.DEFAULT_MODEL` を直接使うと設定と食い違う（[`README_app.md`](../../docs/README_app.md) §4.3.1） |
-| ステップ番号（①〜⑦）は実行順と一致しない | Support は `web`（⑤）の後に `no_info`（④'）、Review は `web`（⑥）の後に `severity`（⑤）。表示順は `STEP_IDS` / `REVIEW_STEP_IDS` の定義順 |
-
-ジョブ種別を足す・ジョブ基盤を触るときのチェックリスト:
-
-- [ ] `register_runner()` を**そのモジュールの import 時**に呼んでいるか
-- [ ] runner は `(params, emit, confirm) -> Optional[dict]` のシグネチャか。失敗時に `None` を返すなら、**その前に `error` イベントを emit** しているか
-- [ ] 破壊的操作なら CONFIRM を出しているか（タイムアウト＝実行しない、で正しいか）
-- [ ] 外部パッケージの進捗を出したいなら `capture_logs()` を `with` で使ったか
-- [ ] `done_event` の `ts` / `started_at` を落としていないか（画面の所要時間が消える）
-- [ ] 3 系統すべてに効く変更なら、`tests/test_jobs_generic.py` と Review 系のテストを流したか
-
 ### 5.1 テスト件数
 
 2026-10-11 に `pytest` で実行した値（API キー・Qdrant 不要。外部依存は `tests/conftest.py` のスタブ）:
@@ -291,6 +271,27 @@ PYTHONPATH=. .venv/bin/python -m pytest tests/test_support_agent_core.py tests/t
 
 > データ準備の runner（`data_jobs.py`）は `tests/test_data_jobs.py`（46 件・[`README_api.md`](../../api/docs/README_api.md) §5.1）が通す。
 
+
+### 5.2 触るときの注意（落とし穴とチェックリスト）
+
+| 注意 | 理由 |
+|---|---|
+| **Support と Review は部品を共用している**（`GroundednessVerifier` / `InterventionBridge` / `support_actions.py` / `jobs.py` / `gates.py::_match_keyword` / `judge_model`） | Support のつもりで入れた変更が Review を壊す。共用部品を触ったら `tests/test_review_*.py` も流す |
+| `review_agent.py` / `data_jobs.py` は **import 時に** `register_runner()` を実行する | 「使われていない import」に見えても消すと `_resolve_runner` が `TypeError: 未登録の params 型です` を出す。逆に `jobs.py` から Review / データ準備を import すると循環 import になる |
+| `capture_logs()` は**プロセス全体のロガー**に付くので、スレッド ID で絞り（別ジョブのログが混ざらない）、ロガー level を参照カウントで戻している（`job_logs.py`） | どちらの守りも消すと実測で壊れる。必ず `with` で使う（外し忘れるとハンドラが積み上がり 1 行が N 回転送される） |
+| HITL のタイムアウトは `CANCEL`（**実行しない**）で、ジョブは失敗させずに続行する | 「返事が無い＝承認」にすると破壊的操作が無人で走る。`AUTO_PROCEED`（自動承認）を Web 経路へ持ち込まない |
+| モデル名は `judge_model(config)` / `detect_model(config)` を通す | `INTENT_MODEL` / `ModelConfig.DEFAULT_MODEL` を直接使うと設定と食い違う（[`README_app.md`](../../docs/README_app.md) §4.3.1） |
+| ステップ番号（①〜⑦）は実行順と一致しない | Support は `web`（⑤）の後に `no_info`（④'）、Review は `web`（⑥）の後に `severity`（⑤）。表示順は `STEP_IDS` / `REVIEW_STEP_IDS` の定義順 |
+
+ジョブ種別を足す・ジョブ基盤を触るときのチェックリスト:
+
+- [ ] `register_runner()` を**そのモジュールの import 時**に呼んでいるか
+- [ ] runner は `(params, emit, confirm) -> Optional[dict]` のシグネチャか。失敗時に `None` を返すなら、**その前に `error` イベントを emit** しているか
+- [ ] 破壊的操作なら CONFIRM を出しているか（タイムアウト＝実行しない、で正しいか）
+- [ ] 外部パッケージの進捗を出したいなら `capture_logs()` を `with` で使ったか
+- [ ] `done_event` の `ts` / `started_at` を落としていないか（画面の所要時間が消える）
+- [ ] 3 系統すべてに効く変更なら、`tests/test_jobs_generic.py` と Review 系のテストを流したか
+
 ---
 
 ## 6. 変更履歴
@@ -299,4 +300,4 @@ PYTHONPATH=. .venv/bin/python -m pytest tests/test_support_agent_core.py tests/t
 |---|---|---|
 | 1.0 | 2026-10-11 | 新規作成（`a_cross_doc_md_format.md` §1.1.2・§1.2）。`backend/docs/reference/core_*.md` の 10 本を本ディレクトリへ移し（接頭辞を外した）、文書の無かった `review_facts.py` の文書を足した。§2.1 はテストと同じスタブで実行して確かめた |
 | 1.1 | 2026-10-12 | `backend/docs/` の廃止にあわせ、§4 の参照先を新設の `core_process_flow.md` などへ付け替え、§5.2（`pitfalls.md` の落とし穴と `job_runtime.md` §8 のチェックリスト）を追加した。§4 冒頭の「`core_process_flow.md` には分けない」という方針は、`backend/docs/` を置かないことにしたので改めた |
-| 1.2 | 2026-10-12 | backend/docs/testing.md を直下 docs/testing.md へ、例文の実行ログを docs/examples/ へ移したのに追随（参照の付け替え） |
+| 1.2 | 2026-10-12 | backend/docs/testing.md を直下 docs/testing.md へ、例文の実行ログを docs/examples/ へ移したのに追随（参照の付け替え）。§5.2 を §5.1 の後ろへ移した（見出しの番号順） |
