@@ -1,6 +1,6 @@
 # frontend — 責務・構成・モジュール構造
 
-**Version 3.4** | 最終更新: 2026-10-11
+**Version 3.5** | 最終更新: 2026-10-12
 
 `frontend/`（Vite + React 18 + TypeScript）の**入口文書**である。
 前半（§1〜§7）で frontend の責務・構成・モジュール構造・データの流れを説明し、
@@ -119,7 +119,7 @@ GRACE のローカル開発用 Web UI。**唯一のエージェント実行入�
 | 型設定 | `tsconfig.json` — `strict` / `noUnusedLocals` / `noUnusedParameters` / `jsx: react-jsx` / `noEmit` |
 | dev サーバ | `vite`（:5173）。**`/api` を `http://127.0.0.1:8000` へプロキシ**（SSE も同経路） |
 | テスト | vitest。`environment: 'node'`・`include: ['src/**/*.test.ts']`（**`.test.tsx` は収集されない**・DOM なし） |
-| スタイル | `src/styles.css`（1,342 行）1 枚のグローバル CSS |
+| スタイル | `src/styles.css`（1,348 行）1 枚のグローバル CSS |
 | エントリ | `index.html`（`lang="ja"`）→ `src/main.tsx` → `<App />`（`React.StrictMode`） |
 
 > ⚠️ **プロキシ先は `localhost` ではなく `127.0.0.1`。** Node 18+ は `localhost` を
@@ -144,16 +144,16 @@ GRACE のローカル開発用 Web UI。**唯一のエージェント実行入�
 frontend/
 ├── index.html                # <div id="root"> と main.tsx の読み込みだけ
 ├── package.json / tsconfig.json / vite.config.ts
-├── docs/                     # 本書 + <Component>.md（§8）
+├── docs/                     # 本書 + <Component>.md + state/・api/・markdown/ の純ロジック文書（§8）
 └── src/
     ├── main.tsx              # ReactDOM.createRoot → <App/>（10 行）
-    ├── App.tsx               # 4 タブの切替・ヘッダーのモデル選択（169 行）
-    ├── types.ts              # API スキーマの型（backend/app/schemas.py と 1:1・431 行）
-    ├── styles.css            # グローバル CSS（1,342 行）
+    ├── App.tsx               # 4 タブの切替・ヘッダーのモデル選択（174 行）
+    ├── types.ts              # API スキーマの型（backend/app/schemas.py と 1:1・437 行）
+    ├── styles.css            # グローバル CSS（1,348 行）
     ├── api/
     │   └── client.ts         # fetch / EventSource を包む唯一の通信層（369 行）
     ├── components/           # 19 コンポーネント（.tsx）+ ReviewForm の例文テスト
-    ├── state/                # 判断ロジックの純関数・reducer・ストア（22 モジュール）+ テスト
+    ├── state/                # 判断ロジックの純関数・reducer・ストア（23 モジュール）+ テスト
     └── markdown/
         └── parseMarkdown.ts  # 依存なしの Markdown → ブロック AST（250 行）+ テスト
 ```
@@ -470,25 +470,25 @@ result の型が違うため**無理にジェネリック化しない**方針で
 
 ## 8. 文書一覧
 
-**版は各文書冒頭の `Version`、実装行数は `wc -l` の実測値（2026-09-24）。**
+**版は各文書冒頭の `Version`、実装行数は `wc -l` の実測値（2026-10-12）。**
 
 ### 8.1 コンテナコンポーネント（状態・副作用・API を束ねる）
 
 | 文書 | 対象 | 実装行数 | 版 | 重要度 |
 |---|---|---:|---|:--:|
-| `App.md` | `App.tsx` — タブ切替・パネルの振り分け・ヘッダーのモデル選択 | 174 | 1.7 | ★★ |
-| `SupportPanel.md` | `components/SupportPanel.tsx` — 基本版 / GRACE-Support 共用 | 192 | 1.8 | ★★★ |
-| `ReviewPanel.md` | `components/ReviewPanel.tsx` — GRACE-Review 本体 | 219 | 1.7 | ★★★ |
-| `DataPanel.md` | `components/DataPanel.tsx` — データ管理タブの枠（サブタブ） | 111 | 1.5 | ★★ |
-| `DataJobPanel.md` | `components/DataJobPanel.tsx` — チャンキング / Q/A 作成 / 登録ジョブ | 751 | 1.8 | ★★★ |
-| `CollectionPanel.md` | `components/CollectionPanel.tsx` — コレクション管理 | 413 | 1.5 | ★★ |
+| `App.md` | `App.tsx` — タブ切替・パネルの振り分け・ヘッダーのモデル選択 | 174 | 1.8 | ★★ |
+| `SupportPanel.md` | `components/SupportPanel.tsx` — 基本版 / GRACE-Support 共用 | 192 | 1.9 | ★★★ |
+| `ReviewPanel.md` | `components/ReviewPanel.tsx` — GRACE-Review 本体 | 219 | 1.8 | ★★★ |
+| `DataPanel.md` | `components/DataPanel.tsx` — データ管理タブの枠（サブタブ） | 111 | 1.6 | ★★ |
+| `DataJobPanel.md` | `components/DataJobPanel.tsx` — チャンキング / Q/A 作成 / 登録ジョブ | 739 | 1.12 | ★★★ |
+| `CollectionPanel.md` | `components/CollectionPanel.tsx` — コレクション管理 | 413 | 1.6 | ★★ |
 
 ### 8.2 入力・モーダル
 
 | 文書 | 対象 | 実装行数 | 版 | 重要度 |
 |---|---|---:|---|:--:|
-| `QueryForm.md` | `components/QueryForm.tsx` | 272 | 1.8 | ★★★ |
-| `ReviewForm.md` | `components/ReviewForm.tsx` | 264 | 1.9 | ★★ |
+| `QueryForm.md` | `components/QueryForm.tsx` | 272 | 1.9 | ★★★ |
+| `ReviewForm.md` | `components/ReviewForm.tsx` | 264 | 1.10 | ★★ |
 | `ConfirmModal.md` | `components/ConfirmModal.tsx` — HITL アクション承認 | 142 | 1.3 | ★★ |
 | `QuestionSelectModal.md` | `components/QuestionSelectModal.tsx` — 0-(A) 主質問の選択 | 76 | 1.2 | ★★ |
 
@@ -497,8 +497,8 @@ result の型が違うため**無理にジェネリック化しない**方針で
 | 文書 | 対象 | 実装行数 | 版 | 重要度 |
 |---|---|---:|---|:--:|
 | `AnswerCard.md` | `components/AnswerCard.tsx` | 226 | 1.4 | ★★★ |
-| `FindingList.md` | `components/FindingList.tsx` | 141 | 1.3 | ★★ |
-| `Markdown.md` | `components/Markdown.tsx`（`markdown/parseMarkdown.ts`） | 114 | 1.2 | ★★ |
+| `FindingList.md` | `components/FindingList.tsx` | 141 | 1.4 | ★★ |
+| `Markdown.md` | `components/Markdown.tsx`（`markdown/parseMarkdown.ts`） | 114 | 1.3 | ★★ |
 | `Timeline.md` | `components/Timeline.tsx` | 77 | 1.2 | ★★ |
 | `StepTimeline.md` | `components/StepTimeline.tsx` | 45 | 1.2 | ★★ |
 | `ReviewTimeline.md` | `components/ReviewTimeline.tsx` | 64 | 1.2 | ★ |
@@ -510,8 +510,20 @@ result の型が違うため**無理にジェネリック化しない**方針で
 
 | 文書 | 内容 | 版 | 備考 |
 |---|---|---|---|
-| `README.md` | 本書（責務・構成・モジュール構造・棚卸し） | 2.6 | — |
-| `review_ui.md` | GRACE-Review 画面全体の設計を俯瞰する**横断文書** | 1.8 | 対応する `.tsx` は無い。個別仕様は各 `<Component>.md` が正 |
+| `README.md` | 本書（責務・構成・モジュール構造・棚卸し） | 3.5 | — |
+| `review_ui.md` | GRACE-Review 画面全体の設計を俯瞰する**横断文書** | 1.9 | 対応する `.tsx` は無い。個別仕様は各 `<Component>.md` が正 |
+
+### 8.5 純ロジック（`state/` ・ `api/` ・ `markdown/`）
+
+`a_react_page_md_format.md` §2.4 の軽量構成（エクスポート一覧・判断の規則・テスト）で書く。**`src/` と同じ階層に置き、`.ts` と 1 対 1**。
+2026-10-12 に新設した。各文書の §3.1 の使用例は esbuild で束ねて node で実行し、出力が文書と一致することを確かめてある
+（`useJobTiming` だけはフックなので型検査のみ。§12）。一覧と行数は §10。
+
+| 文書 | 対象 | 版 |
+|---|---|---|
+| [`state/*.md`](state/)（23 本） | `src/state/*.ts`（§10 の全モジュール） | 1.0 |
+| [`api/client.md`](api/client.md) | `src/api/client.ts` — backend との通信の全関数・SSE の張り直し | 1.0 |
+| [`markdown/parseMarkdown.md`](markdown/parseMarkdown.md) | `src/markdown/parseMarkdown.ts` — 回答本文の Markdown パーサ（描画は `Markdown.md`） | 1.0 |
 
 ---
 
@@ -520,9 +532,11 @@ result の型が違うため**無理にジェネリック化しない**方針で
 `frontend/src/components/*.tsx` は **19 件**、`App.tsx` を加えて **20 件**。
 対応する `<Component>.md` も **20 件**で、**欠落は無い**。
 
-> 📌 `main.tsx`（10 行）・`types.ts`（431 行）・`api/client.ts`（301 行）・`styles.css`（1,342 行）には個別文書が無い。
-> `types.ts` はバックエンドのスキーマと 1:1 で `backend/app/docs/schemas.md` が正、
-> `api/client.ts` は本書 §6 と各パネル文書の「API 通信」節が実質の記述である。**意図的に持たない。**
+`state/*.ts`（23）・`api/client.ts`・`markdown/parseMarkdown.ts` も、それぞれ `docs/` の同じ階層に文書がある（§8.5。2026-10-12〜）。
+
+> 📌 `main.tsx`（10 行）・`types.ts`（437 行）・`styles.css`（1,348 行）には個別文書が無い（**意図的に持たない**）。
+> `main.tsx` は `<App />` を描画するだけ、`types.ts` はバックエンドのスキーマと 1:1 で `backend/app/docs/schemas.md` が正、
+> `styles.css` は各コンポーネント文書の「スタイル」節が使うクラスを挙げている。
 
 > ⚠️ コンポーネントを足した・消したら、同じコミットで `<Component>.md` と本書 §5・§8・§9 を更新すること。
 > （実例: `ReviewPanel` / `ReviewForm` / `JobClock` / `MetaErrorBanner` の 4 件は 2026-09-12 まで文書が無かった。
@@ -536,7 +550,7 @@ result の型が違うため**無理にジェネリック化しない**方針で
 
 ## 10. state/ 純関数の一覧
 
-`state/` は 22 モジュール（テストを除く）。役割で分類する。
+`state/` は 23 モジュール（テストを除く）。役割で分類する。各モジュールの文書は `state/<モジュール名>.md`（§8.5）。
 
 | 分類 | モジュール | 行数 | 切り出した判断 |
 |---|---|---:|---|
@@ -544,10 +558,10 @@ result の型が違うため**無理にジェネリック化しない**方針で
 | | `reviewReducer.ts` | 191 | Review ジョブの状態遷移 |
 | | `dataReducer.ts` | 225 | データ準備ジョブの状態遷移（ジョブ種別でステップ ID が変わる） |
 | **送信ペイロード** | `queryParams.ts` | 128 | 送信ペイロードの組み立て・基本版の vertical 固定・モデル未選択の null 化 |
-| | `dataParams.ts` | 201 | データ準備フォーム → API パラメータ（空欄・トリム・null 化・未選択モデルのキー省略） |
+| | `dataParams.ts` | 200 | データ準備フォーム → API パラメータ（空欄・トリム・null 化・未選択モデルのキー省略） |
 | **モデル選択** | `headerModel.ts` | 126 | ヘッダーのモデルセレクタ（タブごとのスロット・`chunking_model` / `qa_model` を既定に使う・論理層の注記） |
 | | `modelLabel.ts` | 42 | 見出し文字列・**単価つき**選択肢のラベル・Embedding の表示（`embeddingLabel`） |
-| **ストア** | `formMemory.ts` | 120 | タブ切替時の入力退避と復元（モデルは含まない） |
+| **ストア** | `formMemory.ts` | 123 | タブ切替時の入力退避と復元（モデルは含まない） |
 | | `activeJobs.ts` | 45 | 実行中データジョブの `job_id` 保持（再マウント時の再購読） |
 | **表示用の派生値** | `citations.ts` | 76 | 出典文字列（`[社内]` / `[Web]`）の解析 |
 | | `highlight.ts` | 117 | 原文を非該当テキストと指摘スパンへ分割（XSS 回避のためデータだけ作る）。原文ペインの見出し（`documentViewHeading`） |
@@ -574,7 +588,7 @@ result の型が違うため**無理にジェネリック化しない**方針で
 
 ## 11. テスト件数（実測）
 
-**2026-10-08 に `cd frontend && npx vitest run` を実行した実測値。記憶で書かないこと。**
+**2026-10-12 に `cd frontend && npx vitest run` を実行した実測値（2026-10-08 から変化なし）。記憶で書かないこと。**
 
 ```
 Test Files  26 passed (26)
@@ -627,6 +641,16 @@ npm run build    # 本番ビルド
 ```
 
 3 つとも CI の blocking ゲート（`frontend (tsc + vitest + build)`）に含まれる。
+
+**純ロジック文書（§8.5）の使用例を確かめる**: 例の ` ```ts ` ブロックを文書と同じ階層に一時ファイルとして保存し
+（`../../src/…` の import がそのまま解決する）、esbuild で束ねて node で実行する。出力が直後の ` ```text ` と一致すればよい。
+
+```bash
+cd frontend
+# 例: docs/state/activeJobs.md §3.1 の ts ブロックを docs/state/_ex.ts に保存して
+npx esbuild docs/state/_ex.ts --bundle --platform=node --format=esm --log-level=error | node --input-type=module
+rm docs/state/_ex.ts
+```
 画面で確認するときは、リポジトリ直下で `./run_dev.sh`（backend :8000 + frontend :5173）を起動する。
 `.env` の `ANTHROPIC_API_KEY`（LLM）/ `GOOGLE_API_KEY`（Embedding）と Qdrant の起動が前提（CLAUDE.md §2）。
 
@@ -638,6 +662,10 @@ npm run build    # 本番ビルド
 |---|---|:--:|
 | 1 | ~~ルート `README.md` のスクリーンショット残り 14 枚（`ANTHROPIC_API_KEY` と Qdrant のある環境が必要）~~ | ✅ **完了**（2026-09-26）。D-05〜D-08 を PR #210、残り 10 枚を PR #211 で撮影し、全 31 枚を掲載 |
 | 2 | `ConfirmModal` の a11y ❌ 2 件（`Escape` で閉じない・閉じたあとのフォーカス復帰） | ⚠️ **判断のうえで未対応**（`ConfirmModal.md` §8）。実装漏れではない |
+| 3 | **回答本文のリンクの `href` を検査していない。** `parseMarkdown` は `[x](javascript:…)` もそのまま `href` にし、`Markdown.tsx` も `<a href={node.href}>` にそのまま渡す。LLM の回答本文にこの形が出るとクリックで実行されうる（React 18.3.1 は警告を出すだけで描画する。2026-10-12 に `renderToString` で確認）。`Markdown.md` §4.4 は「回答本文は社内ナレッジと Web 検索結果に由来する」前提で許容としているが、Web 由来の文が本文に入る以上、`http:` / `https:` 以外を描画しない対策を検討したい | ⚠️ 許容として未対応（[`Markdown.md`](Markdown.md) §4.4・[`markdown/parseMarkdown.md`](markdown/parseMarkdown.md) §3.2） |
+| 4 | ソースのコメントが古い: `state/interventionKind.ts`・`types.ts`・`QuestionSelectModal.tsx`・`AnswerCard.tsx` の `backend/docs/support_spec.md`（現 `support_flow.md`）、`state/highlight.ts`・`reviewReducer.ts` の `review_spec.md`（現 `review_flow.md`）、`state/dataReducer.ts` の「data は置換（Support / Review と同じ）」（Support / Review の reducer はマージ。[`state/dataReducer.md`](state/dataReducer.md) §3.4） | 低（文書側には正しい参照を書いた） |
+| 5 | `CollectionPanel` は `useJobTiming` の `observe` を使っていない。削除ジョブを再購読したとき開始時刻が分からず所要時間が出ない（完了時刻だけ出る） | 低（[`state/useJobTiming.md`](state/useJobTiming.md) §1.1） |
+| 6 | 3 つの reducer の `reset` アクションはどこからも dispatch されていない（`dataReducer` / `reviewReducer` はテストだけが使う） | 低（削除するかは判断待ち） |
 
 >
 > 📌 `.running-banner` に `role` を足さないのは**意図的**である。実行中であることは
@@ -693,3 +721,4 @@ npm run build    # 本番ビルド
 | 3.2 | 2026-10-10 | 索引の行数・版を実測値へ更新（テストを直下 `tests/` へ移した変更に追随） |
 | 3.3 | 2026-10-10 | `grace/docs/` の構成整理（`README.md` → `README_grace.md`、`grace.md` / `grace_core.md` / `grace_runtime.md` / `confidence_calibration.md` を `README_grace.md` / `grace_process_flow.md` / `grace_data_flow.md` へ統合）に合わせてリンクを直した |
 | 3.4 | 2026-10-11 | backend のモジュール文書を `backend/docs/reference/` から `backend/app/docs/`・`backend/app/api/docs/`・`backend/app/core/docs/` へ移したのに追随（リンクの付け替え） |
+| 3.5 | 2026-10-12 | **純ロジックの文書 25 本を新設**（`state/*.md` 23 本・`api/client.md`・`markdown/parseMarkdown.md`。`a_react_page_md_format.md` §2.4 の軽量構成で `src/` と同じ階層・1 対 1）。§8.5 を追加し、§9 の「`api/client.ts` は意図的に持たない」を改めた。使用例はすべて esbuild + node で実行して確かめた（§12 に手順）。**コンポーネント文書 20 本を実装と突き合わせ**、`SupportPanel.md` / `ReviewPanel.md` の §4.1 に残っていた 2026-09-23 以前のモデル取得の副作用を削除、`ReviewPanel.md` に `draftDocument` 系、`ReviewForm.md` に 2 つ目の `useEffect` を反映、テスト件数の古い記載 9 か所を実測へ更新（各文書の変更履歴）。§3・§8・§10 の行数・版を実測へ更新（`DataJobPanel` 751 → 739 など）。§13 に未対応 4 件（リンクの `href` 未検査・古いソースコメント・`CollectionPanel` の所要時間・未使用の `reset`）を追加 |

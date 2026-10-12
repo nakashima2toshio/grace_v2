@@ -1,6 +1,6 @@
 # components/ReviewPanel ほか - GRACE-Review UI ドキュメント
 
-**Version 1.8** | 最終更新: 2026-10-10
+**Version 1.9** | 最終更新: 2026-10-12
 
 ---
 
@@ -603,9 +603,9 @@ document.slice(finding.start, finding.end) === finding.excerpt
 | テストファイル | 対象 | 件数 | 実行 |
 |---|---|:---:|---|
 | `src/state/reviewReducer.test.ts` | reducer の畳み込み | 13 | `npm test` |
-| `src/state/highlight.test.ts` | ハイライト分割・重なり解消 | 13 | `npm test` |
+| `src/state/highlight.test.ts` | ハイライト分割・重なり解消 | 18 | `npm test` |
 | `src/state/jobReducer.test.ts` | Support の reducer（既存） | 7 | `npm test` |
-| `src/markdown/parseMarkdown.test.ts` | Markdown パーサ（既存） | 10 | `npm test` |
+| `src/markdown/parseMarkdown.test.ts` | Markdown パーサ（既存） | 16 | `npm test` |
 
 ### テスト方針
 
@@ -633,3 +633,4 @@ document.slice(finding.start, finding.end) === finding.excerpt
 | 1.6 | 2026-09-24 | **§8 のアクセシビリティ・チェックを実装へ追随。** grace_v2_local から移植したフォーカストラップ・指摘選択のキーボード操作・`ReviewForm` の Ctrl+Enter を反映し、❌ 2 行を ✅ に。あわせて、実装済みなのに ❌ のまま残っていた 2 行（textarea の `.sr-only` ラベル・`aria-controls` / `role="tabpanel"`）を実装と突き合わせて ✅ に訂正 |
 | 1.7 | 2026-09-24 | `a_react_page_md_format.md` v1.1 に追随（2026-09-24）。概要に「各責務対応のモジュール」（主な責務と 1:1）を追加し、`## 1.` を「アーキテクチャ構成図」として **1.1 システム全体での位置づけ（3 層）** と 1.2 コンポーネントツリー図の 2 枚構成にした。Mermaid の `classDef subgraphStyle` の欠落を補った |
 | 1.8 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |
+| 1.9 | 2026-10-12 | テスト件数を 2026-10-12 の `npx vitest run` の実測へ更新（`highlight` 13 → 18・`parseMarkdown` 10 → 16） |

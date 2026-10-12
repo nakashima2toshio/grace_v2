@@ -1,6 +1,6 @@
 # DataJobPanel.tsx - チャンキング / Qdrant 登録の実行パネル ドキュメント
 
-**Version 1.11** | 最終更新: 2026-10-09
+**Version 1.12** | 最終更新: 2026-10-12
 
 ---
 
@@ -408,6 +408,13 @@ Support / Review と**完全に同一**（`SupportEvent` を共用）。
 | `error` | エラー | `phase='failed'` |
 | `done` | 配信終了 | `phase='completed'`、`EventSource` を close |
 
+#### 接続の見張りと張り直し（`state/streamWatch.ts`）
+
+切断（`onerror`）や 60 秒の無音では `subscribeStream` が張り直し、リプレイ分は `seq` で読み飛ばす（2026-10-08〜）。
+`dataReducer` に同じイベントは二度届かない。何も受け取れないまま 5 回失敗したときだけ `onError` が呼ばれ、
+`dispatch({type:'failed'})` になる。きっかけは grace_v2_local のチャンク化で、38 分ログが出ない間に配信がエラーなしで止まったこと。
+詳細は [`api/client.md`](api/client.md) §3.2・[`state/streamWatch.md`](state/streamWatch.md)。
+
 ### 5.3 ステップ ID（バックエンドと 1:1）
 
 | variant | ステップ | バックエンド定義 |
@@ -551,7 +558,7 @@ LLM 用途（Anthropic Claude）とは別系統なので、画面から切り替
 
 | テストファイル | 対象 | ケース数 | 実行 |
 |---|---|:---:|---|
-| `src/state/dataParams.test.ts` | パラメータ組み立て・送信可否・整形 | 34 | `npm test` |
+| `src/state/dataParams.test.ts` | パラメータ組み立て・送信可否・整形 | 35 | `npm test` |
 | `src/state/dataReducer.test.ts` | SSE イベントの畳み込み | 24 | `npm test` |
 | （本コンポーネントの専用テストなし） | — | — | — |
 
@@ -595,3 +602,4 @@ LLM 用途（Anthropic Claude）とは別系統なので、画面から切り替
 | 1.9 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随 |
 | 1.10 | 2026-10-08 | 「Q/A 生成のモデル既定」の表の `qa` を実装（`QaGenerationRequest.model`）どおり `claude-sonnet-5` → `claude-sonnet-5-5` へ是正 |
 | 1.11 | 2026-10-09 | Q/A 生成フォームから「1 回の生成で渡すチャンク数」（`batchChunks`）を削除。`QAPipeline` は同期でも Celery でもチャンク 1 件 = LLM 呼び出し 1 回で、この値を一度も使っていなかった（API の `batch_chunks` も同時に削除）。`useState` は 21 → 20。「並列タスク数」のラベルを「並列タスク数（ワーカーの -c）」とし、実際の並列数はワーカー起動時の `-c` で決まる旨の注記を足した |
+| 1.12 | 2026-10-12 | テスト件数を 2026-10-12 の `npx vitest run` の実測へ更新（`dataParams` 34 → 35）。§5.2 に SSE の張り直し（2026-10-08 に移植した `subscribeStream` の挙動）の注記を追加 |

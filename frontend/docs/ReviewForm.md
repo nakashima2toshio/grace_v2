@@ -1,6 +1,6 @@
 # ReviewForm.tsx - 文書レビュー入力フォーム ドキュメント
 
-**Version 1.9** | 最終更新: 2026-10-03
+**Version 1.10** | 最終更新: 2026-10-12
 
 ---
 
@@ -23,7 +23,7 @@
 
 | 項目 | 内容 |
 |---|---|
-| ファイル | `frontend/src/components/ReviewForm.tsx`（254 行） |
+| ファイル | `frontend/src/components/ReviewForm.tsx`（264 行） |
 | 種別 | **状態保持コンポーネント**（`useState` × 7） |
 | 親 | `ReviewPanel.tsx` |
 | 子 | なし（モデルの選択はヘッダー＝`App` に移した） |
@@ -225,11 +225,16 @@ interface Props {
 | # | 目的 | 依存配列 | クリーンアップ | 備考 |
 |---|---|---|---|---|
 | 1 | 入力内容の退避 | `[document, title, ruleset, useWeb, dryRun, verbose]` | なし | 変更のたびに `rememberReviewForm()` を呼ぶ |
+| 2 | 入力欄の文書を親へ知らせる | `[document, onDocumentChange]` | なし | 初回マウント時と、文書が変わるたび（例文ボタンで差し替えたときも）に `onDocumentChange?.(document)`。`ReviewPanel` が結果の古さを判定する（`state/staleResult.ts`） |
 
 ```tsx
 useEffect(() => {
   rememberReviewForm({ document, title, ruleset, useWeb, dryRun, verbose });
 }, [document, title, ruleset, useWeb, dryRun, verbose]);
+
+useEffect(() => {
+  onDocumentChange?.(document);
+}, [document, onDocumentChange]);
 ```
 
 > ⚠️ **退避は「あれば便利」ではなく不具合の修正である。** `App.tsx` はタブを
@@ -392,7 +397,7 @@ onSubmit({
 | `src/state/headerModel.test.ts` | ヘッダーのモデルセレクタ（`model` prop の供給元） | 16 |
 | `src/state/submitKey.test.ts` | 送信キーの判定（`QueryForm` と共用） | 10 |
 
-**2026-09-24 に `npx vitest run` を実行した実測値**（フロント全体は 23 ファイル / 318 件）。
+**2026-10-12 に `npx vitest run` を実行した実測値**（フロント全体は 26 ファイル / 346 件）。
 
 ### テスト方針
 
@@ -419,3 +424,4 @@ onSubmit({
 | 1.7 | 2026-09-24 | `a_react_page_md_format.md` v1.1 に追随（2026-09-24）。概要に「各責務対応のモジュール」（主な責務と 1:1）を追加し、`## 1.` を「アーキテクチャ構成図」として **1.1 システム全体での位置づけ（3 層）** と 1.2 コンポーネントツリー図の 2 枚構成にした。Mermaid の `classDef subgraphStyle` の欠落を補った |
 | 1.8 | 2026-10-01 | **Web 裏取りの既定を OFF へ変更**（`DEFAULT_REVIEW_FORM.useWeb` とチェックボックスの表示「既定 OFF」）。API の既定（`ReviewRequest.use_web=False`）とフォームの既定が食い違っていたのも解消 |
 | 1.9 | 2026-10-03 | **`onDocumentChange` prop を追加**（任意）。入力欄の文書が変わるたびに親へ知らせ、`ReviewPanel` が「結果が前の文書のものか」を判定できるようにした（例文ボタンは入力欄を差し替えるだけで実行しないため、前回の結果を今の文書の結果と読み違えた。実測 2026-10-03） |
+| 1.10 | 2026-10-12 | §4.1 の副作用表に 2 つ目の `useEffect`（`[document, onDocumentChange]`。v1.9 で追加したのに表へ載っていなかった）を追加。テスト件数を 2026-10-12 の `npx vitest run` の実測へ更新（全体 23 ファイル / 318 件 → 26 ファイル / 346 件） |

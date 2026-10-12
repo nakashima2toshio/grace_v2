@@ -1,6 +1,6 @@
 # QueryForm.tsx - 問い合わせ入力フォーム ドキュメント
 
-**Version 1.8** | 最終更新: 2026-09-26
+**Version 1.9** | 最終更新: 2026-10-12
 
 ---
 
@@ -479,7 +479,7 @@ class S,Opt,Push,V,R,Build,Vert,Null,Sel,Act,Id,Send1,Send2 default
 | `src/state/queryParams.test.ts` | `buildQueryParams` / `isIdentityActive` / `identityNote` | 27 | `npm test` |
 | `src/state/formMemory.test.ts` | `recallQueryForm` / `rememberQueryForm` とその既定値 | 13 | `npm test` |
 | `src/state/submitKey.test.ts` | `isSubmitKey`（Ctrl/⌘+Enter・Shift+Enter・IME 変換中） | 10 | `npm test` |
-| `src/state/headerModel.test.ts` | ヘッダーのモデルセレクタ（表示値・選択肢・タブごとの初期値）。`model` prop の供給元 | 13 | `npm test` |
+| `src/state/headerModel.test.ts` | ヘッダーのモデルセレクタ（表示値・選択肢・タブごとの初期値）。`model` prop の供給元 | 16 | `npm test` |
 
 ### テスト方針
 
@@ -526,3 +526,4 @@ class S,Opt,Push,V,R,Build,Vert,Null,Sel,Act,Id,Send1,Send2 default
 | 1.6 | 2026-09-23 | **詳細ログの既定を ON へ変更**（基本版 / GRACE-Support / GRACE-Review は `DEFAULT_QUERY_FORM` / `DEFAULT_REVIEW_FORM` の `verbose`、データ管理は `DataJobPanel` の `useState`） |
 | 1.7 | 2026-09-24 | `a_react_page_md_format.md` v1.1 に追随（2026-09-24）。概要に「各責務対応のモジュール」（主な責務と 1:1）を追加し、`## 1.` を「アーキテクチャ構成図」として **1.1 システム全体での位置づけ（3 層）** と 1.2 コンポーネントツリー図の 2 枚構成にした。Mermaid の `classDef subgraphStyle` の欠落を補った |
 | 1.8 | 2026-09-26 | 「タブを切り替えても入力が消えない仕組み」の説明を、`dryRun` の既定が `false` になった現状に合わせた。「チェックを外した dry-run が勝手に ON へ復帰する」「基本版で外した dry-run」を、既定値に依存しない「切り替えた dry-run が勝手に既定値へ戻る」「基本版で切り替えた dry-run」へ改めた（1.1 の変更履歴は当時の記述として残す） |
+| 1.9 | 2026-10-12 | テスト件数を 2026-10-12 の `npx vitest run` の実測へ更新（`headerModel` 13 → 16） |
