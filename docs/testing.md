@@ -1,6 +1,6 @@
 # backend テストの地図 ドキュメント
 
-**Version 2.12** | 最終更新: 2026-10-12
+**Version 2.13** | 最終更新: 2026-10-12
 
 ---
 
@@ -25,9 +25,9 @@
 > CI の設定は `.github/workflows/ci.yml` が正本。
 
 > **関連ドキュメント**
-> - [`README_app.md` §4](../app/docs/README_app.md) — どのモジュールが何を担うか
-> - [`README_core.md` §5.2](../app/core/docs/README_core.md) — 共用部品を壊さないための注意
-> - [`README.md` §7](../../README.md) — 実行環境の準備
+> - [`README_app.md` §4](../backend/app/docs/README_app.md) — どのモジュールが何を担うか
+> - [`README_core.md` §5.2](../backend/app/core/docs/README_core.md) — 共用部品を壊さないための注意
+> - [`README.md` §7](../README.md) — 実行環境の準備
 
 ### 結論
 
@@ -197,7 +197,7 @@ Support 3 件とも `used_web=false`。Web を検索しなくなった分だけ�
 **2026-10-07 の揺れの計測（Mac・`GRACE_E2E_REPEAT=3`）**: 7 ケース × 3 回 = 21 件すべて passed（242 秒）。
 records を突き合わせると、Review は 3 例文とも当たったルール・重大度・状態が 3 回同じ（変わったのは指摘文の言い回しと
 一部の該当箇所）、Support は 4 ケースとも判定・出典・支持率・アクションが 3 回同じ（変わったのは回答の文面）。
-中身は `backend/docs/GRACE-Review_例文3件.txt` / `GRACE-Support_例文4件.txt`（grace_v2_local の同名ファイルは Ollama での結果）。
+中身は `docs/examples/GRACE-Review_例文3件.txt` / `GRACE-Support_例文4件.txt`（grace_v2_local の同名ファイルは Ollama での結果）。
 
 - レポートの `model` / `light_model` は**実際に使ったモデル名**を記録する（以前は `(config llm.model)` としか残らず、
   モデルを替えた結果を比べられなかった）。
@@ -418,3 +418,4 @@ GRACE_E2E=1 uv run --no-sync pytest tests/e2e -m e2e -rs
 | 2.10 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |
 | 2.11 | 2026-10-11 | テスト一覧のデータ準備の行に `test_chunking_fallback_and_resume.py` を足した |
 | 2.12 | 2026-10-12 | backend/docs/ の横断文書の廃止（2026-10-12）に追随し、参照先を backend/app/docs/README_app.md・backend/app/api/docs/README_api.md・backend/app/core/docs/core_process_flow.md などへ付け替えた |
+| 2.13 | 2026-10-12 | backend/docs/ の廃止にあわせ、直下 docs/testing.md へ移した（例文の実行ログは docs/examples/）。本文の相対リンクを移動先に合わせた |

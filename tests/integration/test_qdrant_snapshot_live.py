@@ -1,6 +1,6 @@
 """`scripts/qdrant_snapshot.py` の export → restore を実 Qdrant で往復させる結合テスト。
 
-E2E の実データは Mac の Qdrant からこの経路で VM へ運ぶ（`backend/docs/testing.md` §1.2）。
+E2E の実データは Mac の Qdrant からこの経路で VM へ運ぶ（`docs/testing.md` §1.2）。
 往復で点数・ペイロードが変わらないこと、既存を上書きしないこと、
 壊れた / 合わないアーカイブを拒否することを確かめる。
 """

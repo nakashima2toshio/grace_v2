@@ -1,6 +1,6 @@
 # README_scripts.md - scripts/ ディレクトリ概要
 
-**Version 1.0** | 最終更新: 2026-10-11
+**Version 1.1** | 最終更新: 2026-10-12
 
 `scripts/` の入口となる文書。アプリの実行時には使わない**運用・計測ツール**（テストではない）を置くディレクトリで、
 各スクリプトの引数・戻り値は各モジュールの文書（IPO）に置き、ここには書かない。
@@ -104,7 +104,7 @@ style EXT fill:#1a1a1a,stroke:#fff,color:#fff
 |---|---|---|---:|---|---|
 | `export_ruleset_to_csv.py`（154 行） | [`export_ruleset_to_csv.md`](export_ruleset_to_csv.md) | E | 371 | 1.0 | `RuleSet` の条文情報 → Qdrant 登録用 CSV（読み取りのみ。Qdrant に触れない） |
 | `measure_rag_threshold.py`（518 行） | [`measure_rag_threshold.md`](measure_rag_threshold.md) | E | 465 | 1.0 | RAG のしきい値を実測で決める（LLM を呼ばない。Qdrant に書き込まない） |
-| `qdrant_snapshot.py`（378 行） | [`qdrant_snapshot.md`](qdrant_snapshot.md) | E | 449 | 1.0 | E2E 用の実データを Qdrant スナップショットで書き出す・復元する |
+| `qdrant_snapshot.py`（378 行） | [`qdrant_snapshot.md`](qdrant_snapshot.md) | E | 450 | 1.1 | E2E 用の実データを Qdrant スナップショットで書き出す・復元する |
 
 > 行数は文書の行数（実測）。`__init__.py` は無い（名前空間パッケージ。§3）。処理フロー・データフローは 1 スクリプトで閉じるので別文書にしていない（§4）。
 
@@ -119,7 +119,7 @@ style EXT fill:#1a1a1a,stroke:#fff,color:#fff
 |---|---|---|
 | GRACE-Review の規程コレクションを作る | `export_ruleset_to_csv.py` → `qa_qdrant/register_to_qdrant.py` | §2.1・[`export_ruleset_to_csv.md`](export_ruleset_to_csv.md) §4.1 |
 | Embedding モデル・データを変えたあと、しきい値を決め直す | `measure_rag_threshold.py --vertical each` → `config/grace_config.yml` | [`measure_rag_threshold.md`](measure_rag_threshold.md) §4.1 |
-| Mac の実データで VM の E2E を回す | `qdrant_snapshot.py export`（Mac）→ 署名付き URL → `GRACE_E2E_SNAPSHOT_URL`（VM） | [`qdrant_snapshot.md`](qdrant_snapshot.md) §4.1・[`backend/docs/testing.md`](../../backend/docs/testing.md) §1.2 |
+| Mac の実データで VM の E2E を回す | `qdrant_snapshot.py export`（Mac）→ 署名付き URL → `GRACE_E2E_SNAPSHOT_URL`（VM） | [`qdrant_snapshot.md`](qdrant_snapshot.md) §4.1・[`docs/testing.md`](../../docs/testing.md) §1.2 |
 
 ### 2.1 規程コレクションを作って VM へ運ぶ
 
@@ -205,3 +205,4 @@ uv run --no-sync pytest tests/test_export_ruleset_to_csv.py tests/test_measure_r
 | バージョン | 日付 | 変更内容 |
 |---|---|---|
 | 1.0 | 2026-10-11 | 新規作成（`a_cross_doc_md_format.md` §1.2）。`scripts/` には `docs/` が無く、3 本の説明はモジュールの docstring と `backend/docs/testing.md` に散っていた（`check_docs.py --layout` が要対応として出していた）。3 本の文書を作り、§2.1 を VM の実物の Qdrant で実行して確かめ、§5.1 のテスト件数を数えた |
+| 1.1 | 2026-10-12 | backend/docs/testing.md を直下 docs/testing.md へ、例文の実行ログを docs/examples/ へ移したのに追随（参照の付け替え） |

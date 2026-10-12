@@ -202,14 +202,14 @@ uv run --no-sync pytest tests/integration -q -rs
   ローカル（Mac）では何もしない（`CLAUDE_CODE_REMOTE` が無いため）。
 - VM の Qdrant は既定では**空**で、API キーも無い。実データ・実 LLM を使う E2E は次の節。
 - 結合テストは共用 Qdrant を壊さないよう `grace_it_<乱数>` のコレクションだけを作って消し、
-  Redis は **db 15** を使う（Mac の常駐ワーカーは db 0）。詳細は `backend/docs/testing.md` §1.1。
+  Redis は **db 15** を使う（Mac の常駐ワーカーは db 0）。詳細は `docs/testing.md` §1.1。
 - ⚠️ **`dockerd` をバックグラウンドで起こすときは `setsid nohup` で切り離す。** ツール呼び出しの
   終了で子プロセスごと落ちる（2026-10-03 実測）。
 
 ### E2E（実 LLM・実 Embedding・実データ）
 
 `tests/e2e/` は画面の例文（Support 3 業界・Review 3 例文）を**本物の API と実データ**で流す。
-**課金される**ので `GRACE_E2E=1` のときだけ走る（CI は skip）。詳細は `backend/docs/testing.md` §1.2。
+**課金される**ので `GRACE_E2E=1` のときだけ走る（CI は skip）。詳細は `docs/testing.md` §1.2。
 
 ```bash
 uv pip install -r requirements-e2e.txt          # 初回（fastembed / ddgs）
@@ -647,7 +647,7 @@ python -m chunking.csv_text_to_chunks_text_csv \
 | 領域 | 所在 |
 |---|---|
 | Python モジュール（IPO） | `<package>/docs/<module>.md` — `chunking/docs/`, `qa_generation/docs/`, `qa_qdrant/docs/`, `services/docs/`, `grace/docs/` |
-| backend | `backend/app/docs/`・`backend/app/api/docs/`・`backend/app/core/docs/` の 3 か所だけ（`backend/docs/` は 2026-10-12 に廃止。`testing.md` と例文 txt 2 本だけ保留で残っている） |
+| backend | `backend/app/docs/`・`backend/app/api/docs/`・`backend/app/core/docs/` の 3 か所だけ（`backend/docs/` は 2026-10-12 に廃止。テストの地図は直下 `docs/testing.md`、例文の実行ログは `docs/examples/`） |
 | React コンポーネント | `frontend/docs/<Component>.md`（`state/*.ts`・`api/client.ts`・`markdown/*.ts` は `src/` と同じ階層の `frontend/docs/state/<module>.md` 等。2026-10-12〜） |
 | 横断/設計メモ | リポジトリ直下 `docs/` |
 

@@ -175,4 +175,4 @@ answer（回答）：空（3 回とも）
 ■ 読み方の注意
 
 - アクションはドライランなので、実際にチケットが起票されたり担当者へ通知されたりはしていない。
-- grace_v2_local（Ollama）の同じケースの実行ログは grace_v2_local の backend/docs/GRACE-Support_例文4件.txt。
+- grace_v2_local（Ollama）の同じケースの実行ログは grace_v2_local の docs/examples/GRACE-Support_例文4件.txt。

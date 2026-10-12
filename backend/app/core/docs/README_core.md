@@ -1,6 +1,6 @@
 # README_core.md - backend/app/core/ ディレクトリ概要
 
-**Version 1.1** | 最終更新: 2026-10-12
+**Version 1.2** | 最終更新: 2026-10-12
 
 `backend/app/core/` の入口となる文書。2 つのエージェント（GRACE-Support / GRACE-Review）のパイプライン本体と、
 データ準備を含む 3 系統が共有するジョブ基盤を置く。各モジュールの引数・戻り値は各モジュールの文書（IPO）に置き、ここには書かない。
@@ -132,10 +132,10 @@ style EXT fill:#1a1a1a,stroke:#fff,color:#fff
 
 | モジュール | 文書 | 種別 | 行数 | Ver | 概要 |
 |---|---|---|---:|---|---|
-| `support_agent.py`（961 行） | [`support_agent.md`](support_agent.md) | E | 775 | 1.7 | GRACE-Support の 1 周（`run_support_agent_core`） |
+| `support_agent.py`（961 行） | [`support_agent.md`](support_agent.md) | E | 776 | 1.8 | GRACE-Support の 1 周（`run_support_agent_core`） |
 | `gates.py`（1,431 行） | [`gates.md`](gates.md) | E | 1060 | 1.8 | Support の判定（回答ゲート・救済・複数質問・担当範囲・情報なし・出典） |
 | `verticals.py`（257 行） | [`verticals.md`](verticals.md) | E | 621 | 1.7 | 業界プロファイル（gov / saas / ec） |
-| `review_agent.py`（1,405 行） | [`review_agent.md`](review_agent.md) | E | 965 | 1.8 | GRACE-Review の 1 周（`run_review_agent_core`） |
+| `review_agent.py`（1,405 行） | [`review_agent.md`](review_agent.md) | E | 966 | 1.9 | GRACE-Review の 1 周（`run_review_agent_core`） |
 | `review_gates.py`（542 行） | [`review_gates.md`](review_gates.md) | E | 931 | 1.6 | Review の判定（二段判定・指摘ゲート・救済・重大度） |
 | `rulesets.py`（712 行） | [`rulesets.md`](rulesets.md) | E | 879 | 1.8 | ルールセット（EC 広告 23 ルール） |
 | `review_facts.py`（150 行） | [`review_facts.md`](review_facts.md) | E | 421 | 1.0 | 文字列だけで決まる事実（送料・返品条件） |
@@ -153,7 +153,7 @@ style EXT fill:#1a1a1a,stroke:#fff,color:#fff
 
 > 📝 **確かめ方（2026-10-11）**: §2.1 は `PYTHONPATH=. python3 <例>.py` で実行した。本物の LLM・Embedding・Qdrant は API キーが要るので、
 > `tests/conftest.py` のスタブに差し替えている（ジョブ基盤・HITL の橋渡し・ゲートの判定は本物）。実データで流すときは E2E
-> （`GRACE_E2E=1`。[`backend/docs/testing.md`](../../../docs/testing.md) §1.2）を使う。
+> （`GRACE_E2E=1`。[`docs/testing.md`](../../../../docs/testing.md) §1.2）を使う。
 
 | やりたいこと | 入口 | 使用例 |
 |---|---|---|
@@ -299,3 +299,4 @@ PYTHONPATH=. .venv/bin/python -m pytest tests/test_support_agent_core.py tests/t
 |---|---|---|
 | 1.0 | 2026-10-11 | 新規作成（`a_cross_doc_md_format.md` §1.1.2・§1.2）。`backend/docs/reference/core_*.md` の 10 本を本ディレクトリへ移し（接頭辞を外した）、文書の無かった `review_facts.py` の文書を足した。§2.1 はテストと同じスタブで実行して確かめた |
 | 1.1 | 2026-10-12 | `backend/docs/` の廃止にあわせ、§4 の参照先を新設の `core_process_flow.md` などへ付け替え、§5.2（`pitfalls.md` の落とし穴と `job_runtime.md` §8 のチェックリスト）を追加した。§4 冒頭の「`core_process_flow.md` には分けない」という方針は、`backend/docs/` を置かないことにしたので改めた |
+| 1.2 | 2026-10-12 | backend/docs/testing.md を直下 docs/testing.md へ、例文の実行ログを docs/examples/ へ移したのに追随（参照の付け替え） |

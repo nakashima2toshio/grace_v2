@@ -1,6 +1,6 @@
 # GRACE（grace_v2）- 業界特化・自律型エージェント基盤 ドキュメント
 
-**Version 4.10** | 最終更新: 2026-10-12
+**Version 4.11** | 最終更新: 2026-10-12
 
 > 日本語 RAG に、根拠検証（groundedness）・Web 裏取り・HITL（Human-In-The-Loop）承認を組み合わせた、
 > 業界特化の自律型エージェント。`./run_dev.sh` で起動し、ブラウザ（http://localhost:5173）の 4 タブから使う。
@@ -308,7 +308,7 @@ groundedness（支持率）   1.00（判定可能 6 主張）
 ![S-04 GRACE-Support 回答カード](docs/images/s-04-support-answer.png)
 
 画面の例文 3 業界と範囲外の質問 1 件を、それぞれ 3 回流した実行例（2026-10-07・Web OFF・アクションは dry-run。
-元ログは `backend/docs/GRACE-Support_例文4件.txt`）:
+元ログは `docs/examples/GRACE-Support_例文4件.txt`）:
 
 | 業界 | 質問 | 判定 | 出典 | 支持率（判定可能な主張） | アクション |
 |---|---|---|---|---|---|
@@ -426,7 +426,7 @@ Support と同じ機構を再利用している（新規実装は Segment / Dete
 |---|---|---|
 | ![R-04 指摘サマリ](docs/images/r-04-finding-summary.png) | ![R-05 左右ペイン](docs/images/r-05-review-panes.png) | ![R-06 指摘カード](docs/images/r-06-finding-card.png) |
 
-画面の 3 例文を 3 回ずつ流した実行例（2026-10-07・Web 裏取り OFF。元ログは `backend/docs/GRACE-Review_例文3件.txt`）:
+画面の 3 例文を 3 回ずつ流した実行例（2026-10-07・Web 裏取り OFF。元ログは `docs/examples/GRACE-Review_例文3件.txt`）:
 
 | 例文 | 指摘 | 重大 / 中 / 軽微 | 確定 / 要確認 / 抑止 | 主な指摘 |
 |---|---:|---|---|---|
@@ -704,7 +704,7 @@ cd frontend && npm run lint && npm test && npm run build # frontend
 | 結合テスト（実 Qdrant / Redis） | `tests/integration/` | 起動していれば走る。未起動なら skip |
 | E2E（実 LLM・実 Embedding・実データ・課金あり） | `tests/e2e/` | `GRACE_E2E=1` のときだけ |
 
-詳細は [`backend/docs/testing.md`](backend/docs/testing.md)。
+詳細は [`docs/testing.md`](docs/testing.md)。
 
 ---
 
@@ -788,3 +788,4 @@ cd frontend && npm run lint && npm test && npm run build # frontend
 | 4.8 | 2026-10-11 | `qa_generation/docs/` の構成整理（`README.md` → `README_qa_generation.md`、`__init__.md` を統合、`make_qa_qapipeline.md` → `qa_generation_process_flow.md`）に合わせてリンクを直した |
 | 4.9 | 2026-10-11 | backend のモジュール文書を `backend/docs/reference/` から `backend/app/docs/`・`backend/app/api/docs/`・`backend/app/core/docs/` へ移したのに追随（リンクの付け替え） |
 | 4.10 | 2026-10-12 | backend/docs/ の横断文書の廃止に追随。§7.1 に前提（Python 3.11 以上・uv・Node 18 以上・依存の導入コマンド）を、§10 に症状 4 行（ポート使用中・uv / Node・ジョブ結果の消失・承認待ちのタイムアウト）を旧 install_and_setup.md から移し、§3.1・§4・§5・§6・§7.4・§10・§11 の参照先を backend/app の各文書へ付け替えた |
+| 4.11 | 2026-10-12 | backend/docs/testing.md を直下 docs/testing.md へ、例文の実行ログを docs/examples/ へ移したのに追随（参照の付け替え） |
