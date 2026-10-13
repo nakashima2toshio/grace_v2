@@ -1,6 +1,6 @@
 # README_chunking.md - chunking/ ディレクトリ概要
 
-**Version 2.3** | 最終更新: 2026-10-13
+**Version 2.4** | 最終更新: 2026-10-13
 
 `chunking/` の入口となる文書。ディレクトリの役割・モジュール索引・コマンドの早見表・組み合わせ方・既知の制約をまとめる。
 文書を新しく書く／直す前に、まずここを見る。
@@ -276,7 +276,7 @@ print(len(chunks), out)
 | — | ~~同じ秒に始めた新規ジョブがチェックポイントのディレクトリを共有する~~ → **解決**（2 の照合で見つかった。2 つ目以降の ID に `_1`, `_2` … を付ける） | 修正前は、あとの実行が前の実行の途中結果（別の入力のチャンク）を読み戻していた | [`checkpoint_manager.md`](checkpoint_manager.md) §4.2 |
 | 4 | `--combine-rows` が効かない | オプションが何もしない | 同 §5.3 の 4 |
 | 5 | Step1 のブロックが文や語の途中で切れる | 境目の文が 2 チャンクに割れることがある | 同 §5.3 の 5 |
-| 6 | `chunking/requirements.txt` が古い（`google-genai` を挙げ、実際に要る `anthropic`・`tiktoken`・`pandas` が無い） | 書かれたとおりに入れても動かない。依存の正本はリポジトリ直下の `pyproject.toml` | — |
+| 6 | ~~`chunking/requirements.txt` が古い（`google-genai` を挙げ、実際に要る `anthropic`・`tiktoken`・`pandas` が無い）~~ → **解決**（2026-10-13 にファイルを削除した。依存はリポジトリ直下の `pyproject.toml` / `requirements.txt` に一本化） | — | — |
 | 7 | `import chunking` で本体まで読み込み、`python -m` で `RuntimeWarning` が出る | 見た目と import の重さ | §3 |
 | 8 | 移植前の記述が残る（`models.py` / `prompts.py` の docstring の「Gemini API」、`AsyncAPIClient.get_stats()` の `truncated_responses` は常に 0、`utils.show_paragraphs()` は何もしない） | 読む人が誤解する | 各モジュールの文書 |
 
@@ -324,3 +324,4 @@ uv run --no-sync pytest tests/test_chunking_abort.py tests/test_chunking_default
 | 2.1 | 2026-10-11 | §5 の 1〜3（LLM が失敗したブロックの本文が消える・`--resume` が入力を照合しない・入力ファイルが無くても終了コード 0）を直したので解決済みにし、照合で見つかった「同じ秒の新規ジョブがディレクトリを共有する」も解決済みとして足した。§5.1 のテスト件数を数え直し（`test_chunking_fallback_and_resume.py` 18 件・`test_data_jobs.py` 45 件・3 ファイルで 28 passed）、§2.1 を実行し直した |
 | 2.2 | 2026-10-11 | `qa_generation/docs/` の構成整理（`README.md` → `README_qa_generation.md`、`__init__.md` を統合、`make_qa_qapipeline.md` → `qa_generation_process_flow.md`）に合わせてリンクを直した |
 | 2.3 | 2026-10-13 | docs/archive/ を削除したのに追随（旧文書への参照を「2026-10-13 に削除。git 履歴に残る」へ） |
+| 2.4 | 2026-10-13 | 既知の制約 6 を解決（古い chunking/requirements.txt を削除。依存は直下の pyproject.toml / requirements.txt に一本化） |
