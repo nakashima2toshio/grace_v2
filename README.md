@@ -1,6 +1,6 @@
 # GRACE（grace_v2）- 業界特化・自律型エージェント基盤 ドキュメント
 
-**Version 4.12** | 最終更新: 2026-10-13
+**Version 4.13** | 最終更新: 2026-10-13
 
 > 日本語 RAG に、根拠検証（groundedness）・Web 裏取り・HITL（Human-In-The-Loop）承認を組み合わせた、
 > 業界特化の自律型エージェント。`./run_dev.sh` で起動し、ブラウザ（http://localhost:5173）の 4 タブから使う。
@@ -159,7 +159,7 @@ style EXTERNAL fill:#1a1a1a,stroke:#fff,color:#fff
 - タブの並びは「**業界特化を足していく順**」である。基本版が素のパイプラインで、GRACE-Support は
   `VerticalProfile`、GRACE-Review は `RuleSet` を差し替えたものにあたる
 - 基本版と GRACE-Support は**同じ画面部品**（`SupportPanel`）に `variant` を渡しているだけで、別実装ではない
-- 3 タブの見え方の正本は本書 §2〜§4、ステップの対照表とモード別のガードレールの正本は [`docs/pipelines.md`](docs/pipelines.md) にある
+- 3 タブの見え方の正本は本書 §2〜§4、ステップの対照表とモード別のガードレールの正本は [`core_process_flow.md` §4](backend/app/core/docs/core_process_flow.md) にある
 
 **読み違えやすい点**（旧 `docs/app_tabs_overview.md` §6 から移した。2026-10-13）:
 
@@ -274,7 +274,7 @@ groundedness（支持率）   1.00（判定可能 3 主張）
 | `ec` EC | `ec_policy_anthropic` / `ec_faq_anthropic` | 決済・返金・破損・クレーム | ✅ | 既定 | 注文情報の照会・変更は本人確認必須。返品・交換は規定の版に基づく |
 
 このほか、各業界は**担当範囲**（`scope_description`）を持ち、範囲外の質問（天気・ニュースなど）には
-回答せずに窓口を案内する。基本版との差の全項目は [`docs/pipelines.md`](docs/pipelines.md) §3、
+回答せずに窓口を案内する。基本版との差の全項目は [`core_process_flow.md` §1.7](backend/app/core/docs/core_process_flow.md)、
 業界プロファイルの設計は [`backend/app/core/docs/verticals.md`](backend/app/core/docs/verticals.md)。
 
 ![S-02 GRACE-Support 入力フォーム](docs/images/s-02-support-form.png)
@@ -592,6 +592,38 @@ style CORE fill:#1a1a1a,stroke:#fff,color:#fff
 style PREP fill:#1a1a1a,stroke:#fff,color:#fff
 ```
 
+### 6.5 エージェントの階層と一般用語の対応
+
+一般的なエージェント用語（ReAct・LLM-as-a-Judge など）が、このリポジトリのどこに当たるかの見取り図
+（旧 `docs/agent_layers.md` の要点。2026-10-13 に統合）。**Agent はモデルの中ではなく、アプリが組む構造**である。
+
+| 層 | 単位 | 終了条件を決めるのは | 本リポジトリの実体 |
+|---|---|---|---|
+| L0 | API 1 回 | なし（1 往復） | `helper/helper_llm.py` / `grace/llm_compat.py` |
+| L0.5 | 1 回の LLM 判定 | なし（出力は判定値） | `core/gates.py` / `core/review_gates.py` / `grace/confidence.py`（**厚い層**） |
+| L1 | ツールループ（ReAct） | LLM | `grace/executor.py::execute_react_generator` ＋ `grace/tools.py` |
+| L2 | 独立文脈のサブエージェント | LLM | **無い**。Support / Review の選択は API ルートによる静的な振り分け |
+| L3 | 固定パイプライン | アプリのコード | `core/support_agent.py` / `core/review_agent.py` / `grace/`（planner・executor・replan・intervention）（**厚い層**） |
+| L4 | 常駐プロセス・UI | 外部イベント | `frontend/` / `backend/app/api/` / `core/jobs.py` / `celery_tasks.py` |
+
+L2 を持たないのは設計判断で、パイプラインが決定的になりテストしやすい。代償として共用部品
+（`GroundednessVerifier` / `InterventionBridge` / `ActionBackend`）は L3 で共有されるので、**Support の変更が Review を壊しうる**（CLAUDE.md §1）。
+
+| 一般用語 | 実装 | 層 |
+|---|---|:--:|
+| Tool use | ネイティブの Tool use は使わず、`executor.py::_decide_next_action` が構造化出力（`AgentThought`）で次のツールを選ぶ | L1 |
+| LLM-as-a-Judge | `core/gates.py::create_*` / `core/review_gates.py::create_violation_detector` | L0.5 |
+| Faithfulness / Groundedness | `grace/confidence.py::GroundednessVerifier` | L0.5 |
+| Answer relevance / Self-consistency | 同 `QueryCoverageCalculator` / `SourceAgreementCalculator` | L0.5 |
+| ReAct / Scratchpad / Tool registry | `executor.py::execute_react_generator` / `schemas.py::Scratchpad` / `tools.py::ToolRegistry` | L1 |
+| Planner-Executor | `grace/planner.py` ＋ `grace/executor.py` | L3 |
+| Guardrail | `core/gates.py` / `core/review_gates.py`（一覧は [`core_process_flow.md` §4.2](backend/app/core/docs/core_process_flow.md)） | L3 |
+| Replanning / HITL / Calibration | `grace/replan.py::ReplanManager` / `grace/intervention.py::InterventionHandler` / `grace/calibration.py::Calibrator` | L3 |
+| Episodic memory | `grace/memory.py::ExecutionMemory` | L3 |
+| System prompt injection | `core/verticals.py::VerticalProfile.build_prompt_addendum` | L3 |
+| Streaming / Job orchestration / HITL bridge | `core/jobs.py::Job.emit`・`JobManager` / `core/intervention_bridge.py::InterventionBridge` | L4 |
+| Distributed fan-out | `celery_tasks.py::generate_qa_for_chunk_task` | L4 |
+
 ---
 
 ## 7. 起動と設定
@@ -745,10 +777,7 @@ cd frontend && npm run lint && npm test && npm run build # frontend
 | 文書 | 何の正本か |
 |---|---|
 | [`docs/README.md`](docs/README.md) | 直下 `docs/` の索引と、文書の配置ルール |
-| [`docs/pipelines.md`](docs/pipelines.md) | 3 モードのステップ対照表・基本版と Support の差・モード別ガードレール |
-| [`docs/guardrails.md`](docs/guardrails.md) | ゲート・しきい値・失敗時にどちらへ倒すか |
-| [`docs/reasoning_flow.md`](docs/reasoning_flow.md) | 回答生成（reasoning）と指摘生成（detect）のプロンプト構造 |
-| [`docs/agent_layers.md`](docs/agent_layers.md) | 一般的なエージェント用語と実装の対応 |
+| [`backend/app/core/docs/core_process_flow.md`](backend/app/core/docs/core_process_flow.md) | Support / Review の流れ・3 モードの対照・ガードレールと失敗時の既定（§4）・生成ステップ |
 | [`backend/app/docs/README_app.md`](backend/app/docs/README_app.md) | backend の索引（全体構成・モデル解決。API は `api/docs/README_api.md`、Support / Review の流れは `core/docs/core_process_flow.md`） |
 | [`grace/docs/README_grace.md`](grace/docs/README_grace.md) | grace の概要・設計の考え方・モジュール索引・使い方（Support / Review が使うモジュールの対応表は `grace_process_flow.md` §2.3） |
 | [`frontend/docs/README.md`](frontend/docs/README.md) | 画面部品の索引（各コンポーネントの props・状態・SSE） |
@@ -798,3 +827,4 @@ cd frontend && npm run lint && npm test && npm run build # frontend
 | 4.10 | 2026-10-12 | backend/docs/ の横断文書の廃止に追随。§7.1 に前提（Python 3.11 以上・uv・Node 18 以上・依存の導入コマンド）を、§10 に症状 4 行（ポート使用中・uv / Node・ジョブ結果の消失・承認待ちのタイムアウト）を旧 install_and_setup.md から移し、§3.1・§4・§5・§6・§7.4・§10・§11 の参照先を backend/app の各文書へ付け替えた |
 | 4.11 | 2026-10-12 | backend/docs/testing.md を直下 docs/testing.md へ、例文の実行ログを docs/examples/ へ移したのに追随（参照の付け替え） |
 | 4.12 | 2026-10-13 | 旧 docs/app_tabs_overview.md を削除し、§6「読み違えやすい点」を §1 へ移した。§11 の行を外した |
+| 4.13 | 2026-10-13 | §6.5 にエージェント階層と一般用語の対応を追加（旧 docs/agent_layers.md の要点）。§11 の行を core_process_flow.md へ集約 |

@@ -1,6 +1,6 @@
 # executor.py - GRACE計画実行エージェント ドキュメント
 
-**Version 4.23** | 最終更新: 2026-10-10
+**Version 4.24** | 最終更新: 2026-10-13
 
 ---
 
@@ -1223,6 +1223,14 @@ def _prepare_tool_kwargs(self, step: PlanStep, state: ExecutionState) -> Dict[st
 | **Process** | 1. 基本引数`query`を設定<br>2. `rag_search`: collection追加<br>3. `web_search`: num_results/language追加（config.web_searchから）<br>4. `reasoning`: 全成功ステップの結果をパースしcontext/sourcesとして追加<br>5. `ask_user`: question/reason/urgency追加 |
 | **Output** | `Dict[str, Any]`: ツール実行引数 |
 
+> 📝 **reasoning 分岐の 3 つの決まり**（回答の品質を左右する）:
+> - **`query` は元の質問を復元する**（`step.query or state.plan.original_query`）。`step.description`（「取得した情報を元に回答を生成」等の内部指示）を
+>   質問として渡すと、LLM が本来の質問を見失い、検索結果を羅列する汎用サマリーになる。
+> - **`depends_on` ではなく全ステップを step_id 順に走査する。** 動的に挿入された `web_search` やリプラン後の結果も拾うため。
+>   `[{` で始まる文字列出力は `ast.literal_eval` で `sources` へ戻し、戻せないものは `--- 参照情報 (Step N) ---` 付きで `context` へ入れる。
+> - **`ask_user` の結果は除外する**（`plan.steps` と `state.dynamic_steps` の両方を見る）。空振り時に挿入される `ask_user` の
+>   「十分な情報が見つかりませんでした…」を参照情報として読み、回答へ引き写していた（実測 2026-08-29。`tests/test_executor_reasoning_and_memory.py`）。
+
 **戻り値例**:
 ```python
 {"query": "金色夜叉の作者", "collection": "wikipedia_ja"}
@@ -2230,6 +2238,7 @@ __all__ = [
 | 4.21 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |
 | 4.22 | 2026-10-10 | 旧 `grace_runtime.md`（現 `grace_data_flow.md`）にあったプロンプトの全文を、実装から書き出して §5 へ移した（`grace/docs/` の構成整理。所在の一覧は `grace_data_flow.md` §3.4） |
 | 4.23 | 2026-10-10 | §4.1.5 の例を、実際に ReAct ループへ振り分けられる質問に直し、スタブで実行して確かめた（旧例の質問は複雑度 0.50 で静的パスになり、ReAct の例になっていなかった） |
+| 4.24 | 2026-10-13 | _prepare_tool_kwargs に reasoning 分岐の 3 つの決まり（元の質問の復元・全ステップの走査・ask_user の除外）を追記（旧 docs/reasoning_flow.md §1.2 から） |
 
 ---
 
