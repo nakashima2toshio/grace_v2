@@ -1,6 +1,6 @@
 # make_qa.py - Q/Aペア生成 CLIエントリーポイント ドキュメント
 
-**Version 3.8** | 最終更新: 2026-10-11
+**Version 3.9** | 最終更新: 2026-10-13
 
 ---
 
@@ -289,7 +289,7 @@ python qa_qdrant/make_qa.py \
 ```
 
 > ⚠️ ワーカー（または Redis）が無いと `実行中にエラーが発生しました: Celery workers are not running` で終了コード 1。
-> ワーカーの起動・停止・監視は [`docs/celery_quick_start.md`](../../docs/celery_quick_start.md)。
+> ワーカーの起動・停止・監視は [`data_prep_install.md` §5](../../docs/data_prep_install.md)。
 
 #### 4.1.3 件数を絞って試す
 
@@ -476,7 +476,10 @@ if __name__ == "__main__":
 | 3.5 | 2026-09-26 | Embedding を `gemini-embedding-001` に戻したのに追随（2026-09-26。同日に一度 `gemini-embedding-2` へ変えたが、既存の Qdrant コレクションと grace_v2_local（同じ Qdrant を共用）をそのまま使うため戻した。定義は `config.py::ModelConfig.EMBEDDING_MODEL`） |
 | 3.6 | 2026-10-08 | 技術スタック表の LLM と `--model` の既定（2 箇所）を、実装（`make_qa.py:108` が `ModelConfig.DEFAULT_MODEL` を参照するようになった）どおり `claude-sonnet-5` → `claude-sonnet-5-5` へ是正 |
 | 3.7 | 2026-10-09 | 処理に使われていなかった `--batch-chunks`（1 回の API で処理するチャンク数）を削除したのに追随（`QAPipeline` は同期でも Celery でもチャンク 1 件 = LLM 呼び出し 1 回で、値を一度も使っていなかった）。`-c/--concurrency` はログ表示用で、実際の並列数は `start_celery.sh -c` で決まることを明記 |
-| 3.8 | 2026-10-11 | `qa_qdrant/docs/` の構成整理に合わせて改訂。§4.1 の使用例を処理パターン（基本・Celery 並列・件数を絞る・`python -m`・入力の検査で止まるとき）ごとの 5 本に書き直し、入力を実在する名前にそろえ、スタブ（LLM・Embedding）と実 Redis・Celery ワーカーで実行して確かめた（存在しない `output_chunked/data_chunks.csv` や `summary_20260617_xxxxx.json` のような出力例をやめた）。実測で見つけた既知の問題（`ANTHROPIC_API_KEY` を確かめず 0 件のまま終了コード 0 など）を §5.4 に記録。§3.4 の行範囲を数え直し、`--output` の既定が絶対パスであることを明記
+| 3.8 | 2026-10-11 |  |
+| 3.9 | 2026-10-13 | Celery の参照先を docs/data_prep_install.md §5 へ（celery_quick_start.md を統合・削除） |
+
+`qa_qdrant/docs/` の構成整理に合わせて改訂。§4.1 の使用例を処理パターン（基本・Celery 並列・件数を絞る・`python -m`・入力の検査で止まるとき）ごとの 5 本に書き直し、入力を実在する名前にそろえ、スタブ（LLM・Embedding）と実 Redis・Celery ワーカーで実行して確かめた（存在しない `output_chunked/data_chunks.csv` や `summary_20260617_xxxxx.json` のような出力例をやめた）。実測で見つけた既知の問題（`ANTHROPIC_API_KEY` を確かめず 0 件のまま終了コード 0 など）を §5.4 に記録。§3.4 の行範囲を数え直し、`--output` の既定が絶対パスであることを明記
 
 ---
 

@@ -1,6 +1,6 @@
 # エージェント階層（L0〜L4）— 一般用語と grace_v2 実装の対応
 
-**Version 1.8** | 最終更新: 2026-10-12
+**Version 1.9** | 最終更新: 2026-10-13
 
 ---
 
@@ -342,7 +342,7 @@ dev: `:5173` / FastAPI dev: `:8000`）。
 ### 8.1 Streamlit は存在しない
 
 本リポジトリに Streamlit は**コード・依存ともに 1 件も無い**（2026-09-12 に除去、
-`doc_modernization_todo.md` §5・§10.1）。Streamlit 画面用のフォーマット仕様
+当時の `doc_modernization_todo.md` §5・§10.1。同文書は 2026-10-13 に削除）。Streamlit 画面用のフォーマット仕様
 `a_pages_md_format.md` もスキル資材から削除した（2026-10-10）。UI を論じるときの
 参照先は常に `backend/` と `frontend/` である。
 
@@ -416,3 +416,4 @@ dev: `:5173` / FastAPI dev: `:8000`）。
 | 1.6 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |
 | 1.7 | 2026-10-10 | `grace/docs/` の構成整理（`README.md` → `README_grace.md`、`grace.md` / `grace_core.md` / `grace_runtime.md` / `confidence_calibration.md` を `README_grace.md` / `grace_process_flow.md` / `grace_data_flow.md` へ統合）に合わせてリンクを直した |
 | 1.8 | 2026-10-12 | backend/docs/ の横断文書の廃止（2026-10-12）に追随し、参照先を backend/app/docs/README_app.md・backend/app/api/docs/README_api.md・backend/app/core/docs/core_process_flow.md などへ付け替えた |
+| 1.9 | 2026-10-13 | 削除した文書への参照を付け替え |

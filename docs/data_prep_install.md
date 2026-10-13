@@ -1,6 +1,6 @@
 # インストール・環境構築ガイド（Q/A 生成・Qdrant 登録まわり）
 
-**Version 2.9** | 最終更新: 2026-10-12
+**Version 2.10** | 最終更新: 2026-10-13
 
 ---
 
@@ -133,8 +133,7 @@ cd frontend && npm install
 
 > 📌 **`streamlit` / `altair` / `pydeck` は 2026-09-12 に依存から削除済み**
 > （Streamlit 版アプリ（`ui/`）の名残で、コード中の `import streamlit` は 0 件だった）。
-> 削除の確認手順は
-> [`docs/doc_modernization_todo.md`](../docs/doc_modernization_todo.md) §10.1 にある。
+> 削除の経緯は当時の `docs/doc_modernization_todo.md` §10.1（2026-10-13 に削除。git 履歴に残る）。
 
 ### 2.4 MeCabのインストール(日本語処理用)
 
@@ -321,7 +320,7 @@ docker compose up -d
 
 ### 5.1 Celery概要(なぜ必要か)
 
-Q&A生成処理では、Gemini APIを大量に呼び出します。同期処理では:
+Q&A生成処理では、LLM（Anthropic Claude）の API を大量に呼び出します。同期処理では:
 
 - 1000チャンク x 3秒/チャンク = 50分
 
@@ -345,8 +344,8 @@ worker_prefetch_multiplier = 1    # 一度に取得するタスク数
 worker_max_tasks_per_child = 50   # メモリリーク対策
 
 # タイムアウト設定
-task_time_limit = 300             # 5分
-task_soft_time_limit = 270        # 4.5分
+task_time_limit = 600             # 10分
+task_soft_time_limit = 540        # 9分
 
 # リトライ設定
 task_retry_kwargs = {
@@ -465,6 +464,66 @@ Flower画面で確認できる情報:
 celery -A celery_tasks inspect active
 celery -A celery_tasks inspect stats
 ```
+
+
+### 5.8 Q/A 生成で Celery を使う（`--use-celery`）
+
+> 📝 5.8〜5.11 は旧 `docs/celery_quick_start.md` を統合したもの（2026-10-13）。
+
+ワーカーを起動してから、Q/A 生成＋登録の CLI に `--use-celery` を付ける。データ管理タブの「② Q/A 作成」でも Celery 並列を選べる。
+
+```bash
+./start_celery.sh start -c 8
+python qa_qdrant/make_qa_register_qdrant.py \
+  --input-file document.txt --collection my_docs \
+  --use-celery --celery-workers 8 --recreate
+```
+
+| 指定 | 動作 |
+|---|---|
+| （既定）スマート生成 | LLM がチャンクを分析して Q/A 数（0〜5 個）を決め、トピック付きで生成する。1 チャンクあたり LLM を 2 回呼ぶ |
+| `--no-smart-generation` | 従来方式。トークン数で Q/A 数（2〜8 個）を固定する。速いが、内容の薄いチャンクにも Q/A を作る |
+
+ログの `収集完了: 成功 12/12 / Q/A総数 42` のような行で結果を確かめる（ワーカーのログは `logs/celery_qa_worker.log`）。
+
+### 5.9 タスク定義の確認と手動テスト
+
+```bash
+./start_celery.sh status      # Redis 接続・起動中のワーカー・合計 concurrency
+python celery_tasks.py        # ブローカー URL・SmartQAGenerator の import・ワーカー状態の自己診断
+```
+
+```python
+from celery_tasks import submit_unified_qa_generation, collect_results
+
+chunk = {"id": "test_0", "text": "テスト用のテキストです。", "tokens": 20, "doc_id": "test_doc", "chunk_idx": 0}
+tasks = submit_unified_qa_generation(chunks=[chunk], config={"type": "test", "qa_per_chunk": 3}, model="claude-sonnet-5-5")
+qa_pairs = collect_results(tasks, timeout=60)
+print(len(qa_pairs))
+```
+
+`submit_unified_qa_generation()` の引数は `chunks` / `config` / `model` の 3 つだけで、スマート生成は常に有効（`use_smart_generation` を渡すと `TypeError`）。
+`test_celery_integration.py` は本リポジトリに**存在しない**（古い手順書が案内していた）。キューを空にするときは
+`python -c "from celery_tasks import purge_queue; purge_queue()"`。
+
+### 5.10 Celery のトラブルシューティング
+
+| 症状 | 対処 |
+|---|---|
+| `❌ Redisサーバーが起動していません` | `brew services start redis`（macOS）/ `sudo systemctl start redis`（Linux）→ `redis-cli ping` |
+| `❌ Celeryワーカーが応答しません` | `./start_celery.sh restart -c 8`。原因は `tail -f logs/celery_qa_worker.log`、または `celery -A celery_config worker --loglevel=debug` で前面起動して見る |
+| `タスク N/M: タイムアウト（600秒）` | `celery_config.py` の `task_time_limit`（既定 600 秒）を増やす・並列数を上げる・`--no-smart-generation` に切り替える |
+| `MemoryError` / worker killed | `worker_max_tasks_per_child`（既定 50）を下げる・並列数を下げる |
+| 成功なのに `Q/A総数: 0` | スマート生成が「Q/A 0 個」と判定している（ログに `Q/A生成スキップ（qa_count=0）`）→ `--no-smart-generation`。LLM API のエラーならログの `ERROR` を見る |
+| ワーカーが何も処理しない | `-Q` に存在しないキュー（`qa_generation` など）を渡していないか（§5.3） |
+
+### 5.11 データ量別の推奨設定
+
+| データ量 | 推奨 |
+|---|---|
+| 100 チャンク未満 | Celery を使わない（`--use-celery` を付けず同期で流す） |
+| 100〜1,000 チャンク | スマート生成 ＋ `-c 8`（`--celery-workers 8`） |
+| 10,000 チャンク以上 | 従来方式（`--no-smart-generation`）＋ 並列数を上げる（`-c 24` など。PC の CPU・メモリと LLM のレート制限に合わせる） |
 
 ---
 
@@ -863,3 +922,4 @@ grace_v2/
 | 2.7 | 2026-10-08 | 現在の既定 LLM の記述（構成図・依存表・API キー表の 3 箇所）を `claude-sonnet-5` → 実装（`config.py::ModelConfig.DEFAULT_MODEL`）どおり `claude-sonnet-5-5` へ是正（2026-10-08） |
 | 2.8 | 2026-10-11 | `qa_qdrant/docs/01_install.md` から直下 `docs/data_prep_install.md` へ改名して移した（`chunking/`・`qa_generation/`・`qa_qdrant/` にまたがる環境構築のため。`a_cross_doc_md_format.md` §1.4）。相対リンクを移動先に合わせた。本文は変えていない |
 | 2.9 | 2026-10-12 | backend/docs/ の横断文書の廃止（2026-10-12）に追随し、参照先を backend/app/docs/README_app.md・backend/app/api/docs/README_api.md・backend/app/core/docs/core_process_flow.md などへ付け替えた |
+| 2.10 | 2026-10-13 | 旧 docs/celery_quick_start.md を §5.8〜§5.11 へ統合。§5.2 の制限時間を実装（600 / 540 秒）に合わせた |

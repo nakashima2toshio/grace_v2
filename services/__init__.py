@@ -16,7 +16,7 @@ services - ビジネスロジック分離モジュール
 ⚠️ 2026-09-12 に dataset_service.py / file_service.py を削除した。
    Streamlit 版アプリ（ui/）の時代の名残で、services/__init__.py の
    再エクスポート以外に呼び出し元が 1 件も無かった。
-   （実装は git 履歴に残る。経緯は docs/doc_modernization_todo.md）
+   （実装と経緯〔旧 docs/doc_modernization_todo.md〕は git 履歴に残る）
 ⚠️ 2026-10-11 に config_service.py / cache_service.py / json_service.py を削除した。
    本パッケージの再エクスポートとテスト以外に呼び出し元が無かった
    （実装は git 履歴に残る。経緯は services/docs/README_services.md）。

@@ -1,6 +1,6 @@
 # docs 棚卸し（リポジトリ直下 `docs/`）
 
-**Version 3.21** | 最終更新: 2026-10-12
+**Version 3.22** | 最終更新: 2026-10-13
 
 リポジトリ直下 `docs/` の一覧と、**どのディレクトリに何を置くかの境界**をまとめる。
 各領域の棚卸しは backend（[`README_app.md`](../backend/app/docs/README_app.md)・[`README_api.md`](../backend/app/api/docs/README_api.md)・[`README_core.md`](../backend/app/core/docs/README_core.md)） /
@@ -87,7 +87,7 @@ CLAUDE.md §9.1 の表を、判断に使える形へ具体化したもの。
 | E モジュール IPO | トップレベル `.py` の IPO | `a_class_method_md_format.md` |
 
 > ⚠️ **トップレベル `.py` の IPO は直下 `docs/` が置き場所**である
-> （唯一あった `agent_parallel_search.md` は、対象のモジュールを 2026-10-10 に削除したので `archive/` へ移した。現在は無い）。パッケージに属さないため `<package>/docs/` が作れない。
+> （`qdrant_delete_collection.md`。以前あった `agent_parallel_search.md` は対象のモジュールを 2026-10-10 に削除し、文書も 2026-10-13 に削除した）。パッケージに属さないため `<package>/docs/` が作れない。
 > 横断文書と混ざるが、これを分けるために 1 ファイルのためのディレクトリは切らない。
 
 ---
@@ -104,12 +104,9 @@ CLAUDE.md §9.1 の表を、判断に使える形へ具体化したもの。
 | `pipelines.md` | A | **3 モード対照のハブ**（基本版 / Support / Review）。ステップ対照表・実行順・基本版との差・ガードレール有効表 | backend + frontend | 252 | 1.7 |
 | `guardrails.md` | A | ガードレール GA〜G9 の機構 → 実装 → **失敗時の既定** | backend + grace + ルート | 380 | 1.2 |
 | `reasoning_flow.md` | A | 生成の 2 ステップ（Support の `reasoning` / Review の `detect`） | grace + backend | 393 | 2.7 |
-| `performance_levers.md` | A | 回答品質・レイテンシ・コストを決めている箇所と未実装レバー | 全域 | 579 | 2.10 |
-| `agent_layers.md` | A | **一般エージェント用語 → 実装の対応表**（L0〜L4）。実装を読む前の見取り図 | 全域 | 418 | 1.8 |
-| `app_tabs_overview.md` | A | **処理 3 タブの入口**。基本版 / GRACE-Support / GRACE-Review を「業界特化・処理フロー・回答」の 3 点で、画面の実行例つきでまとめる。ステップ対照表は `pipelines.md` へリンク | backend + frontend + grace | 382 | 1.5 |
-| `data_prep_install.md` | B | データ準備（チャンク化 → Q/A 生成 → Qdrant 登録）の環境構築。MeCab・Docker（Qdrant / Redis）・Celery・API キー（2026-10-11 に `qa_qdrant/docs/01_install.md` から移した） | chunking + qa_generation + qa_qdrant | 865 | 2.9 |
-| `celery_quick_start.md` | B | Celery ワーカーの起動・監視・トラブルシューティング（2026-10-11 に `qa_qdrant/docs/` から移した） | qa_generation + qa_qdrant + 直下 `celery_*.py` | 525 | 2.5 |
-
+| `performance_levers.md` | A | 回答品質・レイテンシ・コストを決めている箇所と未実装レバー | 全域 | 579 | 2.11 |
+| `agent_layers.md` | A | **一般エージェント用語 → 実装の対応表**（L0〜L4）。実装を読む前の見取り図 | 全域 | 419 | 1.9 |
+| `data_prep_install.md` | B | データ準備（チャンク化 → Q/A 生成 → Qdrant 登録）の環境構築。MeCab・Docker（Qdrant / Redis）・Celery の起動とトラブル対応（§5。2026-10-13 に `celery_quick_start.md` を統合）・API キー（2026-10-11 に `qa_qdrant/docs/01_install.md` から移した） | chunking + qa_generation + qa_qdrant | 925 | 2.10 |
 | `testing.md` | B | テストの地図。実行方法（結合テスト・E2E）・どこを触ったらどれを流すか・CI の 4 ゲート（2026-10-12 に `backend/docs/` から移した） | tests + backend + frontend + scripts | 421 | 2.13 |
 
 ### 3.2 モジュール IPO（トップレベル `.py`）
@@ -122,8 +119,7 @@ CLAUDE.md §9.1 の表を、判断に使える形へ具体化したもの。
 
 | 文書 | 種別 | 内容 | 行数 | Ver |
 |---|:--:|---|---:|---|
-| `doc_modernization_todo.md` | C | ドキュメント最新化 TODO。**①〜⑧ と §10 の残タスクはすべて完了**（スクリーンショット全 31 枚を撮影済み） | 488 | 2.6 |
-| `review_rag_rules_todo.md` | C | GRACE-Review の規程 RAG 整備 TODO。条文が根拠に届かない問題は両リポジトリで解消済み。**規程の雛形は grace_v2 にだけ置く方針**、残作業（雛形の監修・Qdrant コレクションの整理・policy-01 の規程登録ほか）と課題（Web 裏取りの価値・gemma4 の判定の質など）。Sonnet 5.5 / Opus 5.5 のモデル比較（3 サンプルで指摘が完全一致・既定は Sonnet 5.5 のまま） | 246 | 3.10 |
+| `review_rag_rules_todo.md` | C | GRACE-Review の規程 RAG 整備 TODO。条文が根拠に届かない問題は両リポジトリで解消済み。**規程の雛形は grace_v2 にだけ置く方針**、残作業（雛形の監修・Qdrant コレクションの整理・policy-01 の規程登録ほか）と課題（Web 裏取りの価値・gemma4 の判定の質など）。Sonnet 5.5 / Opus 5.5 のモデル比較（3 サンプルで指摘が完全一致・既定は Sonnet 5.5 のまま） | 191 | 3.11 |
 
 ### 3.4 資材ディレクトリ
 
@@ -131,18 +127,15 @@ CLAUDE.md §9.1 の表を、判断に使える形へ具体化したもの。
 
 | ディレクトリ | 内容 |
 |---|---|
-| `examples/` | 画面の例文を流した実行ログ（`GRACE-Support_例文4件.txt`・`GRACE-Review_例文3件.txt`。直下 README §3.3・§4.3 と `app_tabs_overview.md` が参照。2026-10-12 に `backend/docs/` から移した） |
-| `images/` | README・各文書が参照するスクリーンショット 21 枚 |
-| `LLM/` | モデル別の ReAct 実行ログと比較（`llm_compare.md` ほか 11 ファイル） |
-| `LLM_design/` | 外部モデルによる設計レビュー（`by_gpt56sol.md`） |
+| `examples/` | 画面の例文を流した実行ログ（`GRACE-Support_例文4件.txt`・`GRACE-Review_例文3件.txt`。直下 README §3.3・§4.3 が参照。2026-10-12 に `backend/docs/` から移した） |
+| `images/` | README・各文書が参照するスクリーンショット 31 枚（どこからも参照されていない 4 枚は 2026-10-13 に削除） |
+| `LLM/` | GRACE とは別の実験の記録。React の `useReducer` カウンタを各モデルに解説・バグ修正させた比較（`llm_compare.md`）と各モデルの出力、課題文（`bug_code_check_llm.txt`・`a_rules.txt`・`reactバグ修正.txt`）。2026-10-13 に grace_v2_local の分（課題文 2 本と qwen の別の実行 `react_ollama_qwen3_5_9b_local.md`）をここへ集約した |
+| `LLM_design/` | 同じ実験の一部。外部モデルが書いた `Counter.tsx` の設計書（`by_gpt56sol.md`） |
 
 ### 3.5 アーカイブ（`docs/archive/`）
 
-**削除ではなく移動**（`git mv`）。記録としての価値はあるが、実装の正ではない文書。
-
-| 文書 | 内容 | 行数 |
-|---|---|---:|
-| `archive/qa_tab_port_todo.md` | 「② Q/A 作成」タブ移植の調査記録（V1〜V6 は 2026-09-12 に実装済み。現在の設計は `backend/app/core/docs/data_jobs.md`） | 316 |
+**現在は無い**（2026-10-13 に `archive/qa_tab_port_todo.md`・`archive/agent_parallel_search.md` を削除した。どちらも役目を終えた記録で、git 履歴に残る）。
+完了した TODO は `archive/` へ移さずに削除し、残すべき結論だけを現行の文書へ移す。
 
 ---
 
@@ -211,12 +204,7 @@ EOF
 
 ## 6. 残タスク
 
-| # | タスク | 内容 | 状態 |
-|---|---|---|---|
-| 1 | ~~スクリーンショット 10 枚~~ | `doc_modernization_todo.md` §10 の残タスク #1。LLM 実行が要る 10 枚（`S-03`〜`S-05` / `R-03`〜`R-06` / `C-01` / `D-03` / `T-01`） | ✅ 2026-09-26 撮影済み（全 31 スロット完了） |
-| 2 | ~~`ReviewForm` / `ReviewPanel` のアクセシビリティ~~ | 同 #5 / #6。`<label>` の欠落・`aria-live` / `role` の欠落 | ✅ 2026-09-12 実装済み（索引への反映は 2026-09-25・v1.6） |
-| 3 | `pipelines.md` / `guardrails.md` の Version ヘッダー | この 2 件だけ `**Version X.X**` ヘッダーが無かった | ✅ 2026-09-24（v1.2） |
-| 4 | ~~`frontend/docs/` を React 仕様 v1.1 の共通骨格へ~~ | `a_react_page_md_format.md` v1.1 で概要に「各責務対応のモジュール」、`## 1.` に「1.1 システム全体での位置づけ（3 層）」が加わった。既存のコンポーネント文書（20 件）は未追随 | ✅ 2026-09-24（あわせて `backend/docs/` も基本フォーマット・横断文書フォーマットへ追随） |
+無い（以前の 4 件はすべて完了したので、2026-10-13 に表を外した。経緯は変更履歴と git 履歴にある）。
 
 ---
 
@@ -266,3 +254,4 @@ EOF
 | 3.19 | 2026-10-11 | backend のモジュール文書を `backend/docs/reference/` から `backend/app/docs/`・`backend/app/api/docs/`・`backend/app/core/docs/` へ移したのに追随（冒頭の索引・§2 の配置の境界） |
 | 3.20 | 2026-10-12 | backend/docs/ の横断文書の廃止（2026-10-12）に追随し、参照先を backend/app/docs/README_app.md・backend/app/api/docs/README_api.md・backend/app/core/docs/core_process_flow.md などへ付け替えた |
 | 3.21 | 2026-10-12 | backend/docs/testing.md を直下 docs/testing.md へ、例文の実行ログを docs/examples/ へ移したのに追随（参照の付け替え） |
+| 3.22 | 2026-10-13 | docs/ の整理: app_tabs_overview・celery_quick_start・doc_modernization_todo・archive/ の 2 本・未参照の画像 4 枚を削除。grace_v2_local の LLM 資材を LLM/ へ集約。§3.5・§6 を更新 |

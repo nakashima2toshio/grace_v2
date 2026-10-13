@@ -115,7 +115,7 @@ style LOWER fill:#1a1a1a,stroke:#fff,color:#fff
 |---|---|---|---:|---|---|
 | `qdrant_service.py` | [`qdrant_service.md`](./qdrant_service.md) | E | 1714 | 2.7 | Qdrant の死活確認・登録・確認・統合・削除 |
 | `data_pipeline_service.py` | [`data_pipeline_service.md`](./data_pipeline_service.md) | E | 656 | 1.5 | データ管理タブと CLI の共通の層（パス検証・同期化・JSON 化） |
-| `token_service.py` | [`token_service.md`](./token_service.md) | E | 946 | 1.7 | トークン数・コスト・上限の見積もり |
+| `token_service.py` | [`token_service.md`](./token_service.md) | E | 947 | 1.8 | トークン数・コスト・上限の見積もり |
 | `qa_service.py` | [`qa_service.md`](./qa_service.md) | E | 554 | 1.4 | 1 チャンクの Q/A 生成と保存 |
 | `log_service.py` | [`log_service.md`](./log_service.md) | E | 435 | 1.5 | 未回答質問ログを読む・消す |
 | `prompts.py` | [`prompts.md`](./prompts.md) | E | 356 | 1.2 | 共通プロンプト定数 |

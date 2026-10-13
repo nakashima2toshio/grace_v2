@@ -1,6 +1,6 @@
 # GRACE（grace_v2）- 業界特化・自律型エージェント基盤 ドキュメント
 
-**Version 4.11** | 最終更新: 2026-10-12
+**Version 4.12** | 最終更新: 2026-10-13
 
 > 日本語 RAG に、根拠検証（groundedness）・Web 裏取り・HITL（Human-In-The-Loop）承認を組み合わせた、
 > 業界特化の自律型エージェント。`./run_dev.sh` で起動し、ブラウザ（http://localhost:5173）の 4 タブから使う。
@@ -159,8 +159,17 @@ style EXTERNAL fill:#1a1a1a,stroke:#fff,color:#fff
 - タブの並びは「**業界特化を足していく順**」である。基本版が素のパイプラインで、GRACE-Support は
   `VerticalProfile`、GRACE-Review は `RuleSet` を差し替えたものにあたる
 - 基本版と GRACE-Support は**同じ画面部品**（`SupportPanel`）に `variant` を渡しているだけで、別実装ではない
-- 3 タブの見え方の正本は [`docs/app_tabs_overview.md`](docs/app_tabs_overview.md)、ステップの対照表とモード別の
-  ガードレールの正本は [`docs/pipelines.md`](docs/pipelines.md) にある
+- 3 タブの見え方の正本は本書 §2〜§4、ステップの対照表とモード別のガードレールの正本は [`docs/pipelines.md`](docs/pipelines.md) にある
+
+**読み違えやすい点**（旧 `docs/app_tabs_overview.md` §6 から移した。2026-10-13）:
+
+| 誤解しやすい点 | 実際 |
+|---|---|
+| 基本版は「RAG のコレクションを絞っている」 | 逆で、**絞らない**（全コレクションが対象）。絞るのは GRACE-Support の業界プロファイル |
+| 基本版でも 0-(B) 業界プロファイル適用が走る | **スキップ**される（タイムラインには表示されるが状態はスキップ） |
+| 基本版と GRACE-Support は別実装 | **同じ関数**（`run_support_agent_core`）。画面も同じ `SupportPanel` を `variant` で切り替えている |
+| Review の番号順 ＝ 実行順 | 違う。⑥ Web 裏取りは ⑤ Severity より**先**に実行される（番号は Support との対応を示す呼称） |
+| `tools.py` は共通モジュール | grace のコアモジュール **8 つ目**（ツール実行）として数える。共通（基盤）は `config.py` / `schemas.py` / `llm_compat.py` |
 
 ---
 
@@ -736,7 +745,6 @@ cd frontend && npm run lint && npm test && npm run build # frontend
 | 文書 | 何の正本か |
 |---|---|
 | [`docs/README.md`](docs/README.md) | 直下 `docs/` の索引と、文書の配置ルール |
-| [`docs/app_tabs_overview.md`](docs/app_tabs_overview.md) | 処理 3 タブ（基本版 / GRACE-Support / GRACE-Review）の概要 |
 | [`docs/pipelines.md`](docs/pipelines.md) | 3 モードのステップ対照表・基本版と Support の差・モード別ガードレール |
 | [`docs/guardrails.md`](docs/guardrails.md) | ゲート・しきい値・失敗時にどちらへ倒すか |
 | [`docs/reasoning_flow.md`](docs/reasoning_flow.md) | 回答生成（reasoning）と指摘生成（detect）のプロンプト構造 |
@@ -789,3 +797,4 @@ cd frontend && npm run lint && npm test && npm run build # frontend
 | 4.9 | 2026-10-11 | backend のモジュール文書を `backend/docs/reference/` から `backend/app/docs/`・`backend/app/api/docs/`・`backend/app/core/docs/` へ移したのに追随（リンクの付け替え） |
 | 4.10 | 2026-10-12 | backend/docs/ の横断文書の廃止に追随。§7.1 に前提（Python 3.11 以上・uv・Node 18 以上・依存の導入コマンド）を、§10 に症状 4 行（ポート使用中・uv / Node・ジョブ結果の消失・承認待ちのタイムアウト）を旧 install_and_setup.md から移し、§3.1・§4・§5・§6・§7.4・§10・§11 の参照先を backend/app の各文書へ付け替えた |
 | 4.11 | 2026-10-12 | backend/docs/testing.md を直下 docs/testing.md へ、例文の実行ログを docs/examples/ へ移したのに追随（参照の付け替え） |
+| 4.12 | 2026-10-13 | 旧 docs/app_tabs_overview.md を削除し、§6「読み違えやすい点」を §1 へ移した。§11 の行を外した |

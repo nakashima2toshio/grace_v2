@@ -725,7 +725,7 @@ grace_v2 に**存在しない**: `setup.py` / `server.py` / a-prefixed scripts
 > ⚠️ **`start_celery.sh` は存在する**（2026-09-12 訂正）。以前この一覧に
 > 入っていたが、Q/A 生成の Celery 並列（CLI の `--use-celery` / データ管理タブの
 > 「② Q/A 作成」）を使うときのワーカー起動口として追加した。手順は
-> `docs/celery_quick_start.md`（2026-10-11 に `qa_qdrant/docs/` から移した）。
+> `docs/data_prep_install.md` §5（2026-10-13 に旧 `docs/celery_quick_start.md` を統合した）。
 >
 > ⚠️ **Celery のキュー名に `qa_generation` は無い。** `celery_config.py` が定義
 > するのは `celery`（既定）/ `high_priority` / `normal_priority` / `low_priority`
