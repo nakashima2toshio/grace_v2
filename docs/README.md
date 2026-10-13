@@ -1,6 +1,6 @@
 # docs 棚卸し（リポジトリ直下 `docs/`）
 
-**Version 3.22** | 最終更新: 2026-10-13
+**Version 3.23** | 最終更新: 2026-10-13
 
 リポジトリ直下 `docs/` の一覧と、**どのディレクトリに何を置くかの境界**をまとめる。
 各領域の棚卸しは backend（[`README_app.md`](../backend/app/docs/README_app.md)・[`README_api.md`](../backend/app/api/docs/README_api.md)・[`README_core.md`](../backend/app/core/docs/README_core.md)） /
@@ -68,10 +68,10 @@ CLAUDE.md §9.1 の表を、判断に使える形へ具体化したもの。
   └─ いいえ → 直下 docs/ へ置く。ただし §4 の「正本」欄に同じ資産が無いか先に確認する
 ```
 
-**実例**: `guardrails.md` は `backend/app/core/gates.py` ＋ `grace/confidence.py` ＋
-`grace/executor.py` ＋ `support_actions.py` にまたがるので直下。
-`backend/app/core/docs/gates.md` は `gates.py` 1 ファイルの IPO なので `backend/app/core/docs/`。
-**両者は重複ではない** — 前者は「機構 ID（GA〜G9）で横断的に見る」、後者は「関数の仕様」。
+**実例**: `data_prep_install.md` は `chunking/` ＋ `qa_generation/` ＋ `qa_qdrant/` ＋ 直下の `celery_*.py` にまたがる手順なので直下。
+一方、ガードレール一覧（GA〜G9）は `gates.py` ＋ `grace/confidence.py` ＋ `grace/executor.py` にまたがるが、**読む人が backend の流れから辿る**ので
+2026-10-13 に直下の `guardrails.md` から [`core_process_flow.md` §4](../backend/app/core/docs/core_process_flow.md) へ移した。
+またがる領域の数だけでなく、**誰がどこから辿るか**でも置き場所を決める。
 
 ### 2.2 書式（フォーマット仕様）
 
@@ -99,13 +99,11 @@ CLAUDE.md §9.1 の表を、判断に使える形へ具体化したもの。
 
 ### 3.1 横断文書（2 つ以上の領域にまたがる）
 
+> 📝 2026-10-13 に読み物の横断文書 4 本（`pipelines.md`・`guardrails.md`・`reasoning_flow.md`・`agent_layers.md`）を統合して削除した。
+> 3 モードの対照・ガードレール・生成ステップは [`core_process_flow.md` §4](../backend/app/core/docs/core_process_flow.md)、一般用語との対応は直下 [`README.md`](../README.md) §6.5 にある。
+
 | 文書 | 種別 | 内容 | またがる領域 | 行数 | Ver |
 |---|:--:|---|---|---:|---|
-| `pipelines.md` | A | **3 モード対照のハブ**（基本版 / Support / Review）。ステップ対照表・実行順・基本版との差・ガードレール有効表 | backend + frontend | 252 | 1.7 |
-| `guardrails.md` | A | ガードレール GA〜G9 の機構 → 実装 → **失敗時の既定** | backend + grace + ルート | 380 | 1.2 |
-| `reasoning_flow.md` | A | 生成の 2 ステップ（Support の `reasoning` / Review の `detect`） | grace + backend | 393 | 2.7 |
-| `performance_levers.md` | A | 回答品質・レイテンシ・コストを決めている箇所と未実装レバー | 全域 | 579 | 2.11 |
-| `agent_layers.md` | A | **一般エージェント用語 → 実装の対応表**（L0〜L4）。実装を読む前の見取り図 | 全域 | 419 | 1.9 |
 | `data_prep_install.md` | B | データ準備（チャンク化 → Q/A 生成 → Qdrant 登録）の環境構築。MeCab・Docker（Qdrant / Redis）・Celery の起動とトラブル対応（§5。2026-10-13 に `celery_quick_start.md` を統合）・API キー（2026-10-11 に `qa_qdrant/docs/01_install.md` から移した） | chunking + qa_generation + qa_qdrant | 925 | 2.10 |
 | `testing.md` | B | テストの地図。実行方法（結合テスト・E2E）・どこを触ったらどれを流すか・CI の 4 ゲート（2026-10-12 に `backend/docs/` から移した） | tests + backend + frontend + scripts | 421 | 2.13 |
 
@@ -115,11 +113,12 @@ CLAUDE.md §9.1 の表を、判断に使える形へ具体化したもの。
 |---|:--:|---|---:|---|
 | `qdrant_delete_collection.md` | E | `qdrant_delete_collection.py` — Qdrant のコレクション削除 CLI（2026-10-11 に `qa_qdrant/docs/` から移した） | 344 | 1.2 |
 
-### 3.3 進行中の TODO
+### 3.3 TODO・改善候補
 
 | 文書 | 種別 | 内容 | 行数 | Ver |
 |---|:--:|---|---:|---|
 | `review_rag_rules_todo.md` | C | GRACE-Review の規程 RAG 整備 TODO。条文が根拠に届かない問題は両リポジトリで解消済み。**規程の雛形は grace_v2 にだけ置く方針**、残作業（雛形の監修・Qdrant コレクションの整理・policy-01 の規程登録ほか）と課題（Web 裏取りの価値・gemma4 の判定の質など）。Sonnet 5.5 / Opus 5.5 のモデル比較（3 サンプルで指摘が完全一致・既定は Sonnet 5.5 のまま） | 191 | 3.11 |
+| `performance_levers.md` | C | 回答品質・レイテンシ・コストを決めている箇所と、**未実装の改善候補**（P-03b・P-05・P-10 ほか）と実施順序。2026-10-13 に実装済みレバーの経緯を要約して縮めた | 359 | 2.12 |
 
 ### 3.4 資材ディレクトリ
 
@@ -141,17 +140,16 @@ CLAUDE.md §9.1 の表を、判断に使える形へ具体化したもの。
 
 ## 4. 横断文書の重複禁止ルール
 
-§3.1 の 4 本は**同じ表・同じ Mermaid 図を 2 箇所に置かない**。正本は次のとおり。
+直下 `docs/` と各領域の `docs/` は**同じ表・同じ Mermaid 図を 2 箇所に置かない**。正本は次のとおり。
 
 | 資産 | 正本 | 他の文書での扱い |
 |---|---|---|
-| 3 モードのステップ対照表・実行順フロー図 | `pipelines.md` §2 / §2.1 | リンクで参照 |
-| **基本版と GRACE-Support の差（9 項目）** | `pipelines.md` §3 | リンクで参照（`backend/app/core/docs/core_process_flow.md` §1.7 は設計意図のみを持つ） |
-| モード別に効くガードレールの有効表 | `pipelines.md` §4 | リンクで参照 |
-| ガードレール GA〜G9 の機構・実装・失敗時の既定 | `guardrails.md` §2 | リンクで参照 |
-| reasoning / detect のプロンプト構造 | `reasoning_flow.md` §2 / §3 | リンクで参照 |
+| 3 モードのステップ対照表・モード別のガードレール | `backend/app/core/docs/core_process_flow.md` §4.1・§4.2 | リンクで参照 |
+| 基本版と GRACE-Support の差 | `backend/app/core/docs/core_process_flow.md` §1.7 | リンクで参照 |
+| ガードレール GA〜G9 の機構・実装・失敗時の既定 | `backend/app/core/docs/core_process_flow.md` §4.2 | リンクで参照 |
+| reasoning / detect の比較 | `backend/app/core/docs/core_process_flow.md` §4.3（プロンプトの文面は `grace/docs/tools.md` §5.4） | リンクで参照 |
 | 性能レバーの現況一覧 | `performance_levers.md` §2 | リンクで参照 |
-| 一般用語 → 実装の対応（L0〜L4） | `agent_layers.md` §10 | リンクで参照 |
+| 一般用語 → 実装の対応（L0〜L4） | 直下 `README.md` §6.5 | リンクで参照 |
 | 関数・クラスの IPO | **各領域の `docs/`**（`backend/app/core/docs/*.md` 等） | 横断文書は IPO を持たない |
 
 > ⚠️ **重複は必ず片方だけ腐る。** 新しい表や図を足すときは、まずこの表の「正本」欄に
@@ -197,7 +195,7 @@ EOF
 > 📝 **検出されても自動的に違反とは限らない。** `frontend/docs/` の各コンポーネント文書は
 > **定型の枠（4〜5 行）を各ファイルが持つ設計**である（2026-09-15 時点の実測では、これと
 > `grace/step_trace/docs/` の各ステップ文書の 2 種のみが検出された。後者は 2026-09-19 に
-> 削除済み）。§3.1 の 4 本どうし、または横断文書と領域別 docs のあいだで出たものが
+> 削除済み）。直下 `docs/` の文書どうし、または直下と領域別 docs のあいだで出たものが
 > **本当の違反**である。
 
 ---
@@ -255,3 +253,4 @@ EOF
 | 3.20 | 2026-10-12 | backend/docs/ の横断文書の廃止（2026-10-12）に追随し、参照先を backend/app/docs/README_app.md・backend/app/api/docs/README_api.md・backend/app/core/docs/core_process_flow.md などへ付け替えた |
 | 3.21 | 2026-10-12 | backend/docs/testing.md を直下 docs/testing.md へ、例文の実行ログを docs/examples/ へ移したのに追随（参照の付け替え） |
 | 3.22 | 2026-10-13 | docs/ の整理: app_tabs_overview・celery_quick_start・doc_modernization_todo・archive/ の 2 本・未参照の画像 4 枚を削除。grace_v2_local の LLM 資材を LLM/ へ集約。§3.5・§6 を更新 |
+| 3.23 | 2026-10-13 | 読み物の横断文書 4 本（pipelines・guardrails・reasoning_flow・agent_layers）を統合して削除。performance_levers を種別 C（改善候補）へ移し、§4 の正本表を付け替えた |
