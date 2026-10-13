@@ -1,6 +1,6 @@
 # 性能改善レバー — 回答品質とレイテンシ・コストを決めている箇所
 
-**Version 2.10** | 最終更新: 2026-10-12
+**Version 2.11** | 最終更新: 2026-10-13
 
 ---
 
@@ -235,7 +235,7 @@ payload から本文を抽出。executor 内部の `_calculate_overall_confidenc
 **P-03b（未実装）**: `break` を廃して全スコープ横断でスコア統合する方式。
 案①で「正解が最後に評価される」問題は解消したが、**先頭コレクションが一次ヒットを
 返すと後続を見ない**構造自体は残っている。並列検索の実装 `ParallelSearchEngine`（`agent_parallel_search.py`）は
-Legacy ReAct 経路とともに 2026-10-10 に削除した（git 履歴と `docs/archive/agent_parallel_search.md` に残る）ので、
+Legacy ReAct 経路とともに 2026-10-10 に削除した（実装と文書 `docs/archive/agent_parallel_search.md` は git 履歴に残る。文書は 2026-10-13 に削除）ので、
 実装するときはそれを参考に作り直す。
 
 ### P-06 — `RAG_SEARCH_LIMIT` 3 → 5（スコア 7）✅
@@ -547,7 +547,6 @@ gov / saas / ec のコレクションが 1 つも無ければ、検索スコー�
 | `docs/pipelines.md` | 3 モードの対照（どのモードで何が動くか） |
 | `docs/guardrails.md` | 判定（ゲート）の一覧・閾値・第 2 段 LLM 判定 |
 | `docs/reasoning_flow.md` | 生成（`reasoning` / `detect`）とプロンプト構造 |
-| `docs/archive/agent_parallel_search.md` | 並列検索基盤（2026-10-10 に削除。P-03b を作るときの参考） |
 | `backend/app/core/docs/core_process_flow.md` | 複数質問（0-(A)）の設計（§1.6）・Review の誤検知抑止（§2.4） |
 | `backend/app/core/docs/gates.md` | `_answer_gate` 等の判定純関数（P-07 の対象） |
 | `backend/app/core/docs/review_agent.md` | Review コア（§6 の対象） |
@@ -577,3 +576,4 @@ gov / saas / ec のコレクションが 1 つも無ければ、検索スコー�
 | 2.8 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |
 | 2.9 | 2026-10-11 | backend のモジュール文書を移したのに追随（パスの付け替え） |
 | 2.10 | 2026-10-12 | backend/docs/ の横断文書の廃止（2026-10-12）に追随し、参照先を backend/app/docs/README_app.md・backend/app/api/docs/README_api.md・backend/app/core/docs/core_process_flow.md などへ付け替えた |
+| 2.11 | 2026-10-13 | 削除した文書（celery_quick_start・doc_modernization_todo）への参照を付け替え |

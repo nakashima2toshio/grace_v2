@@ -1,6 +1,6 @@
 # データ管理（チャンキング / Q&A 生成 / Qdrant CRUD） — 移転のお知らせ
 
-**Version 2.3** | 最終更新: 2026-10-12
+**Version 2.4** | 最終更新: 2026-10-13
 
 ---
 
@@ -37,7 +37,7 @@
 | **データ準備 3 工程の設計全体**（チャンク化 → Q/A 生成 → Qdrant 登録） | [`data_jobs.md`](backend/app/core/docs/data_jobs.md) |
 | 画面から何ができるか・操作と実装の対応 | [`README.md`](./README.md) §4.5「データ管理画面」 |
 | 環境構築（MeCab / Docker / Celery） | [`docs/data_prep_install.md`](./docs/data_prep_install.md) |
-| Celery 並列の起動手順 | [`docs/celery_quick_start.md`](./docs/celery_quick_start.md) |
+| Celery 並列の起動手順 | [`data_prep_install.md` §5](docs/data_prep_install.md) |
 
 ### モジュール単位で読む
 
@@ -92,3 +92,4 @@
 | 2.1 | 2026-10-11 | 環境構築と Celery の手順書へのリンクを、移動先（直下 `docs/data_prep_install.md`（旧 `qa_qdrant/docs/01_install.md`）・`docs/celery_quick_start.md`）に直した |
 | 2.2 | 2026-10-11 | backend のモジュール文書を `backend/docs/reference/` から `backend/app/docs/`・`backend/app/api/docs/`・`backend/app/core/docs/` へ移したのに追随（リンクの付け替え） |
 | 2.3 | 2026-10-12 | backend/docs/ の廃止にあわせ、冒頭の移転先と resolve_allowed_dir ほかの移転先（services/docs/data_pipeline_service.md）を直した |
+| 2.4 | 2026-10-13 | Celery の参照先を docs/data_prep_install.md §5 へ（celery_quick_start.md を統合・削除） |
