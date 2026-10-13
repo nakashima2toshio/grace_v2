@@ -1,6 +1,6 @@
 # README_chunking.md - chunking/ ディレクトリ概要
 
-**Version 2.2** | 最終更新: 2026-10-11
+**Version 2.3** | 最終更新: 2026-10-13
 
 `chunking/` の入口となる文書。ディレクトリの役割・モジュール索引・コマンドの早見表・組み合わせ方・既知の制約をまとめる。
 文書を新しく書く／直す前に、まずここを見る。
@@ -122,7 +122,7 @@ style EXT fill:#1a1a1a,stroke:#fff,color:#fff
 > データフロー（チャンク CSV の列・置き場所）は別文書にせず、§4 と [`qa_qdrant/docs/qa_qdrant_data_flow.md`](../../qa_qdrant/docs/qa_qdrant_data_flow.md) §2.1 に書く。
 >
 > **移した文書（2026-10-11）**: 旧 `README.md`（棚卸し索引）→ 本書、`memo.txt`（コマンドの早見表）→ 本書 §2.1 に取り込み、原本は
-> [`archive/memo.txt`](archive/memo.txt)（既定モデルが `claude-haiku-4-5` のままなど古くなっていた）。
+> 旧 `memo.txt`（2026-10-13 に削除。git 履歴に残る）（既定モデルが `claude-haiku-4-5` のままなど古くなっていた）。
 
 ---
 
@@ -323,3 +323,4 @@ uv run --no-sync pytest tests/test_chunking_abort.py tests/test_chunking_default
 | 2.0 | 2026-10-11 | `a_cross_doc_md_format.md` §1.1〜§1.4 に合わせて `README_chunking.md` へ改名し、共通骨格（主な責務・各責務対応のモジュール・3 層構成図）を持つ構成に書き直した。専用の文書が無かった 5 モジュール（`checkpoint_manager` / `models` / `prompts` / `regex_string` / `utils`）の文書と `chunking_process_flow.md` を新設し、`memo.txt` を §2.1 に取り込んで `archive/` へ移した。§2 のワークフロー 3 本を実行して確かめ、実測で見つけた制約 8 件を §5 に、テスト件数を数え直して §5.1 に記録した |
 | 2.1 | 2026-10-11 | §5 の 1〜3（LLM が失敗したブロックの本文が消える・`--resume` が入力を照合しない・入力ファイルが無くても終了コード 0）を直したので解決済みにし、照合で見つかった「同じ秒の新規ジョブがディレクトリを共有する」も解決済みとして足した。§5.1 のテスト件数を数え直し（`test_chunking_fallback_and_resume.py` 18 件・`test_data_jobs.py` 45 件・3 ファイルで 28 passed）、§2.1 を実行し直した |
 | 2.2 | 2026-10-11 | `qa_generation/docs/` の構成整理（`README.md` → `README_qa_generation.md`、`__init__.md` を統合、`make_qa_qapipeline.md` → `qa_generation_process_flow.md`）に合わせてリンクを直した |
+| 2.3 | 2026-10-13 | docs/archive/ を削除したのに追随（旧文書への参照を「2026-10-13 に削除。git 履歴に残る」へ） |

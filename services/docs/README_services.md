@@ -1,6 +1,6 @@
 # README_services.md - services/ ディレクトリ概要
 
-**Version 2.4** | 最終更新: 2026-10-12
+**Version 2.5** | 最終更新: 2026-10-13
 
 `services/` パッケージの入口となる文書。ディレクトリの役割・モジュール索引・組み合わせ方・公開 API・既知の制約をまとめる。
 文書を新しく書く／直す前に、まずここを見る。
@@ -119,10 +119,10 @@ style LOWER fill:#1a1a1a,stroke:#fff,color:#fff
 | `qa_service.py` | [`qa_service.md`](./qa_service.md) | E | 554 | 1.4 | 1 チャンクの Q/A 生成と保存 |
 | `log_service.py` | [`log_service.md`](./log_service.md) | E | 435 | 1.5 | 未回答質問ログを読む・消す |
 | `prompts.py` | [`prompts.md`](./prompts.md) | E | 356 | 1.2 | 共通プロンプト定数 |
-| ~~`agent_service.py`~~ | [`archive/agent_service.md`](./archive/agent_service.md) | — | — | — | **2026-10-10 に削除**（Legacy ReAct。文書は凍結） |
-| ~~`config_service.py`~~ | [`archive/config_service.md`](./archive/config_service.md) | — | — | — | **2026-10-11 に削除**。直下 `config.yml` の設定マネージャとロガー。`services/__init__.py` の再エクスポートとテスト以外に呼び出し元が無く、`services` を import するたびにカレントの `config.yml` を読んでいた |
-| ~~`cache_service.py`~~ | [`archive/cache_service.md`](./archive/cache_service.md) | — | — | — | **2026-10-11 に削除**（TTL 付きのメモリキャッシュ。呼び出し元が無かった） |
-| ~~`json_service.py`~~ | [`archive/json_service.md`](./archive/json_service.md) | — | — | — | **2026-10-11 に削除**（例外を出さない JSON の入出力。呼び出し元が無かった） |
+| ~~`agent_service.py`~~ | 旧 `agent_service.md`（2026-10-13 に削除。git 履歴に残る） | — | — | — | **2026-10-10 に削除**（Legacy ReAct） |
+| ~~`config_service.py`~~ | 旧 `config_service.md`（2026-10-13 に削除。git 履歴に残る） | — | — | — | **2026-10-11 に削除**。直下 `config.yml` の設定マネージャとロガー。`services/__init__.py` の再エクスポートとテスト以外に呼び出し元が無く、`services` を import するたびにカレントの `config.yml` を読んでいた |
+| ~~`cache_service.py`~~ | 旧 `cache_service.md`（2026-10-13 に削除。git 履歴に残る） | — | — | — | **2026-10-11 に削除**（TTL 付きのメモリキャッシュ。呼び出し元が無かった） |
+| ~~`json_service.py`~~ | 旧 `json_service.md`（2026-10-13 に削除。git 履歴に残る） | — | — | — | **2026-10-11 に削除**（例外を出さない JSON の入出力。呼び出し元が無かった） |
 
 > 行数・Ver は `wc -l` と各文書の Version ヘッダーの実測値（2026-10-10）。
 
@@ -318,7 +318,7 @@ print(sorted(m for m in sys.modules if m.startswith("services.")))
 | 3 | ~~`config_service.ConfigManager.get` は無いキーの既定値も `None` もキャッシュするので、既定値や `has` の結果が呼ぶ順番で変わる~~ | **2026-10-11 に解消**（`config_service.py` を削除） |
 | 4 | `token_service` は最初の呼び出しで tiktoken の符号表をインターネットから取る。取れないと簡易推定に切り替わる | 実装どおり（`token_service.md` §4.1.1） |
 | 5 | `qa_service` の 2 関数・`token_service`（2026-10-11 に唯一の呼び出し元だった `helper/helper_text.py` の関数を削除した）・`prompts.py` の 2 定数・`COLLECTION_EMBEDDINGS_SEARCH` / `COLLECTION_CSV_MAPPING`（空の辞書・非推奨）は、本リポジトリのコードから使われていない | 再エクスポートとテストだけが残っている（`prompts.py` は姉妹リポジトリ `grace_v2_local` では `grace/planner.py` が使う）。削除するかは未決定 |
-| 6 | ~~`config_service` / `cache_service` / `json_service` は、本番コードからの呼び出しが無い（`services/__init__.py` の再エクスポートとテストだけ）~~ | **2026-10-11 に削除**（3 モジュール・再エクスポート 21 件・テスト 3 ファイル 17 件。文書は `archive/` へ） |
+| 6 | ~~`config_service` / `cache_service` / `json_service` は、本番コードからの呼び出しが無い（`services/__init__.py` の再エクスポートとテストだけ）~~ | **2026-10-11 に削除**（3 モジュール・再エクスポート 21 件・テスト 3 ファイル 17 件。文書も 2026-10-13 に削除） |
 
 ### 5.1 文書を保守するときの約束
 
@@ -375,3 +375,4 @@ uv run --no-sync pytest tests/test_*_service.py tests/test_data_pipeline.py -q
 | 2.2 | 2026-10-11 | 未使用の helper/helper_api.py を 2026-10-11 に削除したのに追随。構成図の呼び出し側から外し、config_service / cache_service / json_service に本番の呼び出し元が無いことを §5 #6 に記録した |
 | 2.3 | 2026-10-11 | 本番の呼び出し元が無かった `config_service.py` / `cache_service.py` / `json_service.py` を削除したのに追随。3 文書を `archive/` へ移し、概要・構成図・§1 の索引と依存関係・§2.2（標準ライブラリの `json` に置き換え）・§2.3・§3（`__all__` 50 → 29 件）・§4・§5・§5.1 を更新した。§2.2・§2.3 を実行し直して出力を確かめた。`token_service` も本番の呼び出し元が無くなったことを §5 #5 に記録した |
 | 2.4 | 2026-10-12 | backend/docs/ の横断文書の廃止（2026-10-12）に追随し、参照先を backend/app/docs/README_app.md・backend/app/api/docs/README_api.md・backend/app/core/docs/core_process_flow.md などへ付け替えた |
+| 2.5 | 2026-10-13 | docs/archive/ を削除したのに追随（旧文書への参照を「2026-10-13 に削除。git 履歴に残る」へ） |
