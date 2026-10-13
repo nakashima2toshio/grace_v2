@@ -717,7 +717,7 @@ grace_v2 に**存在しない**: `setup.py` / `server.py` / a-prefixed scripts
 （`agent_support_example.py` と `grace/step_trace/s0_arg.py`〜`s9_render.py` は 2026-09-19 に削除。§1・§2 の注記を参照。
 残っていた `benchmark.py` を含む `grace/step_trace/` 全体は 2026-10-10 に削除）。
 **`services/agent_service.py`**（`ReActAgent`）/ **`agent_parallel_search.py`** / **`agent_cache.py`** も存在しない
-（Legacy ReAct 経路。2026-10-10 に削除。経緯は `services/docs/archive/agent_service.md`・`services/docs/README_services.md` §1）。
+（Legacy ReAct 経路。2026-10-10 に削除。経緯は 旧 `agent_service.md`（2026-10-13 に削除。git 履歴に残る）・`services/docs/README_services.md` §1）。
 **`services/config_service.py`** / **`cache_service.py`** / **`json_service.py`**、**`helper/helper_rag.py`** / **`helper_rag_qa.py`** /
 **`helper_embedding_fastembed.py`** も存在しない（呼び出し元が無かったため 2026-10-11 に削除。`helper/helper_text.py` は `clean_text()` だけ残した。
 経緯は `services/docs/README_services.md` §1・`helper/docs/README_helper.md` §1）。
