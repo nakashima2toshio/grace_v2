@@ -1,6 +1,6 @@
 # llm_compat.py - GRACE LLM 互換クライアント ドキュメント
 
-**Version 1.11** | 最終更新: 2026-10-10
+**Version 1.12** | 最終更新: 2026-10-14
 
 ---
 
@@ -809,7 +809,7 @@ _GEMINI_PROVIDERS = {"gemini", "google", "google-genai", "genai"}
 config 未指定時にフォールバックする Anthropic デフォルトモデル名。
 
 ```python
-DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-5-5"
+DEFAULT_ANTHROPIC_MODEL = ModelConfig.DEFAULT_MODEL   # = "claude-sonnet-5-5"（config.py が正）
 ```
 
 | 定数名 | 値 | 説明 |
@@ -923,6 +923,7 @@ from .llm_compat import create_chat_client
 | 1.9 | 2026-10-06 | 未記載だった 2 シンボルを実装から書き起こして追加（2026-10-06）。§4.7 に `_stop_category`（拒否の分類を取り出す）、§5.3.1 に `_ALWAYS_THINKING_MIN_TOKENS`（思考を無効化できないモデルで本文が空にならないための `max_tokens` 下限）。あわせて v1.7 で追加された例外 `LLMRefusalError` / `LLMTruncatedError` を §3.1・主要機能一覧に載せた（それまで Process の文中にしか無かった） |
 | 1.10 | 2026-10-10 | 旧 `grace_runtime.md`（現 `grace_data_flow.md`）にあったプロンプトの全文を、実装から書き出して §5 へ移した（`grace/docs/` の構成整理。所在の一覧は `grace_data_flow.md` §3.4） |
 | 1.11 | 2026-10-10 | §4.1 使用例を処理パターン 4 通り（テキスト生成・JSON で受け取る・拒否と打ち切りを扱う・プロバイダの切り替え）に書き直し、SDK クライアントをスタブにして実行して出力を確かめた（拒否・打ち切りの例外もスタブで発生させて確認）。旧版は未定義の `config` / `grace_config` を使い、`google.genai.types` で設定を渡していた |
+| 1.12 | 2026-10-14 | 既定モデル名を config.py::ModelConfig（DEFAULT_MODEL / LIGHT_MODEL）の 1 か所にまとめたのに追随 |
 
 ---
 

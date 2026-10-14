@@ -81,8 +81,19 @@ class ModelConfig:
         "claude-haiku-5-5",
     ]
 
+    # ⚠️ **既定モデル名の唯一の定義**（2026-10-14〜）。下の DEFAULT_MODEL / LIGHT_MODEL を
+    #    grace/config.py::LLMConfig（default_factory）・verticals.INTENT_MODEL・
+    #    data_jobs / schemas の Q/A 既定・llm_compat / helper_llm の既定がすべて参照する。
+    #    config/grace_config.yml には書かない（yml の値はクラス既定より優先され、ここを素通りする）。
+    #    1 回だけ別モデルで動かしたいときは GRACE_LLM_MODEL / GRACE_LLM_LIGHT_MODEL を使う。
+    #    tests/test_default_model_single_source.py が検査する。
+
     # デフォルトモデル（回答生成・推論・根拠検証・Q/A 生成）
     DEFAULT_MODEL: str = "claude-sonnet-5-5"
+
+    # 軽量モデル（判定系: 意図分類・情報なし判定・RAG 適合性・ステップの確信度評価など）。
+    # grace/config.py::LLMConfig.light_model と verticals.INTENT_MODEL の既定。
+    LIGHT_MODEL: str = "claude-haiku-5-5"
 
     # チャンキング（データ管理タブ「① チャンキング」・チャンク化 CLI）の既定モデル。
     # DEFAULT_MODEL とは**分けて**持つ。チャンク化は 1 ファイルで数百回 LLM を呼ぶ
@@ -92,7 +103,7 @@ class ModelConfig:
     # （chunks_all_async・--model）/ chunking/async_api_client.py::AsyncAPIClient /
     # qa_qdrant/make_qa_register_qdrant.py::CHUNK_DEFAULT_MODEL
     # （tests/test_chunking_default_model.py が検査）。
-    CHUNKING_MODEL: str = "claude-haiku-5-5"
+    CHUNKING_MODEL: str = LIGHT_MODEL
 
     # -----------------------------------------------------------------
     # Embedding（検索用途のみ Gemini）— Embedding モデル名の**唯一の定義**

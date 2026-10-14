@@ -36,8 +36,8 @@ _GEMINI_PROVIDERS = {"gemini", "google", "google-genai", "genai"}
 # 既定。"claude" は従来（未知の名前はすべて Anthropic だった）でも通っていた別名
 _ANTHROPIC_PROVIDERS = {"anthropic", "claude"}
 
-# Anthropic デフォルトモデル（config 未指定時のフォールバック）
-DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-5-5"
+# Anthropic デフォルトモデル（config 未指定時のフォールバック）。実体は config.py::ModelConfig.DEFAULT_MODEL
+DEFAULT_ANTHROPIC_MODEL = ModelConfig.DEFAULT_MODEL
 
 # 拡張思考を有効にするときに本文用として最低限確保するトークン数。
 # Anthropic は max_tokens > budget_tokens を要求し、差分が本文の取り分になる。

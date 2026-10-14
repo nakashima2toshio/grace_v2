@@ -56,10 +56,12 @@ def detect_model(config) -> str:
 
     ⚠️ **`ModelConfig.DEFAULT_MODEL` を直接使ってはいけない。**
 
-    `judge_model()` の docstring が警告している「モデル解決経路が 2 本ある」問題を、
-    ここが踏んでいた。`ModelConfig.DEFAULT_MODEL` は `config.py` のモジュール定数で
-    `config/grace_config.yml` を一切見ない。一方クライアント本体や groundedness は
-    `grace/config.py` 経由で yml の `llm.model` を読む。
+    `judge_model()` の docstring にある「モデル解決経路が 2 本ある」問題を、
+    ここが踏んでいた（当時は yml の `llm.model` と `ModelConfig.DEFAULT_MODEL` を別々に
+    管理していた。2026-10-14 からは yml にモデル名を書かず、既定は `ModelConfig` の 1 か所）。
+    それでも `config.llm.model` はリクエストごとのモデル選択や `GRACE_LLM_MODEL` で
+    `ModelConfig.DEFAULT_MODEL` と変わりうるので、クライアント本体や groundedness と同じく
+    `config.llm.model` を読む。
 
     両者が食い違うと、**Detect だけが存在しないモデル名で呼ばれて失敗する**。
     姉妹リポジトリ（grace_v2_local）の実測 2026-08-31 では、GRACE-Review 3 回の
@@ -68,7 +70,7 @@ def detect_model(config) -> str:
     同一プロセス・同一 base_url で成功していた。差は「どちらの経路でモデル名を
     解決したか」だけだった）。
 
-    そこで**設定（yml）を正**とし、config から解決できないときだけ
+    そこで **`config.llm.model` を正**とし、config から解決できないときだけ
     `ModelConfig.DEFAULT_MODEL` へフォールバックする（`llm` を持たないテスト用
     スタブ向け）。
     """

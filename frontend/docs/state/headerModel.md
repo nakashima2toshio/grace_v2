@@ -1,6 +1,6 @@
 # headerModel.ts - ヘッダーのモデルセレクタ ドキュメント
 
-**Version 1.0** | 最終更新: 2026-10-12
+**Version 1.1** | 最終更新: 2026-10-14
 
 ---
 
@@ -29,7 +29,7 @@
 `App` はアンマウントされないので、タブを切り替えても選択は残る。
 
 > ⚠️ **空文字は「サーバーの既定値を使う」。** 送信時に `queryParams.ts` / `dataParams.ts` / `ReviewForm` が null 化（またはキー省略）し、
-> サーバーが `config/grace_config.yml` の `llm.model` などで走る。**既定のモデル名を frontend に書かない**（値は `GET /api/model` から来る）。
+> サーバーが既定モデル（`config.py::ModelConfig.DEFAULT_MODEL` など）で走る。**既定のモデル名を frontend に書かない**（値は `GET /api/model` から来る）。
 >
 > ⚠️ **grace_v2_local の同名ファイルとは既定値の取り方が違う**（あちらはデータ管理タブも `ModelInfo.model` を使う。`ModelInfo` に
 > `chunking_model` / `qa_model` が無いため）。コピーで行き来させない（CLAUDE.md §5）。
@@ -209,3 +209,4 @@ null （論理層: claude-opus-5-5）
 | バージョン | 日付 | 変更内容 |
 |---|---|---|
 | 1.0 | 2026-10-12 | 新規作成（`a_react_page_md_format.md` §2.4 の軽量構成）。使用例は esbuild + node で実行して確かめた |
+| 1.1 | 2026-10-14 | 既定モデル名を config.py::ModelConfig（DEFAULT_MODEL / LIGHT_MODEL）の 1 か所にまとめたのに追随 |

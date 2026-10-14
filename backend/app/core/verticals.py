@@ -11,6 +11,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Dict, List, Literal, Optional
 
+from config import ModelConfig
+
 DEFAULT_QUERY = "パスワードを忘れました"
 
 Decision = Literal["answer", "escalate"]
@@ -21,8 +23,9 @@ ActionType = Literal["create_ticket", "send_reply", "escalate_to_human"]
 #   incident = 障害・被害・トラブルの発生報告
 Intent = Literal["question", "request", "incident"]
 
-# 意図分類に使う軽量モデル（CLAUDE.md プロバイダ方針の軽量既定）
-INTENT_MODEL = "claude-haiku-5-5"
+# 意図分類に使う軽量モデル（CLAUDE.md プロバイダ方針の軽量既定）。
+# 実体は config.py::ModelConfig.LIGHT_MODEL（ここに文字列を直書きしない）。
+INTENT_MODEL = ModelConfig.LIGHT_MODEL
 
 # 全プロファイル共通のスコープ方針（reasoning プロンプトへ注入）。
 #

@@ -1,6 +1,6 @@
 # helper_llm.py - LLM クライアント抽象化レイヤー ドキュメント
 
-**Version 1.1** | 最終更新: 2026-10-11
+**Version 1.2** | 最終更新: 2026-10-14
 
 ---
 
@@ -360,13 +360,13 @@ except ValueError as e:
 #### メソッド: `__init__`
 
 ```python
-def __init__(self, api_key: Optional[str] = None, default_model: str = "claude-sonnet-5-5")
+def __init__(self, api_key: Optional[str] = None, default_model: Optional[str] = None)
 ```
 
 | パラメータ | 型 | デフォルト | 説明 |
 |------------|------|-----------|------|
 | `api_key` | `Optional[str]` | `None` | 省略時は `ANTHROPIC_API_KEY`（無ければ SDK に任せる） |
-| `default_model` | `str` | `"claude-sonnet-5-5"` | `model` を省いたときのモデル（文字列の直書き。§5.3） |
+| `default_model` | `Optional[str]` | `None` | `model` を省いたときのモデル。`None` なら `config.py::ModelConfig.DEFAULT_MODEL`（2026-10-14〜。それまでは文字列の直書きだった） |
 
 | 項目 | 内容 |
 |------|------|
@@ -504,7 +504,7 @@ print(get_available_embedding_models(), get_embedding_model_pricing("gemini-embe
 | # | 制約 | 状態 |
 |---|------|------|
 | 1 | `AnthropicClient` は `stop_reason` を見ない。拒否は空文字、`max_tokens` での打ち切りは構造化出力の `ValidationError` になる（`grace/llm_compat.py` は `LLMRefusalError` / `LLMTruncatedError` にする） | 未対応（2026-10-11 に確認） |
-| 2 | `AnthropicClient` の既定 `default_model` は文字列の直書きで、`ModelConfig.DEFAULT_MODEL` を参照していない。`default_model` を渡さない呼び出し元（`services/qa_service.py`）は、`DEFAULT_MODEL` を変えても追随しない | 2026-10-11 時点で値は同じ（`claude-sonnet-5-5`）。CLAUDE.md §3.1 の経路 3 の取り残しになりうる |
+| 2 | ~~`AnthropicClient` の既定 `default_model` は文字列の直書きで、`ModelConfig.DEFAULT_MODEL` を参照していない~~ | **解消（2026-10-14）**。既定を `None` にし、`None` なら `ModelConfig.DEFAULT_MODEL` を使う（`tests/test_default_model_single_source.py`） |
 | 3 | `count_tokens` は OpenAI の符号表による近似 | 実装どおり |
 | 4 | `last_usage` はインスタンスに 1 つで、並列呼び出しでは上書きし合う | 実装どおり（§4.1.1） |
 | 5 | `LLM_PRICING` / `LLM_LIMITS` は `config.py::ModelConfig` と別の表で、値の一致を検査するテストは無い | 2026-10-11 時点で Claude 9 モデルは一致（§4.1.4） |
@@ -520,9 +520,10 @@ print(get_available_embedding_models(), get_embedding_model_pricing("gemini-embe
 ## 7. 変更履歴
 
 | バージョン | 日付 | 変更内容 |
-|-----------|------|---------|
+|---|---|---|
 | 1.0 | 2026-10-11 | 初版。`helper/docs/` の新設にあわせて作成（`a_class_method_md_format.md` 準拠）。§4.1 の使用例 4 本（テキスト生成・構造化出力・送る内容の確認・表とプロバイダ名）を別プロセスで実行して出力を確かめ（Anthropic API はスタブ）、`stop_reason` を見ないこと・既定モデルの直書きを §5.3 に記録した |
 | 1.1 | 2026-10-11 | 呼び出し元の 1 つだった `helper/helper_rag_qa.py` を削除したのに追随（呼び出し側の一覧・構成図・依存関係図） |
+| 1.2 | 2026-10-14 | 既定モデル名を config.py::ModelConfig（DEFAULT_MODEL / LIGHT_MODEL）の 1 か所にまとめたのに追随 |
 
 ---
 

@@ -1,6 +1,6 @@
 # core_process_flow.md - GRACE-Support / GRACE-Review とジョブ基盤の処理フロー
 
-**Version 1.4** | 最終更新: 2026-10-14
+**Version 1.5** | 最終更新: 2026-10-14
 
 > 📝 2026-10-12 に `backend/docs/` を廃止したとき、`support_flow.md`（2,215 行）・`review_flow.md`（1,257 行）・
 > `job_runtime.md`（353 行）の**流れと設計判断**だけをここへまとめた。関数のシグネチャ・引数・戻り値は書かない
@@ -510,7 +510,7 @@ SSE は失敗しても必ず `done`（`status=failed`）で閉じる。
 | 呼び出し回数 | 1 回 | セグメント × 候補ルール（上限 `MAX_LLM_CALLS`。§2.5） |
 | 出力 | 自由文（Markdown） | 構造化（`DetectVerdict`） |
 | temperature / 出力上限 | `llm.temperature`（0.7）/ `llm.max_tokens`（4096） | 0.0 / 512 |
-| モデル | `llm.model` | `detect_model(config)`（同じく yml を正） |
+| モデル | `llm.model` | `detect_model(config)`（同じく `llm.model`。既定は `config.py::ModelConfig.DEFAULT_MODEL`） |
 | 失敗時 | `ToolResult(success=False)` → ② が失敗 → リプラン対象 | `None` → 指摘を残し、status の上限を `review_required` にする |
 | 後段の検証 | `GroundednessVerifier`（回答 × 出典） | `GroundednessVerifier`（**指摘文** × 規程＋**検査対象の本文**） |
 
@@ -577,3 +577,4 @@ SSE は失敗しても必ず `done`（`status=failed`）で閉じる。
 | 1.2 | 2026-10-14 | 索引の改名（frontend/docs/README.md → README_frontend.md、README_api.md → README_backend_api.md、README_core.md → README_backend_core.md）に合わせて参照を付け替えた |
 | 1.3 | 2026-10-14 | dry-run（副作用なし）では HITL CONFIRM を求めないようにした（grace_v2_local から移植・ActionBackend.has_side_effects）のに追随 |
 | 1.4 | 2026-10-14 | 索引の改名（backend/app/docs/README_app.md → README_backend_app.md）に合わせて参照を付け替えた |
+| 1.5 | 2026-10-14 | 既定モデル名を config.py::ModelConfig（DEFAULT_MODEL / LIGHT_MODEL）の 1 か所にまとめたのに追随 |

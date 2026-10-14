@@ -257,12 +257,13 @@ class AnthropicClient(LLMClient):
     API キー・ベース URL は環境変数（ANTHROPIC_API_KEY / ANTHROPIC_BASE_URL）から解決。
     """
 
-    def __init__(self, api_key: Optional[str] = None, default_model: str = "claude-sonnet-5-5"):
+    def __init__(self, api_key: Optional[str] = None, default_model: Optional[str] = None):
         # 遅延初期化: SDK import / クライアント生成は最初の API 呼び出し時まで遅延する。
         # （GeminiClient と異なり anthropic.Anthropic() は API キー必須のため、
         #   構築だけで失敗しないよう副作用を持たせない。テスト容易性のためにも重要。）
         self.api_key = api_key or os.getenv("ANTHROPIC_API_KEY")
-        self.default_model = default_model
+        # 既定は config.py::ModelConfig.DEFAULT_MODEL（ここに文字列を直書きしない）
+        self.default_model = default_model or ModelConfig.DEFAULT_MODEL
         self._client = None
         # 直近の API 呼び出しのトークン使用量（per-call usage 配管）。
         # generate_content / generate_structured の呼び出しごとに更新される。

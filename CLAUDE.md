@@ -266,33 +266,32 @@ GRACE_E2E=1 GRACE_E2E_REPEAT=3 uv run --no-sync pytest tests/e2e -m e2e -rs   # 
   Gemini 系の **LLM** 既定は「設計上の意図」ではなく **移植漏れ（負債）**とみなす。
   発見次第 Anthropic へ是正する。「現存コード＝意図」と推論しないこと。
 
-### 3.1 ⚠️ モデル名の解決経路は 4 本ある
+### 3.1 ⚠️ 既定モデル名は `config.py` の 1 か所だけ（2026-10-14〜）
 
-「既定モデルを変える」ときに 1 箇所だけ直すと**取り残しが出る**。
-必ず 4 本とも確認すること。
+**既定モデル名の実体は `config.py::ModelConfig` の 3 つの定数だけ**である。既定を変えるときは**ここだけ**を書き換える
+（grace_v2_local の `get_default_ollama_model()` と同じ考え方）。`tests/test_default_model_single_source.py` が検査する。
 
-| # | 経路 | 実体 | 誰が読むか |
+| 定数 | 値 | 用途 | 参照するもの |
 |---|---|---|---|
-| 1 | **設定ファイル（正）** | `config/grace_config.yml` の `llm.model` / `llm.light_model` | `grace/config.py::ConfigLoader` 経由で planner / reasoning / groundedness / ReAct |
-| 2 | **モジュール定数** | `backend/app/core/verticals.py::INTENT_MODEL`（リテラル） | 判定系（意図分類・情報なし判定）。**yml を一切見ない** |
-| 3 | **Python 定数** | `config.py::ModelConfig.DEFAULT_MODEL` | 上記以外（Q&A 生成の CLI・`QAPipeline`・`SmartQAGenerator`・`qa_service` の既定）。**ここでは文字列を直書きせず `ModelConfig.DEFAULT_MODEL` を参照する**（2026-10-08 まで旧既定 `claude-sonnet-5` が直書きで残り、画面と CLI で Q&A 生成のモデルが割れていた。`tests/test_qa_default_model.py` が検査）。**チャンキングは分けて `ModelConfig.CHUNKING_MODEL`（`claude-haiku-5-5`）** を参照する（`ChunkingRequest` / `ChunkingParams` / `chunks_all_async` / チャンク化 CLI の `--model` / `CHUNK_DEFAULT_MODEL` / `AsyncAPIClient`。`tests/test_chunking_default_model.py` が検査）。`DEFAULT_MODEL` を変えてもチャンキングは変わらない |
-| 4 | **リクエスト単位の上書き** | UI のモデルセレクタ → `QueryRequest.model` / `ReviewRequest.model` → コアが `config.llm.model` を差し替え | その 1 リクエストの生成・推論・根拠検証・③ Detect |
+| `ModelConfig.DEFAULT_MODEL` | `claude-sonnet-5-5` | 回答生成・推論・根拠検証・③ Detect・Q/A 生成 | `grace/config.py::LLMConfig.model`（`default_factory`）・Q/A 生成の既定（`QaGenerationRequest` / `QaGenerationParams` / CLI・`QAPipeline`・`SmartQAGenerator`・`qa_service`。`tests/test_qa_default_model.py`）・`llm_compat.DEFAULT_ANTHROPIC_MODEL`・`helper_llm.AnthropicClient` の既定 |
+| `ModelConfig.LIGHT_MODEL` | `claude-haiku-5-5` | 判定系（意図分類・情報なし判定・RAG 適合性・確信度評価など） | `grace/config.py::LLMConfig.light_model`（`default_factory`）・`verticals.INTENT_MODEL` |
+| `ModelConfig.CHUNKING_MODEL` | `= LIGHT_MODEL` | チャンキング（データ管理 ①・チャンク化 CLI） | `ChunkingRequest` / `ChunkingParams` / `chunks_all_async` / `--model` / `CHUNK_DEFAULT_MODEL` / `AsyncAPIClient`（`tests/test_chunking_default_model.py`）。`DEFAULT_MODEL` を変えてもチャンキングは変わらない |
 
-> 直下 `config.yml`（旧経路 5・`models.default`）は **2026-10-14 に削除した**。読むコードが 2026-10-11 までにすべて無くなり、
+- ⚠️ **`config/grace_config.yml` に `llm.model` / `llm.light_model` を書かない。** yml の値はクラス既定より優先されるので、
+  書くと `config.py` を素通りする。2026-10-14 まで yml・`grace/config.py`・`verticals.INTENT_MODEL`（リテラル）・
+  Q/A 生成の既定 2 か所・`llm_compat` / `helper_llm` に同じ名前を直書きしており、1 か所だけ直すと画面・判定系・CLI で
+  モデルが割れる状態だった（2026-10-08 までは旧既定 `claude-sonnet-5` が Q/A 生成に残り、実際に割れていた）。
+- **1 回だけ別モデルで動かしたいとき**は環境変数 `GRACE_LLM_MODEL` / `GRACE_LLM_LIGHT_MODEL`（`grace/config.py` が読む）。
+- **リクエスト単位の上書き**: UI のモデルセレクタ → `QueryRequest.model` / `ReviewRequest.model` → コアが
+  `copy.deepcopy(get_config())` のコピーの `config.llm.model` を差し替える（他のジョブへは漏れない）。選択肢は
+  `config.py::ModelConfig.SELECTABLE_MODELS`（= `get_selectable_models()`）の 1 箇所で決まり、スキーマのバリデータ・
+  `GET /api/models`・コアの再検証がすべてそこを読む。**`light_model` は上書きしない**（判定系は軽量モデルのまま。理由は
+  `backend/app/docs/README_backend_app.md` §4.3.2）。
+- 判定系のモデルは `backend/app/core/gates.py::judge_model()`（`config.llm.light_model` → 解決できなければ `INTENT_MODEL`）を通す。
+  **`INTENT_MODEL` を直接使うコードを新たに書かない**こと（詳細は同関数の docstring）。
+
+> 直下 `config.yml`（旧 `models.default`）は **2026-10-14 に削除した**。読むコードが 2026-10-11 までにすべて無くなり、
 > 旧 Gemini LLM 既定（`gemini:` / `provider:`）など読まれない値だけが残っていたため。置き直さない（`tests/test_model_selection.py` が検査）。
-
-**経路 4 は経路 1 を「そのリクエストだけ」上書きする**（`copy.deepcopy(get_config())` の
-コピーに対して行うので、他のジョブへは漏れない）。選択肢は
-`config.py::ModelConfig.SELECTABLE_MODELS`（= `get_selectable_models()`）の 1 箇所で決まり、
-スキーマのバリデータ・`GET /api/models`・コアの再検証がすべてそこを読む。
-**`light_model` は上書きしない**（判定系は軽量モデルのまま。理由は
-`backend/app/docs/README_backend_app.md` §4.3.2）。
-
-**経路 1 が正。** 経路 2 は `backend/app/core/gates.py::judge_model()` が
-「config から解決できないときだけ `INTENT_MODEL` へフォールバックする」形に是正済みなので、
-**`INTENT_MODEL` を直接使うコードを新たに書かない**こと（詳細は同関数の docstring）。
-経路 1 と 2 は現在たまたま同じ値（`claude-haiku-5-5`。2026-10-08 までは `claude-haiku-4-5-20251001`）なので、
-**取り残しはテストでは表面化しない**。
 
 設定は yml → 環境変数（接頭辞 `GRACE_`）→ `GraceConfig`（pydantic）で検証、の 3 段。
 
@@ -308,7 +307,7 @@ GRACE_E2E=1 GRACE_E2E_REPEAT=3 uv run --no-sync pytest tests/e2e -m e2e -rs   # 
 | `claude-fable-5-1` | 最上位（難しい推論・長時間のエージェント処理） | ✅ |
 | `claude-opus-5-5` | 上位（`claude-opus-5` の後継・単価も安い） | ✅ |
 | `claude-sonnet-5-5` | **既定**（推論・生成）。**思考を無効化できない**（`ALWAYS_THINKING_MODELS`） | ✅ |
-| `claude-haiku-5-5` | **軽量**（Claude Haiku 5.5）。`llm.light_model` / `INTENT_MODEL` / チャンキングの既定値（`ModelConfig.CHUNKING_MODEL`。2026-10-08〜） | ✅ |
+| `claude-haiku-5-5` | **軽量**（Claude Haiku 5.5）。`ModelConfig.LIGHT_MODEL`（= `llm.light_model` / `INTENT_MODEL` / チャンキングの既定値。2026-10-08〜） | ✅ |
 | `claude-opus-5` | 旧上位（後方互換。`llm.heavy_model` 等の既存設定用） | ❌ |
 | **`claude-haiku-4-5`** | 旧軽量（Haiku 4.5）。**日付なしエイリアス**。2026-10-08 までチャンキングの既定値 | ❌ |
 | `claude-haiku-4-5-20251001` | 上記の日付指定。2026-10-08 まで `llm.light_model` / `INTENT_MODEL` の値 | ❌ |
@@ -805,6 +804,6 @@ response = client.responses.create(
       `ReviewPanel` 系）を壊していないか？ 共用部品（`GroundednessVerifier` /
       `InterventionBridge` / `support_actions.py`）を触ったなら
       `tests/test_review_*.py`（26 本・2026-10-11 実測）も通したか？（§1）
-- [ ] モデル既定を変えたなら**4 本の解決経路すべて**を確認したか？（§3.1）
+- [ ] モデル既定を変えたなら `config.py::ModelConfig` の定数だけを書き換えたか？（§3.1。yml や他のファイルに直書きしていないか）
       新しい既定を `SELECTABLE_MODELS` と `MODEL_PRICING` / `MODEL_LIMITS` へ入れたか？
 - [ ] 確信が持てない → **ユーザーに聞く**

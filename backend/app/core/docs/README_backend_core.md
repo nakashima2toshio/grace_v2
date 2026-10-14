@@ -1,12 +1,12 @@
 # README_backend_core.md - backend/app/core/ ディレクトリ概要
 
-**Version 1.4** | 最終更新: 2026-10-14
+**Version 1.5** | 最終更新: 2026-10-14
 
 `backend/app/core/` の入口となる文書。2 つのエージェント（GRACE-Support / GRACE-Review）のパイプライン本体と、
 データ準備を含む 3 系統が共有するジョブ基盤を置く。各モジュールの引数・戻り値は各モジュールの文書（IPO）に置き、ここには書かない。
 HTTP の受け口は [`../../api/docs/README_backend_api.md`](../../api/docs/README_backend_api.md)、アプリの組み立ては [`../../docs/README_backend_app.md`](../../docs/README_backend_app.md)。
 
-> ⚠️ **本リポジトリは Anthropic 版。** 判定系は軽量モデル（`config/grace_config.yml` の `llm.light_model`）、生成・推論は `llm.model`。
+> ⚠️ **本リポジトリは Anthropic 版。** 判定系は軽量モデル（`llm.light_model`。既定は `config.py::ModelConfig.LIGHT_MODEL`）、生成・推論は `llm.model`（既定は `ModelConfig.DEFAULT_MODEL`）。
 > 姉妹リポジトリ `grace_v2_local`（Ollama 版）の同名ファイルとは中身が違うので、文書をコピーで持ち込まない（CLAUDE.md §5）。
 
 ---
@@ -303,3 +303,4 @@ PYTHONPATH=. .venv/bin/python -m pytest tests/test_support_agent_core.py tests/t
 | 1.2 | 2026-10-12 | backend/docs/testing.md を直下 docs/testing.md へ、例文の実行ログを docs/examples/ へ移したのに追随（参照の付け替え）。§5.2 を §5.1 の後ろへ移した（見出しの番号順） |
 | 1.3 | 2026-10-14 | 索引の改名（frontend/docs/README.md → README_frontend.md、README_api.md → README_backend_api.md、README_core.md → README_backend_core.md）に合わせて参照を付け替えた |
 | 1.4 | 2026-10-14 | 索引の改名（backend/app/docs/README_app.md → README_backend_app.md）に合わせて参照を付け替えた |
+| 1.5 | 2026-10-14 | 既定モデル名を config.py::ModelConfig（DEFAULT_MODEL / LIGHT_MODEL）の 1 か所にまとめたのに追随 |

@@ -1,6 +1,6 @@
 # config.py - GRACE 設定管理 ドキュメント
 
-**Version 1.17** | 最終更新: 2026-10-14
+**Version 1.18** | 最終更新: 2026-10-14
 
 > 📌 **`config.GeminiConfig` の LLM モデル一覧は後方互換である。**
 > `config.py::GeminiConfig` の docstring にあるとおり、`GeminiConfig` は
@@ -273,7 +273,7 @@ from grace.config import get_config
 
 config = get_config()   # 初回だけ config/grace_config.yml を読み、以後は同じオブジェクトを返す
 
-print(config.llm.provider, config.llm.model, config.llm.light_model)
+print(config.llm.provider, config.llm.model, config.llm.light_model)   # 既定は config.py::ModelConfig の DEFAULT_MODEL / LIGHT_MODEL（yml には書かない）
 print(config.embedding.model, config.embedding.dimensions)   # 定義は config.py::ModelConfig の 1 箇所
 print(config.qdrant.url, config.qdrant.rag_sufficient_score)
 print(config.confidence.thresholds)
@@ -1041,6 +1041,7 @@ __all__ = [
 | 1.15 | 2026-10-10 | §4.1 使用例を処理パターン 4 通り（読む・リクエスト単位で書き換える・環境変数で上書き・モデルの層の解決）に書き直し、実行して出力を確かめた。セクション名に `_` を含む設定は環境変数で上書きできないこと、`get_config(config_path)` のパスは最初の 1 回だけ効くことを注記した |
 | 1.16 | 2026-10-12 | backend/docs/ の横断文書の廃止（2026-10-12）に追随し、参照先を backend/app/docs/README_app.md・backend/app/api/docs/README_api.md・backend/app/core/docs/core_process_flow.md などへ付け替えた |
 | 1.17 | 2026-10-14 | 索引の改名（backend/app/docs/README_app.md → README_backend_app.md）に合わせて参照を付け替えた |
+| 1.18 | 2026-10-14 | 既定モデル名を config.py::ModelConfig（DEFAULT_MODEL / LIGHT_MODEL）の 1 か所にまとめたのに追随 |
 
 ---
 
