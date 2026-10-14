@@ -60,10 +60,13 @@ class LLMConfig(BaseModel):
     provider: str = "anthropic"
     # 既定モデル。UI のモデルセレクタ（GET /api/models）で
     # 選択肢（config.py::ModelConfig.SELECTABLE_MODELS）のモデルへリクエスト単位に上書きできる。
-    model: str = "claude-sonnet-5-5"
+    # 既定値の実体は config.py::ModelConfig.DEFAULT_MODEL の 1 箇所（yml には書かない）。
+    # default_factory で「作るたびに」引くので、ModelConfig 側の値がそのまま効く。
+    model: str = Field(default_factory=lambda: ModelConfig.DEFAULT_MODEL)
     # ステップ毎の確信度評価（evaluate_with_factors）などテレメトリ級の
     # 定型評価タスクに使う軽量モデル。回答生成・根拠検証は model を使う。
-    light_model: str = "claude-haiku-5-5"
+    # 既定値の実体は config.py::ModelConfig.LIGHT_MODEL。
+    light_model: str = Field(default_factory=lambda: ModelConfig.LIGHT_MODEL)
     # M-1: 論理層（計画生成・推論・根拠検証）に使う上位モデル。
     # ""（空）= model と同じ。上位モデルへ寄せたいときだけ設定する
     # （例: "claude-opus-5"）。
@@ -348,7 +351,7 @@ class ExecutorConfig(BaseModel):
     # RAG 検索結果の意味的適合性チェック（_evaluate_rag_relevance）に使うモデル。
     # 出力は YES / NO の 2 値だけなので、既定では軽量モデル（llm.light_model）を使う。
     # ""（空）= llm.light_model にフォールバック。A/B したいときはモデル名を直接書く
-    #   （例: llm.model と同じ "claude-sonnet-5-5" を書けば主モデル判定になる）。
+    #   （例: ModelConfig.DEFAULT_MODEL と同じモデル名を書けば主モデル判定になる）。
     # ⚠️ この判定は「RAG 経路を捨てて Web 検索へ落ちるか」を左右する影響の大きい
     #    分岐なので、モデルを変えたら誤判定率を実測で確認すること。
     relevance_check_model: str = ""

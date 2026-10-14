@@ -1,6 +1,6 @@
 # core/verticals.py - 業界プロファイル定義 ドキュメント
 
-**Version 1.8** | 最終更新: 2026-10-14
+**Version 1.9** | 最終更新: 2026-10-14
 
 > **本書の位置づけ**: `backend/app/core/verticals.py`（`VerticalProfile` / `PROFILES` / `ActionRequest`）の **IPO リファレンス**。
 > 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。
@@ -471,7 +471,7 @@ PROFILES: Dict[str, VerticalProfile] = {
 
 ```python
 DEFAULT_QUERY = "パスワードを忘れました"
-INTENT_MODEL = "claude-haiku-5-5"  # 意図分類の軽量モデル
+INTENT_MODEL = ModelConfig.LIGHT_MODEL  # 意図分類の軽量モデル（= "claude-haiku-5-5"。config.py が正）
 
 Decision   = Literal["answer", "escalate"]
 ActionType = Literal["create_ticket", "send_reply", "escalate_to_human"]
@@ -589,6 +589,7 @@ ActionRequest, VerticalProfile, PROFILES
 | 1.6 | 2026-10-11 | `backend/docs/reference/core_verticals.md` から移した（`a_cross_doc_md_format.md` §1.1.2。リンクを付け替えた）。§4.1 の 3 例を実行して記載どおりであることを確かめ、パターンの表を追加 |
 | 1.7 | 2026-10-12 | §6.3 プロファイルを増やすときの手順を追加（旧 backend/docs/verticals_and_rulesets.md §3.1 を移した。backend/docs/ の廃止に伴う） |
 | 1.8 | 2026-10-14 | 索引の改名（backend/app/docs/README_app.md → README_backend_app.md）に合わせて参照を付け替えた |
+| 1.9 | 2026-10-14 | 既定モデル名を config.py::ModelConfig（DEFAULT_MODEL / LIGHT_MODEL）の 1 か所にまとめたのに追随 |
 
 ---
 

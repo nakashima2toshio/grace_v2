@@ -1,6 +1,6 @@
 # core/gates.py - 回答ゲート・判定ロジック ドキュメント
 
-**Version 1.9** | 最終更新: 2026-10-14
+**Version 1.10** | 最終更新: 2026-10-14
 
 > **本書の位置づけ**: `backend/app/core/gates.py`（Support の判定ロジック（質問分析・回答ゲート・救済・情報なし検知））の **IPO リファレンス**。
 > 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。
@@ -696,14 +696,11 @@ def judge_model(config) -> str
 
 > ⚠️ **`INTENT_MODEL` を直接使ってはいけない。**
 >
-> `INTENT_MODEL` は `verticals.py` に**リテラルで書かれたモジュール定数**で、
-> `config/grace_config.yml` を一切見ない。一方 planner / reasoning / groundedness などは
-> `grace/config.py` 経由で yml の `llm.model` / `llm.light_model` を読む。
-> つまり**解決経路が 2 本ある**。
->
-> 現時点では両者がたまたま同じ値なので表には出ていないが、
-> **yml の `light_model` を書き換えても判定系だけが取り残される。**
-> 同じ値を 2 箇所で管理している状態そのものが負債である。
+> 2026-10-14 までは `INTENT_MODEL` が `verticals.py` に**リテラルで書かれ**、yml の `llm.light_model` とは
+> 別に管理されていた（解決経路が 2 本あり、yml だけを書き換えると判定系が取り残された）。
+> 現在はどちらも `config.py::ModelConfig.LIGHT_MODEL` を参照する（`INTENT_MODEL = ModelConfig.LIGHT_MODEL`、
+> `LLMConfig.light_model` は `default_factory` で同じ定数を引く）。それでも `GRACE_LLM_LIGHT_MODEL` や
+> リクエストごとの config を反映するには `config.llm.light_model` を読む必要があるので、`judge_model()` を通す。
 
 #### `_contradicted_claims`
 
@@ -961,7 +958,7 @@ MULTI_QUESTION_MARKERS = (
 意図分類・情報なし判定に使う軽量モデル。
 
 ```python
-INTENT_MODEL = "claude-haiku-5-5"  # verticals.py で定義
+INTENT_MODEL = ModelConfig.LIGHT_MODEL  # verticals.py で定義（= "claude-haiku-5-5"。config.py が正）
 ```
 
 > ⚠️ **`INTENT_MODEL` を直接使うコードを新たに書かないこと。** 解決は `judge_model()` を通し、
@@ -1028,6 +1025,7 @@ NO_INFO_MARKERS
 | 1.7 | 2026-10-11 | `backend/docs/reference/core_gates.md` から移した（`a_cross_doc_md_format.md` §1.1.2。リンクを付け替えた）。§4.1 の 3 例を実行して記載どおりであることを確かめ、パターンの表を追加。未記載だった `drop_uncited_web_citations`（回答本文で引用していない Web 出典を表示から外す）と `_CITATION_URL_RE` を §3・§4.4 に追加した（例は実行で確かめた） |
 | 1.8 | 2026-10-12 | backend/docs/ の横断文書の廃止（2026-10-12）に追随し、参照先を backend/app/docs/README_app.md・backend/app/api/docs/README_api.md・backend/app/core/docs/core_process_flow.md などへ付け替えた |
 | 1.9 | 2026-10-14 | 索引の改名（backend/app/docs/README_app.md → README_backend_app.md）に合わせて参照を付け替えた |
+| 1.10 | 2026-10-14 | 既定モデル名を config.py::ModelConfig（DEFAULT_MODEL / LIGHT_MODEL）の 1 か所にまとめたのに追随 |
 
 ---
 

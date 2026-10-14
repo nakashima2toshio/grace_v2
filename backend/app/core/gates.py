@@ -26,16 +26,13 @@ def judge_model(config) -> str:
 
     ⚠️ **`INTENT_MODEL` を直接使ってはいけない。**
 
-    `INTENT_MODEL` は `verticals.py` に**リテラルで書かれたモジュール定数**で、
-    `config/grace_config.yml` を一切見ない。一方 planner / reasoning /
-    groundedness などは `grace/config.py` 経由で yml の
-    `llm.model` / `llm.light_model` を読む。つまり解決経路が 2 本ある。
+    2026-10-14 までは `INTENT_MODEL` が `verticals.py` にリテラルで書かれ、yml の
+    `llm.light_model` とは別に管理されていた（解決経路が 2 本あり、yml だけを書き換えると
+    判定系が取り残された）。現在はどちらも `config.py::ModelConfig.LIGHT_MODEL` を参照する
+    （CLAUDE.md §3.1）。それでも `GRACE_LLM_LIGHT_MODEL` やリクエストごとの config を
+    反映するには `config.llm.light_model` を読む必要がある。
 
-    現時点では両者がたまたま同じ値（`claude-haiku-5-5`。2026-10-08 までは `claude-haiku-4-5-20251001`）なので
-    表には出ていないが、**yml の `light_model` を書き換えても判定系だけが
-    取り残される**。同じ値を 2 箇所で管理している状態そのものが負債である。
-
-    そこで**設定（yml）を正**とし、config から解決できないときだけ
+    そこで **`config.llm.light_model` を正**とし、config から解決できないときだけ
     `INTENT_MODEL` へフォールバックする（`llm` を持たないテスト用スタブ向け）。
     """
     llm = getattr(config, "llm", None)

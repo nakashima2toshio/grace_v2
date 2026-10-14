@@ -1,6 +1,6 @@
 # core/data_jobs.py - データ準備ジョブ runner ドキュメント
 
-**Version 1.15** | 最終更新: 2026-10-14
+**Version 1.16** | 最終更新: 2026-10-14
 
 > **本書の位置づけ**: `backend/app/core/data_jobs.py`（データ準備 4 ジョブの runner）の **IPO リファレンス**。
 > 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。
@@ -292,7 +292,7 @@ print(job.kind, job.status, job.result)
 class ChunkingParams:
     input_file: str                      # 'ディレクトリ名/ファイル名' 形式
     output_dir: str = "output_chunked"
-    model: str = "claude-haiku-5-5"
+    model: str = ModelConfig.CHUNKING_MODEL   # = "claude-haiku-5-5"
     workers: int = 8
     block_size: int = 1000
     text_column: Optional[str] = None
@@ -312,7 +312,7 @@ class ChunkingParams:
 class QaGenerationParams:
     input_file: str                      # 'ディレクトリ名/ファイル名' 形式
     output_dir: str = "qa_output"
-    model: str = "claude-sonnet-5-5"
+    model: str = ModelConfig.DEFAULT_MODEL    # = "claude-sonnet-5-5"
     max_docs: Optional[int] = None
     use_celery: bool = False
     concurrency: int = 8          # 表示用。実際の並列数はワーカー起動時の -c
@@ -565,3 +565,4 @@ curl -s -X POST localhost:8000/api/data/confirm/$JOB \
 | 1.13 | 2026-10-11 | `backend/docs/reference/core_data_jobs.md` から移した（`a_cross_doc_md_format.md` §1.1.2。リンクを付け替えた）。§4.1.2 を起動だけの断片から実行できる例へ作り直し、kind の記載を `data` → `chunking`（実装どおり）に是正。パターンの表を追加 |
 | 1.14 | 2026-10-12 | backend/docs/ の横断文書の廃止（2026-10-12）に追随し、参照先を backend/app/docs/README_app.md・backend/app/api/docs/README_api.md・backend/app/core/docs/core_process_flow.md などへ付け替えた |
 | 1.15 | 2026-10-14 | 索引の改名（backend/app/docs/README_app.md → README_backend_app.md）に合わせて参照を付け替えた |
+| 1.16 | 2026-10-14 | 既定モデル名を config.py::ModelConfig（DEFAULT_MODEL / LIGHT_MODEL）の 1 か所にまとめたのに追随 |

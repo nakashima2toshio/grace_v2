@@ -1,6 +1,6 @@
 # README_backend_app.md - backend/app/ ディレクトリ概要
 
-**Version 1.4** | 最終更新: 2026-10-14
+**Version 1.5** | 最終更新: 2026-10-14
 
 `backend/app/` の入口となる文書。FastAPI の起動口（`main.py`）と、API の入出力の型（`schemas.py`）を置く。
 ルーター（`api/`）とパイプライン本体・ジョブ基盤（`core/`）は**別のディレクトリ**で、それぞれの `docs/` に README がある。
@@ -230,8 +230,8 @@ def detect_model(config) -> str:  # config.llm.model → 無ければ ModelConfi
 
 | 使う場所 | 解決 | 既定 |
 |---|---|---|
-| planner / executor / reasoning / groundedness（`grace/`） | `config/grace_config.yml` の `llm.model` | `claude-sonnet-5-5` |
-| 意図分類・情報なし判定・言及分類・空疎判定 | `judge_model()` | `llm.light_model` = `claude-haiku-5-5` |
+| planner / executor / reasoning / groundedness（`grace/`） | `config.llm.model`（既定は `ModelConfig.DEFAULT_MODEL`） | `claude-sonnet-5-5` |
+| 意図分類・情報なし判定・言及分類・空疎判定 | `judge_model()` | `llm.light_model`（既定は `ModelConfig.LIGHT_MODEL` = `claude-haiku-5-5`） |
 | ③ Detect 第2段 | `detect_model()` | `llm.model` |
 | チャンク化（`ChunkingRequest.model`） | `ModelConfig.CHUNKING_MODEL` | `claude-haiku-5-5` |
 | Q/A 生成（`QaGenerationRequest.model`） | `ModelConfig.DEFAULT_MODEL` | `claude-sonnet-5-5` |
@@ -305,12 +305,12 @@ def detect_model(config) -> str:  # config.llm.model → 無ければ ModelConfi
 
 #### 4.3.5 既定モデルを変えるときの手順
 
-1. `config/grace_config.yml` の `llm.model` / `llm.light_model` を変える（**正**）
-2. `verticals.py::INTENT_MODEL`（フォールバック）・`config.py::ModelConfig.DEFAULT_MODEL` / `CHUNKING_MODEL` を確認する（CLAUDE.md §3.1 の 4 経路）
+1. `config.py::ModelConfig` の `DEFAULT_MODEL` / `LIGHT_MODEL`（チャンキングは `CHUNKING_MODEL`）を変える（**ここだけ**。CLAUDE.md §3.1）
+2. `config/grace_config.yml` やほかのファイルにモデル名を直書きしていないことを確かめる（`tests/test_default_model_single_source.py`）
 3. `MODEL_PRICING` / `MODEL_LIMITS` と §4.3.3 の 3 つの表に新しいモデルがあるか確認する
 4. `ModelConfig.SELECTABLE_MODELS` に載っているか確認する（**既定は選択肢にも含める**）
 5. **モデル名のマッピングは作らない**（CLAUDE.md R1）。`judge_model()` / `detect_model()` を通さない直接参照を足していないか grep する
-6. `tests/test_model_selection.py` を通す（yml と `ModelConfig` の既定が割れていないことをここが見ている）
+6. `tests/test_model_selection.py` と `tests/test_default_model_single_source.py` を通す
 
 ---
 
@@ -347,3 +347,4 @@ PYTHONPATH=. .venv/bin/python -m pytest tests/test_api.py tests/test_model_selec
 | 1.2 | 2026-10-14 | 索引の改名（frontend/docs/README.md → README_frontend.md、README_api.md → README_backend_api.md、README_core.md → README_backend_core.md）に合わせて参照を付け替えた |
 | 1.3 | 2026-10-14 | 索引の改名（backend/app/docs/README_app.md → README_backend_app.md）に合わせて参照を付け替えた |
 | 1.4 | 2026-10-14 | 直下 config.yml（読み手ゼロ）の削除に追随し、モデル名の解決経路を 4 本とした |
+| 1.5 | 2026-10-14 | 既定モデル名を config.py::ModelConfig（DEFAULT_MODEL / LIGHT_MODEL）の 1 か所にまとめたのに追随 |
