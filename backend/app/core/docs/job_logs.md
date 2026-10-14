@@ -1,6 +1,6 @@
 # core/job_logs.py - ジョブ進捗へのログ転送 ドキュメント
 
-**Version 1.5** | 最終更新: 2026-10-12
+**Version 1.6** | 最終更新: 2026-10-14
 
 > **本書の位置づけ**: `backend/app/core/job_logs.py`（既存パッケージの `logging` を進捗イベントへ転送）の **IPO リファレンス**。
 > 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。
@@ -9,7 +9,7 @@
 > |---|---|
 > | **機構の正本**（スレッド絞り込み・level の参照カウント） | [`core_process_flow.md` §3.2](core_process_flow.md) |
 > | 唯一の利用者 | [`core/docs/data_jobs.md`](./data_jobs.md) |
-> | 文書全体の地図 | [`README_app.md`](../../docs/README_app.md) |
+> | 文書全体の地図 | [`README_backend_app.md`](../../docs/README_backend_app.md) |
 
 > **参考ドキュメント**
 > - [`backend/app/core/docs/data_jobs.md`](./data_jobs.md) — 本モジュールの唯一の利用者
@@ -387,3 +387,4 @@ with capture_logs(emit, step="embed") as handler:
 | 1.3 | 2026-09-24 | 概要の「各責務対応の要素」（4 行・主な責務 3 項目と非対応）を、基本フォーマットの「各責務対応のモジュール」（主な責務と 1:1 の 3 行）へ置き換えた（2026-09-24） |
 | 1.4 | 2026-10-11 | `backend/docs/reference/core_job_logs.md` から移した（`a_cross_doc_md_format.md` §1.1.2。リンクを付け替えた）。§3.1.2（段の切り替え・別スレッドと低い level は転送しない）を追加し、§3.1 の 2 例を実行して確かめた |
 | 1.5 | 2026-10-12 | backend/docs/ の横断文書の廃止（2026-10-12）に追随し、参照先を backend/app/docs/README_app.md・backend/app/api/docs/README_api.md・backend/app/core/docs/core_process_flow.md などへ付け替えた |
+| 1.6 | 2026-10-14 | 索引の改名（backend/app/docs/README_app.md → README_backend_app.md）に合わせて参照を付け替えた |

@@ -1,6 +1,6 @@
 # grace_data_flow.md - grace/ データフロー
 
-**Version 4.1** | 最終更新: 2026-10-12
+**Version 4.2** | 最終更新: 2026-10-14
 
 GRACE を 1 クエリ動かしたときに、**どんなデータがどこからどこへ渡り、どこに残るか**をまとめる。
 外部 API（Anthropic・Gemini Embedding・Qdrant・Web）に渡るもの、プロンプトの所在、
@@ -294,7 +294,7 @@ extract_keywords("Python の歴史を教えて")
 | [`grace_process_flow.md`](./grace_process_flow.md) | 処理の順番・分岐・介入・リプラン |
 | [`llm_compat.md`](./llm_compat.md) | LLM 呼び出しの変換の IPO |
 | [`memory.md`](./memory.md) / [`calibration.md`](./calibration.md) | 実行メモリ・較正の IPO |
-| [`README_app.md` §4.3](../../backend/app/docs/README_app.md) | モデル・プロバイダの方針とモデル名の解決経路 |
+| [`README_backend_app.md` §4.3](../../backend/app/docs/README_backend_app.md) | モデル・プロバイダの方針とモデル名の解決経路 |
 
 ---
 
@@ -314,3 +314,4 @@ extract_keywords("Python の歴史を教えて")
 | 3.6 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
 | 4.0 | 2026-10-10 | **`grace_runtime.md` を `grace_data_flow.md` へ改称し、データフローの文書に作り直した**（`a_cross_doc_md_format.md` §1.3）。(1) プロンプトの全文は各モジュールの文書（`planner.md` / `tools.md` / `confidence.md` / `executor.md` / `llm_compat.md`）へ移し、本書は所在だけを持つ（§3.4）。移す前に実装と突き合わせ、旧版が古かったことを確かめた: 推論プロンプトは出典の書き写し・情報源番号を書かない等の規則が増えていた、根拠検証プロンプトは FAQ の扱い・reason の字数が増えていた、計画生成プロンプトは 2026-09-29 から `SEARCH_QUERY_INSTRUCTION` を埋め込んでいない（旧版は埋め込むと書いていた）。(2) §3.2 の API の順番を、スタブで 1 回実行して `messages.create` を記録した実測に置き換えた（旧版はステップ信頼度・RAG の適合性の判定を数えておらず、モデルも書いていなかった）。(3) LLM 呼び出しの変換（§3.1）に、思考の制御・停止理由の確認を足した。(4) 旧 `grace_core.md` §4 の実行メモリの章を §3.3 へ移した。(5) データ項目と形式（§2）・保存先（§4）を新設した |
 | 4.1 | 2026-10-12 | backend/docs/ の横断文書の廃止（2026-10-12）に追随し、参照先を backend/app/docs/README_app.md・backend/app/api/docs/README_api.md・backend/app/core/docs/core_process_flow.md などへ付け替えた |
+| 4.2 | 2026-10-14 | 索引の改名（backend/app/docs/README_app.md → README_backend_app.md）に合わせて参照を付け替えた |

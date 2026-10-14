@@ -284,7 +284,7 @@ GRACE_E2E=1 GRACE_E2E_REPEAT=3 uv run --no-sync pytest tests/e2e -m e2e -rs   # 
 `config.py::ModelConfig.SELECTABLE_MODELS`（= `get_selectable_models()`）の 1 箇所で決まり、
 スキーマのバリデータ・`GET /api/models`・コアの再検証がすべてそこを読む。
 **`light_model` は上書きしない**（判定系は軽量モデルのまま。理由は
-`backend/app/docs/README_app.md` §4.3.2）。
+`backend/app/docs/README_backend_app.md` §4.3.2）。
 
 **経路 1 が正。** 経路 2 は `backend/app/core/gates.py::judge_model()` が
 「config から解決できないときだけ `INTENT_MODEL` へフォールバックする」形に是正済みなので、
@@ -327,7 +327,7 @@ GRACE_E2E=1 GRACE_E2E_REPEAT=3 uv run --no-sync pytest tests/e2e -m e2e -rs   # 
 > （`budget_tokens` は 400・`adaptive` を送る）/ `ALWAYS_THINKING_MODELS`
 > （`{"type": "disabled"}` も 400）を `grace/llm_compat.py` と
 > `helper/helper_llm.py` が読む。**選択肢にモデルを足すときはこの 3 表も確認する**
-> （詳細は `backend/app/docs/README_app.md` §4.3.3）。
+> （詳細は `backend/app/docs/README_backend_app.md` §4.3.3）。
 >
 > ⚠️ **Haiku 5.5 は Haiku 4.5 と送り方が違う**（2026-10-08 に軽量モデルを切り替えた）。
 > `temperature` は 400・`budget_tokens` も 400 なので `NO_TEMPERATURE_MODELS` と
@@ -340,7 +340,7 @@ GRACE_E2E=1 GRACE_E2E_REPEAT=3 uv run --no-sync pytest tests/e2e -m e2e -rs   # 
 > `LLMRefusalError`、JSON 応答の `max_tokens` 打ち切りを 1 回再試行のうち
 > `LLMTruncatedError` にする（以前は握りつぶされ、「本文が空の成功」や「途中で切れた JSON」に
 > なっていた）。effort は現在すべて `low` 固定で、呼び出しごとの調整は**未実装・要評価**
-> （`backend/app/docs/README_app.md` §4.3.3）。
+> （`backend/app/docs/README_backend_app.md` §4.3.3）。
 
 ### 3.3 調査済み・触らなくてよい残置コード
 
@@ -657,13 +657,13 @@ python -m chunking.csv_text_to_chunks_text_csv \
 > `README_<dir>.md`（概要＋モジュール索引＋使い方）・`<module>.md`（`.py` と 1 対 1。`__init__.py` は除く）・
 > 必要なときだけ `<dir>_process_flow.md` / `<dir>_data_flow.md` を置き、ほかの文書はこれらへ統合する**
 > （2026-10-10 に規則化。`a_cross_doc_md_format.md` §1.1〜§1.4）。**`backend/` は `backend/app/docs/`・`backend/app/api/docs/`・
-> `backend/app/core/docs/` に分け**、backend の文書はこの 3 か所だけに置く（同 §1.1.2。Support / Review の流れとジョブ基盤は `core/docs/core_process_flow.md`、API 契約は `README_backend_api.md` §4、全体構成とモデル解決は `README_app.md` §4）。
+> `backend/app/core/docs/` に分け**、backend の文書はこの 3 か所だけに置く（同 §1.1.2。Support / Review の流れとジョブ基盤は `core/docs/core_process_flow.md`、API 契約は `README_backend_api.md` §4、全体構成とモデル解決は `README_backend_app.md` §4）。
 > リポジトリ直下の `*.py`（直下 `docs/`）・`frontend/`・`config/`・テスト（直下 `tests/`。2026-10-10 に `backend/tests/` から移した）は対象外。
-> **既存文書の移行は全ディレクトリで済んでいる**（`grace/`・`services/`・`helper/`・`qa_qdrant/`（`qa_qdrant/command/` を含む）・`chunking/`・`qa_generation/`・`scripts/`・`backend/app/`・`backend/app/api/`・`backend/app/core/`。2026-10-10〜11。`grace/docs/README_grace.md` / `grace_process_flow.md` / `grace_data_flow.md`、`services/docs/README_services.md`、`helper/docs/README_helper.md`、`qa_qdrant/docs/README_qa_qdrant.md` / `qa_qdrant_process_flow.md` / `qa_qdrant_data_flow.md`・`qa_qdrant/command/docs/README_command.md`、`chunking/docs/README_chunking.md` / `chunking_process_flow.md`、`qa_generation/docs/README_qa_generation.md` / `qa_generation_process_flow.md` / `qa_generation_data_flow.md`（2026-10-14 新設）、`scripts/docs/README_scripts.md`、`backend/app/docs/README_app.md`・`backend/app/api/docs/README_backend_api.md`・`backend/app/core/docs/README_backend_core.md`。
+> **既存文書の移行は全ディレクトリで済んでいる**（`grace/`・`services/`・`helper/`・`qa_qdrant/`（`qa_qdrant/command/` を含む）・`chunking/`・`qa_generation/`・`scripts/`・`backend/app/`・`backend/app/api/`・`backend/app/core/`。2026-10-10〜11。`grace/docs/README_grace.md` / `grace_process_flow.md` / `grace_data_flow.md`、`services/docs/README_services.md`、`helper/docs/README_helper.md`、`qa_qdrant/docs/README_qa_qdrant.md` / `qa_qdrant_process_flow.md` / `qa_qdrant_data_flow.md`・`qa_qdrant/command/docs/README_command.md`、`chunking/docs/README_chunking.md` / `chunking_process_flow.md`、`qa_generation/docs/README_qa_generation.md` / `qa_generation_process_flow.md` / `qa_generation_data_flow.md`（2026-10-14 新設）、`scripts/docs/README_scripts.md`、`backend/app/docs/README_backend_app.md`・`backend/app/api/docs/README_backend_api.md`・`backend/app/core/docs/README_backend_core.md`。
 > backend のモジュール文書は `backend/docs/reference/` から各 `docs/` へ移した）。`check_docs.py --layout` は「要対応 0」になる。
 
 **各領域の棚卸し README を先に読む。** どこに何があるか・何が欠落しているかは索引が持つ。
-**全 10 領域に索引がある**（2026-10-12 時点。backend の索引は `backend/app/docs/README_app.md`・`backend/app/api/docs/README_backend_api.md`・`backend/app/core/docs/README_backend_core.md` の 3 つ）: [`docs/README.md`](docs/README.md)（直下・配置の境界と重複禁止ルール）/
+**全 10 領域に索引がある**（2026-10-12 時点。backend の索引は `backend/app/docs/README_backend_app.md`・`backend/app/api/docs/README_backend_api.md`・`backend/app/core/docs/README_backend_core.md` の 3 つ）: [`docs/README.md`](docs/README.md)（直下・配置の境界と重複禁止ルール）/
 `grace/docs/README_grace.md` / `frontend/docs/README_frontend.md` /
 `chunking/docs/README_chunking.md` / `qa_generation/docs/README_qa_generation.md` / `qa_qdrant/docs/README_qa_qdrant.md`（サブディレクトリは `qa_qdrant/command/docs/README_command.md`）/ `services/docs/README_services.md` / `helper/docs/README_helper.md` / `scripts/docs/README_scripts.md`。
 **文書を足したら該当する索引にも行を足すこと。**

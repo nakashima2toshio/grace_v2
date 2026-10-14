@@ -1,6 +1,6 @@
 # core/data_jobs.py - データ準備ジョブ runner ドキュメント
 
-**Version 1.14** | 最終更新: 2026-10-12
+**Version 1.15** | 最終更新: 2026-10-14
 
 > **本書の位置づけ**: `backend/app/core/data_jobs.py`（データ準備 4 ジョブの runner）の **IPO リファレンス**。
 > 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。
@@ -8,8 +8,8 @@
 > | 知りたいこと | 参照先 |
 > |---|---|
 > | ジョブ基盤・runner 注入 | [`core_process_flow.md` §3.2](core_process_flow.md) |
-> | LLM と Embedding のプロバイダ分離 | [`README_app.md` §4.3](../../docs/README_app.md) |
-> | 文書全体の地図 | [`README_app.md`](../../docs/README_app.md) |
+> | LLM と Embedding のプロバイダ分離 | [`README_backend_app.md` §4.3](../../docs/README_backend_app.md) |
+> | 文書全体の地図 | [`README_backend_app.md`](../../docs/README_backend_app.md) |
 
 > **参考ドキュメント**
 > - [`backend/app/api/docs/data.md`](../../api/docs/data.md) — 本モジュールを起動する API 層
@@ -564,3 +564,4 @@ curl -s -X POST localhost:8000/api/data/confirm/$JOB \
 | 1.12 | 2026-10-11 | Q/A 生成の失敗の扱いを変えたのに追随（全チャンクの失敗は `QAPipeline.run()` が `RuntimeError`、一部の失敗は `failed_chunks` をジョブのログに出す） |
 | 1.13 | 2026-10-11 | `backend/docs/reference/core_data_jobs.md` から移した（`a_cross_doc_md_format.md` §1.1.2。リンクを付け替えた）。§4.1.2 を起動だけの断片から実行できる例へ作り直し、kind の記載を `data` → `chunking`（実装どおり）に是正。パターンの表を追加 |
 | 1.14 | 2026-10-12 | backend/docs/ の横断文書の廃止（2026-10-12）に追随し、参照先を backend/app/docs/README_app.md・backend/app/api/docs/README_api.md・backend/app/core/docs/core_process_flow.md などへ付け替えた |
+| 1.15 | 2026-10-14 | 索引の改名（backend/app/docs/README_app.md → README_backend_app.md）に合わせて参照を付け替えた |

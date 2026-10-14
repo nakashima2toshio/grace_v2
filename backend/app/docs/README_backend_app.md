@@ -1,6 +1,6 @@
-# README_app.md - backend/app/ ディレクトリ概要
+# README_backend_app.md - backend/app/ ディレクトリ概要
 
-**Version 1.2** | 最終更新: 2026-10-14
+**Version 1.3** | 最終更新: 2026-10-14
 
 `backend/app/` の入口となる文書。FastAPI の起動口（`main.py`）と、API の入出力の型（`schemas.py`）を置く。
 ルーター（`api/`）とパイプライン本体・ジョブ基盤（`core/`）は**別のディレクトリ**で、それぞれの `docs/` に README がある。
@@ -345,3 +345,4 @@ PYTHONPATH=. .venv/bin/python -m pytest tests/test_api.py tests/test_model_selec
 | 1.0 | 2026-10-11 | 新規作成（`a_cross_doc_md_format.md` §1.1.2・§1.2）。`backend/docs/reference/main.md` / `schemas.md` を本ディレクトリへ移し、索引・使い方・既知の制約をまとめた。§2.1 は uvicorn を起動して確かめた |
 | 1.1 | 2026-10-12 | `backend/docs/` の廃止にあわせ、§4 に `architecture.md`（依存の向き・外部境界）と `config_and_providers.md`（モデル名の解決・UI からの上書き・世代ごとの送り方・API キー・既定を変える手順）と `README.md`（目的別の早見表）の内容を移した。§4.3.3 の表は 2026-10-12 の `config.py` に合わせ、Haiku 5.5 を `NO_TEMPERATURE_MODELS` / `ADAPTIVE_THINKING_MODELS` に入れた（移す前の文書は載せていなかった） |
 | 1.2 | 2026-10-14 | 索引の改名（frontend/docs/README.md → README_frontend.md、README_api.md → README_backend_api.md、README_core.md → README_backend_core.md）に合わせて参照を付け替えた |
+| 1.3 | 2026-10-14 | 索引の改名（backend/app/docs/README_app.md → README_backend_app.md）に合わせて参照を付け替えた |

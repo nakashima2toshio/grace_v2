@@ -1,6 +1,6 @@
 # core/rulesets.py - 文書レビューのルールセット定義 ドキュメント
 
-**Version 1.8** | 最終更新: 2026-10-12
+**Version 1.9** | 最終更新: 2026-10-14
 
 > **本書の位置づけ**: `backend/app/core/rulesets.py`（`RuleSet` / `RuleItem`（`ec_ad`・23 ルール）— **ルール定義の正本**）の **IPO リファレンス**。
 > 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。
@@ -9,7 +9,7 @@
 > |---|---|
 > | カタログと増やし方 | 本書 §6.3 |
 > | ルールが効く段 | [`core_process_flow.md` §2.4](core_process_flow.md) |
-> | 文書全体の地図 | [`README_app.md`](../../docs/README_app.md) |
+> | 文書全体の地図 | [`README_backend_app.md`](../../docs/README_backend_app.md) |
 
 ---
 
@@ -850,6 +850,7 @@ GRACE-Review が条文つきの指摘を出すには、② Retrieve が引く規
 | 1.6 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |
 | 1.7 | 2026-10-11 | `backend/docs/reference/core_rulesets.md` から移した（`a_cross_doc_md_format.md` §1.1.2。リンクを付け替えた）。§4.1 の 3 例を実行して記載どおりであることを確かめ、パターンの表を追加。未記載だった `public_description()` を §3・§4.2 に追加し、`retrieval_query()` / `citation()` / `evidence_query` の説明を実装どおり「`description` 全文」→「第 1 段落（要旨）」に是正した |
 | 1.8 | 2026-10-12 | §6.3 ルールを増やす手順・§6.4 規程コレクションの準備を追加（旧 backend/docs/verticals_and_rulesets.md §3.2 と data_pipeline.md 付録 A を要約して移した。backend/docs/ の廃止に伴う） |
+| 1.9 | 2026-10-14 | 索引の改名（backend/app/docs/README_app.md → README_backend_app.md）に合わせて参照を付け替えた |
 
 ---
 

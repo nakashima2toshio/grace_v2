@@ -1,6 +1,6 @@
 # backend テストの地図 ドキュメント
 
-**Version 2.15** | 最終更新: 2026-10-14
+**Version 2.16** | 最終更新: 2026-10-14
 
 ---
 
@@ -25,7 +25,7 @@
 > CI の設定は `.github/workflows/ci.yml` が正本。
 
 > **関連ドキュメント**
-> - [`README_app.md` §4](../backend/app/docs/README_app.md) — どのモジュールが何を担うか
+> - [`README_backend_app.md` §4](../backend/app/docs/README_backend_app.md) — どのモジュールが何を担うか
 > - [`README_backend_core.md` §5.2](../backend/app/core/docs/README_backend_core.md) — 共用部品を壊さないための注意
 > - [`README.md` §7](../README.md) — 実行環境の準備
 
@@ -422,3 +422,4 @@ GRACE_E2E=1 uv run --no-sync pytest tests/e2e -m e2e -rs
 | 2.13 | 2026-10-12 | backend/docs/ の廃止にあわせ、直下 docs/testing.md へ移した（例文の実行ログは docs/examples/）。本文の相対リンクを移動先に合わせた |
 | 2.14 | 2026-10-14 | 索引の改名（frontend/docs/README.md → README_frontend.md、README_api.md → README_backend_api.md、README_core.md → README_backend_core.md）に合わせて参照を付け替えた |
 | 2.15 | 2026-10-14 | テストの地図に test_dry_run_skips_confirmation.py（grace_v2_local から移植）を足した |
+| 2.16 | 2026-10-14 | 索引の改名（backend/app/docs/README_app.md → README_backend_app.md）に合わせて参照を付け替えた |

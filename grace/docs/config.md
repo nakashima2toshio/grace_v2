@@ -1,6 +1,6 @@
 # config.py - GRACE 設定管理 ドキュメント
 
-**Version 1.16** | 最終更新: 2026-10-12
+**Version 1.17** | 最終更新: 2026-10-14
 
 > 📌 **`config.GeminiConfig` の LLM モデル一覧は後方互換である。**
 > `config.py::GeminiConfig` の docstring にあるとおり、`GeminiConfig` は
@@ -317,7 +317,7 @@ print(get_config().tools.disabled, "/", config.tools.disabled)
 ```
 
 > ⚠️ **`llm.light_model` はリクエスト単位でも上書きしない**（判定系は軽量モデルのまま。理由は
-> `backend/app/docs/README_app.md` §4.3.2）。画面で選べるモデルは `config.py::ModelConfig.SELECTABLE_MODELS` の 1 箇所で決まる。
+> `backend/app/docs/README_backend_app.md` §4.3.2）。画面で選べるモデルは `config.py::ModelConfig.SELECTABLE_MODELS` の 1 箇所で決まる。
 
 #### 4.1.3 環境変数で上書きする（`GRACE_`）
 
@@ -1040,6 +1040,7 @@ __all__ = [
 | 1.14 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |
 | 1.15 | 2026-10-10 | §4.1 使用例を処理パターン 4 通り（読む・リクエスト単位で書き換える・環境変数で上書き・モデルの層の解決）に書き直し、実行して出力を確かめた。セクション名に `_` を含む設定は環境変数で上書きできないこと、`get_config(config_path)` のパスは最初の 1 回だけ効くことを注記した |
 | 1.16 | 2026-10-12 | backend/docs/ の横断文書の廃止（2026-10-12）に追随し、参照先を backend/app/docs/README_app.md・backend/app/api/docs/README_api.md・backend/app/core/docs/core_process_flow.md などへ付け替えた |
+| 1.17 | 2026-10-14 | 索引の改名（backend/app/docs/README_app.md → README_backend_app.md）に合わせて参照を付け替えた |
 
 ---
 
