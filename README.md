@@ -1,6 +1,6 @@
 # GRACE（grace_v2）- 業界特化・自律型エージェント基盤 ドキュメント
 
-**Version 4.17** | 最終更新: 2026-10-14
+**Version 4.18** | 最終更新: 2026-10-14
 
 > 日本語 RAG に、根拠検証（groundedness）・Web 裏取り・HITL（Human-In-The-Loop）承認を組み合わせた、
 > 業界特化の自律型エージェント。`./run_dev.sh` で起動し、ブラウザ（http://localhost:5173）の 4 タブから使う。
@@ -749,7 +749,7 @@ uvicorn backend.app.main:app --reload --port 8000
 - 選択肢は `claude-fable-5-1` / `claude-opus-5-5` / `claude-sonnet-5-5` / `claude-haiku-5-5` の 4 つ（`ModelConfig.SELECTABLE_MODELS`）
 - 意図分類・情報なし判定などの**判定系は軽量モデル** `claude-haiku-5-5`（yml の `llm.light_model`）のままで、ヘッダーの選択では変わらない
 - Embedding は `gemini-embedding-001`（3072 次元）。**変えると既存コレクションが使えなくなる**（エラーにならず検索結果だけが壊れる）
-- 既定モデルを変えるときは、解決経路 5 本をすべて確認する（[`CLAUDE.md`](CLAUDE.md) §3.1、[`README_backend_app.md` §4.3](backend/app/docs/README_backend_app.md)）
+- 既定モデルを変えるときは、解決経路 4 本をすべて確認する（[`CLAUDE.md`](CLAUDE.md) §3.1、[`README_backend_app.md` §4.3](backend/app/docs/README_backend_app.md)）
 
 ---
 
@@ -876,3 +876,4 @@ cd frontend && npm run lint && npm test && npm run build # frontend
 | 4.15 | 2026-10-14 | §8.1 に「dry-run（副作用なし）では承認を求めない」を追記した（`ActionBackend.has_side_effects` を grace_v2_local から移植）。⑥ Action の行から「dry-run ならログのみ」を外した |
 | 4.16 | 2026-10-14 | 索引の改名（backend/app/docs/README_app.md → README_backend_app.md）に合わせて参照を付け替えた |
 | 4.17 | 2026-10-14 | 実装と突き合わせて見直した（grace_v2_local の README v4.4 と同じ方法）。§4.1 のルールセット欄の表示例を実際の表示（`ReviewForm.tsx`）に合わせ、規程コレクションを grace_v2_local と共用していることと元データの置き場所の注記を足した。§6.2 の `backend/app/core/` に `job_logs.py` を足し、詳細の参照先を `README_backend_core.md` にした。§6.5 の API キーの行を、事前に確かめるのは `ANTHROPIC_API_KEY` だけという実装に合わせた。§10 に `GOOGLE_API_KEY` 未設定の行を足した |
+| 4.18 | 2026-10-14 | 直下 config.yml（読み手ゼロ）の削除に追随し、モデル名の解決経路を 4 本とした |
