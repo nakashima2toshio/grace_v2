@@ -1,6 +1,6 @@
 # components/ReviewPanel ほか - GRACE-Review UI ドキュメント
 
-**Version 1.9** | 最終更新: 2026-10-12
+**Version 1.10** | 最終更新: 2026-10-14
 
 ---
 
@@ -22,7 +22,7 @@
 > | `FindingList.tsx` / `FindingSummaryBar` | [`FindingList.md`](./FindingList.md) |
 > | `ConfirmModal.tsx` | [`ConfirmModal.md`](./ConfirmModal.md) |
 >
-> 一覧は [`frontend/docs/README.md`](./README.md) を参照。
+> 一覧は [`frontend/docs/README_frontend.md`](./README_frontend.md) を参照。
 
 ## 目次
 
@@ -634,3 +634,4 @@ document.slice(finding.start, finding.end) === finding.excerpt
 | 1.7 | 2026-09-24 | `a_react_page_md_format.md` v1.1 に追随（2026-09-24）。概要に「各責務対応のモジュール」（主な責務と 1:1）を追加し、`## 1.` を「アーキテクチャ構成図」として **1.1 システム全体での位置づけ（3 層）** と 1.2 コンポーネントツリー図の 2 枚構成にした。Mermaid の `classDef subgraphStyle` の欠落を補った |
 | 1.8 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |
 | 1.9 | 2026-10-12 | テスト件数を 2026-10-12 の `npx vitest run` の実測へ更新（`highlight` 13 → 18・`parseMarkdown` 10 → 16） |
+| 1.10 | 2026-10-14 | 索引の改名（frontend/docs/README.md → README_frontend.md、README_api.md → README_backend_api.md、README_core.md → README_backend_core.md）に合わせて参照を付け替えた |
