@@ -1,6 +1,6 @@
 # core_process_flow.md - GRACE-Support / GRACE-Review とジョブ基盤の処理フロー
 
-**Version 1.2** | 最終更新: 2026-10-14
+**Version 1.3** | 最終更新: 2026-10-14
 
 > 📝 2026-10-12 に `backend/docs/` を廃止したとき、`support_flow.md`（2,215 行）・`review_flow.md`（1,257 行）・
 > `job_runtime.md`（353 行）の**流れと設計判断**だけをここへまとめた。関数のシグネチャ・引数・戻り値は書かない
@@ -172,6 +172,8 @@ Q&A 形式の出典では答えていない内容が neutral になり、母数�
 
 - `require_identity=True` のプロファイル（`ec`）は、実行前に `IdentityVerifier` で識別子を照合する。未確認なら実行せず有人へ。
 - 既定は **dry-run**（`DryRunActionBackend`。記録だけ）。実 API 連携（`WebhookActionBackend`）は `SUPPORT_ACTION_WEBHOOK_URL` を置いたときだけ。
+- **副作用の無いバックエンド（dry-run）では承認を省く**（`ActionBackend.has_side_effects` が偽なら CONFIRM を出さない。`_perform_action`。2026-10-14 に grace_v2_local から移植）。
+  承認待ちを見たいときは `dry_run=False` にする（Webhook を置かなければ実行は擬似のまま）。
 - 副作用は ⑥ がバックエンドを**直接呼ぶ**。`grace/tools.py` のツールにしない（executor が計画の都合で任意の位置に差し込めてしまうため）。
 
 ### 1.6 複数質問と担当範囲外（0-(A)）
@@ -487,7 +489,7 @@ SSE は失敗しても必ず `done`（`status=failed`）で閉じる。
 | G6 | 情報なし／実質性なしの検知 | `gates.py::_detect_no_info_answer`（出典が Web だけなら第 2 段を必ず通す） | 候補句あり＋判定不能 → escalate ／ 候補句なし＋判定不能 → **維持** | ✅ | ✅ | ✅（`detect_vacuous_finding`） |
 | G7 | アクション判定 | `gates.py::_decide_action`（§1.5） | 分類失敗 → 起票（副作用は G9 が守る） | ✅ | ✅ | ✅（`_decide_review_action`：high があれば `escalate_to_human`、なければ `create_ticket`） |
 | G8 | 本人確認 | `support_actions.py::IdentityVerifier.verify` | 未確認 → 実行せず引き継ぎ | — | ✅（`ec`） | — |
-| G9 | HITL 承認 | `grace/intervention.py::InterventionHandler` / `intervention_bridge.py::InterventionBridge` | タイムアウト → 実行せず escalate | ✅ | ✅ | ✅ |
+| G9 | HITL 承認 | `grace/intervention.py::InterventionHandler` / `intervention_bridge.py::InterventionBridge`（副作用のあるバックエンド〔`has_side_effects=True`〕だけ） | タイムアウト → 実行せず escalate | ✅ | ✅ | ✅ |
 
 **3 つの原則**（全ガードレールに共通）:
 
@@ -546,7 +548,7 @@ SSE は失敗しても必ず `done`（`status=failed`）で閉じる。
 | `test_rag_adoption.py` / `test_measure_rag_threshold.py` | G0 RAG 採用下限 |
 | `test_no_info_judge.py` / `test_no_info_prediction.py` | G6（出典が Web だけのときの第 2 段・判定モデルの解決） |
 | `test_observability.py` | 矛盾した主張の本文をログへ残す |
-| `test_intervention_bridge.py` | G9 Web の承認待ち |
+| `test_intervention_bridge.py` / `test_dry_run_skips_confirmation.py` | G9 Web の承認待ち・dry-run では承認を求めない |
 | `test_reasoning_prompt_order.py` | `prompt_closing` が構成ルールの後ろに置かれる |
 | `test_review_gates.py` / `test_review_detect_failure_status.py` / `test_review_undecided_groundedness.py` | Review のゲート・判定失敗を `confirmed` にしない・全 neutral を支持率 0 と混同しない |
 
@@ -573,3 +575,4 @@ SSE は失敗しても必ず `done`（`status=failed`）で閉じる。
 | 1.0 | 2026-10-12 | 新規作成。`backend/docs/` の廃止にあわせ、`support_flow.md` / `review_flow.md` / `job_runtime.md` の流れと設計判断をまとめた。旧文書の誤り 2 点を実装に合わせた（④' 指摘ゲートで根拠ゼロは `suppressed` ではなく `review_required`、② Retrieve はセグメントごとではなくルールごとに 1 回） |
 | 1.1 | 2026-10-13 | §4「3 モードの対照とガードレール」を新設し、直下 docs/ の pipelines.md・guardrails.md・reasoning_flow.md を統合（モードとステップの対照・ガードレール一覧と失敗時の既定・生成ステップの比較・閾値・テスト）。§1.7 に基本版との差の表を移した。関連ドキュメントを §5、変更履歴を §6 へ繰り下げ。テスト一覧は実在するファイルに合わせ、llm.timeout の値を yml（30 / 30）に合わせた |
 | 1.2 | 2026-10-14 | 索引の改名（frontend/docs/README.md → README_frontend.md、README_api.md → README_backend_api.md、README_core.md → README_backend_core.md）に合わせて参照を付け替えた |
+| 1.3 | 2026-10-14 | dry-run（副作用なし）では HITL CONFIRM を求めないようにした（grace_v2_local から移植・ActionBackend.has_side_effects）のに追随 |

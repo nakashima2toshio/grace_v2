@@ -1,6 +1,6 @@
 # core/review_agent.py - GRACE-Review コアパイプライン ドキュメント
 
-**Version 1.9** | 最終更新: 2026-10-12
+**Version 1.10** | 最終更新: 2026-10-14
 
 > **本書の位置づけ**: `backend/app/core/review_agent.py`（GRACE-Review のコアパイプライン（`run_review_agent_core`））の **IPO リファレンス**。
 > 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。
@@ -437,7 +437,7 @@ mp.undo()
 ```
 
 > 📌 本物を呼ぶときも形は同じ（`run_review_agent_core(doc, ruleset="ec_ad", emit=..., confirm=...)`）。API キーが無いと例外を出さず `None` を返す。
-> `confirm` を省くと承認は自動（`dry_run=True` が既定なので ⑦ の実行は `[DRY-RUN]`）。Web API からは `InterventionBridge.resolver` を渡す。
+> `confirm` を省くと承認は自動。`dry_run=True`（既定）では承認自体を求めず、⑦ の実行は `[DRY-RUN]`。Web API からは `InterventionBridge.resolver` を渡す。
 
 
 #### 4.1.2 基本的なワークフロー（① 文書分割）
@@ -929,6 +929,7 @@ else:
 | 1.7 | 2026-10-11 | `backend/docs/reference/core_review_agent.md` から移した（`a_cross_doc_md_format.md` §1.1.2。リンクを付け替えた）。§4.1.1 に `run_review_agent_core()` をテストと同じスタブで 1 周流す例を追加し（以前は入口の例が無かった）、既存の 2 例を 4.1.2・4.1.3 へ繰り下げた。すべて実行して確かめた。未記載だった 10 シンボル（`_Job` / `_Judged`・`DEFAULT_JUDGE_WORKERS` / `_judge_workers`・`DEFAULT_WEB_TIMEOUT` / `_web_timeout`・`_MISSING_SHIPPING` / `_apply_missing_fact`・`DOCUMENT_CONTEXT_CHARS` / `_document_context`）を §3・§5.4・§5.5 に追加した。`_judge_workers()` の docstring と実装の食い違い（数値でないときは直列ではなく既定の 4）を実行で確かめて注記 |
 | 1.8 | 2026-10-12 | backend/docs/ の横断文書の廃止（2026-10-12）に追随し、参照先を backend/app/docs/README_app.md・backend/app/api/docs/README_api.md・backend/app/core/docs/core_process_flow.md などへ付け替えた |
 | 1.9 | 2026-10-12 | backend/docs/testing.md を直下 docs/testing.md へ、例文の実行ログを docs/examples/ へ移したのに追随（参照の付け替え） |
+| 1.10 | 2026-10-14 | dry-run（副作用なし）では HITL CONFIRM を求めないようにした（grace_v2_local から移植・ActionBackend.has_side_effects）のに追随 |
 
 ---
 
