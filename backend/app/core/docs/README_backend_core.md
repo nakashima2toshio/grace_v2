@@ -1,10 +1,10 @@
 # README_backend_core.md - backend/app/core/ ディレクトリ概要
 
-**Version 1.3** | 最終更新: 2026-10-14
+**Version 1.4** | 最終更新: 2026-10-14
 
 `backend/app/core/` の入口となる文書。2 つのエージェント（GRACE-Support / GRACE-Review）のパイプライン本体と、
 データ準備を含む 3 系統が共有するジョブ基盤を置く。各モジュールの引数・戻り値は各モジュールの文書（IPO）に置き、ここには書かない。
-HTTP の受け口は [`../../api/docs/README_backend_api.md`](../../api/docs/README_backend_api.md)、アプリの組み立ては [`../../docs/README_app.md`](../../docs/README_app.md)。
+HTTP の受け口は [`../../api/docs/README_backend_api.md`](../../api/docs/README_backend_api.md)、アプリの組み立ては [`../../docs/README_backend_app.md`](../../docs/README_backend_app.md)。
 
 > ⚠️ **本リポジトリは Anthropic 版。** 判定系は軽量モデル（`config/grace_config.yml` の `llm.light_model`）、生成・推論は `llm.model`。
 > 姉妹リポジトリ `grace_v2_local`（Ollama 版）の同名ファイルとは中身が違うので、文書をコピーで持ち込まない（CLAUDE.md §5）。
@@ -225,7 +225,7 @@ mp.undo()
 | ジョブ・SSE・HITL・runner 注入・失敗の扱い・制約（3 系統の共有基盤） | [`core_process_flow.md`](core_process_flow.md) §3 |
 | データ準備（チャンク化 → Q/A 生成 → Qdrant 登録 → 削除） | [`data_jobs.md`](data_jobs.md)・[`api/docs/data.md`](../../api/docs/data.md) |
 | 業界プロファイル・ルールセットの一覧と増やし方・規程コレクションの準備 | [`verticals.md`](verticals.md)・[`rulesets.md`](rulesets.md) |
-| モデル名の解決（`judge_model()` / `detect_model()`）・UI からの上書き | [`README_app.md`](../../docs/README_app.md) §4.3 |
+| モデル名の解決（`judge_model()` / `detect_model()`）・UI からの上書き | [`README_backend_app.md`](../../docs/README_backend_app.md) §4.3 |
 
 | データ | 形式 | 作る側 | 使う側 |
 |---|---|---|---|
@@ -280,7 +280,7 @@ PYTHONPATH=. .venv/bin/python -m pytest tests/test_support_agent_core.py tests/t
 | `review_agent.py` / `data_jobs.py` は **import 時に** `register_runner()` を実行する | 「使われていない import」に見えても消すと `_resolve_runner` が `TypeError: 未登録の params 型です` を出す。逆に `jobs.py` から Review / データ準備を import すると循環 import になる |
 | `capture_logs()` は**プロセス全体のロガー**に付くので、スレッド ID で絞り（別ジョブのログが混ざらない）、ロガー level を参照カウントで戻している（`job_logs.py`） | どちらの守りも消すと実測で壊れる。必ず `with` で使う（外し忘れるとハンドラが積み上がり 1 行が N 回転送される） |
 | HITL のタイムアウトは `CANCEL`（**実行しない**）で、ジョブは失敗させずに続行する | 「返事が無い＝承認」にすると破壊的操作が無人で走る。`AUTO_PROCEED`（自動承認）を Web 経路へ持ち込まない |
-| モデル名は `judge_model(config)` / `detect_model(config)` を通す | `INTENT_MODEL` / `ModelConfig.DEFAULT_MODEL` を直接使うと設定と食い違う（[`README_app.md`](../../docs/README_app.md) §4.3.1） |
+| モデル名は `judge_model(config)` / `detect_model(config)` を通す | `INTENT_MODEL` / `ModelConfig.DEFAULT_MODEL` を直接使うと設定と食い違う（[`README_backend_app.md`](../../docs/README_backend_app.md) §4.3.1） |
 | ステップ番号（①〜⑦）は実行順と一致しない | Support は `web`（⑤）の後に `no_info`（④'）、Review は `web`（⑥）の後に `severity`（⑤）。表示順は `STEP_IDS` / `REVIEW_STEP_IDS` の定義順 |
 
 ジョブ種別を足す・ジョブ基盤を触るときのチェックリスト:
@@ -302,3 +302,4 @@ PYTHONPATH=. .venv/bin/python -m pytest tests/test_support_agent_core.py tests/t
 | 1.1 | 2026-10-12 | `backend/docs/` の廃止にあわせ、§4 の参照先を新設の `core_process_flow.md` などへ付け替え、§5.2（`pitfalls.md` の落とし穴と `job_runtime.md` §8 のチェックリスト）を追加した。§4 冒頭の「`core_process_flow.md` には分けない」という方針は、`backend/docs/` を置かないことにしたので改めた |
 | 1.2 | 2026-10-12 | backend/docs/testing.md を直下 docs/testing.md へ、例文の実行ログを docs/examples/ へ移したのに追随（参照の付け替え）。§5.2 を §5.1 の後ろへ移した（見出しの番号順） |
 | 1.3 | 2026-10-14 | 索引の改名（frontend/docs/README.md → README_frontend.md、README_api.md → README_backend_api.md、README_core.md → README_backend_core.md）に合わせて参照を付け替えた |
+| 1.4 | 2026-10-14 | 索引の改名（backend/app/docs/README_app.md → README_backend_app.md）に合わせて参照を付け替えた |

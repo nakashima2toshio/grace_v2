@@ -1,6 +1,6 @@
 # api/meta.py - メタ情報 API ドキュメント
 
-**Version 1.13** | 最終更新: 2026-10-14
+**Version 1.14** | 最終更新: 2026-10-14
 
 > **本書の位置づけ**: `backend/app/api/meta.py`（モデル一覧 / 業界プロファイル / ルールセット一覧・ヘルスチェック）の **IPO リファレンス**。
 > 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。
@@ -9,9 +9,9 @@
 > |---|---|
 > | エンドポイント一覧 | [`README_backend_api.md` §4.0](README_backend_api.md) |
 > | プロファイル・ルールセットの中身 | [`verticals.md`](../../core/docs/verticals.md)・[`rulesets.md`](../../core/docs/rulesets.md) |
-> | モデル選択の方針・上書き範囲 | [`README_app.md` §4.3.2](../../docs/README_app.md) |
-> | API キーの扱い | [`README_app.md` §4.3.4](../../docs/README_app.md) |
-> | 文書全体の地図 | [`README_app.md`](../../docs/README_app.md) |
+> | モデル選択の方針・上書き範囲 | [`README_backend_app.md` §4.3.2](../../docs/README_backend_app.md) |
+> | API キーの扱い | [`README_backend_app.md` §4.3.4](../../docs/README_backend_app.md) |
+> | 文書全体の地図 | [`README_backend_app.md`](../../docs/README_backend_app.md) |
 
 ---
 
@@ -539,6 +539,7 @@ router  # APIRouter(prefix="/api", tags=["meta"])
 | 1.11 | 2026-10-11 | `backend/docs/reference/api_meta.md` から移した（`a_cross_doc_md_format.md` §1.1.2。リンクを付け替えた）。§4.1.3（`/api/models` / `/api/model`）を追加して実行で確かめた。§5.1 の `rule_count` を 21 → 23 に是正。§4.2 の戻り値例も `rule_count` 23・`always_check_count` 7・`laws` に社内規程を実装どおりに是正 |
 | 1.12 | 2026-10-12 | backend/docs/ の横断文書の廃止（2026-10-12）に追随し、参照先を backend/app/docs/README_app.md・backend/app/api/docs/README_api.md・backend/app/core/docs/core_process_flow.md などへ付け替えた |
 | 1.13 | 2026-10-14 | 索引の改名（frontend/docs/README.md → README_frontend.md、README_api.md → README_backend_api.md、README_core.md → README_backend_core.md）に合わせて参照を付け替えた |
+| 1.14 | 2026-10-14 | 索引の改名（backend/app/docs/README_app.md → README_backend_app.md）に合わせて参照を付け替えた |
 
 ---
 

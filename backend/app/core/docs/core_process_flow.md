@@ -1,6 +1,6 @@
 # core_process_flow.md - GRACE-Support / GRACE-Review とジョブ基盤の処理フロー
 
-**Version 1.3** | 最終更新: 2026-10-14
+**Version 1.4** | 最終更新: 2026-10-14
 
 > 📝 2026-10-12 に `backend/docs/` を廃止したとき、`support_flow.md`（2,215 行）・`review_flow.md`（1,257 行）・
 > `job_runtime.md`（353 行）の**流れと設計判断**だけをここへまとめた。関数のシグネチャ・引数・戻り値は書かない
@@ -562,7 +562,7 @@ SSE は失敗しても必ず `done`（`status=failed`）で閉じる。
 | Review の関数・データクラスの項目 | [`review_agent.md`](review_agent.md)・[`review_gates.md`](review_gates.md)・[`rulesets.md`](rulesets.md)・[`review_facts.md`](review_facts.md) |
 | ジョブ・HITL・ログ取り込みの実装 | [`jobs.md`](jobs.md)・[`intervention_bridge.md`](intervention_bridge.md)・[`job_logs.md`](job_logs.md)・[`data_jobs.md`](data_jobs.md) |
 | エンドポイント・SSE のワイヤ形式・HTTP ステータス | [`../../api/docs/README_backend_api.md`](../../api/docs/README_backend_api.md) §4 |
-| backend 全体の構成・モデル名の解決・API キー | [`../../docs/README_app.md`](../../docs/README_app.md) §4 |
+| backend 全体の構成・モデル名の解決・API キー | [`../../docs/README_backend_app.md`](../../docs/README_backend_app.md) §4 |
 | 生成ステップのプロンプト | [`grace/docs/tools.md`](../../../../grace/docs/tools.md) §5.4・[`grace/docs/executor.md`](../../../../grace/docs/executor.md)（`_prepare_tool_kwargs`） |
 | 画面側 | [`frontend/docs/SupportPanel.md`](../../../../frontend/docs/SupportPanel.md)・[`frontend/docs/ReviewPanel.md`](../../../../frontend/docs/ReviewPanel.md) |
 
@@ -576,3 +576,4 @@ SSE は失敗しても必ず `done`（`status=failed`）で閉じる。
 | 1.1 | 2026-10-13 | §4「3 モードの対照とガードレール」を新設し、直下 docs/ の pipelines.md・guardrails.md・reasoning_flow.md を統合（モードとステップの対照・ガードレール一覧と失敗時の既定・生成ステップの比較・閾値・テスト）。§1.7 に基本版との差の表を移した。関連ドキュメントを §5、変更履歴を §6 へ繰り下げ。テスト一覧は実在するファイルに合わせ、llm.timeout の値を yml（30 / 30）に合わせた |
 | 1.2 | 2026-10-14 | 索引の改名（frontend/docs/README.md → README_frontend.md、README_api.md → README_backend_api.md、README_core.md → README_backend_core.md）に合わせて参照を付け替えた |
 | 1.3 | 2026-10-14 | dry-run（副作用なし）では HITL CONFIRM を求めないようにした（grace_v2_local から移植・ActionBackend.has_side_effects）のに追随 |
+| 1.4 | 2026-10-14 | 索引の改名（backend/app/docs/README_app.md → README_backend_app.md）に合わせて参照を付け替えた |

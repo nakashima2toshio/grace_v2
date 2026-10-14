@@ -1,6 +1,6 @@
 # api/qdrant.py - Qdrant 参照 API ドキュメント
 
-**Version 1.6** | 最終更新: 2026-10-14
+**Version 1.7** | 最終更新: 2026-10-14
 
 > **本書の位置づけ**: `backend/app/api/qdrant.py`（Qdrant 参照系（読み取り専用）と入力ファイル一覧）の **IPO リファレンス**。
 > 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。
@@ -9,7 +9,7 @@
 > |---|---|
 > | エンドポイント一覧とステータス方針 | [`README_backend_api.md` §4.0・§4.3](README_backend_api.md) |
 > | コレクションの作り方 | [`data_jobs.md`](../../core/docs/data_jobs.md) |
-> | 文書全体の地図 | [`README_app.md`](../../docs/README_app.md) |
+> | 文書全体の地図 | [`README_backend_app.md`](../../docs/README_backend_app.md) |
 
 > **参考ドキュメント**
 > - [`backend/app/api/docs/data.md`](./data.md) — 登録・削除（副作用のある系）のジョブ API
@@ -359,3 +359,4 @@ curl 'http://localhost:8000/api/files?dir=OUTPUT'
 | 1.4 | 2026-10-11 | `backend/docs/reference/api_qdrant.md` から移した（`a_cross_doc_md_format.md` §1.1.2。リンクを付け替えた）。§3.1 を作り直した。3.1.1 は Qdrant の起動時と停止時（`docker stop`）の両方で、3.1.2 は一時コレクションで詳細とプレビューを実行して確かめた |
 | 1.5 | 2026-10-12 | backend/docs/ の横断文書の廃止（2026-10-12）に追随し、参照先を backend/app/docs/README_app.md・backend/app/api/docs/README_api.md・backend/app/core/docs/core_process_flow.md などへ付け替えた |
 | 1.6 | 2026-10-14 | 索引の改名（frontend/docs/README.md → README_frontend.md、README_api.md → README_backend_api.md、README_core.md → README_backend_core.md）に合わせて参照を付け替えた |
+| 1.7 | 2026-10-14 | 索引の改名（backend/app/docs/README_app.md → README_backend_app.md）に合わせて参照を付け替えた |

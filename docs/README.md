@@ -1,9 +1,9 @@
 # docs 棚卸し（リポジトリ直下 `docs/`）
 
-**Version 3.24** | 最終更新: 2026-10-14
+**Version 3.25** | 最終更新: 2026-10-14
 
 リポジトリ直下 `docs/` の一覧と、**どのディレクトリに何を置くかの境界**をまとめる。
-各領域の棚卸しは backend（[`README_app.md`](../backend/app/docs/README_app.md)・[`README_backend_api.md`](../backend/app/api/docs/README_backend_api.md)・[`README_backend_core.md`](../backend/app/core/docs/README_backend_core.md)） /
+各領域の棚卸しは backend（[`README_backend_app.md`](../backend/app/docs/README_backend_app.md)・[`README_backend_api.md`](../backend/app/api/docs/README_backend_api.md)・[`README_backend_core.md`](../backend/app/core/docs/README_backend_core.md)） /
 [`grace/docs/README_grace.md`](../grace/docs/README_grace.md) /
 [`frontend/docs/README_frontend.md`](../frontend/docs/README_frontend.md) /
 [`qa_generation/docs/README_qa_generation.md`](../qa_generation/docs/README_qa_generation.md) /
@@ -56,7 +56,7 @@ CLAUDE.md §9.1 の表を、判断に使える形へ具体化したもの。
 | 置き場所 | 置くもの | 判断の目安 |
 |---|---|---|
 | `<package>/docs/<module>.md` | Python モジュールの IPO | **1 ファイル = 1 文書**。`chunking/` `qa_generation/` `qa_qdrant/` `services/` `grace/` `helper/` `scripts/`・`backend/app/` `backend/app/api/` `backend/app/core/` |
-| `backend/app/**/docs/` の `README_<dir>.md` / `core_process_flow.md` | backend 全体の構成（`README_app.md`）・API 契約（`README_backend_api.md`）・Support / Review の流れとジョブ基盤（`core_process_flow.md`）。`backend/docs/` は 2026-10-12 に廃止 | 対象が `backend/app/` に閉じているか |
+| `backend/app/**/docs/` の `README_<dir>.md` / `core_process_flow.md` | backend 全体の構成（`README_backend_app.md`）・API 契約（`README_backend_api.md`）・Support / Review の流れとジョブ基盤（`core_process_flow.md`）。`backend/docs/` は 2026-10-12 に廃止 | 対象が `backend/app/` に閉じているか |
 | `frontend/docs/` | React コンポーネント 1 件ごと | 対象が `frontend/src/` に閉じているか |
 | **直下 `docs/`** | **2 つ以上の領域にまたがる横断文書**、およびトップレベル `.py` の IPO | 「`backend/` だけ」「`grace/` だけ」で説明しきれないもの |
 
@@ -255,3 +255,4 @@ EOF
 | 3.22 | 2026-10-13 | docs/ の整理: app_tabs_overview・celery_quick_start・doc_modernization_todo・archive/ の 2 本・未参照の画像 4 枚を削除。grace_v2_local の LLM 資材を LLM/ へ集約。§3.5・§6 を更新 |
 | 3.23 | 2026-10-13 | 読み物の横断文書 4 本（pipelines・guardrails・reasoning_flow・agent_layers）を統合して削除。performance_levers を種別 C（改善候補）へ移し、§4 の正本表を付け替えた |
 | 3.24 | 2026-10-14 | 索引の改名（frontend/docs/README.md → README_frontend.md、README_api.md → README_backend_api.md、README_core.md → README_backend_core.md）に合わせて参照を付け替えた |
+| 3.25 | 2026-10-14 | 索引の改名（backend/app/docs/README_app.md → README_backend_app.md）に合わせて参照を付け替えた |

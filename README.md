@@ -1,6 +1,6 @@
 # GRACE（grace_v2）- 業界特化・自律型エージェント基盤 ドキュメント
 
-**Version 4.15** | 最終更新: 2026-10-14
+**Version 4.16** | 最終更新: 2026-10-14
 
 > 日本語 RAG に、根拠検証（groundedness）・Web 裏取り・HITL（Human-In-The-Loop）承認を組み合わせた、
 > 業界特化の自律型エージェント。`./run_dev.sh` で起動し、ブラウザ（http://localhost:5173）の 4 タブから使う。
@@ -53,7 +53,7 @@
 | | [`qa_qdrant/docs/qa_qdrant_process_flow.md`](qa_qdrant/docs/qa_qdrant_process_flow.md) | CLI から Q/A 生成・登録までの順序・分岐・再開 |
 | | [`qa_qdrant/docs/qa_qdrant_data_flow.md`](qa_qdrant/docs/qa_qdrant_data_flow.md) | チャンク CSV → Q/A CSV → Qdrant のポイント（ID・payload）と UI 用 CSV の形・置き場所 |
 
-そのほかの入口: backend 全体の構成とモデル解決は [`backend/app/docs/README_app.md`](backend/app/docs/README_app.md)、
+そのほかの入口: backend 全体の構成とモデル解決は [`backend/app/docs/README_backend_app.md`](backend/app/docs/README_backend_app.md)、
 Support / Review の流れの正本は [`backend/app/core/docs/core_process_flow.md`](backend/app/core/docs/core_process_flow.md)、
 直下 `docs/` の横断文書は [`docs/README.md`](docs/README.md)、運用・計測ツールは [`scripts/docs/README_scripts.md`](scripts/docs/README_scripts.md)、
 開発の指針は [`CLAUDE.md`](CLAUDE.md)。文書の書き方は `.claude/skills/grace-agent-docs/` の仕様に従う。
@@ -567,7 +567,7 @@ python qa_qdrant/register_to_qdrant.py                # 3. 登録のみ
 |---|---|---|
 | `grace/` | 自律エージェント基盤。コア 8 つ：`planner`（計画）/ `executor`（実行）/ `confidence`（根拠検証 `GroundednessVerifier`）/ `calibration`（信頼度の較正）/ `memory`（実行メモリ）/ `intervention`（HITL）/ `replan`（再計画）/ `tools`（RAG 検索・Web 検索）。基盤は `config.py`（設定の読み込み・検証）/ `schemas.py`（データ契約）/ `llm_compat.py`（Claude 呼び出しの薄いアダプタ） | [`grace/docs/README_grace.md`](grace/docs/README_grace.md) |
 | `services/` | アプリ横断のサービス層。データ管理タブが使う `data_pipeline_service.py`（入力ファイル解決・チャンク化・コレクション削除）と `qdrant_service.py`（コレクション一覧・健全性）、Q/A 生成の `qa_service.py`、トークン計数の `token_service.py` ほか | [`services/docs/README_services.md`](services/docs/README_services.md) |
-| `config.py` | アプリ全体の定数。`ModelConfig`（既定モデル・選択肢・単価・上限・Embedding の定義）/ `GeminiConfig`（Embedding 用途）/ `QdrantConfig` | [`README_app.md` §4.3](backend/app/docs/README_app.md) |
+| `config.py` | アプリ全体の定数。`ModelConfig`（既定モデル・選択肢・単価・上限・Embedding の定義）/ `GeminiConfig`（Embedding 用途）/ `QdrantConfig` | [`README_backend_app.md` §4.3](backend/app/docs/README_backend_app.md) |
 
 使い方は 2 つのエージェントで違う。**基本版・GRACE-Support** は `planner` → `executor` の計画→実行ループを
 まるごと使い、**GRACE-Review** は `planner` / `executor` を通らず `tools`・`confidence`・`intervention`・`llm_compat` を
@@ -581,7 +581,7 @@ python qa_qdrant/register_to_qdrant.py                # 3. 登録のみ
 | モジュール | 役割 | 詳細 |
 |---|---|---|
 | `backend/app/api/` | FastAPI のルーター。`support.py`（`/api/support/*`）/ `review.py`（`/api/review/*`）/ `data.py`・`qdrant.py`（データ管理）/ `meta.py`（`/api/models`・`/api/model`・`/api/verticals`・`/api/rulesets`・`/api/health`） | [`README_backend_api.md` §4](backend/app/api/docs/README_backend_api.md) |
-| `backend/app/core/` | パイプライン本体。`support_agent.py` / `gates.py` / `verticals.py`（Support）、`review_agent.py` / `review_gates.py` / `rulesets.py`（Review）、`data_jobs.py`（データ管理）、`jobs.py`（ジョブと SSE）/ `intervention_bridge.py`（HITL の橋渡し） | [`README_app.md`](backend/app/docs/README_app.md) |
+| `backend/app/core/` | パイプライン本体。`support_agent.py` / `gates.py` / `verticals.py`（Support）、`review_agent.py` / `review_gates.py` / `rulesets.py`（Review）、`data_jobs.py`（データ管理）、`jobs.py`（ジョブと SSE）/ `intervention_bridge.py`（HITL の橋渡し） | [`README_backend_app.md`](backend/app/docs/README_backend_app.md) |
 | `backend/app/schemas.py` | API のリクエスト・レスポンスの型（Pydantic）。`frontend/src/types.ts` と対で保つ | [`backend/app/docs/schemas.md`](backend/app/docs/schemas.md) |
 | `frontend/src/components/` | 画面部品。`App.tsx`（ヘッダー・タブ）/ `SupportPanel`・`QueryForm`・`StepTimeline`・`AnswerCard` / `ReviewPanel`・`ReviewForm`・`DocumentView`・`FindingList` / `DataPanel`・`DataJobPanel`・`CollectionPanel` / `ConfirmModal`・`QuestionSelectModal` ほか | [`frontend/docs/README_frontend.md`](frontend/docs/README_frontend.md) |
 | `frontend/src/state/` | 判断ロジックの純関数（送信ペイロード・送信キー・タブ移動・入力退避・モデル選択・SSE の監視）と 3 つの reducer。コンポーネントは入力の保持と描画だけを持つ | [`frontend/docs/README_frontend.md`](frontend/docs/README_frontend.md) |
@@ -660,7 +660,7 @@ L2 を持たないのは設計判断で、パイプラインが決定的にな�
 | L0 | API キー | `ANTHROPIC_API_KEY`（LLM）と `GOOGLE_API_KEY`（Embedding）が要る。無いとジョブが `error` イベントで失敗する |
 | L0 | モデル世代ごとの送り方 | `temperature` が 400 になるモデル・`budget_tokens` が 400 になるモデル・思考を無効化できないモデルを `config.py::ModelConfig` の 3 表（`NO_TEMPERATURE_MODELS` / `ADAPTIVE_THINKING_MODELS` / `ALWAYS_THINKING_MODELS`）で管理し、`grace/llm_compat.py` と `helper/helper_llm.py` が読む。**選択肢にモデルを足すときは 3 表も確認する** |
 | L0 | 応答の終わり方 | `stop_reason` が `refusal` なら `LLMRefusalError`、JSON 応答が `max_tokens` で切れたら 1 回再試行のうえ `LLMTruncatedError`（黙って「空の成功」や「途中で切れた JSON」にしない） |
-| L0 | 思考の量（effort） | 現在はすべて `low` 固定。呼び出しごとの調整は未実装（[`README_app.md` §4.3.3](backend/app/docs/README_app.md)） |
+| L0 | 思考の量（effort） | 現在はすべて `low` 固定。呼び出しごとの調整は未実装（[`README_backend_app.md` §4.3.3](backend/app/docs/README_backend_app.md)） |
 | L0.5 | モデル階層 | 回答・推論は `claude-sonnet-5-5`、判定系は軽量の `claude-haiku-5-5`（`llm.light_model`）。ヘッダーの選択で変わるのは前者だけ（判定系は軽量モデルのまま） |
 | L3 | 失敗時の振る舞い | API が失敗してもパイプラインは**安全側の結果**（escalate・要確認）を返して例外を出さない。キーが無効でも素朴なテストは通ってしまうので、E2E は事前の疎通確認と API エラーのログ（`api_errors`）で見張る |
 | 全域 | コスト | 実行ごとに課金される。単価は `ModelConfig.MODEL_PRICING`（ヘッダーの選択肢に単価を併記）。E2E（`GRACE_E2E=1`）も課金される |
@@ -747,7 +747,7 @@ uvicorn backend.app.main:app --reload --port 8000
 - 選択肢は `claude-fable-5-1` / `claude-opus-5-5` / `claude-sonnet-5-5` / `claude-haiku-5-5` の 4 つ（`ModelConfig.SELECTABLE_MODELS`）
 - 意図分類・情報なし判定などの**判定系は軽量モデル** `claude-haiku-5-5`（yml の `llm.light_model`）のままで、ヘッダーの選択では変わらない
 - Embedding は `gemini-embedding-001`（3072 次元）。**変えると既存コレクションが使えなくなる**（エラーにならず検索結果だけが壊れる）
-- 既定モデルを変えるときは、解決経路 5 本をすべて確認する（[`CLAUDE.md`](CLAUDE.md) §3.1、[`README_app.md` §4.3](backend/app/docs/README_app.md)）
+- 既定モデルを変えるときは、解決経路 5 本をすべて確認する（[`CLAUDE.md`](CLAUDE.md) §3.1、[`README_backend_app.md` §4.3](backend/app/docs/README_backend_app.md)）
 
 ---
 
@@ -840,7 +840,7 @@ cd frontend && npm run lint && npm test && npm run build # frontend
 |---|---|
 | [`docs/README.md`](docs/README.md) | 直下 `docs/` の索引と、文書の配置ルール |
 | [`backend/app/core/docs/core_process_flow.md`](backend/app/core/docs/core_process_flow.md) | Support / Review の流れ・3 モードの対照・ガードレールと失敗時の既定（§4）・生成ステップ |
-| [`backend/app/docs/README_app.md`](backend/app/docs/README_app.md) | backend の索引（全体構成・モデル解決。API は `api/docs/README_backend_api.md`、Support / Review の流れは `core/docs/core_process_flow.md`） |
+| [`backend/app/docs/README_backend_app.md`](backend/app/docs/README_backend_app.md) | backend の索引（全体構成・モデル解決。API は `api/docs/README_backend_api.md`、Support / Review の流れは `core/docs/core_process_flow.md`） |
 | [`grace/docs/README_grace.md`](grace/docs/README_grace.md) | grace の概要・設計の考え方・モジュール索引・使い方（Support / Review が使うモジュールの対応表は `grace_process_flow.md` §2.3） |
 | [`frontend/docs/README_frontend.md`](frontend/docs/README_frontend.md) | 画面部品の索引（各コンポーネントの props・状態・SSE） |
 | [`chunking/docs/README_chunking.md`](chunking/docs/README_chunking.md) ・ [`qa_generation/docs/README_qa_generation.md`](qa_generation/docs/README_qa_generation.md) ・ [`qa_qdrant/docs/README_qa_qdrant.md`](qa_qdrant/docs/README_qa_qdrant.md) ・ [`services/docs/README_services.md`](services/docs/README_services.md) | データ準備とサービス層の各モジュール（IPO） |
@@ -871,3 +871,4 @@ cd frontend && npm run lint && npm test && npm run build # frontend
 | 4.13 | 2026-10-13 | §6.5 にエージェント階層と一般用語の対応を追加（旧 docs/agent_layers.md の要点）。§11 の行を core_process_flow.md へ集約 |
 | 4.14 | 2026-10-14 | 冒頭に「ドキュメント構成」を新設し、主要モジュールの文書（backend・frontend・grace・helper・services・chunking・qa_generation・qa_qdrant）を 1 行の概要とリンクで並べた。索引の改名（`frontend/docs/README_frontend.md`・`backend/app/api/docs/README_backend_api.md`・`backend/app/core/docs/README_backend_core.md`）に追随した。§1 に 1 回の所要（`docs/examples/` の実測）と業界定義 2 つの対比表、§3.2 の 0-(A) に担当範囲外の主質問の扱い（GA'）、§3.3・§4.3 の実行例に所要の列、§6.5 にクラウド LLM（Claude）であることが効く箇所の表、§10 に「model not found」の行を足した。変更履歴の 1.0〜3.10（22 版）を 1 行に要約した |
 | 4.15 | 2026-10-14 | §8.1 に「dry-run（副作用なし）では承認を求めない」を追記した（`ActionBackend.has_side_effects` を grace_v2_local から移植）。⑥ Action の行から「dry-run ならログのみ」を外した |
+| 4.16 | 2026-10-14 | 索引の改名（backend/app/docs/README_app.md → README_backend_app.md）に合わせて参照を付け替えた |

@@ -1,6 +1,6 @@
 # core/review_agent.py - GRACE-Review コアパイプライン ドキュメント
 
-**Version 1.10** | 最終更新: 2026-10-14
+**Version 1.11** | 最終更新: 2026-10-14
 
 > **本書の位置づけ**: `backend/app/core/review_agent.py`（GRACE-Review のコアパイプライン（`run_review_agent_core`））の **IPO リファレンス**。
 > 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。
@@ -10,7 +10,7 @@
 > | 各段の IPO と設計仕様 | [`core_process_flow.md` §2.3](core_process_flow.md) |
 > | ルールセットの中身 | [`rulesets.md`](rulesets.md) |
 > | ジョブ・SSE・HITL の機構 | [`core_process_flow.md` §3](core_process_flow.md) |
-> | 文書全体の地図 | [`README_app.md`](../../docs/README_app.md) |
+> | 文書全体の地図 | [`README_backend_app.md`](../../docs/README_backend_app.md) |
 
 ---
 
@@ -930,6 +930,7 @@ else:
 | 1.8 | 2026-10-12 | backend/docs/ の横断文書の廃止（2026-10-12）に追随し、参照先を backend/app/docs/README_app.md・backend/app/api/docs/README_api.md・backend/app/core/docs/core_process_flow.md などへ付け替えた |
 | 1.9 | 2026-10-12 | backend/docs/testing.md を直下 docs/testing.md へ、例文の実行ログを docs/examples/ へ移したのに追随（参照の付け替え） |
 | 1.10 | 2026-10-14 | dry-run（副作用なし）では HITL CONFIRM を求めないようにした（grace_v2_local から移植・ActionBackend.has_side_effects）のに追随 |
+| 1.11 | 2026-10-14 | 索引の改名（backend/app/docs/README_app.md → README_backend_app.md）に合わせて参照を付け替えた |
 
 ---
 

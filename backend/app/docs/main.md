@@ -1,16 +1,16 @@
 # main.py - GRACE Web API 起動モジュール ドキュメント
 
-**Version 1.10** | 最終更新: 2026-10-14
+**Version 1.11** | 最終更新: 2026-10-14
 
 > **本書の位置づけ**: `backend/app/main.py`（FastAPI アプリの組み立て（CORS・ルーター結線））の **IPO リファレンス**。
-> 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。ディレクトリの索引は [`README_app.md`](README_app.md)。
+> 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。ディレクトリの索引は [`README_backend_app.md`](README_backend_app.md)。
 >
 > | 知りたいこと | 参照先 |
 > |---|---|
-> | 層構造・外部境界・依存の向き | [`README_app.md` §4](README_app.md) |
+> | 層構造・外部境界・依存の向き | [`README_backend_app.md` §4](README_backend_app.md) |
 > | エンドポイントと SSE の契約 | [`README_backend_api.md` §4](../api/docs/README_backend_api.md) |
 > | 起動手順・前提 | [`README.md` §7](../../../README.md) |
-> | 文書全体の地図 | [`README_app.md`](README_app.md) |
+> | 文書全体の地図 | [`README_backend_app.md`](README_backend_app.md) |
 
 ---
 
@@ -457,6 +457,7 @@ from backend.app.main import app   # uvicorn backend.app.main:app で参照さ�
 | 1.8 | 2026-10-11 | `backend/docs/reference/main.md` から移した（`a_cross_doc_md_format.md` §1.1.2。リンクを付け替えた）。**ルーターが 3 つ（`support` / `review` / `meta`）のまま 2 つ（`qdrant` / `data`）抜けていた**のを実装どおり 5 つに是正し（概要・構成図・§4.5・付録）、`version` の記載の食い違い（"1.0.0" と "1.1.0"）と `description` を実装に合わせた。§4.1 を 2 パターン（uvicorn で起動して叩く / `TestClient`）に組み直し、どちらも実行して確かめた（エンドポイント数 25・CORS のプリフライトを追加） |
 | 1.9 | 2026-10-12 | backend/docs/ の横断文書の廃止（2026-10-12）に追随し、参照先を backend/app/docs/README_app.md・backend/app/api/docs/README_api.md・backend/app/core/docs/core_process_flow.md などへ付け替えた |
 | 1.10 | 2026-10-14 | 索引の改名（frontend/docs/README.md → README_frontend.md、README_api.md → README_backend_api.md、README_core.md → README_backend_core.md）に合わせて参照を付け替えた |
+| 1.11 | 2026-10-14 | 索引の改名（backend/app/docs/README_app.md → README_backend_app.md）に合わせて参照を付け替えた |
 
 ---
 

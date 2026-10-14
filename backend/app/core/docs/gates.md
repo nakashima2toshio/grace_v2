@@ -1,6 +1,6 @@
 # core/gates.py - 回答ゲート・判定ロジック ドキュメント
 
-**Version 1.8** | 最終更新: 2026-10-12
+**Version 1.9** | 最終更新: 2026-10-14
 
 > **本書の位置づけ**: `backend/app/core/gates.py`（Support の判定ロジック（質問分析・回答ゲート・救済・情報なし検知））の **IPO リファレンス**。
 > 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。
@@ -9,8 +9,8 @@
 > |---|---|
 > | 各段のどこで呼ばれるか | [`core_process_flow.md` §1.2](core_process_flow.md) |
 > | なぜこの判定・しきい値なのか | [`core_process_flow.md` §1.3・§1.6](core_process_flow.md) |
-> | モデル解決（`judge_model`） | [`README_app.md` §4.3.1](../../docs/README_app.md) |
-> | 文書全体の地図 | [`README_app.md`](../../docs/README_app.md) |
+> | モデル解決（`judge_model`） | [`README_backend_app.md` §4.3.1](../../docs/README_backend_app.md) |
+> | 文書全体の地図 | [`README_backend_app.md`](../../docs/README_backend_app.md) |
 
 ---
 
@@ -1027,6 +1027,7 @@ NO_INFO_MARKERS
 | 1.6 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
 | 1.7 | 2026-10-11 | `backend/docs/reference/core_gates.md` から移した（`a_cross_doc_md_format.md` §1.1.2。リンクを付け替えた）。§4.1 の 3 例を実行して記載どおりであることを確かめ、パターンの表を追加。未記載だった `drop_uncited_web_citations`（回答本文で引用していない Web 出典を表示から外す）と `_CITATION_URL_RE` を §3・§4.4 に追加した（例は実行で確かめた） |
 | 1.8 | 2026-10-12 | backend/docs/ の横断文書の廃止（2026-10-12）に追随し、参照先を backend/app/docs/README_app.md・backend/app/api/docs/README_api.md・backend/app/core/docs/core_process_flow.md などへ付け替えた |
+| 1.9 | 2026-10-14 | 索引の改名（backend/app/docs/README_app.md → README_backend_app.md）に合わせて参照を付け替えた |
 
 ---
 
