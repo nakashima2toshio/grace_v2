@@ -272,21 +272,15 @@ def test_core_rejects_unknown_model(monkeypatch):
         _run_core_capturing_config(monkeypatch, "claude-sonnet-4-6")
 
 
-def test_top_level_config_yml_default_matches_model_config():
-    """直下 `config.yml`（経路 5）の既定が `ModelConfig` と食い違っていない。
+def test_top_level_config_yml_is_removed():
+    """直下 `config.yml`（旧経路 5）を復活させない。
 
-    かつて `services/agent_service.py`（Legacy ReAct）が `get_config("models.default")` を
-    既定モデルに使っていた（2026-09-24 に `claude-sonnet-4-6` のまま残っていたのを是正）。
-    同モジュールは 2026-10-10 に削除し、現在この値を読むコードは無い。値が残る以上、
-    読んだ人が旧モデルを既定と誤解しないよう `ModelConfig` と揃えておく。
+    かつて `services/agent_service.py`（Legacy ReAct）が `models.default` を既定モデルに使い、
+    2026-09-24 には `claude-sonnet-4-6` のまま残っていた。読み手は 2026-10-10・10-11 に
+    すべて削除し、ファイル自体も 2026-10-14 に削除した（旧 Gemini LLM 既定の `gemini:` /
+    `provider:` など、読まれない値だけが残っていたため）。置き直すと、読んだ人が旧モデルや
+    旧プロバイダを既定と誤解する。設定は `config.py` と `config/grace_config.yml` に置く。
     """
     from pathlib import Path
 
-    import yaml
-
-    data = yaml.safe_load(
-        (Path(__file__).resolve().parents[1] / "config.yml").read_text(encoding="utf-8")
-    )
-    models = data["models"]
-    assert models["default"] == ModelConfig.DEFAULT_MODEL
-    assert set(models["available"]) <= set(ModelConfig.AVAILABLE_MODELS)
+    assert not (Path(__file__).resolve().parents[1] / "config.yml").exists()

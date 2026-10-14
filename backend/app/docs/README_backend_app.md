@@ -1,6 +1,6 @@
 # README_backend_app.md - backend/app/ ディレクトリ概要
 
-**Version 1.3** | 最終更新: 2026-10-14
+**Version 1.4** | 最終更新: 2026-10-14
 
 `backend/app/` の入口となる文書。FastAPI の起動口（`main.py`）と、API の入出力の型（`schemas.py`）を置く。
 ルーター（`api/`）とパイプライン本体・ジョブ基盤（`core/`）は**別のディレクトリ**で、それぞれの `docs/` に README がある。
@@ -213,7 +213,7 @@ class ApiLayer,JobsMod,CoreAgents,SupportAgent,ReviewAgent,DataJobs,Gates,Review
 
 ### 4.3 モデル名の解決と API キー
 
-プロバイダの方針（LLM は Anthropic・Embedding は Gemini）と 5 本の解決経路の一覧は CLAUDE.md §3・§3.1 が正。ここには backend 側の仕組みを書く。
+プロバイダの方針（LLM は Anthropic・Embedding は Gemini）と 4 本の解決経路の一覧は CLAUDE.md §3・§3.1 が正。ここには backend 側の仕組みを書く。
 
 #### 4.3.1 判定系と ③ Detect は解決関数を通す
 
@@ -306,7 +306,7 @@ def detect_model(config) -> str:  # config.llm.model → 無ければ ModelConfi
 #### 4.3.5 既定モデルを変えるときの手順
 
 1. `config/grace_config.yml` の `llm.model` / `llm.light_model` を変える（**正**）
-2. `verticals.py::INTENT_MODEL`（フォールバック）・`config.py::ModelConfig.DEFAULT_MODEL` / `CHUNKING_MODEL`・直下 `config.yml` の `models.default` を確認する（CLAUDE.md §3.1 の 5 経路）
+2. `verticals.py::INTENT_MODEL`（フォールバック）・`config.py::ModelConfig.DEFAULT_MODEL` / `CHUNKING_MODEL` を確認する（CLAUDE.md §3.1 の 4 経路）
 3. `MODEL_PRICING` / `MODEL_LIMITS` と §4.3.3 の 3 つの表に新しいモデルがあるか確認する
 4. `ModelConfig.SELECTABLE_MODELS` に載っているか確認する（**既定は選択肢にも含める**）
 5. **モデル名のマッピングは作らない**（CLAUDE.md R1）。`judge_model()` / `detect_model()` を通さない直接参照を足していないか grep する
@@ -346,3 +346,4 @@ PYTHONPATH=. .venv/bin/python -m pytest tests/test_api.py tests/test_model_selec
 | 1.1 | 2026-10-12 | `backend/docs/` の廃止にあわせ、§4 に `architecture.md`（依存の向き・外部境界）と `config_and_providers.md`（モデル名の解決・UI からの上書き・世代ごとの送り方・API キー・既定を変える手順）と `README.md`（目的別の早見表）の内容を移した。§4.3.3 の表は 2026-10-12 の `config.py` に合わせ、Haiku 5.5 を `NO_TEMPERATURE_MODELS` / `ADAPTIVE_THINKING_MODELS` に入れた（移す前の文書は載せていなかった） |
 | 1.2 | 2026-10-14 | 索引の改名（frontend/docs/README.md → README_frontend.md、README_api.md → README_backend_api.md、README_core.md → README_backend_core.md）に合わせて参照を付け替えた |
 | 1.3 | 2026-10-14 | 索引の改名（backend/app/docs/README_app.md → README_backend_app.md）に合わせて参照を付け替えた |
+| 1.4 | 2026-10-14 | 直下 config.yml（読み手ゼロ）の削除に追随し、モデル名の解決経路を 4 本とした |

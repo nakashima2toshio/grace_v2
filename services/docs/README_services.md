@@ -1,6 +1,6 @@
 # README_services.md - services/ ディレクトリ概要
 
-**Version 2.5** | 最終更新: 2026-10-13
+**Version 2.6** | 最終更新: 2026-10-14
 
 `services/` パッケージの入口となる文書。ディレクトリの役割・モジュール索引・組み合わせ方・公開 API・既知の制約をまとめる。
 文書を新しく書く／直す前に、まずここを見る。
@@ -344,7 +344,7 @@ print(sorted(m for m in sys.modules if m.startswith("services.")))
 | `tests/test_qa_service.py` | 2 | `qa_service`（LLM クライアントが Anthropic で作られること） |
 | `tests/test_data_pipeline.py` | 30 | `data_pipeline_service`・`qdrant_service` |
 | `tests/test_data_jobs.py` | 44 | データ管理タブのジョブ全体（`data_pipeline_service` / `qdrant_service` 経由・**間接**） |
-| `tests/test_model_selection.py` | 30 | モデル解決の 5 経路。うち 1 件が直下 `config.yml` の `models.default`（読むコードは無い） |
+| `tests/test_model_selection.py` | 30 | モデル解決の 4 経路。うち 1 件が直下 `config.yml` を置き直していないこと（2026-10-14 に削除） |
 | `tests/integration/test_qdrant_live.py` | 12 | 本物の Qdrant での `qdrant_service`（Qdrant が無ければ skip） |
 
 ```bash
@@ -376,3 +376,4 @@ uv run --no-sync pytest tests/test_*_service.py tests/test_data_pipeline.py -q
 | 2.3 | 2026-10-11 | 本番の呼び出し元が無かった `config_service.py` / `cache_service.py` / `json_service.py` を削除したのに追随。3 文書を `archive/` へ移し、概要・構成図・§1 の索引と依存関係・§2.2（標準ライブラリの `json` に置き換え）・§2.3・§3（`__all__` 50 → 29 件）・§4・§5・§5.1 を更新した。§2.2・§2.3 を実行し直して出力を確かめた。`token_service` も本番の呼び出し元が無くなったことを §5 #5 に記録した |
 | 2.4 | 2026-10-12 | backend/docs/ の横断文書の廃止（2026-10-12）に追随し、参照先を backend/app/docs/README_app.md・backend/app/api/docs/README_api.md・backend/app/core/docs/core_process_flow.md などへ付け替えた |
 | 2.5 | 2026-10-13 | docs/archive/ を削除したのに追随（旧文書への参照を「2026-10-13 に削除。git 履歴に残る」へ） |
+| 2.6 | 2026-10-14 | 直下 config.yml（読み手ゼロ）の削除に追随し、モデル名の解決経路を 4 本とした |
