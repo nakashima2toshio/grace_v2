@@ -1,6 +1,6 @@
 # GRACE（grace_v2）- 業界特化・自律型エージェント基盤 ドキュメント
 
-**Version 4.16** | 最終更新: 2026-10-14
+**Version 4.17** | 最終更新: 2026-10-14
 
 > 日本語 RAG に、根拠検証（groundedness）・Web 裏取り・HITL（Human-In-The-Loop）承認を組み合わせた、
 > 業界特化の自律型エージェント。`./run_dev.sh` で起動し、ブラウザ（http://localhost:5173）の 4 タブから使う。
@@ -406,12 +406,11 @@ Support と同じ機構を再利用している（新規実装は Segment / Dete
 ### 4.1 業界特化
 
 **業界の法令遵守**を点検する。`backend/app/core/rulesets.py::EC_AD`（EC 広告表示）を使う。
-画面のルールセット欄には次のように表示される。
+ルールセットを選ぶと、その下に次の説明が出る（`ReviewForm.tsx`。値は `GET /api/rulesets` から取る）。
 
 ```
-■ 特定商取引法に基づく表記
-ルールセット: 対象法令: 医薬品医療機器等法 / 景品表示法 / 特定商取引法 / 社内規程
-— 常時チェック 7 件（表記漏れの検出）。指摘の自動確定は支持率 0.85 以上。
+対象法令: 医薬品医療機器等法 / 景品表示法 / 特定商取引法 / 社内規程 — 常時チェック 7 件
+（表記漏れの検出）。指摘の自動確定は支持率 0.85 以上。
 ```
 
 | 項目 | 内容 |
@@ -420,7 +419,10 @@ Support と同じ機構を再利用している（新規実装は Segment / Dete
 | 常時チェック | **7 件**（特定商取引法 6 ＋ 社内規程 1）。キーワードに関係なく必ず判定する＝**表記漏れの検出** |
 | 指摘の自動確定 | 支持率 **0.85 以上**（要確認は 0.60 以上）。誤指摘のコストが高いので Support（`gov` 0.8）より厳しい |
 | 重大リスク語 | 「No.1」「日本一」「最安」「完治」「治る」「副作用がない」「絶対」「100%」など。一致すると重大度を high に引き上げる |
-| 検索スコープ | `ec_ad_rules_anthropic`（規程・条文）/ `ec_policy_anthropic`（社内規程） |
+| 検索スコープ | `ec_ad_rules_anthropic`（規程・条文。**grace_v2_local と 1 個を共用**）/ `ec_policy_anthropic`（社内規程） |
+
+> ⚠️ 規程コレクションの元データ `qa_output/ec_ad_rules_statutes_template.csv` は**本リポジトリにだけ置く**（grace_v2_local へコピーしない）。
+> 2 か所にあると片方だけに条文を足す食い違いが起き、登録すると両方の Review が黙って変わる（[`CLAUDE.md`](CLAUDE.md) §5）。
 
 画面の例文は 3 つ：**NG 例（優良誤認・薬機法）**／**NG 例（表記漏れ・規程不一致）**／**OK 例（指摘 0 件を期待）**。
 
@@ -581,7 +583,7 @@ python qa_qdrant/register_to_qdrant.py                # 3. 登録のみ
 | モジュール | 役割 | 詳細 |
 |---|---|---|
 | `backend/app/api/` | FastAPI のルーター。`support.py`（`/api/support/*`）/ `review.py`（`/api/review/*`）/ `data.py`・`qdrant.py`（データ管理）/ `meta.py`（`/api/models`・`/api/model`・`/api/verticals`・`/api/rulesets`・`/api/health`） | [`README_backend_api.md` §4](backend/app/api/docs/README_backend_api.md) |
-| `backend/app/core/` | パイプライン本体。`support_agent.py` / `gates.py` / `verticals.py`（Support）、`review_agent.py` / `review_gates.py` / `rulesets.py`（Review）、`data_jobs.py`（データ管理）、`jobs.py`（ジョブと SSE）/ `intervention_bridge.py`（HITL の橋渡し） | [`README_backend_app.md`](backend/app/docs/README_backend_app.md) |
+| `backend/app/core/` | パイプライン本体。`support_agent.py` / `gates.py` / `verticals.py`（Support）、`review_agent.py` / `review_gates.py` / `rulesets.py`（Review）、`data_jobs.py`（データ管理）、`jobs.py`（ジョブと SSE）/ `job_logs.py`（ログの取り込み）/ `intervention_bridge.py`（HITL の橋渡し） | [`README_backend_core.md`](backend/app/core/docs/README_backend_core.md) |
 | `backend/app/schemas.py` | API のリクエスト・レスポンスの型（Pydantic）。`frontend/src/types.ts` と対で保つ | [`backend/app/docs/schemas.md`](backend/app/docs/schemas.md) |
 | `frontend/src/components/` | 画面部品。`App.tsx`（ヘッダー・タブ）/ `SupportPanel`・`QueryForm`・`StepTimeline`・`AnswerCard` / `ReviewPanel`・`ReviewForm`・`DocumentView`・`FindingList` / `DataPanel`・`DataJobPanel`・`CollectionPanel` / `ConfirmModal`・`QuestionSelectModal` ほか | [`frontend/docs/README_frontend.md`](frontend/docs/README_frontend.md) |
 | `frontend/src/state/` | 判断ロジックの純関数（送信ペイロード・送信キー・タブ移動・入力退避・モデル選択・SSE の監視）と 3 つの reducer。コンポーネントは入力の保持と描画だけを持つ | [`frontend/docs/README_frontend.md`](frontend/docs/README_frontend.md) |
@@ -657,7 +659,7 @@ L2 を持たないのは設計判断で、パイプラインが決定的にな�
 
 | 層 | 論点 | 本リポジトリ |
 |---|---|---|
-| L0 | API キー | `ANTHROPIC_API_KEY`（LLM）と `GOOGLE_API_KEY`（Embedding）が要る。無いとジョブが `error` イベントで失敗する |
+| L0 | API キー | `ANTHROPIC_API_KEY`（LLM）と `GOOGLE_API_KEY`（Embedding）が要る。`ANTHROPIC_API_KEY` はジョブの最初に確かめ、無ければ `error` イベントで止める（Support / Review / データ管理のチャンキング）。`GOOGLE_API_KEY` は事前に確かめないので、無いと検索の Embedding が失敗する（`GET /api/health` の `google_api_key` で確かめられる） |
 | L0 | モデル世代ごとの送り方 | `temperature` が 400 になるモデル・`budget_tokens` が 400 になるモデル・思考を無効化できないモデルを `config.py::ModelConfig` の 3 表（`NO_TEMPERATURE_MODELS` / `ADAPTIVE_THINKING_MODELS` / `ALWAYS_THINKING_MODELS`）で管理し、`grace/llm_compat.py` と `helper/helper_llm.py` が読む。**選択肢にモデルを足すときは 3 表も確認する** |
 | L0 | 応答の終わり方 | `stop_reason` が `refusal` なら `LLMRefusalError`、JSON 応答が `max_tokens` で切れたら 1 回再試行のうえ `LLMTruncatedError`（黙って「空の成功」や「途中で切れた JSON」にしない） |
 | L0 | 思考の量（effort） | 現在はすべて `low` 固定。呼び出しごとの調整は未実装（[`README_backend_app.md` §4.3.3](backend/app/docs/README_backend_app.md)） |
@@ -816,6 +818,7 @@ cd frontend && npm run lint && npm test && npm run build # frontend
 |---|---|---|
 | 業界プロファイル / ルールセットが選べない（セレクタが空） | backend（:8000）が起動していない | 画面上部のメタ取得エラーバナーに理由と手順が出る。`./run_dev.sh` で起動し直し、「再取得」を押す |
 | 実行するとエラーバナー | `ANTHROPIC_API_KEY` 未設定など | `.env` に設定して backend を再起動。`GET /api/health` で確認できる |
+| 検索結果が出ない・情報なし回答になる（Qdrant は起動している） | `GOOGLE_API_KEY` 未設定（Embedding が失敗する。事前には確かめない） | `.env` に設定して backend を再起動。`GET /api/health` が `google_api_key: false` を返すので確認できる |
 | 「進捗ストリームが切断されました」 | backend が落ちた / 再起動中 | ターミナルの uvicorn ログを確認 |
 | 検索結果が空・情報なし回答が続く | Qdrant 未起動 or データ未登録 | `docker compose ... up -d` ＋ データ管理タブ（[5](#5-データ管理--チャンキング--qa-作成--qdrant-登録--コレクション管理)）で登録 |
 | Review で送信できない / 422 | 文書が 50,000 字超 | 分割して実行（文字数カウンタが赤くなる） |
@@ -872,3 +875,4 @@ cd frontend && npm run lint && npm test && npm run build # frontend
 | 4.14 | 2026-10-14 | 冒頭に「ドキュメント構成」を新設し、主要モジュールの文書（backend・frontend・grace・helper・services・chunking・qa_generation・qa_qdrant）を 1 行の概要とリンクで並べた。索引の改名（`frontend/docs/README_frontend.md`・`backend/app/api/docs/README_backend_api.md`・`backend/app/core/docs/README_backend_core.md`）に追随した。§1 に 1 回の所要（`docs/examples/` の実測）と業界定義 2 つの対比表、§3.2 の 0-(A) に担当範囲外の主質問の扱い（GA'）、§3.3・§4.3 の実行例に所要の列、§6.5 にクラウド LLM（Claude）であることが効く箇所の表、§10 に「model not found」の行を足した。変更履歴の 1.0〜3.10（22 版）を 1 行に要約した |
 | 4.15 | 2026-10-14 | §8.1 に「dry-run（副作用なし）では承認を求めない」を追記した（`ActionBackend.has_side_effects` を grace_v2_local から移植）。⑥ Action の行から「dry-run ならログのみ」を外した |
 | 4.16 | 2026-10-14 | 索引の改名（backend/app/docs/README_app.md → README_backend_app.md）に合わせて参照を付け替えた |
+| 4.17 | 2026-10-14 | 実装と突き合わせて見直した（grace_v2_local の README v4.4 と同じ方法）。§4.1 のルールセット欄の表示例を実際の表示（`ReviewForm.tsx`）に合わせ、規程コレクションを grace_v2_local と共用していることと元データの置き場所の注記を足した。§6.2 の `backend/app/core/` に `job_logs.py` を足し、詳細の参照先を `README_backend_core.md` にした。§6.5 の API キーの行を、事前に確かめるのは `ANTHROPIC_API_KEY` だけという実装に合わせた。§10 に `GOOGLE_API_KEY` 未設定の行を足した |
