@@ -1,6 +1,6 @@
 # GRACE（grace_v2）- 業界特化・自律型エージェント基盤 ドキュメント
 
-**Version 4.13** | 最終更新: 2026-10-13
+**Version 4.14** | 最終更新: 2026-10-14
 
 > 日本語 RAG に、根拠検証（groundedness）・Web 裏取り・HITL（Human-In-The-Loop）承認を組み合わせた、
 > 業界特化の自律型エージェント。`./run_dev.sh` で起動し、ブラウザ（http://localhost:5173）の 4 タブから使う。
@@ -11,6 +11,7 @@
 
 ## 目次
 
+- [ドキュメント構成](#ドキュメント構成)
 - [概要](#概要)
   - [主な責務](#主な責務)
   - [各責務対応のモジュール](#各責務対応のモジュール)
@@ -27,6 +28,35 @@
 - [10. うまく動かないとき](#10-うまく動かないとき)
 - [11. 関連ドキュメント](#11-関連ドキュメント)
 - [12. 変更履歴](#12-変更履歴)
+
+---
+
+## ドキュメント構成
+
+本書はアプリ全体の入口である。各領域の詳細は次の文書にある。まずその領域の README で全体と索引を見て、
+処理の順序は `*_process_flow.md`、データの形と置き場所は `*_data_flow.md` で確かめる。
+
+| 領域 | 文書 | 概要 |
+|---|---|---|
+| `backend/` | [`backend/app/api/docs/README_backend_api.md`](backend/app/api/docs/README_backend_api.md) | FastAPI のルーター 5 本・25 エンドポイントの入口。SSE のワイヤ形式・HITL の往復・HTTP ステータス（API 契約の正本） |
+| | [`backend/app/core/docs/README_backend_core.md`](backend/app/core/docs/README_backend_core.md) | Support / Review のパイプライン本体と、3 系統が共有するジョブ基盤（`JobManager`・SSE・HITL の橋渡し）の入口 |
+| `frontend/` | [`frontend/docs/README_frontend.md`](frontend/docs/README_frontend.md) | 画面の責務・構成・コンポーネントツリー・`state/` 純関数・テスト件数の入口と棚卸し |
+| `grace/` | [`grace/docs/grace_process_flow.md`](grace/docs/grace_process_flow.md) | 1 クエリの処理の流れ（計画 → 実行 → 根拠検証 → 介入・再計画）と、Support / Review が使う grace モジュールの対応表 |
+| | [`grace/docs/grace_data_flow.md`](grace/docs/grace_data_flow.md) | 外部 API（Claude・Gemini・Qdrant・Web）に渡るデータ・プロンプトの所在・実行メモリに残るデータ |
+| `helper/` | [`helper/docs/README_helper.md`](helper/docs/README_helper.md) | LLM クライアント（`create_llm_client`）・Embedding（Gemini・sparse）・テキスト整形の入口 |
+| `services/` | [`services/docs/README_services.md`](services/docs/README_services.md) | データ管理タブが使うサービス層（チャンク化・Qdrant 管理・Q/A 生成・トークン計数）の入口 |
+| `chunking/` | [`chunking/docs/README_chunking.md`](chunking/docs/README_chunking.md) | CSV / テキストをセマンティックチャンクへ分ける CLI とモジュール（データ管理 ①）の入口 |
+| `qa_generation/` | [`qa_generation/docs/README_qa_generation.md`](qa_generation/docs/README_qa_generation.md) | チャンクから Q/A を作る `QAPipeline` / `SmartQAGenerator` とカバレッジ（データ管理 ②）の入口 |
+| | [`qa_generation/docs/qa_generation_process_flow.md`](qa_generation/docs/qa_generation_process_flow.md) | 3 つの入口から `QAPipeline.run()` までの順序・同期と Celery・失敗と再開 |
+| | [`qa_generation/docs/qa_generation_data_flow.md`](qa_generation/docs/qa_generation_data_flow.md) | チャンク dict → 構造化出力 → Q/A dict → 4 ファイル、途中経過の JSONL とカバレッジの JSON の形 |
+| `qa_qdrant/` | [`qa_qdrant/docs/README_qa_qdrant.md`](qa_qdrant/docs/README_qa_qdrant.md) | Q/A 生成と Qdrant 登録の CLI（データ管理 ③）の入口 |
+| | [`qa_qdrant/docs/qa_qdrant_process_flow.md`](qa_qdrant/docs/qa_qdrant_process_flow.md) | CLI から Q/A 生成・登録までの順序・分岐・再開 |
+| | [`qa_qdrant/docs/qa_qdrant_data_flow.md`](qa_qdrant/docs/qa_qdrant_data_flow.md) | チャンク CSV → Q/A CSV → Qdrant のポイント（ID・payload）と UI 用 CSV の形・置き場所 |
+
+そのほかの入口: backend 全体の構成とモデル解決は [`backend/app/docs/README_app.md`](backend/app/docs/README_app.md)、
+Support / Review の流れの正本は [`backend/app/core/docs/core_process_flow.md`](backend/app/core/docs/core_process_flow.md)、
+直下 `docs/` の横断文書は [`docs/README.md`](docs/README.md)、運用・計測ツールは [`scripts/docs/README_scripts.md`](scripts/docs/README_scripts.md)、
+開発の指針は [`CLAUDE.md`](CLAUDE.md)。文書の書き方は `.claude/skills/grace-agent-docs/` の仕様に従う。
 
 ---
 
@@ -155,11 +185,25 @@ style EXTERNAL fill:#1a1a1a,stroke:#fff,color:#fff
 | 出力 | 回答 1 件 ＋ 出典 | 回答 1 件 ＋ 出典 | 指摘 N 件（条文・重大度つき） | チャンク CSV / Q/A CSV / コレクション |
 | 確からしさの指標 | groundedness（支持率）・全体信頼度 | 同左 | 指摘ごとの支持率 → 確定 / 要確認 / 抑止 | — |
 | ステップ数 | 9（0-(B) はスキップ） | 9 | 9 | 工程ごと |
+| 1 回の所要（実測） | 記録なし（同じパイプラインの GRACE-Support と同程度） | 11〜16 秒（範囲外の質問は 1 秒未満） | 6〜20 秒 | 工程・件数による |
 
 - タブの並びは「**業界特化を足していく順**」である。基本版が素のパイプラインで、GRACE-Support は
   `VerticalProfile`、GRACE-Review は `RuleSet` を差し替えたものにあたる
 - 基本版と GRACE-Support は**同じ画面部品**（`SupportPanel`）に `variant` を渡しているだけで、別実装ではない
 - 3 タブの見え方の正本は本書 §2〜§4、ステップの対照表とモード別のガードレールの正本は [`core_process_flow.md` §4](backend/app/core/docs/core_process_flow.md) にある
+
+**業界定義の 2 つはほぼ同型**である。Support の `VerticalProfile` と Review の `RuleSet` は役割の対応する項目が多く、
+「共通パイプライン ＋ 差し替え可能な業界定義」がこのアプリの設計の芯にあたる。
+
+| 概念 | Support: `VerticalProfile` | Review: `RuleSet` |
+|---|---|---|
+| 表示名 | `name` | `name` |
+| 検索スコープ | `collections` | `collections` |
+| 危険語 | `escalate_keywords` | `critical_keywords` |
+| アクション対応 | `action_map` | `action_map` |
+| しきい値 | `notify_th` / `confirm_th` | `notify_th` / `confirm_th` |
+| 方針注入 | `prompt_addendum` | `prompt_addendum` |
+| 固有 | `require_identity` / `preferred_domains` / `scope_description` | `rules` / `always_check_rules` |
 
 **読み違えやすい点**（旧 `docs/app_tabs_overview.md` §6 から移した。2026-10-13）:
 
@@ -286,7 +330,7 @@ groundedness（支持率）   1.00（判定可能 3 主張）
 
 | 実行順 | ステップ（画面の表示名） | 実行例 / 業界プロファイルが効く点 |
 |:--:|---|---|
-| 1 | 0-(A) 入力・質問分析（複数質問の検知） | 単一の質問として通過 |
+| 1 | 0-(A) 入力・質問分析（複数質問の検知） | 単一の質問として通過（複数の質問を検知したときは、**担当範囲外の主質問を選択肢から外し**、断りと窓口案内に回す＝GA'） |
 | 2 | 0-(B) 業界プロファイル適用 | `gov`：検索スコープ・しきい値（0.8 / 0.5）・方針を適用 |
 | 3 | ① Plan（planner） | 実行計画を生成 |
 | 4 | ② Execute（内部RAG → reasoning） | `gov` のコレクションだけを検索し、方針つきで回答を生成 |
@@ -319,12 +363,12 @@ groundedness（支持率）   1.00（判定可能 6 主張）
 画面の例文 3 業界と範囲外の質問 1 件を、それぞれ 3 回流した実行例（2026-10-07・Web OFF・アクションは dry-run。
 元ログは `docs/examples/GRACE-Support_例文4件.txt`）:
 
-| 業界 | 質問 | 判定 | 出典 | 支持率（判定可能な主張） | アクション |
-|---|---|---|---|---|---|
-| `gov` | 住民票の写しの取り方は？ | answer | `gov_faq.csv` | 1.00（6 / 5 / 7） | なし |
-| `saas` | サービスが落ちています | **escalate**（強制エスカレ語「落ち」） | `saas_docs.csv` | 1.00（10） | `escalate_to_human` |
-| `ec` | 返品したい | answer | `ec_policy.csv` | 1.00（10） | `create_ticket`（本人確認つき） |
-| `gov` | 明日の東京の天気を教えてください（範囲外） | **escalate**（回答なし・出典 0 件） | なし | 0.00（0） | `escalate_to_human` |
+| 業界 | 質問 | 判定 | 出典 | 支持率（判定可能な主張） | アクション | 所要（1 回目） |
+|---|---|---|---|---|---|---:|
+| `gov` | 住民票の写しの取り方は？ | answer | `gov_faq.csv` | 1.00（6 / 5 / 7） | なし | 12.5 秒 |
+| `saas` | サービスが落ちています | **escalate**（強制エスカレ語「落ち」） | `saas_docs.csv` | 1.00（10） | `escalate_to_human` | 14.8 秒 |
+| `ec` | 返品したい | answer | `ec_policy.csv` | 1.00（10） | `create_ticket`（本人確認つき） | 14.0 秒 |
+| `gov` | 明日の東京の天気を教えてください（範囲外） | **escalate**（回答なし・出典 0 件） | なし | 0.00（0） | `escalate_to_human` | 0.7 秒 |
 
 - `saas` は根拠つきの回答を作れているのに escalate になる。強制エスカレ語は回答の出来より優先される（④）
 
@@ -437,11 +481,11 @@ Support と同じ機構を再利用している（新規実装は Segment / Dete
 
 画面の 3 例文を 3 回ずつ流した実行例（2026-10-07・Web 裏取り OFF。元ログは `docs/examples/GRACE-Review_例文3件.txt`）:
 
-| 例文 | 指摘 | 重大 / 中 / 軽微 | 確定 / 要確認 / 抑止 | 主な指摘 |
-|---|---:|---|---|---|
-| NG 例（優良誤認・薬機法）`化粧品LP案` | 10 | 7 / 3 / 0 | 6 / 4 / 0 | No.1 の根拠・二重価格・「シミが治る」・「副作用がない」・特商法の表示漏れ 5 件 |
-| NG 例（表記漏れ・規程不一致）`表記漏れLP案` | 4 | 1 / 3 / 0 | 4 / 0 / 0 | 送料・支払方法・引渡時期の表示漏れ・返品 8 日 < 規程 14 日 |
-| OK 例（指摘 0 件を期待）`適正LP案` | 0 | 0 / 0 / 0 | 0 / 0 / 0 | なし |
+| 例文 | 指摘 | 重大 / 中 / 軽微 | 確定 / 要確認 / 抑止 | 主な指摘 | 所要（1 回目） |
+|---|---:|---|---|---|---:|
+| NG 例（優良誤認・薬機法）`化粧品LP案` | 10 | 7 / 3 / 0 | 6 / 4 / 0 | No.1 の根拠・二重価格・「シミが治る」・「副作用がない」・特商法の表示漏れ 5 件 | 19.0 秒 |
+| NG 例（表記漏れ・規程不一致）`表記漏れLP案` | 4 | 1 / 3 / 0 | 4 / 0 / 0 | 送料・支払方法・引渡時期の表示漏れ・返品 8 日 < 規程 14 日 | 10.4 秒 |
+| OK 例（指摘 0 件を期待）`適正LP案` | 0 | 0 / 0 / 0 | 0 / 0 / 0 | なし | 5.9 秒 |
 
 3 回とも、当たったルール・重大度・状態が同じだった。変わったのは指摘文の言い回しだけである。
 
@@ -536,11 +580,11 @@ python qa_qdrant/register_to_qdrant.py                # 3. 登録のみ
 
 | モジュール | 役割 | 詳細 |
 |---|---|---|
-| `backend/app/api/` | FastAPI のルーター。`support.py`（`/api/support/*`）/ `review.py`（`/api/review/*`）/ `data.py`・`qdrant.py`（データ管理）/ `meta.py`（`/api/models`・`/api/model`・`/api/verticals`・`/api/rulesets`・`/api/health`） | [`README_api.md` §4](backend/app/api/docs/README_api.md) |
+| `backend/app/api/` | FastAPI のルーター。`support.py`（`/api/support/*`）/ `review.py`（`/api/review/*`）/ `data.py`・`qdrant.py`（データ管理）/ `meta.py`（`/api/models`・`/api/model`・`/api/verticals`・`/api/rulesets`・`/api/health`） | [`README_backend_api.md` §4](backend/app/api/docs/README_backend_api.md) |
 | `backend/app/core/` | パイプライン本体。`support_agent.py` / `gates.py` / `verticals.py`（Support）、`review_agent.py` / `review_gates.py` / `rulesets.py`（Review）、`data_jobs.py`（データ管理）、`jobs.py`（ジョブと SSE）/ `intervention_bridge.py`（HITL の橋渡し） | [`README_app.md`](backend/app/docs/README_app.md) |
 | `backend/app/schemas.py` | API のリクエスト・レスポンスの型（Pydantic）。`frontend/src/types.ts` と対で保つ | [`backend/app/docs/schemas.md`](backend/app/docs/schemas.md) |
-| `frontend/src/components/` | 画面部品。`App.tsx`（ヘッダー・タブ）/ `SupportPanel`・`QueryForm`・`StepTimeline`・`AnswerCard` / `ReviewPanel`・`ReviewForm`・`DocumentView`・`FindingList` / `DataPanel`・`DataJobPanel`・`CollectionPanel` / `ConfirmModal`・`QuestionSelectModal` ほか | [`frontend/docs/README.md`](frontend/docs/README.md) |
-| `frontend/src/state/` | 判断ロジックの純関数（送信ペイロード・送信キー・タブ移動・入力退避・モデル選択・SSE の監視）と 3 つの reducer。コンポーネントは入力の保持と描画だけを持つ | [`frontend/docs/README.md`](frontend/docs/README.md) |
+| `frontend/src/components/` | 画面部品。`App.tsx`（ヘッダー・タブ）/ `SupportPanel`・`QueryForm`・`StepTimeline`・`AnswerCard` / `ReviewPanel`・`ReviewForm`・`DocumentView`・`FindingList` / `DataPanel`・`DataJobPanel`・`CollectionPanel` / `ConfirmModal`・`QuestionSelectModal` ほか | [`frontend/docs/README_frontend.md`](frontend/docs/README_frontend.md) |
+| `frontend/src/state/` | 判断ロジックの純関数（送信ペイロード・送信キー・タブ移動・入力退避・モデル選択・SSE の監視）と 3 つの reducer。コンポーネントは入力の保持と描画だけを持つ | [`frontend/docs/README_frontend.md`](frontend/docs/README_frontend.md) |
 | `frontend/src/api/client.ts` | API クライアント（ジョブ投入・SSE 購読・承認・メタ取得） | 同上 |
 
 ### 6.3 データ管理 — `chunking/` ・ `qa_generation/` ・ `qa_qdrant/`
@@ -608,6 +652,19 @@ style PREP fill:#1a1a1a,stroke:#fff,color:#fff
 
 L2 を持たないのは設計判断で、パイプラインが決定的になりテストしやすい。代償として共用部品
 （`GroundednessVerifier` / `InterventionBridge` / `ActionBackend`）は L3 で共有されるので、**Support の変更が Review を壊しうる**（CLAUDE.md §1）。
+
+**クラウド LLM（Claude）であることが効く箇所**（姉妹リポジトリ grace_v2_local〔Ollama 版〕と構造は同じで前提が違う所。移植の前に読む）:
+
+| 層 | 論点 | 本リポジトリ |
+|---|---|---|
+| L0 | API キー | `ANTHROPIC_API_KEY`（LLM）と `GOOGLE_API_KEY`（Embedding）が要る。無いとジョブが `error` イベントで失敗する |
+| L0 | モデル世代ごとの送り方 | `temperature` が 400 になるモデル・`budget_tokens` が 400 になるモデル・思考を無効化できないモデルを `config.py::ModelConfig` の 3 表（`NO_TEMPERATURE_MODELS` / `ADAPTIVE_THINKING_MODELS` / `ALWAYS_THINKING_MODELS`）で管理し、`grace/llm_compat.py` と `helper/helper_llm.py` が読む。**選択肢にモデルを足すときは 3 表も確認する** |
+| L0 | 応答の終わり方 | `stop_reason` が `refusal` なら `LLMRefusalError`、JSON 応答が `max_tokens` で切れたら 1 回再試行のうえ `LLMTruncatedError`（黙って「空の成功」や「途中で切れた JSON」にしない） |
+| L0 | 思考の量（effort） | 現在はすべて `low` 固定。呼び出しごとの調整は未実装（[`README_app.md` §4.3.3](backend/app/docs/README_app.md)） |
+| L0.5 | モデル階層 | 回答・推論は `claude-sonnet-5-5`、判定系は軽量の `claude-haiku-5-5`（`llm.light_model`）。ヘッダーの選択で変わるのは前者だけ（判定系は軽量モデルのまま） |
+| L3 | 失敗時の振る舞い | API が失敗してもパイプラインは**安全側の結果**（escalate・要確認）を返して例外を出さない。キーが無効でも素朴なテストは通ってしまうので、E2E は事前の疎通確認と API エラーのログ（`api_errors`）で見張る |
+| 全域 | コスト | 実行ごとに課金される。単価は `ModelConfig.MODEL_PRICING`（ヘッダーの選択肢に単価を併記）。E2E（`GRACE_E2E=1`）も課金される |
+| 全域 | レイテンシ | 1 周 6〜20 秒程度（§1 の表）。ローカル LLM 版より 1 桁速い |
 
 | 一般用語 | 実装 | 層 |
 |---|---|:--:|
@@ -758,6 +815,7 @@ cd frontend && npm run lint && npm test && npm run build # frontend
 | 「進捗ストリームが切断されました」 | backend が落ちた / 再起動中 | ターミナルの uvicorn ログを確認 |
 | 検索結果が空・情報なし回答が続く | Qdrant 未起動 or データ未登録 | `docker compose ... up -d` ＋ データ管理タブ（[5](#5-データ管理--チャンキング--qa-作成--qdrant-登録--コレクション管理)）で登録 |
 | Review で送信できない / 422 | 文書が 50,000 字超 | 分割して実行（文字数カウンタが赤くなる） |
+| 「model not found」・API エラー | モデル名の誤り**ではない**ことが多い（9 つのモデル名はすべて実在する） | API キー・ネットワーク・実際のエラーメッセージとスタックトレースを先に見る。モデル名を「直す」ことを最初の対応にしない（[`CLAUDE.md`](CLAUDE.md) R4） |
 | `:8000` を開いても 404 | 仕様 | UI は **:5173**。:8000 は API 専用（`/docs` は開ける） |
 | `Address already in use` | 前回の uvicorn / vite が残っている | `./run_dev.sh` は起動時に止める。手動なら `lsof -i tcp:8000` で PID を確かめて止める |
 | `uv: command not found` / `npm run dev` が失敗 | uv 未導入 / Node が 18 未満 | [7.1](#71-前提) の前提をそろえる |
@@ -768,7 +826,7 @@ cd frontend && npm run lint && npm test && npm run build # frontend
 |---|---|---|
 | ![E-01 実行エラーのバナー](docs/images/e-01-error-banner.png) | ![E-02 メタ取得エラーのバナー](docs/images/e-02-meta-error-banner.png) | ![E-03 文字数上限の超過](docs/images/e-03-review-over-limit.png) |
 
-開発時の落とし穴（共用部品・ランナー登録・ログ取り込みなど）は [`backend/app/core/docs/README_core.md`](backend/app/core/docs/README_core.md) §5.2 と [`CLAUDE.md`](CLAUDE.md)。
+開発時の落とし穴（共用部品・ランナー登録・ログ取り込みなど）は [`backend/app/core/docs/README_backend_core.md`](backend/app/core/docs/README_backend_core.md) §5.2 と [`CLAUDE.md`](CLAUDE.md)。
 
 ---
 
@@ -778,9 +836,9 @@ cd frontend && npm run lint && npm test && npm run build # frontend
 |---|---|
 | [`docs/README.md`](docs/README.md) | 直下 `docs/` の索引と、文書の配置ルール |
 | [`backend/app/core/docs/core_process_flow.md`](backend/app/core/docs/core_process_flow.md) | Support / Review の流れ・3 モードの対照・ガードレールと失敗時の既定（§4）・生成ステップ |
-| [`backend/app/docs/README_app.md`](backend/app/docs/README_app.md) | backend の索引（全体構成・モデル解決。API は `api/docs/README_api.md`、Support / Review の流れは `core/docs/core_process_flow.md`） |
+| [`backend/app/docs/README_app.md`](backend/app/docs/README_app.md) | backend の索引（全体構成・モデル解決。API は `api/docs/README_backend_api.md`、Support / Review の流れは `core/docs/core_process_flow.md`） |
 | [`grace/docs/README_grace.md`](grace/docs/README_grace.md) | grace の概要・設計の考え方・モジュール索引・使い方（Support / Review が使うモジュールの対応表は `grace_process_flow.md` §2.3） |
-| [`frontend/docs/README.md`](frontend/docs/README.md) | 画面部品の索引（各コンポーネントの props・状態・SSE） |
+| [`frontend/docs/README_frontend.md`](frontend/docs/README_frontend.md) | 画面部品の索引（各コンポーネントの props・状態・SSE） |
 | [`chunking/docs/README_chunking.md`](chunking/docs/README_chunking.md) ・ [`qa_generation/docs/README_qa_generation.md`](qa_generation/docs/README_qa_generation.md) ・ [`qa_qdrant/docs/README_qa_qdrant.md`](qa_qdrant/docs/README_qa_qdrant.md) ・ [`services/docs/README_services.md`](services/docs/README_services.md) | データ準備とサービス層の各モジュール（IPO） |
 | [`CLAUDE.md`](CLAUDE.md) | 開発の指針（プロバイダ方針・モデル名の解決経路・CI・姉妹リポジトリとの関係） |
 
@@ -792,28 +850,7 @@ cd frontend && npm run lint && npm test && npm run build # frontend
 
 | バージョン | 日付 | 変更内容 |
 |---|---|---|
-| 1.0 | — | 初版作成。当時の `backend/docs/README.md` v1.6 をベースに、リポジトリ全体のルート README として IPO 形式で構成（同ファイルはその後 `c1669ff` で削除された） |
-| 2.0 | — | **`./run_dev.sh` アプリの README として全面改訂。** 対象をリポジトリ全体からアプリ（画面・操作）へ移し、実装（`frontend/src/` 全 13 コンポーネント・2 reducer・API クライアント）を読み直して構成。§3 に「画面上の操作 → UI コンポーネント → フロント処理 → API → バックエンド関数」の対応表を Support / Review 別に新設し、ステップトレースの表示ラベルとバックエンド実装の 1:1 対応表も追加。§4 を画面別 IPO 詳細（共通ヘッダ／Support／Review／CONFIRM モーダル）へ再構成し、各 UI 要素・バッジ・分岐条件を実装から起こして記載。§6 に操作シナリオ 2 本とトラブルシュートを追加。**画面ショット挿入位置を 13 スロット（S-01〜S-05 / R-01〜R-06 / C-01 / E-01）確保**し、§6.4 に一覧表を用意 |
-| 2.1 | — | **「責務」の記述をフォーマット仕様に適合させた。** 2.0 では「主な責務」がアプリの責務ではなく UI の配線（タブ切替・パラメータ組み立て等）を並べたものになっており、かつ「各責務対応のモジュール」が 12 行と箇条書き 5 項目に対応していなかった（`a_class_method_md_format.md` §2.5「責務の数（行数）は主な責務の項目数と一致させる」「責務列は主な責務の箇条書きと 1 対 1 で対応させる」に違反）。主な責務を**アプリが引き受ける役割**として 7 項目に書き直し、対応表を同じ文言の 7 行へ揃えて 1 対 1 を回復。さらに「エージェント別の責務」を新設し、GRACE-Support / GRACE-Review それぞれの**引き受けること・引き受けないこと**を実装（関数名）と対応づけて明示。責務が長い前置きに埋もれていたため「画面ショット挿入位置について」を概要の後ろへ移動し、目次に責務の各節を掲載 |
-| 2.2 | — | **§2 モジュール構成図（画面構成）の 2 図を縦積みに変更。** 図が横に広がって描画時に文字が縮み、読めなくなっていたため。(1) 画面レイアウト図は `MODALL` が `RESULT` から横へ枝分かれしていたのを単一の縦チェーンへ直し、長いノードラベル（`header: h1（アクティブなタブ名）+ nav.tabs（GRACE-Support / GRACE-Review）` 等）を短縮。図から外した各領域の中身は Support / Review 対比表として本文へ移した。(2) 左右ペイン図は `flowchart LR`（横並び）＋長いエッジラベルが原因で最も横長だったため `flowchart TB` へ変更し、エッジラベルを「ハイライトをクリック」等へ短縮。ペインの内容と連動の動きは表として本文へ移し、「図は縦だが実画面では左右に並ぶ」旨を注記 |
-| 2.3 | — | **§2 の 2 図に `direction TB` を追加し、実際に縦積みになることを描画して確認した。** 2.2 で `flowchart TB` にしたが**表示は横並びのままだった**（Mermaid はサブグラフ内の並びに外側の `flowchart TB` を適用しないため）。Mermaid 9.4.3 ＋ ヘッドレス Chromium で描画してノード座標を実測し、修正候補を比較して確定: エッジをサブグラフ内へ移すだけでは変化なし（1457×158 のまま）、**サブグラフ内の `direction TB` の 1 行だけが効く**。適用後は画面レイアウト図が 1457×158 → **298×759**（7 ノードすべて x=149 で同一列）、左右ペイン図が 623×183 → **324×272** となり、いずれも同じ行に複数ノードが並ばないことを確認 |
-| 2.4 | — | **メニューを 3 つに拡張し、`agent_support_example.py`（CLI）と同等の操作を画面に載せた。** タブを「基本版（業界特化なし）／ GRACE-Support（`VerticalProfile`）／ GRACE-Review（`RuleSet`）」の 3 つにし、**業界特化を足していく順**に並べた。基本版と Support は同一パイプラインのため `SupportPanel` を `variant` で共用する（複製しない・`key={tab}` で確実に作り直す）。CLI 引数のうち画面に無かった **`--no-web` / `--no-action` をトグルとして追加**し、**`--identity` を API → `JobParams` → コアまで新規に通した**（従来は `identity=None` 直書きで画面から渡せなかった）。識別子欄は常時表示しつつ、本人確認が起動しない設定では disabled にして理由を表示する（§4.2.2）。§概要に `VerticalProfile` と `RuleSet` がほぼ同型である旨の対比表、§3.1 に CLI 引数との対応表を追加 |
-| 2.5 | — | **画面ショットスロットを 3 タブ構成へ更新し、送信ペイロードの組み立てにテストを追加。** スロットは 2 タブ時代のままだったため、`B-01`（基本版タブ初期表示）と `S-06a/b`（識別子欄の disabled / 有効）を追加し、`S-01` を「Support タブ初期表示（B-01 との差分）」へ振り直して 16 枚に整理。§6.2 のシナリオを「基本版 → Support で業界特化の差を見る」構成に書き換え、CLI との対応も注記した。あわせて §4.2 の小節番号の重複（4.2.2 が 2 つ）と目次の見出しずれを修正。コード側は `QueryForm` の判断ロジック（基本版の `vertical` 固定・識別子を送るかどうか・状態メッセージ）を `state/queryParams.ts` の純関数へ切り出し、vitest 19 件を追加（frontend 計 43 → 62 件）。React テストライブラリは導入せず、既存の「純関数だけテストする」方針に揃えた |
-| 2.6 | — | **4 タブ構成と、その後に入った 3 つの改修へ追随させた。** §4.1 が 3 タブ時代のままで、`TABS` の定義もレンダリング分岐も**データ管理タブを欠いていた**ため実装から起こし直した（タブボタン 3 つ → 4 つ、矢印キー移動 `state/tabKeys.ts` を Input に追記）。あわせて (1) **タブ往復で入力が保持される**仕組み（`state/formMemory.ts`）を §4.1 に新設、(2) **メタ取得エラーバナー**（`MetaErrorBanner`・backend 停止時に業界プロファイル / ルールセットが空になる理由と復旧手順を出す）を §6.5 の症状表と新スロット E-02 に追加、(3) テスト表を実測へ更新（5 ファイル 62 件 → **12 ファイル 167 件**）。テスト表には `vite.config.ts` の `test.include` が `.test.ts` のみで **`.test.tsx` は 1 件も実行されない**という落とし穴を明記した。画面ショットは **H-01（タブヘッダ 4 つ）/ H-02a・H-02b（タブ往復の前後）/ E-02（メタ取得エラー）** の 4 枠を追加し、本文では 1 枠だった `S-06` を一覧に合わせて `S-06a` / `S-06b` へ分割して **28 枚**に統一した（本文と §6.4 一覧でスロット数が食い違っていたのを解消）。「画面ショット挿入位置について」に**各スロットが「どの画面か・どうやって出すか・何が読み取れるべきか」の 3 点を書く**という方針とスロット ID の接頭辞表を追加した |
-| 2.7 | — | **撮影済みの画面ショット 5 枚を掲載した。** `nakashima2toshio/grace_v2_local` の `docs/images/` にあった 5 枚（`b-01` / `s-01` / `s-02` / `s-06a` / `s-06b`）を本リポジトリへ取り込み、該当スロットのコメントを外した。あわせて**埋め込み様式を実態に合わせて修正**した——従来の説明では画像行を `> ` の中に残す形になっていたが、引用ブロック内だと縦罫線の内側へインデントされて窮屈になるため、**説明は引用のまま画像行だけを外に出す**形に改めた（grace_v2_local での実運用と一致）。`B-01` は README 冒頭にも再掲してアプリの第一印象を最初に見せる。§画面ショット挿入位置に「撮影の進捗」表（撮影済み 5 / 未撮影 23）を新設し、§6.4 の一覧にも状態列（✅ / ⬜）を追加した |
-| 2.8 | — | **§1 に概観図（4 層）を追加した。** 既存の構成図は 17 ノードあり、初見で全体像を掴むには細かすぎた。**ブラウザ → Vite → FastAPI → コアパイプライン**の 4 ノードだけの図を §1.0 として先に置き、既存図を §1.1 詳細へ送った。4 ノードは既存図のサブグラフ名と同一なので、概観と詳細が 1 対 1 で対応する。各層の実体と役割の対応表も添えた。ヘッドレス Chromium ＋ Mermaid 11 で README 内の全 6 ブロックを描画し、新図が 276×406（4 ノードが縦一列）で成立することを確認済み |
-| 2.9 | — | **4 タブすべてに実行時間の表示を追加した（§4.6 を新設）。** 送信した時刻をフォーム直下に、決着した時刻と所要時間を結果の一番下に出す。時刻は **reducer に持たせず**パネルの state で持つ（reducer は純関数であり `Date.now()` を中で呼ぶと純粋性が壊れるため）。判断と整形は `state/elapsed.ts` の純関数へ出し、vitest 22 件を追加（frontend 計 167 → 189 件）。**失敗時も完了行を出す**——結果カードは成功時にしか描画されないため、結果が無いときはパネル直下へ出す。ブラウザで 4 タブすべての表示を実測し、起動 API を 6 秒遅延させたケースで所要が `00:00:06`（スクリプト実測 6.3 秒）になることも確認した。画面ショット枠 `T-01` を追加して 28 → 29 枚 |
-| 3.0 | — | **実装との事実突き合わせで記述のずれを是正した。** (1) §3.3 の Support ステップ表が **8 行**で、先頭の `analyze`（0-(A) 入力・質問分析／複数質問の検知）が欠けていた——`support_agent.py::STEP_IDS` と `jobReducer.ts::STEP_IDS` はどちらも **9 個**であり、「`step` イベントと 1:1 で対応する」という同節の記述自体と矛盾していたため行を追加し、表示ラベルを `STEP_LABELS` / `REVIEW_STEP_LABELS` の逐語へ揃えた。(2) §5.3 の `STEP_IDS` を **8 個 → 9 個**へ。「`support_agent.py::STEP_IDS` と一致必須」と書きながら不一致だった。(3) §5.4「UI に出ないが固定で送られる値」から Support の `use_web` / `do_action` を削除——実際は `QueryForm` のトグルで、`state/queryParams.ts::buildQueryParams()` が `state.useWeb` / `state.doAction` を送っている。固定なのは `ReviewForm.tsx` にリテラルで書かれた Review の `do_action: true` **だけ**なので、節名を「送信ペイロードの既定値」に変えフォーム別のトグル数（Support 4 / Review 3）を明記した。(4) **`QuestionSelectModal` の記載が 0 件**だった——0-(A) で複数質問を検知したとき主質問を選ばせるモーダルで、`SupportPanel` が `state/interventionKind.ts` の判定で `ConfirmModal` と出し分けている。§2 の画面レイアウト図と対比表へ追加した。(5) §2 の `StepTimeline` を 8 → **9 ステップ**、`QueryForm` の「問い合わせ 1 行」を **textarea（複数行・Ctrl+Enter / ⌘+Enter で送信）**へ。(6) フロントのテスト表を実測へ更新（**189 件 / 13 ファイル → 276 件 / 19 ファイル**）。`citations` / `dataParams` / `documentLimit` / `interventionKind` / `serverTiming` / `submitKey` / `ReviewForm.examples` の 7 ファイルが表から漏れていた。(7) §4.3 のステップ詳細の例を `ルール 21 件` → **23 件**へ（`len(EC_AD.rules)` を実行して確認。keihyo 12 / tokusho 6 / yakki 4 / policy 1）。(8) §8 の **`2.8` が重複**し、並びが 2.6 → 2.8 → 2.9 → 2.7 → 2.8 と崩れていたので、詳細な方の 2.8 を残して 2.6 → 2.7 → 2.8 → 2.9 の昇順へ直した |
-| 3.1 | — | §5.2 に `run_dev.sh` の使用中ポートの解放（:8000 / :5173。`RUN_DEV_FREE_PORTS=0` で無効）と、Ctrl+C で子プロセスまで止めるようにした変更を追記（grace_v2_local と同じ変更） |
-| 3.2 | — | **詳細ログの既定を ON へ変更**（基本版 / GRACE-Support / GRACE-Review は `DEFAULT_QUERY_FORM` / `DEFAULT_REVIEW_FORM` の `verbose`、データ管理は `DataJobPanel` の `useState`） |
-| 3.3 | 2026-09-24 | **フォーマット仕様の共通骨格に合わせた**（2026-09-24）。1 行目のタイトルが `##`（H2）になっていたのを H1 へ直し、目次の前に `##` 見出しで置かれていたスローガンを引用行へ改めた（見出し階層から外す）。目次に「grace_v2 で実装した機構」を追加 |
-| 3.4 | 2026-09-26 | **画面ショット `D-05`〜`D-08` を撮影して掲載**（2026-09-26）。Qdrant を起動し、`qa_output/ec_ad_rules.csv` をアプリの「③ Qdrant 登録」から実際に登録（23 件・3072 次元）した状態で撮った。D-05 / D-08 の CONFIRM は「拒否」で閉じたのでデータは消していない。撮影済み 17 → 21 枚、未撮影 14 → 10 枚（残りはすべて `ANTHROPIC_API_KEY` が要る画面） |
-| 3.5 | 2026-09-26 | **残りの画面ショット 10 枚（`S-03`〜`S-05` / `R-03`〜`R-06` / `C-01` / `D-03` / `T-01`）を撮影して掲載**（2026-09-26）。アプリ用の API キーをバックエンドにだけ渡して LLM を実行し、架空の EC ストア規程をデータ管理タブでチャンク化 → Q/A 生成 → `ec_policy_anthropic` へ登録した状態で Support を、`ec_ad_rules_anthropic` を登録した状態で Review を撮った。`C-01` は「拒否」で閉じ、Support / Review とも dry-run ON で実行した。撮影済み 21 → 31 枚（全スロット完了）。あわせて §4.3.1 の Review フォームの既定値を実装（`formMemory.ts::DEFAULT_REVIEW_FORM`）に合わせて訂正した — Web 裏取りは **既定 ON**、dry-run は **既定 OFF**（従来は逆に書かれていた） |
-| 3.6 | 2026-09-26 | **基本版 / GRACE-Support の dry-run の既定値を実装に合わせて訂正した**（2026-09-26）。概要の主要機能一覧・§4.2.1 の UI 要素表・§6.2 の手順 8 が「既定 ON」のままだったが、実装（`formMemory.ts::DEFAULT_QUERY_FORM` の `dryRun: false`、フォームのラベル「既定 OFF」）は **OFF**。とくに手順 8 はそのまま進めると本人確認が通らず CONFIRM が出ないため、「ON にする」手順へ改め理由を添えた。§4.1 の formMemory の説明（「外した dry-run が ON へ復帰する」）も既定値に依存しない言い方へ直した（Review 側は v3.5 で訂正済み） |
-| 3.7 | 2026-10-06 | 「grace_v2 で実装した機構」の表に、入口の `docs/app_tabs_overview.md`（処理 3 タブの概要）と、`grace/docs/README.md`「概要」（Support / Review が使う grace モジュールの対応表と比較）へのリンクを追加（2026-10-06）。「実行メモリ」行の「3 文書とも未記載」を、上記の対応表と `grace/docs/memory.md` へのリンクに置き換えた |
-| 3.8 | 2026-10-06 | §4.5.3 の [D-09] の説明を現在の UI に合わせた（2026-10-06）。モデルのセレクタはフォーム内ではなくヘッダーの「② Q/A 作成：」にあり（2026-09-23 から）、未選択時はサーバーの既定モデル名がそのまま出る。「（既定値: …）」の表記と、そこに書かれていた旧既定モデル名は現在の画面に無い。掲載中の画像はフォーム内に「モデル」入力欄（`claude-sonnet-4-6`）がある旧 UI のものであることを注記した |
-| 3.9 | 2026-10-06 | [D-09]（② Q/A 作成フォーム）の画像を現在の UI で撮り直した（2026-10-06）。backend（:8000）と Vite（:5173）を起動し、データ管理タブ → ② Q/A 作成を 1440×1000・2 倍密度で撮影。旧画像はフォーム内に「モデル」入力欄がある旧 UI だった。撮影環境に `output_chunked/` が無いため入力ファイルは未選択のまま撮っている。v3.8 で入れた「旧 UI である」旨の注記を、撮り直しの記録に置き換えた |
-| 3.10 | 2026-10-08 | 軽量モデルを Haiku 4.5（`claude-haiku-4-5` / `claude-haiku-4-5-20251001`）から Claude Haiku 5.5（`claude-haiku-5-5`）へ変更したのに追随（2026-10-08） |
+| 1.0〜3.10 | 〜2026-10-08 | **旧構成（「画面・操作・プログラム対応」の画面別 IPO 形式）の時期の改訂 22 版を 1 行にまとめた**（2026-10-14）。主な節目: 1.0 リポジトリ全体の README として作成 → 2.0 `./run_dev.sh` アプリの README へ全面改訂（画面操作とプログラムの対応表・画面別 IPO・画面ショット枠）→ 2.4 タブを 3 つにし CLI と同等の操作を画面に載せた → 2.6 4 タブ化 → 3.0 実装との突き合わせ（ステップ 9 個・送信ペイロード・`QuestionSelectModal`）→ 3.5 画面ショット 31 枚を撮り終えた → 3.10 軽量モデルの切り替えに追随。各版の詳細は `git log -p -- README.md` で読める |
 | 4.0 | 2026-10-08 | **一から書き直した**（2026-10-08）。直下 `docs/` の横断文書の形式（`a_cross_doc_md_format.md` 種別 A）に合わせ、番号なしの `## 概要` に主な責務（7）・各責務対応のモジュール（1 対 1）・3 層のアーキテクチャ構成図を置いた。本文は**アプリの 4 タブ**（基本版 / GRACE-Support / GRACE-Review / データ管理）ごとに「業界特化・処理フロー・回答」を実行例つきで並べ、続けて**処理概要**（コア：`grace/` ・ `services/` ・ `config.py`／画面系：`backend/` ・ `frontend/`／データ管理：`chunking/` ・ `qa_generation/` ・ `qa_qdrant/`）を新設した。旧版の画面別 IPO 詳細（各 UI 要素・バッジ・分岐条件）、API クライアントの関数一覧、画面ショットの撮影手順は、正本である `frontend/docs/<Component>.md` と `backend/docs/` へ委ねて本書から外した（画面操作とプログラムの対応表と、本人確認の識別子が効く条件は §2.4・§3.4 に要約して残した）。画面ショット 31 枚はすべて該当する節へ配置し直した。旧付録の依存関係図（ファイル単位）は §6.4 のモジュール単位の図に置き換えた。内容は実装で確かめた：ステップの表示名（`STEP_LABELS` / `REVIEW_STEP_LABELS`）、例文、ルール数（23 件・常時チェック 7 件を `EC_AD` から数えた）、フォームの既定値（`formMemory.ts`）、API ルート、既定モデル（回答・Q/A は `claude-sonnet-5-5`、チャンキングと判定系は `claude-haiku-5-5`） |
 | 4.1 | 2026-10-10 | Legacy ReAct 経路（`services/agent_service.py`・`agent_parallel_search.py`・`agent_cache.py`・`executor._execute_legacy_agent_step`・`run_legacy_agent` アクション）を 2026-10-10 に削除したのに追随 |
 | 4.2 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |
@@ -828,3 +865,4 @@ cd frontend && npm run lint && npm test && npm run build # frontend
 | 4.11 | 2026-10-12 | backend/docs/testing.md を直下 docs/testing.md へ、例文の実行ログを docs/examples/ へ移したのに追随（参照の付け替え） |
 | 4.12 | 2026-10-13 | 旧 docs/app_tabs_overview.md を削除し、§6「読み違えやすい点」を §1 へ移した。§11 の行を外した |
 | 4.13 | 2026-10-13 | §6.5 にエージェント階層と一般用語の対応を追加（旧 docs/agent_layers.md の要点）。§11 の行を core_process_flow.md へ集約 |
+| 4.14 | 2026-10-14 | 冒頭に「ドキュメント構成」を新設し、主要モジュールの文書（backend・frontend・grace・helper・services・chunking・qa_generation・qa_qdrant）を 1 行の概要とリンクで並べた。索引の改名（`frontend/docs/README_frontend.md`・`backend/app/api/docs/README_backend_api.md`・`backend/app/core/docs/README_backend_core.md`）に追随した。§1 に 1 回の所要（`docs/examples/` の実測）と業界定義 2 つの対比表、§3.2 の 0-(A) に担当範囲外の主質問の扱い（GA'）、§3.3・§4.3 の実行例に所要の列、§6.5 にクラウド LLM（Claude）であることが効く箇所の表、§10 に「model not found」の行を足した。変更履歴の 1.0〜3.10（22 版）を 1 行に要約した |
