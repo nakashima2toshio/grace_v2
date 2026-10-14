@@ -1,6 +1,6 @@
 # GRACE（grace_v2）- 業界特化・自律型エージェント基盤 ドキュメント
 
-**Version 4.14** | 最終更新: 2026-10-14
+**Version 4.15** | 最終更新: 2026-10-14
 
 > 日本語 RAG に、根拠検証（groundedness）・Web 裏取り・HITL（Human-In-The-Loop）承認を組み合わせた、
 > 業界特化の自律型エージェント。`./run_dev.sh` で起動し、ブラウザ（http://localhost:5173）の 4 タブから使う。
@@ -760,9 +760,13 @@ uvicorn backend.app.main:app --reload --port 8000
 
 | 出る場面 | 承認すると |
 |---|---|
-| 基本版 / GRACE-Support の ⑥ Action | 起票・返信などのアクションを実行（dry-run ならログのみ） |
+| 基本版 / GRACE-Support の ⑥ Action | 起票・返信などのアクションを実行 |
 | GRACE-Review の ⑦ Action | 指摘レポートを起票 |
 | データ管理 ③ の作り直し・④ の削除 | コレクションを作り直す / 削除する |
+
+- **dry-run（副作用なし）では承認を求めない**（`ActionBackend.has_side_effects` が False のとき。起票も送信もしない実行で承認を待つと、
+  押されないまま `intervention.default_timeout`（300 秒）待って有人対応へ倒れるため。2026-10-14 に grace_v2_local から移植）。
+  承認モーダルを見たいときは dry-run を OFF にする（Webhook を設定しなければ実行は擬似のまま。`ec` は本人確認の台帳も要る・[3.4](#34-本人確認の識別子が効く条件)）
 
 ![C-01 HITL CONFIRM モーダル](docs/images/c-01-confirm-modal.png)
 
@@ -866,3 +870,4 @@ cd frontend && npm run lint && npm test && npm run build # frontend
 | 4.12 | 2026-10-13 | 旧 docs/app_tabs_overview.md を削除し、§6「読み違えやすい点」を §1 へ移した。§11 の行を外した |
 | 4.13 | 2026-10-13 | §6.5 にエージェント階層と一般用語の対応を追加（旧 docs/agent_layers.md の要点）。§11 の行を core_process_flow.md へ集約 |
 | 4.14 | 2026-10-14 | 冒頭に「ドキュメント構成」を新設し、主要モジュールの文書（backend・frontend・grace・helper・services・chunking・qa_generation・qa_qdrant）を 1 行の概要とリンクで並べた。索引の改名（`frontend/docs/README_frontend.md`・`backend/app/api/docs/README_backend_api.md`・`backend/app/core/docs/README_backend_core.md`）に追随した。§1 に 1 回の所要（`docs/examples/` の実測）と業界定義 2 つの対比表、§3.2 の 0-(A) に担当範囲外の主質問の扱い（GA'）、§3.3・§4.3 の実行例に所要の列、§6.5 にクラウド LLM（Claude）であることが効く箇所の表、§10 に「model not found」の行を足した。変更履歴の 1.0〜3.10（22 版）を 1 行に要約した |
+| 4.15 | 2026-10-14 | §8.1 に「dry-run（副作用なし）では承認を求めない」を追記した（`ActionBackend.has_side_effects` を grace_v2_local から移植）。⑥ Action の行から「dry-run ならログのみ」を外した |
