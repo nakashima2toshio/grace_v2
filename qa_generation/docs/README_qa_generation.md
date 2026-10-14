@@ -1,12 +1,12 @@
 # README_qa_generation.md - qa_generation/ ディレクトリ概要
 
-**Version 3.5** | 最終更新: 2026-10-14
+**Version 3.6** | 最終更新: 2026-10-14
 
 `qa_generation/` の入口となる文書。ディレクトリの役割・モジュール索引・組み合わせ方・公開 API・既知の制約をまとめる。
 各クラス・関数の引数と戻り値は各モジュールの文書（IPO）に置き、ここには書かない。
 
 > 📌 **データ準備 3 工程のうち ② にあたる。** ① チャンク化は [`chunking/`](../../chunking/docs/README_chunking.md)、
-> ③ Qdrant 登録は [`qa_qdrant/`](../../qa_qdrant/docs/README_qa_qdrant.md)。運用手順の入口は [`README_DATA.md`](../../README_DATA.md)。
+> ③ Qdrant 登録は [`qa_qdrant/`](../../qa_qdrant/docs/README_qa_qdrant.md)。3 工程を通した使い方の入口は直下 [`README.md`](../../README.md) §5（データ管理）。
 >
 > ⚠️ **本リポジトリは Anthropic 版。** LLM は `claude-sonnet-5-5`（`config.py::ModelConfig.DEFAULT_MODEL`・`create_llm_client("anthropic")`）、
 > Embedding のみ Gemini `gemini-embedding-001`（3072 次元・`config.py::ModelConfig.EMBEDDING_MODEL`）。姉妹リポジトリ `grace_v2_local` は
@@ -301,5 +301,6 @@ uv run --no-sync pytest tests/test_qa_generation_core.py tests/test_qa_pair_defi
 | 3.3 | 2026-10-12 | backend/docs/ の横断文書の廃止（2026-10-12）に追随し、参照先を backend/app/docs/README_app.md・backend/app/api/docs/README_api.md・backend/app/core/docs/core_process_flow.md などへ付け替えた |
 | 3.4 | 2026-10-13 | Celery の参照先を docs/data_prep_install.md §5 へ（celery_quick_start.md を統合・削除） |
 | 3.5 | 2026-10-14 | qa_generation_data_flow.md を新設したのに合わせ、§1 の索引に行を足し、§4 のデータの表を同文書へ移して要約にした |
+| 3.6 | 2026-10-14 | 直下 README_DATA.md の削除に追随し、使い方の入口を直下 README.md §5 へ付け替えた |
 
 > v1.x の変更履歴にある節番号（§2〜§7）は旧構成のもの。v2.x の節番号も v3.0 で変わった（旧 §4 棚卸し → §5 の注記）。

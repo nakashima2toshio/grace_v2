@@ -1,13 +1,13 @@
 # README_chunking.md - chunking/ ディレクトリ概要
 
-**Version 2.4** | 最終更新: 2026-10-13
+**Version 2.5** | 最終更新: 2026-10-14
 
 `chunking/` の入口となる文書。ディレクトリの役割・モジュール索引・コマンドの早見表・組み合わせ方・既知の制約をまとめる。
 文書を新しく書く／直す前に、まずここを見る。
 
 > 📌 **データ準備 3 工程のうち ① チャンク化を担う。**
 > ② Q/A 生成は [`qa_generation/`](../../qa_generation/docs/README_qa_generation.md)、③ Qdrant 登録は [`qa_qdrant/`](../../qa_qdrant/docs/README_qa_qdrant.md)。
-> 運用手順の入口は [`README_DATA.md`](../../README_DATA.md)、環境構築は [`docs/data_prep_install.md`](../../docs/data_prep_install.md)。
+> 3 工程を通した使い方の入口は直下 [`README.md`](../../README.md) §5（データ管理）、環境構築は [`docs/data_prep_install.md`](../../docs/data_prep_install.md)。
 >
 > ⚠️ **本リポジトリは Anthropic 版。** チャンク化の LLM は Anthropic Claude（既定 `claude-haiku-5-5` = `config.py::ModelConfig.CHUNKING_MODEL`・
 > `ANTHROPIC_API_KEY`）。姉妹リポジトリ `grace_v2_local` は Ollama 版で、`diagnose_ollama.py` など本リポジトリに無いモジュールと、
@@ -289,7 +289,7 @@ print(len(chunks), out)
 |---|---|---|
 | `<module>.md` | IPO（入出力・副作用・使用例） | 運用判断・ほかのモジュールの仕様 |
 | 本書 §2 | コマンドの早見表と、モジュールを組み合わせる流れ | 1 モジュールの IPO |
-| 直下 `README_DATA.md` / `docs/data_prep_install.md` | 3 工程を通した運用手順・環境構築 | 1 モジュールの IPO |
+| 直下 `README.md` §5 / `docs/data_prep_install.md` | 3 工程を通した使い方・環境構築 | 1 モジュールの IPO |
 
 - CLI のオプションを変えたら、同じコミットで本書 §2.1 と [`csv_text_to_chunks_text_csv.md`](csv_text_to_chunks_text_csv.md) §4.5 を直す（旧 `memo.txt` は CLI の変更に置いていかれた）
 - 使用例は**動かして確かめてから**載せる（`a_class_method_md_format.md` §9.5）。LLM はスタブでよい
@@ -325,3 +325,4 @@ uv run --no-sync pytest tests/test_chunking_abort.py tests/test_chunking_default
 | 2.2 | 2026-10-11 | `qa_generation/docs/` の構成整理（`README.md` → `README_qa_generation.md`、`__init__.md` を統合、`make_qa_qapipeline.md` → `qa_generation_process_flow.md`）に合わせてリンクを直した |
 | 2.3 | 2026-10-13 | docs/archive/ を削除したのに追随（旧文書への参照を「2026-10-13 に削除。git 履歴に残る」へ） |
 | 2.4 | 2026-10-13 | 既知の制約 6 を解決（古い chunking/requirements.txt を削除。依存は直下の pyproject.toml / requirements.txt に一本化） |
+| 2.5 | 2026-10-14 | 直下 README_DATA.md の削除に追随し、使い方の入口を直下 README.md §5 へ付け替えた |
