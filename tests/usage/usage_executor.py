@@ -11,7 +11,7 @@ from grace.executor import create_executor  # noqa: E402
 
 def main():
     plan = planner.create_planner()
-    exec = executor.create_executor()
+    executor = executor.create_executor()
 
     # パターン A：同じ話題でそろえる（おすすめ）
     for query in [
@@ -24,11 +24,11 @@ def main():
         for step in plan.steps:
             print(f"  step{step.step_id}: {step.action} - {step.description}")
 
-    # 3. Executorインスタンスを作成（LLM=Anthropic Claude、Embedding=Gemini）
-    executor = create_executor()
+        # 3. Executorインスタンスを作成（LLM=Anthropic Claude、Embedding=Gemini）
+        executor = create_executor(plan)
 
-    # 4. 計画を実行（ブロッキング版）
-    result = executor.execute_plan(plan)
+        # 4. 計画を実行（ブロッキング版）
+        result = executor.execute_plan(plan)
 
     # 5. 結果を確認（ExecutionResult）
     print(f"ステータス: {result.overall_status}")  # success / partial / failed / cancelled
