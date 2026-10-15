@@ -141,6 +141,8 @@ class TestExtractKeywords:
 # ③ LLM 計画のプロンプトに出すコレクション
 # =============================================================================
 
+EXCLUDED = ["cc_news", "fineweb", "wikipedia", "livedoor", "japanese_text"]
+
 ALL = [
     "gov_faq_anthropic", "cc_news_2per_anthropic", "wikipedia_ja_5per",
     "ec_policy_anthropic", "fineweb_edu_ja_5per",
@@ -159,6 +161,8 @@ def _planner(monkeypatch, allowed=None):
         raising=False,
     )
     config = GraceConfig()
+    # 除外リストは運用で変わる値（config/grace_config.yml で調整する）なので、既定値に頼らず明示する
+    config.qdrant.excluded_collections = list(EXCLUDED)
     if allowed is not None:
         config.qdrant.allowed_collections = list(allowed)
     planner = Planner.__new__(Planner)

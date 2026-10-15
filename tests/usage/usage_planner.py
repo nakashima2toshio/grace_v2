@@ -1,10 +1,11 @@
 import os
 from pathlib import Path
 
-# 設定（config/grace_config.yml）と実行メモリ（logs/）は相対パスなので、リポジトリ直下で動かす
+# 実行メモリ（logs/grace_memory.jsonl）は相対パスなので、リポジトリ直下で動かす
+# （設定 config/grace_config.yml は作業ディレクトリに関係なく読まれる）
 os.chdir(Path(__file__).resolve().parents[2])
 
-from grace.planner import create_planner
+from grace.planner import create_planner  # noqa: E402
 
 # 1. Planner を作る（config を省略すると get_config()。LLM は計画が要るときだけ呼ぶ）
 planner = create_planner()

@@ -1,6 +1,6 @@
 # config.py - GRACE 設定管理 ドキュメント
 
-**Version 1.18** | 最終更新: 2026-10-14
+**Version 1.19** | 最終更新: 2026-10-15
 
 > 📌 **`config.GeminiConfig` の LLM モデル一覧は後方互換である。**
 > `config.py::GeminiConfig` の docstring にあるとおり、`GeminiConfig` は
@@ -119,7 +119,7 @@ style EXTERNAL fill:#1a1a1a,stroke:#fff,color:#fff
 
 1. クライアント（Planner/Executor等）が `get_config()` を呼び出す
 2. シングルトンの `ConfigLoader` が初期化され `load()` を実行
-3. `config/grace_config.yml` が存在すれば YAML を読み込み（なければデフォルト）
+3. `config/grace_config.yml`（リポジトリ直下からの絶対パス。作業ディレクトリに依存しない）が存在すれば YAML を読み込み（なければデフォルト）
 4. `GRACE_` プレフィックスの環境変数で該当セクションを上書き
 5. `GraceConfig(**config_dict)` で Pydantic 検証し、確定した設定を返却
 
@@ -476,7 +476,7 @@ ConfigLoader(config_path: Optional[str] = None)
 
 | パラメータ | 型 | デフォルト | 説明 |
 |------------|------|-----------|------|
-| `config_path` | Optional[str] | None | 設定ファイルパス（None時は `config/grace_config.yml`） |
+| `config_path` | Optional[str] | None | 設定ファイルパス（None時は `DEFAULT_CONFIG_PATH` ＝ リポジトリ直下の `config/grace_config.yml` の絶対パス） |
 
 | 項目 | 内容 |
 |------|------|
@@ -978,7 +978,7 @@ Embedding（Gemini）の設定。
 
 | 定数名 | デフォルト値 | 説明 |
 |-------|-------------|------|
-| `DEFAULT_CONFIG_PATH` | `"config/grace_config.yml"` | デフォルト設定ファイルパス |
+| `DEFAULT_CONFIG_PATH` | `<リポジトリ直下>/config/grace_config.yml`（`Path(__file__).resolve().parents[1]` から組み立てた絶対パス） | デフォルト設定ファイルパス。⚠️ 2026-10-15 までは相対パス `"config/grace_config.yml"` で、作業ディレクトリがリポジトリ直下でないと（PyCharm の既定・`tests/usage/` から実行など）見つからず、クラス既定値で黙って動いた |
 | `ENV_PREFIX` | `"GRACE_"` | 環境変数上書きのプレフィックス |
 
 
@@ -1042,6 +1042,7 @@ __all__ = [
 | 1.16 | 2026-10-12 | backend/docs/ の横断文書の廃止（2026-10-12）に追随し、参照先を backend/app/docs/README_app.md・backend/app/api/docs/README_api.md・backend/app/core/docs/core_process_flow.md などへ付け替えた |
 | 1.17 | 2026-10-14 | 索引の改名（backend/app/docs/README_app.md → README_backend_app.md）に合わせて参照を付け替えた |
 | 1.18 | 2026-10-14 | 既定モデル名を config.py::ModelConfig（DEFAULT_MODEL / LIGHT_MODEL）の 1 か所にまとめたのに追随 |
+| 1.19 | 2026-10-15 | `ConfigLoader.DEFAULT_CONFIG_PATH` をリポジトリ直下からの絶対パスにした（作業ディレクトリに関係なく yml を読む）。`qdrant.excluded_collections` は運用で yml を書き換える値として、`tests/test_config_file_and_memory.py` のクラス既定値との一致検査から外した（`OPERATIONAL_KEYS`）。§1.2・§4（`ConfigLoader`）・§5 を追随 |
 
 ---
 

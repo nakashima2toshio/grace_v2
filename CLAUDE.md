@@ -295,6 +295,12 @@ GRACE_E2E=1 GRACE_E2E_REPEAT=3 uv run --no-sync pytest tests/e2e -m e2e -rs   # 
 
 設定は yml → 環境変数（接頭辞 `GRACE_`）→ `GraceConfig`（pydantic）で検証、の 3 段。
 
+> ⚠️ **`config/grace_config.yml` はクラス既定値の写しで、値は一致させる**（`tests/test_config_file_and_memory.py::test_config_file_matches_code_defaults`）。
+> 例外は**運用で yml を書き換える値**だけで、同テストの `OPERATIONAL_KEYS` に列挙する（現在 `qdrant.excluded_collections`。
+> コレクションの追加・更新のたびに変わるため。2026-10-15〜）。yml は作業ディレクトリに関係なく読まれる
+> （`ConfigLoader.DEFAULT_CONFIG_PATH` はリポジトリ直下からの絶対パス。2026-10-15 までは相対パスで、
+> PyCharm からスクリプトを動かすと読まれずクラス既定値で動いていた）。
+
 > ⚠️ トップレベルの **`config.py`（モジュール）** と **`config/`（ディレクトリ）** は別物。
 > `config/` に入っているのは `grace_config.yml` だけで、`import config` は `config.py` を指す。
 
