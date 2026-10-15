@@ -1,6 +1,6 @@
 # backend テストの地図 ドキュメント
 
-**Version 2.16** | 最終更新: 2026-10-14
+**Version 2.17** | 最終更新: 2026-10-15
 
 ---
 
@@ -318,6 +318,7 @@ GRACE_E2E=1 uv run --no-sync pytest tests/e2e -m e2e -rs
 | `test_vertical_scope.py` | 業界プロファイルによる検索スコープ限定 |
 | `test_policy_claims.py` / `test_source_attribution.py` / `test_rag_adoption.py` | 出典・根拠の扱い |
 | `test_web_search_toggle.py` | `use_web=False`（内部 RAG のみ）で executor の 5 経路（動的挿入・計画済み・並列プリフェッチ・fallback・ReAct）すべてが Web を検索しない。`ask_user` も差し込まない。Web 許可時も、採用した RAG 結果（0.64 以上）では無条件に Web を検索しない（`rag_sufficient_score` ≤ `reasoning_min_rag_score` の不変条件） |
+| `test_planner_memory_scope.py` / `test_memory_exclusion.py` | 計画の rag_search に付くコレクション: 実行メモリはキーワードが重ならない質問に何も推さない（全体集計へ倒れない）・ひらがな区切りのキーワード抽出・LLM 計画のプロンプトに出す一覧は検索時と同じ（除外対象・次元違いを出さない）・除外対象は飛ばして次点。LLM 計画の `created_at` 補完と `timeout_seconds` の設定値への統一（17 件＋既存） |
 | `test_uncited_web_citations.py` | 回答本文で引用していない Web 出典を表示から外す（社内だけ引用 → Web を外す／URL を引用 → それだけ残す／どちらも引用なし → 外さない） |
 
 ### 2.3 共有基盤・API・データ準備
@@ -354,6 +355,7 @@ GRACE_E2E=1 uv run --no-sync pytest tests/e2e -m e2e -rs
 | `qa_generation/*.py` / `services/data_pipeline_service.py` の Q/A 生成 | `test_qa_generation_core.py` `test_qa_pipeline_*.py` `test_qa_generation_import_side_effects.py` `test_qa_pair_definitions.py` |
 | `qdrant_client_wrapper.py` / `services/qdrant_service.py` / `qa_qdrant/register_to_qdrant.py` / `celery_*.py` | 上の単体テストに加えて `tests/integration/`（Qdrant / Redis を起動して。§1.1） |
 | 判定・閾値・プロンプト・モデル既定（`gates.py` / `review_gates.py` / `rulesets.py` / `config/grace_config.yml`） | 単体テストに加えて、できれば E2E（§1.2）。とくに「適正LP案 → 0 件」 |
+| `grace/planner.py` / `grace/memory.py` / `grace/tools.py` の `RAGSearchTool.search_candidates` | `test_planner_memory_scope.py` `test_memory_exclusion.py` `test_query_vector_reuse.py` `test_rag_adoption.py` `test_vertical_scope.py` |
 | `frontend/src/components/QueryForm.tsx` / `ReviewForm.tsx` の例文 | `e2e/test_e2e_cases.py`（期待値とずれていないか） |
 
 ---
@@ -423,3 +425,4 @@ GRACE_E2E=1 uv run --no-sync pytest tests/e2e -m e2e -rs
 | 2.14 | 2026-10-14 | 索引の改名（frontend/docs/README.md → README_frontend.md、README_api.md → README_backend_api.md、README_core.md → README_backend_core.md）に合わせて参照を付け替えた |
 | 2.15 | 2026-10-14 | テストの地図に test_dry_run_skips_confirmation.py（grace_v2_local から移植）を足した |
 | 2.16 | 2026-10-14 | 索引の改名（backend/app/docs/README_app.md → README_backend_app.md）に合わせて参照を付け替えた |
+| 2.17 | 2026-10-15 | §2.2 に `test_planner_memory_scope.py`（実行メモリの全体集計フォールバック廃止・キーワード抽出・Planner のコレクション一覧・LLM 計画の後処理）を追加し、§3 に `grace/planner.py` / `memory.py` / `RAGSearchTool.search_candidates` を触ったときに流すものを追加 |

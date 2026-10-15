@@ -9,11 +9,8 @@ import json
 import logging
 import re
 import time
+from datetime import datetime
 from typing import Optional
-
-from qdrant_client import QdrantClient
-
-from services.qdrant_service import get_all_collections
 
 from .config import GraceConfig, get_config, heavy_thinking_budget, resolve_heavy_model
 from .llm_compat import create_chat_client
@@ -179,6 +176,9 @@ class Planner:
         if getattr(self.config, "memory", None) and self.config.memory.enabled:
             self._memory = create_execution_memory(self.config.memory.path)
 
+        # LLM 計画のプロンプトに出すコレクション一覧の取得役（`_get_available_collections`）
+        self._rag_tool = None
+
         logger.info(f"Planner initialized with model: {self.model_name}")
 
     # LLM計画生成を強制するクエリマーカー（明示的なWeb検索指示など）
@@ -265,7 +265,8 @@ class Planner:
               ↓
             [memory] prioritized collection for query: wikipedia_ja_5per
               ↑ 「住民票の写しの取り方は？」でも「明日の東京の天気は？」でも同じ
-              （collection_priors はキーワード重複が無いと全体集計へフォールバックする）
+              （collection_priors はキーワード重複が無いと全体集計へフォールバックしていた。
+                2026-10-15 にフォールバックを廃止し、重なりが無ければ None にした）
               ↓
             除外リストに載っているのに検索候補に残り、毎回無駄に検索される
 
@@ -454,12 +455,31 @@ class Planner:
 
         raise last_error or ValueError(f"{label}: failed after {max_attempts} retries")
 
+    def _stamp_llm_plan(self, plan: ExecutionPlan) -> ExecutionPlan:
+        """LLM が作った計画に、LLM に決めさせない値を入れる（計画生成・計画修正で共用）。
+
+        - `plan_id`: 新しく振る
+        - `created_at`: LLM が `null` を返すと `default_factory` が効かず null のまま残る
+          （明示した null は「値あり」として扱われる）。実測 2026-10-15 で毎回 null だった
+        - 各ステップの `timeout_seconds`: `planner.step_timeout_seconds` に揃える。
+          LLM の言い値（実測 60）のままだと設定が効かず、同じ質問でもルールベース計画
+          （設定値）か LLM 計画かで待ち時間が変わる。リプランも設定値を引き継ぐ
+          （`ReplanManager._adjust_step_ids`）
+        """
+        plan.plan_id = create_plan_id()
+        if plan.created_at is None:
+            plan.created_at = datetime.now()
+        step_timeout = self.config.planner.step_timeout_seconds
+        for step in plan.steps:
+            step.timeout_seconds = step_timeout
+        return plan
+
     def _finalize_plan(self, plan: ExecutionPlan, complexity: float) -> ExecutionPlan:
-        """LLM生成計画に複雑度・plan_id を適用し、依存関係を検証してログ出力する。"""
+        """LLM生成計画に複雑度・plan_id 等を適用し、依存関係を検証してログ出力する。"""
         # 事前に計算した正確な複雑度を適用
         plan.complexity = complexity
-        # 計画IDを設定
-        plan.plan_id = create_plan_id()
+        # 計画ID・作成日時・ステップのタイムアウト
+        self._stamp_llm_plan(plan)
 
         # 依存関係を検証し、**実行不能な依存はその場で取り除く**。
         #
@@ -520,14 +540,31 @@ class Planner:
             return self._create_fallback_plan(query)
 
     def _get_available_collections(self) -> list[str]:
-        """利用可能なQdrantコレクションを取得"""
+        """rag_search が実際に検索するコレクションを、検索する順に返す。
+
+        LLM 計画のプロンプト（【利用可能なコレクション】）に出す一覧。
+        `RAGSearchTool.search_candidates()` をそのまま使うので、検索時と同じく
+        次元違い・空のコレクションは出ず、除外リスト（`qdrant.excluded_collections`）も
+        当たる（業界プロファイルの許可リストで名指しされたものは残る）。
+
+        ⚠️ 以前は Qdrant の全件を返していた。cc_news / wikipedia / fineweb（除外対象）や
+        *_ollama / *_768（次元違い）まで LLM に見せており、LLM が名指しすると
+        `PlanStep.collection` に入って、RAGSearchTool から「明示指定」に見えて
+        除外を素通りする。Qdrant に繋がらないときは `search_priority`（実在しない
+        キーワード）を返していたが、これも LLM に見せる名前ではない。
+
+        Returns:
+            コレクション名のリスト。Qdrant に繋がらなければ空
+        """
         try:
-            client = QdrantClient(url=self.config.qdrant.url)
-            cols = get_all_collections(client)
-            return [c["name"] for c in cols]
+            if getattr(self, "_rag_tool", None) is None:
+                from .tools import RAGSearchTool
+
+                self._rag_tool = RAGSearchTool(config=self.config)
+            return self._rag_tool.search_candidates() or []
         except Exception as e:
             logger.warning(f"Failed to get collections: {e}")
-            return self.config.qdrant.search_priority  # デフォルトリストを返す
+            return []
 
     def _create_clarification_plan(self, query: str) -> ExecutionPlan:
         """曖昧クエリに対する確認（ask_user）計画を生成する。
@@ -572,21 +609,16 @@ class Planner:
         """
         logger.info("Creating fallback plan")
 
-        # P4: 実行メモリの事前分布を優先。無ければ動的取得（失敗時はNone＝自動選択）。
-        fallback_collection = self._prioritized_collection(query)
-        if fallback_collection is None:
-            try:
-                available = self._get_available_collections()
-                fallback_collection = next(
-                    (c for c in available if "wikipedia" in c), None
-                )
-            except Exception:
-                fallback_collection = None
-
+        # P4: 実行メモリの事前分布を優先。無ければ None（＝ RAGSearchTool が全件を順に検索）。
+        #
+        # ⚠️ 以前は名前に "wikipedia" を含むコレクションを先頭に固定していた。
+        #    wikipedia は除外リストに入っているのに、`PlanStep.collection` に入ると
+        #    RAGSearchTool から「明示指定」に見えて除外を素通りしていた。
+        #    検索順は RAGSearchTool（search_priority・許可リスト）に任せる。
         return self._build_rag_reasoning_plan(
             query,
             complexity=0.5,
-            collection=fallback_collection,
+            collection=self._prioritized_collection(query),
             rag_description="全コレクションから関連情報を検索",
         )
 
@@ -683,7 +715,8 @@ class Planner:
                 refine_prompt,
                 label="refine_plan LLM",
             )
-            refined_plan.plan_id = create_plan_id()
+            # 計画ID・作成日時・ステップのタイムアウト（計画生成と同じ）
+            self._stamp_llm_plan(refined_plan)
 
             logger.info(f"Plan refined: {refined_plan.plan_id}")
             return refined_plan
