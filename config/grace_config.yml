@@ -75,7 +75,7 @@ tools:
     - ask_user
   # プロジェクト全体で恒久的に禁止するツール
   # （code_execute はサンドボックス実行のため既定で enabled に含めない opt-in）
-  disabled: []
+  disabled: [ ]
 
 # -----------------------------------------------------------------------------
 # Confidence計算設定
@@ -183,17 +183,13 @@ qdrant:
     - "japanese_text"
   # allowed_collections は業界プロファイルがリクエストごとに注入する。
   # ここで固定するとプロファイル選択が効かなくなるため空のままにする。
-  allowed_collections: []
+  allowed_collections: [ ]
   # 横断検索から常に外す汎用コーパス（部分一致）。
   # ⚠️ allowed_collections は業界プロファイル指定時にしか効かないため、
   #    基本版パイプラインを守るにはこの除外リストが要る。
   #    汎用コーパスは話題の幅が広く、どんな質問にも 0.5〜0.6 台で当たる。
   excluded_collections:
-    - "cc_news"
-    - "fineweb"
-    - "wikipedia"
     - "livedoor"
-    - "japanese_text"
 
 # -----------------------------------------------------------------------------
 # Web検索設定
@@ -210,7 +206,7 @@ web_search:
   # 一致した結果のスコアを底上げして上位へ並べ替えるだけで、非一致も残す
   # （絞り込むと 0 件化 → 情報なし回答 → 誤エスカレの連鎖を招くため）。
   # 業界プロファイルがリクエストごとに注入するため、ここでは空のままにする。
-  preferred_domains: []
+  preferred_domains: [ ]
   preferred_domain_boost: 0.15
   # APIキーは環境変数を使う（SERPAPI_KEY / GOOGLE_CSE_API_KEY / GOOGLE_CSE_ENGINE_ID）
 
