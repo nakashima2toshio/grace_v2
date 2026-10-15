@@ -147,69 +147,29 @@ class RAGSearchTool(BaseTool):
             logger.info(f"RAGSearchTool: Required keywords for filtering: {required_keywords}")
 
         # --- 検索対象コレクションの決定（優先順位リスト） ---
-        # 指定があればそれを最初に、なければデフォルト順
-        search_candidates = []
-        if collection:
-            search_candidates.append(collection)
+        # Planner も同じ一覧を LLM 計画のプロンプトに出す（`search_candidates` を共用）。
+        search_candidates = self.search_candidates(collection, allowed_collections)
+        if search_candidates is None:
+            # ⚠️ Qdrant に繋がらないときは、ここで**即失敗**にする。
+            #
+            # 以前は既定の候補（優先順位リスト）へ倒れて検索を続け、クエリの
+            # Embedding（Gemini API）と Sparse モデルの読み込み（初回は 500MB 超の
+            # ダウンロード）を済ませたうえで、候補コレクションの数だけ接続エラーを
+            # 繰り返していた（実測 2026-09-29: 約 4 秒の無駄）。どうせ全部失敗するので、
+            # 何もせず失敗を返し、executor の fallback（Web 検索）へ進ませる。
+            from qdrant_client_wrapper import QDRANT_START_HINT
 
-        if self.config.qdrant.restrict_to_collection:
-            # 単一コレクション固定モード: 全コレクション横断のフォールバックを行わない。
-            # 明示指定が無い場合は config.qdrant.collection_name を使う。
-            if not search_candidates:
-                search_candidates.append(self.config.qdrant.collection_name)
-            logger.info(
-                f"RAGSearchTool: restrict_to_collection=ON → 単一検索: {search_candidates}"
+            msg = (
+                f"Qdrant に接続できません（{self.qdrant_url}）。"
+                f"起動: {QDRANT_START_HINT}"
             )
-        else:
-            # フォールバック用のコレクションを追加（重複排除・動的取得）
-            # Qdrantから全コレクションを取得し、優先順位リストに従ってソート
-            dynamic_collections = self._get_all_collections_dynamic()
-            if dynamic_collections is None:
-                # ⚠️ Qdrant に繋がらないときは、ここで**即失敗**にする。
-                #
-                # 以前は既定の候補（優先順位リスト）へ倒れて検索を続け、クエリの
-                # Embedding（Gemini API）と Sparse モデルの読み込み（初回は 500MB 超の
-                # ダウンロード）を済ませたうえで、候補コレクションの数だけ接続エラーを
-                # 繰り返していた（実測 2026-09-29: 約 4 秒の無駄）。どうせ全部失敗するので、
-                # 何もせず失敗を返し、executor の fallback（Web 検索）へ進ませる。
-                from qdrant_client_wrapper import QDRANT_START_HINT
-
-                msg = (
-                    f"Qdrant に接続できません（{self.qdrant_url}）。"
-                    f"起動: {QDRANT_START_HINT}"
-                )
-                return ToolResult(
-                    success=False,
-                    output=[],
-                    error=msg,
-                    confidence_factors={"result_count": 0, "avg_score": 0.0, "message": msg},
-                    execution_time_ms=int((time.time() - start_time) * 1000),
-                )
-            for c in dynamic_collections:
-                if c not in search_candidates:
-                    search_candidates.append(c)
-
-        # --- 許可リスト（業界プロファイル等）による検索スコープ制限 ---
-        allowed = (
-            allowed_collections if allowed_collections is not None
-            else self.config.qdrant.allowed_collections
-        )
-        search_candidates = self._apply_allowed_collections(search_candidates, allowed)
-        # 明示指定（collection 引数・業界プロファイルの許可リスト）は除外しない。
-        # 落とすのは動的取得された横断候補だけ。
-        #
-        # ⚠️ 許可リスト側も保護対象に含める。以前は `collection` 引数だけを
-        #    保護していたため、docstring の「業界プロファイルの
-        #    allowed_collections で名指しされたコレクションは落とさない」が
-        #    **実装されていなかった**（gov プロファイルが明示的に許可している
-        #    wikipedia_ja が黙って落ちる状態だった）。
-        protected = [c for c in search_candidates
-                     if any(keyword in c for keyword in (allowed or []))]
-        if collection:
-            protected.append(collection)
-        search_candidates = self._apply_excluded_collections(
-            search_candidates, protected=protected
-        )
+            return ToolResult(
+                success=False,
+                output=[],
+                error=msg,
+                confidence_factors={"result_count": 0, "avg_score": 0.0, "message": msg},
+                execution_time_ms=int((time.time() - start_time) * 1000),
+            )
 
         logger.info(f"RAGSearchTool: Search candidates: {search_candidates}")
 
@@ -431,6 +391,68 @@ class RAGSearchTool(BaseTool):
         except Exception as e:
             logger.warning(f"RAGSearchTool: get_collection('{name}') failed: {e}")
             return None
+
+    def search_candidates(
+        self,
+        collection: Optional[str] = None,
+        allowed_collections: Optional[List[str]] = None,
+    ) -> Optional[List[str]]:
+        """`execute` が検索するコレクションを、検索する順に返す（検索はしない）。
+
+        1. `collection`（明示指定）を先頭に置く
+        2. Qdrant の検索可能なコレクション（次元一致・実体あり。`_get_all_collections_dynamic`）
+           を後ろに足す。`restrict_to_collection` のときは足さない
+        3. 許可リスト（`allowed_collections`。None なら `config.qdrant.allowed_collections`）で絞る
+        4. 除外リストを当てる。ただし 1 と 3 で名指しされたものは落とさない
+
+        Planner（`_get_available_collections`）も LLM 計画のプロンプトに出す一覧として
+        これを使う。⚠️ 2 か所で別々に組み立てると、**検索されないコレクション**
+        （除外対象・次元違い）を LLM に見せてしまう（2026-10-15 に実際に起きていた）。
+
+        Returns:
+            コレクション名のリスト。Qdrant に繋がらなければ None
+        """
+        candidates: List[str] = []
+        if collection:
+            candidates.append(collection)
+
+        if self.config.qdrant.restrict_to_collection:
+            # 単一コレクション固定モード: 全コレクション横断のフォールバックを行わない。
+            # 明示指定が無い場合は config.qdrant.collection_name を使う。
+            if not candidates:
+                candidates.append(self.config.qdrant.collection_name)
+            logger.info(
+                f"RAGSearchTool: restrict_to_collection=ON → 単一検索: {candidates}"
+            )
+        else:
+            # フォールバック用のコレクションを追加（重複排除・動的取得）
+            # Qdrantから全コレクションを取得し、優先順位リストに従ってソート
+            dynamic_collections = self._get_all_collections_dynamic()
+            if dynamic_collections is None:
+                return None
+            for c in dynamic_collections:
+                if c not in candidates:
+                    candidates.append(c)
+
+        # --- 許可リスト（業界プロファイル等）による検索スコープ制限 ---
+        allowed = (
+            allowed_collections if allowed_collections is not None
+            else self.config.qdrant.allowed_collections
+        )
+        candidates = self._apply_allowed_collections(candidates, allowed)
+        # 明示指定（collection 引数・業界プロファイルの許可リスト）は除外しない。
+        # 落とすのは動的取得された横断候補だけ。
+        #
+        # ⚠️ 許可リスト側も保護対象に含める。以前は `collection` 引数だけを
+        #    保護していたため、docstring の「業界プロファイルの
+        #    allowed_collections で名指しされたコレクションは落とさない」が
+        #    **実装されていなかった**（gov プロファイルが明示的に許可している
+        #    wikipedia_ja が黙って落ちる状態だった）。
+        protected = [c for c in candidates
+                     if any(keyword in c for keyword in (allowed or []))]
+        if collection:
+            protected.append(collection)
+        return self._apply_excluded_collections(candidates, protected=protected)
 
     def _get_all_collections_dynamic(self) -> Optional[List[str]]:
         """Qdrantから検索可能なコレクションを取得し、優先順位付けして返す。

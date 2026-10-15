@@ -1,6 +1,6 @@
 # tools.py - ツール定義モジュール ドキュメント
 
-**Version 3.10** | 最終更新: 2026-10-13
+**Version 3.11** | 最終更新: 2026-10-15
 
 ---
 
@@ -78,6 +78,7 @@ LLM 推論は Anthropic Claude（既定 `claude-sonnet-5-5`）を使用します
 | `BaseTool` | 全ツールの抽象基底クラス（`execute()` を定義） |
 | `RAGSearchTool` | Qdrant ベクトルDB検索ツール |
 | `RAGSearchTool.execute()` | RAG 検索の実行（コレクションフォールバック付き） |
+| `RAGSearchTool.search_candidates()` | `execute` が検索するコレクションを検索順に返す（検索はしない。Planner も使う） |
 | `RAGSearchTool._get_all_collections_dynamic()` | Qdrantから全コレクションを動的取得し優先順位付け |
 | `RAGSearchTool._calculate_confidence_factors()` | スコア統計（件数・平均・分散など）を算出 |
 | `ReasoningTool` | LLM 推論ツール（Anthropic Claude） |
@@ -251,6 +252,7 @@ style REG fill:#1a1a1a,stroke:#fff,color:#fff
 | `__init__(config, qdrant_url)` | コンストラクタ。KeywordExtractor を初期化 |
 | `client` (property) | Qdrant クライアントの遅延初期化 |
 | `execute(query, collection, limit, score_threshold, **kwargs)` | RAG 検索の実行 |
+| `search_candidates(collection, allowed_collections)` | `execute` が検索するコレクションを検索順に返す（明示指定 → 次元一致・実体あり → 許可リスト → 除外リスト）。Qdrant に繋がらなければ `None`。Planner が LLM 計画のプロンプトに出す一覧もこれ |
 | `_collection_dense_dim(name)` | 指定コレクションの密ベクトル次元を返す（無名 `VectorParams` と名前付き `dict` の両方に対応）。取得不可なら `None` |
 | `_get_all_collections_dynamic()` | 全コレクションを動的取得し優先順位付け（次元一致＋実体ありのみ採用・プロセス内キャッシュ） |
 | `clear_collections_cache()` (classmethod) | 有効コレクションのキャッシュを捨てる。**キャッシュはクラス単位**（本ツールはクエリ毎・リプラン毎に再生成されるため） |
@@ -646,7 +648,7 @@ def execute(
 | 項目 | 内容 |
 |------|------|
 | **Input** | `query: str`, `collection: Optional[str] = None`, `limit: Optional[int] = None`, `score_threshold: Optional[float] = None` |
-| **Process** | 1. 検索候補コレクションを決定（指定 + `_get_all_collections_dynamic()`）<br>2. 候補を順次 `search_rag_knowledge_base_structured` で検索<br>3. 結果が出たコレクションを採用しループ終了<br>4. 動的閾値調整（1位が 0.98 以上なら上位1件のみ残す）<br>5. スコア統計を算出し `used_collection` を記録 |
+| **Process** | 1. 検索候補コレクションを決定（`search_candidates(collection, allowed_collections)`。`None`＝Qdrant 到達不能なら即失敗の `ToolResult`）<br>2. 候補を順次 `search_rag_knowledge_base_structured` で検索<br>3. 結果が出たコレクションを採用しループ終了<br>4. 動的閾値調整（1位が 0.98 以上なら上位1件のみ残す）<br>5. スコア統計を算出し `used_collection` を記録 |
 | **Output** | `ToolResult`: 検索結果リスト（成功時）/ 空リスト（結果なし時は `success=False`） |
 
 **戻り値例**:
@@ -674,6 +676,53 @@ tool = RAGSearchTool()
 result = tool.execute(query="退職手続きについて教えて")
 if result.success:
     print(f"{len(result.output)}件ヒット（{result.confidence_factors['used_collection']}）")
+```
+
+#### メソッド: `search_candidates`
+
+**概要**: `execute` が検索するコレクションを、検索する順に返す。**検索はしない。** Planner（`_get_available_collections`）も LLM 計画のプロンプトに出す一覧としてこれを使う。
+
+```python
+def search_candidates(
+    self,
+    collection: Optional[str] = None,
+    allowed_collections: Optional[List[str]] = None,
+) -> Optional[List[str]]
+```
+
+| パラメータ | 型 | デフォルト | 説明 |
+|------------|------|-----------|------|
+| `collection` | Optional[str] | None | 明示指定（`PlanStep.collection`）。先頭に置き、除外リストに当たっても落とさない |
+| `allowed_collections` | Optional[List[str]] | None | 許可リスト。None なら `config.qdrant.allowed_collections` |
+
+| 項目 | 内容 |
+|------|------|
+| **Input** | 上の 2 引数 ＋ `config.qdrant` の `restrict_to_collection` / `collection_name` / `allowed_collections` / `excluded_collections` |
+| **Process** | 1. `collection` があれば先頭に置く<br>2. `restrict_to_collection` なら（明示指定が無ければ `collection_name` だけ）、そうでなければ `_get_all_collections_dynamic()`（次元一致・実体あり・`search_priority` 順）を後ろに足す。これが `None`（Qdrant 到達不能）なら `None` を返す<br>3. `_apply_allowed_collections()` で許可リストに絞る（並びは許可リスト順）<br>4. `_apply_excluded_collections()` で除外リストを当てる。1 の明示指定と、3 で名指しされたものは保護する |
+| **Output** | `Optional[List[str]]`: 検索順のコレクション名。Qdrant に繋がらなければ `None` |
+
+> ⚠️ **2026-10-15 までは Planner が別に Qdrant の全件を取っていた。** 除外対象（cc_news / wikipedia / fineweb）や
+> 次元違い（*_ollama / *_768）まで LLM に見せており、LLM が名指しすると「明示指定」として除外を素通りした。
+> 一覧を組み立てる場所を `execute` と同じ 1 か所にした。
+
+```python
+# 使用例（Qdrant の代わりに、次元が合い実体のあるコレクション一覧をスタブにする）
+from grace.tools import RAGSearchTool
+
+RAGSearchTool._get_all_collections_dynamic = lambda self: [
+    "gov_faq_anthropic", "cc_news_2per_anthropic", "wikipedia_ja_5per", "ec_policy_anthropic"]
+
+tool = RAGSearchTool()
+print(tool.search_candidates())                                            # 既定（cc_news・wikipedia は除外）
+print(tool.search_candidates(collection="cc_news_2per_anthropic"))         # 明示指定: 先頭に置き、他も残る
+print(tool.search_candidates(allowed_collections=["cc_news_2per_anthropic"]))  # 許可リスト: これだけ
+```
+
+```
+# 出力例:
+# ['gov_faq_anthropic', 'ec_policy_anthropic']
+# ['cc_news_2per_anthropic', 'gov_faq_anthropic', 'ec_policy_anthropic']
+# ['cc_news_2per_anthropic']
 ```
 
 #### メソッド: `_get_all_collections_dynamic`
@@ -1811,6 +1860,7 @@ __all__ = [
 | 3.8 | 2026-10-10 | 旧 `grace_runtime.md`（現 `grace_data_flow.md`）にあったプロンプトの全文を、実装から書き出して §5 へ移した（`grace/docs/` の構成整理。所在の一覧は `grace_data_flow.md` §3.4） |
 | 3.9 | 2026-10-10 | §4.1 使用例を処理パターン 4 通り（検索 → 推論・検索の範囲を絞る・Web 検索と ask_user・ツールを足す）に書き直し、外部をスタブにして実行して出力を確かめた（`code_execute` は本物のサンドボックスで実行）。見るべきスコアを `avg_score` から実装どおり `max_score` に直し、`tools.disabled` がレジストリの登録には効かないことを注記した |
 | 3.10 | 2026-10-13 | §5.4 に【この回答で必ず守ること】（prompt_closing）の位置と、構成ルールと後段の判定の対応を追記（旧 docs/reasoning_flow.md §2 から） |
+| 3.11 | 2026-10-15 | `RAGSearchTool.search_candidates()` を新設（`execute` の検索候補の組み立て〔明示指定 → 次元一致・実体あり → 許可リスト → 除外リスト〕を切り出した。挙動は不変）。Planner の `_get_available_collections()` がこれを使うようにし、LLM 計画のプロンプトに除外対象・次元違いのコレクションを出さないようにした（planner.md v3.17）。`execute` の Process を追随し、使用例を実行して出力を確かめた |
 
 ---
 
