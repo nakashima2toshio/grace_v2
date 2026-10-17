@@ -9,9 +9,6 @@ from grace.planner import create_planner  # noqa: E402
 
 
 def main():
-    # 1. Planner と Executor を 1 回だけ作る（LLM=Anthropic Claude、Embedding=Gemini）
-    #    ⚠️ create_executor の第 1 引数は config（GraceConfig）。計画（plan）を渡すと
-    #    AttributeError: 'ExecutionPlan' object has no attribute 'tools' で落ちる
     planner = create_planner()
     executor = create_executor()
 
