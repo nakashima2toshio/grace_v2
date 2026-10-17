@@ -4,9 +4,8 @@ from pathlib import Path
 # 設定（config/grace_config.yml）と実行メモリ（logs/）は相対パスなので、リポジトリ直下で動かす
 os.chdir(Path(__file__).resolve().parents[2])
 
-from grace import planner, executor
-from grace.planner import create_planner
-from grace.executor import create_executor  #
+from grace.executor import create_executor  # noqa: E402
+from grace.planner import create_planner  # noqa: E402
 
 
 def main():
