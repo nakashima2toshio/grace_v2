@@ -6,12 +6,12 @@ os.chdir(Path(__file__).resolve().parents[2])
 
 from grace import planner, executor
 from grace.planner import create_planner
-from grace.executor import create_executor  # noqa: E402
+from grace.executor import create_executor  #
 
 
 def main():
-    plan = planner.create_planner()
-    executor = executor.create_executor()
+    planner = create_planner()
+    executor = create_executor()
 
     # パターン A：同じ話題でそろえる（おすすめ）
     for query in [
