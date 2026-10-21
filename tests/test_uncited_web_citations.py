@@ -66,6 +66,22 @@ class TestDropUncitedWebCitations:
         """
         assert drop_uncited_web_citations([INTERNAL, FISH], answer) == [INTERNAL, FISH]
 
+    def test_title_that_is_a_truncated_url_does_not_hide_the_real_url(self):
+        """タイトルが「途中で切れた URL」でも、括弧内の本物の URL で照合する。
+
+        実測 2026-10-22（SerpAPI）: タイトルが `https://jbpress…/6a6705a...` の結果は、
+        本文に完全な URL を書き写していたのに「引用していない」として外れた
+        （先頭の URL ＝タイトル側を拾っていた）。
+        """
+        cut = "[Web] https://jbpress.example.jp/ud/6a6705a...（https://jbpress.example.jp/ud/6a6705ab12）"
+        other = "[Web] Comments（https://www.youtube.com/watch?v=Rc）"
+        answer = (
+            "- Web 検索結果（https://jbpress.example.jp/ud/6a6705ab12）は内容がありません。\n"
+            "- Web 検索結果（https://www.youtube.com/watch?v=Rc）によると…"
+        )
+
+        assert drop_uncited_web_citations([cut, other], answer) == [cut, other]
+
     def test_web_only_citations_kept_when_answer_cites_nothing(self):
         """社内 0 件・Web だけ（例: 天気）で URL を書かなかった回答も、出典を空にしない。"""
         assert drop_uncited_web_citations([FISH, STATUS], "明日は晴れです。") == [FISH, STATUS]

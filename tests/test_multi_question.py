@@ -712,6 +712,16 @@ class TestAnswerCitesSources:
         assert answer_cites_sources("", self.CITATIONS) is False
         assert answer_cites_sources(None, self.CITATIONS) is False
 
+    def test_Webフォールバック形式はURLに触れていればTrue(self):
+        """⑤ の出典は「[Web] タイトル（URL）」。本文に出るのは URL だけ。
+
+        実測 2026-10-22: 本文が全 URL を書き写していたのに「回答本文が出典に
+        触れていません」と出た（タイトル込みの文字列で照合していた）。
+        """
+        citations = ["[Web] Dafascores（https://dafascores.example.com/jp/a）"]
+        answer = "Web 検索結果（https://dafascores.example.com/jp/a）には…"
+        assert answer_cites_sources(answer, citations)
+
     def test_ラベルは外して見る(self):
         """`[社内] ` は表示用のラベル。本文に出るのは中身だけ。"""
         assert answer_cites_sources("出典: gov_faq.csv", ["[社内] gov_faq.csv"])

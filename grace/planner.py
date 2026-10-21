@@ -62,15 +62,24 @@ def is_ambiguous_query(query: str) -> bool:
     q = (query or "").strip()
     if not q:
         return True
-    # 1. 「あの件」等、未解決の指示対象を明示するパターン
-    if any(p in q for p in _AMBIGUOUS_REFERENT_PATTERNS):
+    # 1. 「あの件」等、未解決の指示対象を明示するパターン。
+    #    ⚠️ 指示対象は**前**に書かれる。手前に具体的な手がかりがあれば、それを指している
+    #    （実測 2026-10-22: 1 行目に「Jed York CEO…」、2 行目に「その件の経緯を詳しく
+    #    教えて」と書いた複数行の入力が、2 行目の「その件」だけで曖昧と判定され、
+    #    RAG を一度も呼ばずに ask_user 計画になっていた）。
+    positions = [q.find(p) for p in _AMBIGUOUS_REFERENT_PATTERNS if p in q]
+    if positions and not _has_concrete_clue(q[:min(positions)]):
         return True
     # 2. 指示語を含み、かつ具体的な手がかり（英数字 / 3文字以上のカタカナ語）が無く短い
-    has_concrete = bool(re.search(r"[A-Za-z0-9０-９]", q)) or bool(re.search(r"[ァ-ヴ]{3,}", q))
     has_demonstrative = any(d in q for d in _DEMONSTRATIVES)
-    if has_demonstrative and not has_concrete and len(q) <= 30:
+    if has_demonstrative and not _has_concrete_clue(q) and len(q) <= 30:
         return True
     return False
+
+
+def _has_concrete_clue(text: str) -> bool:
+    """具体的な手がかり（英数字 / 3 文字以上のカタカナ語）を含むか。"""
+    return bool(re.search(r"[A-Za-z0-9０-９]", text)) or bool(re.search(r"[ァ-ヴ]{3,}", text))
 
 
 # =============================================================================

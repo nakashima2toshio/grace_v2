@@ -1,6 +1,6 @@
 # start_planner.md - 画面の入力から planner が計画を作るまでの呼び出し階層
 
-**Version 1.0** | 最終更新: 2026-10-17
+**Version 1.1** | 最終更新: 2026-10-22
 
 ---
 
@@ -239,7 +239,7 @@ class START,AMB,CPX,LLMQ,A,B,C,FB default
 
 | 判定 | 中身（`grace/planner.py`） |
 |---|---|
-| 曖昧クエリ | `is_ambiguous_query`：「あの件」等のパターン、または指示語を含み・英数字や 3 文字以上のカタカナ語が無く・30 文字以下 |
+| 曖昧クエリ | `is_ambiguous_query`：「あの件」等のパターンがあり、その手前に英数字や 3 文字以上のカタカナ語が無い（手前に対象があれば曖昧としない。2026-10-22〜）、または指示語を含み・英数字や 3 文字以上のカタカナ語が無く・30 文字以下 |
 | ヒューリスティック複雑度 | `estimate_complexity`：0.5 に `_COMPLEXITY_FACTORS`（「比較」「違い」「複数」「詳しく」「どのように」等）の重みを足し、100 文字超・200 文字超でそれぞれ +0.1。上限 1.0 |
 | Web 検索の指示 | `Planner._LLM_PLAN_MARKERS`：「最新ニュース」「ニュースを検索」「web検索」「ウェブ検索」「webで検索」（小文字にして部分一致） |
 | しきい値 | `planner.llm_plan_complexity_threshold`（既定 0.7） |
@@ -369,3 +369,4 @@ uv run --no-sync python -m tests.usage.usage_planner
 | バージョン | 日付 | 変更内容 |
 |-----------|------|---------|
 | 1.0 | 2026-10-17 | 初版作成。`./run_dev.sh` の画面入力から `Planner.create_plan` が計画を作り、画面へ戻るまでの呼び出し階層を、master `57050f0` のコードを追ってまとめた |
+| 1.1 | 2026-10-22 | 曖昧クエリの判定（`is_ambiguous_query`）が「あの件」等の手前に対象があれば曖昧としなくなったのに追随 |
