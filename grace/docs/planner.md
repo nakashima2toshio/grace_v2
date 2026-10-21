@@ -1,6 +1,6 @@
 # planner.py - GRACE 計画生成エージェント ドキュメント
 
-**Version 3.17** | 最終更新: 2026-10-15
+**Version 3.18** | 最終更新: 2026-10-22
 
 ---
 
@@ -1121,7 +1121,7 @@ def is_ambiguous_query(query: str) -> bool
 | 項目 | 内容 |
 |------|------|
 | **Input** | `query: str` |
-| **Process** | 1. 空文字なら `True`<br>2. `_AMBIGUOUS_REFERENT_PATTERNS`（「あの件」「その話」等）を含めば `True`<br>3. `_DEMONSTRATIVES`（指示語）を含み、かつ英数字や3文字以上のカタカナ語が無く、30文字以内なら `True`<br>4. それ以外は `False` |
+| **Process** | 1. 空文字なら `True`<br>2. `_AMBIGUOUS_REFERENT_PATTERNS`（「あの件」「その話」等）を含み、**最初に出てくる位置より前**に具体的な手がかり（英数字・3 文字以上のカタカナ語。`_has_concrete_clue()`）が無ければ `True`（手前に対象が書かれていれば、それを指しているとみなす）<br>3. `_DEMONSTRATIVES`（指示語）を含み、かつ英数字や3文字以上のカタカナ語が無く、30文字以内なら `True`<br>4. それ以外は `False` |
 | **Output** | `bool`: 曖昧クエリなら `True` |
 
 **戻り値例**:
@@ -1138,7 +1138,14 @@ print(is_ambiguous_query("あの件について詳しく教えて"))
 # 出力: True
 print(is_ambiguous_query("RAGの仕組みを教えて"))
 # 出力: False
+print(is_ambiguous_query("49ersのGM人事について。その件の経緯は？"))   # 「その件」の手前に対象がある
+# 出力: False
 ```
+
+> ⚠️ **「その件」だけで曖昧と決めない**（2026-10-22〜）。基本版タブに「Jed York CEO が…？」「その件の経緯を詳しく教えて」
+> 「最新ニュースを検索して、49ers の…」の 3 行を 1 つの問い合わせとして送ると、2 行目の「その件」だけで曖昧と判定され、
+> RAG を一度も呼ばずに ask_user 計画になっていた。指示対象は前に書かれるので、手前に手がかりがあれば曖昧としない
+> （`tests/test_ambiguous_query.py`）。単独の「その件の経緯を詳しく教えて」は従来どおり曖昧。
 
 ### 4.4 ファクトリ関数
 
@@ -1386,6 +1393,7 @@ __all__ = [
 | 3.15 | 2026-10-10 | 旧 `grace_runtime.md`（現 `grace_data_flow.md`）にあったプロンプトの全文を、実装から書き出して §5 へ移した（`grace/docs/` の構成整理。所在の一覧は `grace_data_flow.md` §3.4） |
 | 3.16 | 2026-10-10 | §4.1 使用例を処理パターン 4 通り（三層の自動振り分け・LLM 計画の強制と修正・リプランの補足 `context_hints`・判定だけを使う）に書き直し、LLM と Qdrant をスタブにして実行して出力を確かめた。旧 4.1.2 は `get_config()` の共有の設定を直接書き換えていたので、コピーしてから書き換える形に直した |
 | 3.17 | 2026-10-15 | `_get_available_collections()` を `RAGSearchTool.search_candidates()` 経由にし、LLM 計画のプロンプトに除外対象・次元違いのコレクションを出さないようにした（Qdrant に繋がらないときは `search_priority` ではなく `[]`）。`_create_fallback_plan()` が wikipedia 系を先頭に固定するのをやめた（除外リストを素通りしていた）。`_stamp_llm_plan()` を新設し、LLM 計画（`_finalize_plan`・`refine_plan`）の `created_at` の補完と `timeout_seconds` の設定値への統一を入れた。`_finalize_plan` の概要に残っていた「検証エラーは警告のみ」を実装（`repair_plan_dependencies` で除去）に是正。§2.2・§2.3・付録の依存関係から `qdrant-client` / `services.qdrant_service` を外し `grace.tools` を追加。使用例は Qdrant をスタブにして実行し、出力を確かめた |
+| 3.18 | 2026-10-22 | `is_ambiguous_query()` が「その件」等を見つけただけで曖昧と判定していたのを、最初に出てくる位置より前に具体的な手がかりが無いときに限った（複数行の入力で 1 行目に対象を書いても ask_user 計画になり、RAG が呼ばれなかった）。手がかりの判定を `_has_concrete_clue()` に切り出した。§4.3 の使用例は実行して出力を確かめた |
 
 ---
 

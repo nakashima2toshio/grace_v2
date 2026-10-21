@@ -1,6 +1,6 @@
 # backend テストの地図 ドキュメント
 
-**Version 2.17** | 最終更新: 2026-10-15
+**Version 2.18** | 最終更新: 2026-10-22
 
 ---
 
@@ -313,13 +313,14 @@ GRACE_E2E=1 uv run --no-sync pytest tests/e2e -m e2e -rs
 | テスト | 対象 |
 |---|---|
 | `test_support_agent_core.py` | パイプライン 0-(A)〜⑥ の配線（14 件） |
-| `test_multi_question.py` / `test_multi_question_pipeline.py` | 0-(A) 複数質問の分析・選択・再構成（85 件） |
+| `test_multi_question.py` / `test_multi_question_pipeline.py` | 0-(A) 複数質問の分析・選択・再構成（86 件＋30 件） |
 | `test_no_info_judge.py` / `test_no_info_prediction.py` | ④' 情報なし回答検知 |
 | `test_vertical_scope.py` | 業界プロファイルによる検索スコープ限定 |
 | `test_policy_claims.py` / `test_source_attribution.py` / `test_rag_adoption.py` | 出典・根拠の扱い |
 | `test_web_search_toggle.py` | `use_web=False`（内部 RAG のみ）で executor の 5 経路（動的挿入・計画済み・並列プリフェッチ・fallback・ReAct）すべてが Web を検索しない。`ask_user` も差し込まない。Web 許可時も、採用した RAG 結果（0.64 以上）では無条件に Web を検索しない（`rag_sufficient_score` ≤ `reasoning_min_rag_score` の不変条件） |
 | `test_planner_memory_scope.py` / `test_memory_exclusion.py` | 計画の rag_search に付くコレクション: 実行メモリはキーワードが重ならない質問に何も推さない（全体集計へ倒れない）・ひらがな区切りのキーワード抽出・LLM 計画のプロンプトに出す一覧は検索時と同じ（除外対象・次元違いを出さない）・除外対象は飛ばして次点。LLM 計画の `created_at` 補完と `timeout_seconds` の設定値への統一（17 件＋既存） |
-| `test_uncited_web_citations.py` | 回答本文で引用していない Web 出典を表示から外す（社内だけ引用 → Web を外す／URL を引用 → それだけ残す／どちらも引用なし → 外さない） |
+| `test_uncited_web_citations.py` | 回答本文で引用していない Web 出典を表示から外す（社内だけ引用 → Web を外す／URL を引用 → それだけ残す／どちらも引用なし → 外さない／タイトルが途中で切れた URL でも括弧内の本物で照合する） |
+| `test_ambiguous_query.py` | ① 曖昧クエリ判定（`is_ambiguous_query`）: 「その件」の手前に対象（英数字・カタカナ語）があれば曖昧としない（1 行目に対象を書いた複数行の入力が ask_user 計画になり RAG を呼ばなかった）。単独の「その件の経緯を詳しく教えて」は曖昧のまま（11 件） |
 
 ### 2.3 共有基盤・API・データ準備
 
@@ -426,3 +427,4 @@ GRACE_E2E=1 uv run --no-sync pytest tests/e2e -m e2e -rs
 | 2.15 | 2026-10-14 | テストの地図に test_dry_run_skips_confirmation.py（grace_v2_local から移植）を足した |
 | 2.16 | 2026-10-14 | 索引の改名（backend/app/docs/README_app.md → README_backend_app.md）に合わせて参照を付け替えた |
 | 2.17 | 2026-10-15 | §2.2 に `test_planner_memory_scope.py`（実行メモリの全体集計フォールバック廃止・キーワード抽出・Planner のコレクション一覧・LLM 計画の後処理）を追加し、§3 に `grace/planner.py` / `memory.py` / `RAGSearchTool.search_candidates` を触ったときに流すものを追加 |
+| 2.18 | 2026-10-22 | §2.2 に `test_ambiguous_query.py`（11 件）を追加。`test_uncited_web_citations.py` に「タイトルが途中で切れた URL」の照合を追記。`test_multi_question*.py` の件数を実測値（86 件＋30 件）に直した |

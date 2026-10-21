@@ -1,6 +1,6 @@
 # core/gates.py - 回答ゲート・判定ロジック ドキュメント
 
-**Version 1.10** | 最終更新: 2026-10-14
+**Version 1.11** | 最終更新: 2026-10-22
 
 > **本書の位置づけ**: `backend/app/core/gates.py`（Support の判定ロジック（質問分析・回答ゲート・救済・情報なし検知））の **IPO リファレンス**。
 > 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。
@@ -252,7 +252,7 @@ style CITE fill:#1a1a1a,stroke:#fff,color:#fff
 | `analyze_questions(query, analyzer)` | 二段判定のまとめ。第 1 段が不一致なら LLM を呼ばない |
 | `_split_scope_prefix(text)` | `IN:` / `OUT:` ラベルを本文と判定へ分ける。**1 行でも欠ければ判定を捨てる**（部分解釈で一部だけ断らない） |
 | `scope_classifier_for(analysis, config, profile)` | 解析器が判定済みならそれを使い、無ければ `create_scope_classifier` へ落とす |
-| `answer_cites_sources(answer, citations)` | 回答本文が出典に触れているか。**ゲートではなく観測**（落ちても回答は止めない） |
+| `answer_cites_sources(answer, citations)` | 回答本文が出典に触れているか。**ゲートではなく観測**（落ちても回答は止めない）。⑤ の形式「[Web] タイトル（URL）」は URL だけでも触れているとみなす |
 | `detect_question_clusters(query, analyzer)` | 二段判定。**空リストなら「単一質問として現行どおり処理せよ」** |
 | `fallback_reconstruct(main, related)` | LLM を使わない素朴な連結 |
 | `reconstruct_query(main, related, config)` | 採用クラスタを自然言語 1 文へ再構成 |
@@ -272,7 +272,7 @@ style CITE fill:#1a1a1a,stroke:#fff,color:#fff
 | `_merge_citations(internal, web)` | 内部と Web の出典を重複なく結合 |
 | `_web_citations(web_output)` | Web 検索結果から出典表示を作る |
 | `_web_source_texts(web_output)` | Web 検索結果の本文を抽出 |
-| `drop_uncited_web_citations(citations, answer)` | 回答本文で引用していない Web 出典を、引用していないと言えるときだけ表示から外す（`_CITATION_URL_RE` で URL を取り出す） |
+| `drop_uncited_web_citations(citations, answer)` | 回答本文で引用していない Web 出典を、引用していないと言えるときだけ表示から外す（`_citation_url()` で URL を取り出す） |
 
 ---
 
@@ -876,7 +876,7 @@ def drop_uncited_web_citations(citations: List[str], answer: Optional[str]) -> L
 | 項目 | 内容 |
 |------|------|
 | **Input** | `citations`（`[社内] …` / `[Web] URL` / `[Web] タイトル（URL）`）、`answer`（回答本文） |
-| **Process** | 1. Web 出典から `_CITATION_URL_RE`（`https?://[^\s（）()]+`）で URL を取り出す（末尾の `/` を除き、URL エンコードの有無も吸収） 2. 本文に出てくる Web 出典・社内出典を調べる 3. 上の表で決める |
+| **Process** | 1. Web 出典から `_citation_url()` で URL を取り出す（`_CITATION_URL_RE` = `https?://[^\s（）()]+` の**最後の**一致。タイトルが途中で切れた URL でも括弧内の本物を使う。末尾の `/` を除き、URL エンコードの有無も吸収） 2. 本文に出てくる Web 出典・社内出典を調べる 3. 上の表で決める |
 | **Output** | `List[str]`（順序は保つ。URL を取り出せない Web 出典は残す） |
 
 ```python
@@ -1026,6 +1026,7 @@ NO_INFO_MARKERS
 | 1.8 | 2026-10-12 | backend/docs/ の横断文書の廃止（2026-10-12）に追随し、参照先を backend/app/docs/README_app.md・backend/app/api/docs/README_api.md・backend/app/core/docs/core_process_flow.md などへ付け替えた |
 | 1.9 | 2026-10-14 | 索引の改名（backend/app/docs/README_app.md → README_backend_app.md）に合わせて参照を付け替えた |
 | 1.10 | 2026-10-14 | 既定モデル名を config.py::ModelConfig（DEFAULT_MODEL / LIGHT_MODEL）の 1 か所にまとめたのに追随 |
+| 1.11 | 2026-10-22 | 出典 URL の取り出しを `_citation_url()`（最後の URL）にまとめた。SerpAPI のタイトルが途中で切れた URL（`…/6a6705a...`）のとき先頭を拾い、本文に書き写した出典 3 件を「引用していない」として外していた。`answer_cites_sources` も ⑤ の形式を URL で照合する（全 URL を書き写した回答で「触れていません」と出ていた）。`tests/test_uncited_web_citations.py` / `tests/test_multi_question.py` |
 
 ---
 

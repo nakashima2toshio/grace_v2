@@ -482,6 +482,18 @@ def _citation_text(citation: str) -> str:
 _CITATION_URL_RE = re.compile(r"https?://[^\s（）()]+")
 
 
+def _citation_url(citation: str) -> Optional[str]:
+    """出典文字列の URL（末尾の `/` を除く）。無ければ None。
+
+    ⚠️ **最後の URL を使う。** ⑤ の形式は「[Web] タイトル（URL）」で、タイトルが
+    途中で切れた URL のことがある（実測 2026-10-22・SerpAPI:
+    `[Web] https://jbpress…/6a6705a...（https://jbpress…/6a6705ab12…）`）。
+    先頭を拾うと切れた URL で照合し、本文に書き写した出典を「引用していない」と誤る。
+    """
+    matches = _CITATION_URL_RE.findall(citation)
+    return matches[-1].rstrip("/") if matches else None
+
+
 def drop_uncited_web_citations(citations: List[str], answer: Optional[str]) -> List[str]:
     """回答本文で引用していない Web 出典を、**引用していないと言えるときだけ**外す。
 
@@ -517,14 +529,10 @@ def drop_uncited_web_citations(citations: List[str], answer: Optional[str]) -> L
     text = answer or ""
     decoded = unquote(text)
 
-    def _url(citation: str) -> Optional[str]:
-        match = _CITATION_URL_RE.search(citation)
-        return match.group(0).rstrip("/") if match else None
-
     def _cited_url(url: str) -> bool:
         return any(u in t for u in (url, unquote(url)) for t in (text, decoded))
 
-    web_urls = {c: _url(c) for c in citations if c.startswith("[Web]")}
+    web_urls = {c: _citation_url(c) for c in citations if c.startswith("[Web]")}
     cited_web = {c for c, url in web_urls.items() if url and _cited_url(url)}
     cites_internal = any(
         (body := _citation_text(c).strip()) and body in text
@@ -1307,6 +1315,11 @@ def answer_cites_sources(answer: Optional[str], citations: List[str]) -> bool:
     for citation in citations:
         body = _citation_text(citation).strip()
         if body and body in answer:
+            return True
+        # ⑤ の形式「[Web] タイトル（URL）」は、本文には URL だけが書き写される
+        # （実測 2026-10-22: 全 URL を書き写した回答で「触れていません」と出ていた）。
+        url = _citation_url(citation) if citation.startswith("[Web]") else None
+        if url and url in answer:
             return True
     return False
 
