@@ -18,10 +18,11 @@ embedding が壊れて再検索も外す。部分再計画はさらに酷く、
 
 ### ② 汚染が高コスト経路を呼び込む自己増幅ループ
 
-`estimate_complexity()` は長さで加点する（>100 で +0.1、>200 で +0.1）。
+当時の `estimate_complexity()` は長さで加点した（>100 で +0.1、>200 で +0.1）。
 連結で複雑度が上がって閾値 0.7 を越えると、ルールベース計画（LLM 呼び出し
 0 回）から LLM 計画生成へ落ちる。**汚染 → 複雑度上昇 → 失敗 → リプラン**の
-自己増幅になる。
+自己増幅になっていた（2026-10-29 に複雑度の推定そのものを削除した。
+いまは補足があるときだけ LLM が計画を作る）。
 
 ### ③ 実行不能な依存を持つ計画が警告だけで採用されていた
 
@@ -140,19 +141,6 @@ class TestPlannerKeepsHintsOutOfTheQuery:
 
         assert "【前回の試行に関する補足】" not in prompt
         assert "valid, complete JSON object" in prompt
-
-    def test_complexity_ignores_hints(self):
-        """長さ加点で閾値を越え、高コスト経路へ落ちるのを防ぐ。"""
-        from grace.planner import Planner
-
-        planner = Planner()
-        polluted = f"{QUERY}\n\n【追加情報】\n注意: 前回の試行で「{ERROR}」というエラーが発生"
-
-        assert planner.estimate_complexity(QUERY) < planner.estimate_complexity(polluted), (
-            "この差こそが自己増幅の原因（連結すると複雑度が上がる）"
-        )
-        # create_plan は query だけを複雑度に使う（hints は別引数）
-        assert planner.estimate_complexity(QUERY) == planner.estimate_complexity(QUERY)
 
 
 # =============================================================================
