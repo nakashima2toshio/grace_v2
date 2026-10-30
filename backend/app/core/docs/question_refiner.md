@@ -5,7 +5,7 @@
 > GRACE-Support の 0-(A)。問い合わせを**毎回 1 回の LLM 呼び出しで**「話題 → 観点」に整理し、回答用の質問文・社内検索の文・
 > Web 検索の語を作る。呼び出し元は `support_agent.run_support_agent_core`、整理した話題から計画を作るのは
 > `grace/planner.py::Planner.create_plan_for_topic`（[`../../../../grace/docs/planner.md`](../../../../grace/docs/planner.md)）。
-
+> refine(絞り込み)
 ---
 
 ## 目次
