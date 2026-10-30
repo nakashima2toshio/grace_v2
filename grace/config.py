@@ -310,11 +310,9 @@ class MemoryConfig(BaseModel):
 
 
 class PlannerConfig(BaseModel):
-    """Planner設定（二層計画生成）"""
-    # この複雑度（ヒューリスティック推定）未満の質問は
-    # ルールベース計画（LLM呼び出しなし）で即時に計画を生成する
-    llm_plan_complexity_threshold: float = 0.7
-    # True の場合、複雑度に関わらず常に LLM 計画生成を使用する
+    """Planner設定"""
+    # True の場合、リプランの補足が無くても `Planner.create_plan` が LLM 計画生成を使う
+    # （GRACE-Support の最初の計画 `create_plan_for_topic` には効かない）
     force_llm_plan: bool = False
     # 生成する PlanStep のステップ実行タイムアウト（秒）
     step_timeout_seconds: int = 30
@@ -322,9 +320,6 @@ class PlannerConfig(BaseModel):
     llm_plan_max_attempts: int = 2
     # LLM 計画生成の最大出力トークン数（計画JSONが途中で切れないよう大きめ）
     plan_max_output_tokens: int = 8192
-    # LLM 複雑度推定の温度・最大出力トークン数（数値のみを返すため小さく）
-    complexity_temperature: float = 0.1
-    complexity_max_output_tokens: int = 10
 
 
 class ExecutorConfig(BaseModel):

@@ -54,6 +54,64 @@ logger = logging.getLogger(__name__)
 # 実行状態管理
 # =============================================================================
 
+def _source_identity(entry: Any) -> Optional[str]:
+    """検索結果 1 件の同一性キー。判定できなければ None（＝重複除去の対象外）。
+
+    出典 URL / ファイル名（`payload.source`）と本文（`payload.answer`）の組で見る。
+    URL だけだと、同一ページの別スニペットまで落としてしまうため。
+    """
+    if not isinstance(entry, dict):
+        return None
+    payload = entry.get("payload")
+    if not isinstance(payload, dict):
+        return None
+    source = str(payload.get("source") or "")
+    body = str(payload.get("answer") or payload.get("content") or "")
+    if not source and not body:
+        return None
+    return f"{source}\x00{body}"
+
+
+def _dedupe_sources(sources: List[Any], limit: int) -> List[Any]:
+    """reasoning へ渡す参照情報を**重複除去して上限で切る**。
+
+    ## なぜ必要か
+
+    reasoning の参照情報は `state.step_results` **全体**から集める
+    （動的挿入された web_search やリプラン後の結果も拾うための意図的な設計）。
+    しかしリプランのたびに同じ rag_search / web_search が再実行されるため、
+    **同じ結果が何度も積み上がる**。grace_v2_local の実測では 3 回のリプランを経て、
+    同じ 9 件の Web 結果と 5 件の RAG 結果が 4 回ずつ、計 56 件の
+    「情報源」としてプロンプトに並んでいた。
+
+    これは 2 重に悪い:
+      - プロンプトが肥大して生成が遅くなり、タイムアウトしやすくなる
+        （＝さらにリプランが走り、さらに重複が増える正のフィードバック）
+      - 同じ内容が繰り返されることで、LLM が重要度を誤認する
+
+    **順序は保つ**（先に得られた結果ほど前に置く）。`limit` 以下なら
+    何も切らない。同一性を判定できない要素は落とさず素通しする
+    （形式が違うだけで有用な情報を捨てないため）。
+    """
+    seen: set = set()
+    out: List[Any] = []
+    for entry in sources:
+        key = _source_identity(entry)
+        if key is not None:
+            if key in seen:
+                continue
+            seen.add(key)
+        out.append(entry)
+        if limit > 0 and len(out) >= limit:
+            break
+    if len(out) < len(sources):
+        logger.info(
+            f"[reasoning] 参照情報を整理: {len(sources)} 件 → {len(out)} 件"
+            "（重複除去・上限適用）"
+        )
+    return out
+
+
 @dataclass
 class ExecutionState:
     """実行状態管理"""
@@ -80,6 +138,9 @@ class ExecutionState:
     # 現れない。`plan.steps` を見て「動的挿入か」を判定すると必ず取りこぼす
     # （実測 2026-08-29: ask_user の除外も、コレクション成否の判定も無効化されていた）。
     dynamic_steps: Dict[int, str] = field(default_factory=dict)
+    # 実行した web_search と、その理由（`ExecutionResult.web_searches` へそのまま渡す）。
+    # 計画済み・動的挿入・失敗時の代替のどれも `_execute_step` を通るので、そこで記録する。
+    web_search_log: List[Dict[str, Any]] = field(default_factory=list)
 
     def __post_init__(self):
         """初期化後の処理"""
@@ -248,16 +309,27 @@ class Executor:
             f"tools={self.tool_registry.list_tools()}, replan={replan_status}"
         )
 
-    def _should_pause_for_intervention(self, level: InterventionLevel) -> bool:
+    def _should_pause_for_intervention(
+            self, level: InterventionLevel, action: Optional[str] = None
+    ) -> bool:
         """介入で一時停止すべきか判定する。
 
-        - ESCALATE: 常に停止（ユーザー入力が必須）。
+        - ESCALATE: 停止（ユーザー入力が必須）。ただしブロッキング execute_plan（非対話）では、
+          検索ステップ（rag_search / web_search）では停止しない（下記）。
         - CONFIRM : 対話モード（config.intervention.interactive）かつ非ブロッキング時のみ停止。
           ブロッキング execute_plan（非対話）では停止せず自動進行し、後続の reasoning まで
           完走して final_answer を生成する。
+
+        ⚠️ **非対話で検索ステップの ESCALATE に止まらない理由。** 止まると reasoning まで進まず、
+        **他のステップで見つかった社内の結果ごと回答が捨てられる**。0-(A) の観点ごとの計画
+        （`Planner.create_plan_for_topic`）では、「経緯は社内で 0.85、人事は 0 件」のように観点ごとに
+        結果が違うのが普通で、1 観点の空振りで全体を止めると社内にある情報を使わずに ⑤ Web へ落ちる。
+        非対話では誰も追加情報を出せないので、止めても待つ相手がいない。信頼度の低い検索は
+        Web 検索の差し込みが補い、回答の可否は後段（③ 根拠検証・④ 回答ゲート・④' 情報なし検知）が決める。
+        reasoning の ESCALATE と、対話モード（ジェネレータ版）の停止は従来どおり。
         """
         if level == InterventionLevel.ESCALATE:
-            return True
+            return not (self._noninteractive and action in self._SEARCH_ACTIONS)
         if level == InterventionLevel.CONFIRM:
             interactive = getattr(self.config.intervention, "interactive", True)
             return interactive and not self._noninteractive
@@ -368,8 +440,9 @@ class Executor:
 
                     rag_threshold = self.config.qdrant.rag_sufficient_score  # デフォルト 0.64（採用の下限と同じ）
 
-                    # web_searchを実行すべきかの判定
+                    # web_searchを実行すべきかの判定（理由は画面のログにそのまま出る）
                     need_web_search = False
+                    web_reason = ""
 
                     if rag_max_score < rag_threshold:
                         # スコア不足 → 無条件でweb_search
@@ -378,6 +451,7 @@ class Executor:
                             f"need web_search"
                         )
                         need_web_search = True
+                        web_reason = f"社内検索のスコア不足（{rag_max_score:.2f} < {rag_threshold}）"
                     else:
                         # スコア十分 → LLMで意味的適合性を検証
                         logger.info(
@@ -391,6 +465,8 @@ class Executor:
                         if not is_relevant:
                             logger.info("RAG result not semantically relevant, need web_search")
                             need_web_search = True
+                            web_reason = (f"社内検索の結果が質問に合わないと LLM が判定"
+                                          f"（スコア {rag_max_score:.2f}）")
                         else:
                             logger.info("RAG result semantically relevant, skipping web_search")
 
@@ -400,9 +476,22 @@ class Executor:
                         logger.info("web_search is disabled; continuing with internal RAG only")
                         need_web_search = False
 
-                    if need_web_search:
+                    # 同じ検索語の web_search が計画にこの後あるなら差し込まない。その計画済みの
+                    # ステップを走らせる（差し込むと同じ Web 検索を 2 回行う）。required でない
+                    # ステップ（リプランで LLM が作った計画など）も、下のパターン(1)で飛ばさない。
+                    web_query = step.web_query or step.query
+                    planned_same_web = need_web_search and any(
+                        s.action == "web_search" and s.query == web_query
+                        and s.step_id > step.step_id for s in steps_to_execute
+                    )
+                    if planned_same_web:
+                        logger.info(
+                            f"web_search for '{web_query}' is already planned; not inserting"
+                        )
+                    elif need_web_search:
                         # パターン(2)(3): web_search を動的実行
-                        web_result = yield from self._execute_dynamic_web_search(step, state)
+                        web_result = yield from self._execute_dynamic_web_search(
+                            step, state, reason=web_reason)
 
                         if web_result is None or web_result.status == "failed":
                             # パターン(3): Webも失敗 → ask_user を動的実行
@@ -410,8 +499,11 @@ class Executor:
                             yield from self._execute_dynamic_ask_user(step, state)
                     else:
                         # パターン(1): web_search スキップ
+                        # ⚠️ required（利用者が「最新ニュースを検索して」等と求めた観点）は飛ばさない。
+                        #    社内検索が十分かどうかと、利用者が Web の最新情報を求めたかは別の話。
                         for future_step in steps_to_execute:
-                            if future_step.action == "web_search" and future_step.step_id > step.step_id:
+                            if (future_step.action == "web_search" and future_step.step_id > step.step_id
+                                    and not future_step.required):
                                 state.step_statuses[future_step.step_id] = StepStatus.SKIPPED
                                 logger.info(f"Skipping planned web_search step {future_step.step_id}")
 
@@ -425,7 +517,7 @@ class Executor:
                     action_decision = self.confidence_calculator.decide_action(confidence_score)
 
                     # 一時停止判定（非対話/ブロッキングでは CONFIRM は自動進行・ESCALATE は停止）
-                    if self._should_pause_for_intervention(action_decision.level):
+                    if self._should_pause_for_intervention(action_decision.level, step.action):
                         logger.info(f"Pausing for intervention: {action_decision.level} (Step {step.step_id})")
 
                         state.is_paused = True
@@ -607,7 +699,7 @@ class Executor:
             state.overall_confidence = self._calculate_overall_confidence(state)
         return self._create_execution_result(state)
 
-    def execute_plan(self, plan: ExecutionPlan) -> ExecutionResult:
+    def execute_plan(self, plan: ExecutionPlan, *, allow_react: bool = True) -> ExecutionResult:
         """
         計画を実行（ブロッキング版）
 
@@ -617,6 +709,7 @@ class Executor:
 
         Args:
             plan: 実行する計画
+            allow_react: False なら複雑度にかかわらず計画どおりに実行する（`_dispatch_generator`）
         Returns:
             ExecutionResult: 実行結果
         """
@@ -625,7 +718,7 @@ class Executor:
         # ブロッキング実行は非対話。CONFIRM 介入で停止すると再開手段が無く
         # final_answer が生成されないため、自動進行モードで実行する（ESCALATE は停止）。
         self._noninteractive = True
-        gen = self._dispatch_generator(plan)
+        gen = self._dispatch_generator(plan, allow_react=allow_react)
         try:
             while True:
                 event = next(gen)
@@ -638,16 +731,21 @@ class Executor:
             self._noninteractive = False
 
     def _dispatch_generator(
-            self, plan: ExecutionPlan
+            self, plan: ExecutionPlan, *, allow_react: bool = True
     ) -> Generator[Any, None, ExecutionResult]:
         """S3: 複雑度に応じて ReAct ループ / 静的 Plan-Execute を振り分ける。
 
-        - react_enabled かつ complexity >= 閾値 → 観測駆動 ReAct ループ
+        - allow_react かつ react_enabled かつ complexity >= 閾値 → 観測駆動 ReAct ループ
         - それ以外（単純質問）→ 現行の静的パスを温存（移行リスク低減）
+
+        ⚠️ GRACE-Support は 0-(A) で整理した質問から、観点ごとの検索ステップを決めた計画を
+        作る（`Planner.create_plan_for_topic`）ので `allow_react=False` で呼ぶ。ReAct は次の
+        検索語を LLM に決め直させるため、整理した `search_query` / `web_query` が使われなくなる。
         """
         ec = self.config.executor
         use_react = (
-            getattr(ec, "react_enabled", False)
+            allow_react
+            and getattr(ec, "react_enabled", False)
             and plan.complexity >= getattr(ec, "react_complexity_threshold", 0.7)
         )
         if use_react:
@@ -661,9 +759,9 @@ class Executor:
         )
         return (yield from self.execute_plan_generator(plan))
 
-    def execute(self, plan: ExecutionPlan) -> ExecutionResult:
+    def execute(self, plan: ExecutionPlan, *, allow_react: bool = True) -> ExecutionResult:
         """execute_plan() の統一エントリーポイント（Web API の入口 `support_agent.py` が使う）"""
-        return self.execute_plan(plan)
+        return self.execute_plan(plan, allow_react=allow_react)
 
     # =========================================================================
     # S3: ハイブリッド ReAct ループ
@@ -803,7 +901,7 @@ class Executor:
                 # Controller: 介入判定（既存 decide_action を再利用）
                 if conf_score is not None:
                     action_decision = self.confidence_calculator.decide_action(conf_score)
-                    if self._should_pause_for_intervention(action_decision.level):
+                    if self._should_pause_for_intervention(action_decision.level, step.action):
                         logger.info(
                             f"ReAct: pausing for intervention {action_decision.level} "
                             f"(step {step.step_id})"
@@ -1103,8 +1201,22 @@ class Executor:
         return is_search_step and result.confidence < self.config.replan.confidence_threshold
 
     def _check_dependencies(self, step: PlanStep, state: ExecutionState) -> bool:
-        """依存ステップの完了確認"""
+        """依存ステップの完了確認
+
+        ⚠️ **意図して飛ばした web_search は「満たされた依存」とみなす。** web_search は
+        RAG の結果が十分なとき（パターン(1)）と Web 検索が無効なとき（`use_web=False`）に
+        SKIPPED になる。以前はこれも「未完了」と扱い、`rag_search → web_search → reasoning
+        [1, 2]` の計画で RAG が当たると **reasoning まで飛ばして回答が出なかった**
+        （2026-10-22・`tests/test_plan_always_searches.py`）。reasoning は step_results に
+        ある結果だけを参照するので、飛ばした web_search の分はそのまま無いだけで済む。
+        """
+        skipped_web = {
+            s.step_id for s in state.plan.steps
+            if s.action == "web_search" and state.step_statuses.get(s.step_id) == StepStatus.SKIPPED
+        }
         for dep_id in step.depends_on:
+            if dep_id in skipped_web:
+                continue
             if dep_id not in state.step_results:
                 return False
             if state.step_results[dep_id].status == "failed":
@@ -1121,6 +1233,14 @@ class Executor:
             StepResult or Generator: ステップ実行結果（またはジェネレータ）
         """
         logger.info(f"Executing step {step.step_id}: {step.action} - {step.description}")
+        if step.action == "web_search":
+            # なぜ Web を見たのかを残す（画面のログ・`ExecutionResult.web_searches`）。
+            # 動的挿入・代替は description に理由を書いてある。required は計画側の書き方に
+            # 頼らず、ここで理由を決める。
+            reason = (f"利用者が最新情報を求めた（{step.description}）" if step.required
+                      else step.description)
+            state.web_search_log.append(
+                {"step_id": step.step_id, "query": step.query, "reason": reason})
 
         start_time = time.time()
 
@@ -1213,7 +1333,7 @@ class Executor:
                 logger.info("Fallback web_search is disabled, not attempting")
             elif step.fallback:
                 logger.info(f"Attempting fallback: {step.fallback}")
-                fallback_result = self._execute_fallback(step, state)
+                fallback_result = self._execute_fallback(step, state, error=str(e))
                 if fallback_result.status == "success":
                     return fallback_result
 
@@ -1305,7 +1425,9 @@ class Executor:
                         sources.extend(dep_output)
 
             if sources:
-                kwargs["sources"] = sources
+                # 同じ情報源は 1 回だけ渡す（0-(A) の観点ごとの検索で同じチャンク・記事が
+                # 返る。grace_v2_local の実装を移植。件数の上限はかけない）
+                kwargs["sources"] = _dedupe_sources(sources, limit=0)
             if context_parts:
                 kwargs["context"] = "\n\n".join(context_parts)
 
@@ -1464,14 +1586,17 @@ class Executor:
     def _execute_dynamic_web_search(
             self,
             rag_step: PlanStep,
-            state: ExecutionState
+            state: ExecutionState,
+            reason: str = "社内検索の結果が不足",
     ) -> Generator:
         """
-        RAGスコア不足時に web_search を動的に実行する。
+        社内検索の結果が足りないとき（スコア不足・LLM が質問に合わないと判定）に
+        web_search を動的に実行する。
 
         Args:
             rag_step: 直前に実行された rag_search ステップ
             state: 現在の実行状態
+            reason: Web 検索する理由（description に入り、`web_searches` に記録される）
 
         Yields:
             state: 中間状態
@@ -1486,8 +1611,9 @@ class Executor:
             step_id=web_step_id,
             action="web_search",
             dynamic=True,
-            description="[動的挿入] RAGスコア不足のためWeb検索を実行",
-            query=rag_step.query,
+            description=f"[動的挿入] {reason}",
+            # 社内検索用の文（query）ではなく Web 検索語を使う（0-(A) の Aspect.web_query）
+            query=rag_step.web_query or rag_step.query,
             collection=None,
             depends_on=[rag_step.step_id],
             expected_output="Web検索結果",
@@ -1495,7 +1621,7 @@ class Executor:
             timeout_seconds=15,  # タイムアウト短め
         )
 
-        logger.info(f"Dynamic web_search: step_id={web_step_id}, query={rag_step.query[:50]}")
+        logger.info(f"Dynamic web_search: step_id={web_step_id}, query={(web_step.query or '')[:50]}")
 
         state.current_step_id = web_step_id
         state.step_statuses[web_step_id] = StepStatus.RUNNING
@@ -1606,14 +1732,18 @@ class Executor:
     def _execute_fallback(
             self,
             step: PlanStep,
-            state: ExecutionState
+            state: ExecutionState,
+            error: str = "",
     ) -> StepResult:
         """フォールバックアクションを実行"""
+        why = f"（{error[:80]}）" if error else ""
         fallback_step = PlanStep(
             step_id=step.step_id,
             action=cast(Literal["rag_search", "web_search", "reasoning", "ask_user", "code_execute"], step.fallback),
-            description=f"[Fallback] {step.description}",
-            query=step.query,
+            # description は Web 検索の理由として画面のログに出る（`web_searches`）
+            description=f"[代替] {step.action} が失敗したため{why}: {step.description}",
+            # web_search へ落ちるときは Web 検索語を使う（0-(A) の Aspect.web_query）
+            query=(step.web_query or step.query) if step.fallback == "web_search" else step.query,
             collection=step.collection,
             depends_on=step.depends_on,
             expected_output=step.expected_output,
@@ -1733,7 +1863,9 @@ class Executor:
             tool_success_rate=1.0 if tool_result.success else 0.0,
             tool_execution_count=1,
             tool_success_count=1 if tool_result.success else 0,
-            is_search_step=(step.action in ("rag_search", "web_search"))
+            is_search_step=(step.action in ("rag_search", "web_search")),
+            # 類似度は rag_search だけ（web_search のスコアは検索順位）
+            search_score_is_similarity=(step.action == "rag_search"),
         )
 
     def _llm_calculate_step_confidence(
@@ -2342,6 +2474,7 @@ class Executor:
             rag_max_score=rag_max_score,
             rag_search_count=rag_search_count,
             web_search_used=web_search_used,
+            web_searches=list(state.web_search_log),
         )
 
     def cancel(self, state: ExecutionState):

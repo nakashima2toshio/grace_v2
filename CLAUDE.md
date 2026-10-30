@@ -83,7 +83,7 @@ Support のつもりで触った変更が Review を壊す。
 
 ### パイプライン 1 周（Support）
 ```
-0-(A) 入力・質問分析（複数質問の検知 → 選択 → 再構成）
+0-(A) 質問の整理（question_refiner.refine_question・毎回 LLM で話題 → 観点。範囲内の話題が複数なら選択）
  → 0-(B) 業界プロファイル適用
  → ① Plan（planner）
  → ② Execute（内部RAG → reasoning）

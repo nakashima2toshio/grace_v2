@@ -1,6 +1,6 @@
 # 性能改善レバー — 回答品質とレイテンシ・コストを決めている箇所
 
-**Version 2.12** | 最終更新: 2026-10-13
+**Version 2.13** | 最終更新: 2026-10-30
 
 ---
 
@@ -161,7 +161,7 @@ class L1,L2,L3,L4,L5,L6 default
 | W-2b | 範囲外の断りを構成ルールの**後ろ**へ | [4] | `llm.prompt_closing` / `build_closing_instruction` | ✅ 実装済み | 7 |
 | M-3 | 適合性チェックの軽量化 | [6] | `executor.relevance_check_model`（既定 = `llm.light_model`） | ✅ 実装済み | 5 |
 | M-4 | groundedness の結果キャッシュ | [2] | `GroundednessVerifier._cache`（`_CACHE_SIZE = 4`） | ✅ 実装済み | 4 |
-| M-5 | 0-(A) の解析を 1 回の LLM 呼び出しへ統合 | [6] | `gates.create_question_analyzer`（`IN:` / `OUT:`） | ✅ 実装済み | 4 |
+| M-5 | 0-(A) の解析を 1 回の LLM 呼び出しへ統合 | [6] | `question_refiner.refine_question`（話題・観点・担当範囲を 1 回で） | ✅ 実装済み | 4 |
 | M-6 | クエリベクトルの再利用（N コレクション） | [1] | `grace/tools.py` の RAG 検索 | ✅ 実装済み | 3 |
 | M-1 | 論理層を上位モデルへ寄せる（`heavy_model`） | [6] | `grace/config.py` `resolve_heavy_model` | △ 機構のみ（既定 `""` = 無効） | 5 |
 | P-02 | RRF / コサインの閾値体系を分離 | [1] | — | ❌ 未実装（実測で再現せず） | 3 |
@@ -249,7 +249,7 @@ Anthropic 版では、レイテンシよりも**単価 × 呼び出し回数**�
 | M-1 | 論理層を上位モデルへ（`llm.heavy_model`） | △ 機構のみ | 既定 `""` = `llm.model` と同じ。上げると計画・推論・根拠検証・ReAct だけが切り替わり、判定系（`light_model`）は変わらない。単価が上がる |
 | M-3 | RAG 適合性チェックを軽量モデルへ | ✅ | `executor.relevance_check_model`（既定 = `llm.light_model`）。呼び出し箇所の巻き戻しは `test_scope_and_models.py` が捕まえる |
 | M-4 | 根拠検証の結果キャッシュ | ✅ | `GroundednessVerifier`（`_CACHE_SIZE = 4`）。失敗はキャッシュしない。検証器は executor と共有する（`test_groundedness_cache.py`） |
-| M-5 | 0-(A) の解析を 1 回の LLM 呼び出しへ | ✅ | `create_question_analyzer` が `IN:` / `OUT:` 付きで返す |
+| M-5 | 0-(A) の解析を 1 回の LLM 呼び出しへ | ✅ | `question_refiner.refine_question` が話題・観点・担当範囲（`in_scope`）を 1 回で返す（2026-10-30〜。以前は `gates.create_question_analyzer` が `IN:` / `OUT:` 付きで返していた）。ただし以前は文字列一致で単一質問と見なせば呼ばなかったが、いまは**毎回 1 回呼ぶ** |
 | M-6 | クエリベクトルの再利用 | ✅ | 複数コレクションでも Embedding は 1 回 |
 
 - **補助 LLM 判定はすべて有効**（yml に `judges` ブロックが無い）。G3 / G6 / G7 の第 2 段がキーワード一致のたびに 1 回増える。
@@ -357,3 +357,4 @@ Anthropic 版では、レイテンシよりも**単価 × 呼び出し回数**�
 | 2.10 | 2026-10-12 | backend/docs/ の横断文書の廃止（2026-10-12）に追随し、参照先を backend/app/docs/README_app.md・backend/app/api/docs/README_api.md・backend/app/core/docs/core_process_flow.md などへ付け替えた |
 | 2.11 | 2026-10-13 | 削除した文書（celery_quick_start・doc_modernization_todo）への参照を付け替え |
 | 2.12 | 2026-10-13 | 種別 C（改善候補 TODO）へ縮小。実装済みレバー（§3）・クラウド LLM のレバー（§5）・Review（§6）・検証方法（§8）を表に要約（全文は git 履歴の v2.11）。削除した横断文書への参照を付け替え |
+| 2.13 | 2026-10-30 | M-5 の実装を `question_refiner.refine_question` に付け替えた（`gates.create_question_analyzer` は削除済み）。0-(A) の LLM は毎回 1 回呼ぶことを注記 |

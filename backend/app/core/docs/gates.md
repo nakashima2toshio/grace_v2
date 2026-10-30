@@ -1,6 +1,6 @@
 # core/gates.py - 回答ゲート・判定ロジック ドキュメント
 
-**Version 1.11** | 最終更新: 2026-10-22
+**Version 1.12** | 最終更新: 2026-10-30
 
 > **本書の位置づけ**: `backend/app/core/gates.py`（Support の判定ロジック（質問分析・回答ゲート・救済・情報なし検知））の **IPO リファレンス**。
 > 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。
@@ -233,33 +233,23 @@ style CITE fill:#1a1a1a,stroke:#fff,color:#fff
 | `_abbreviate_reason(text, limit)` | 判定失敗の理由をログ 1 行に収まる長さへ縮める |
 | `_decide_action(query, decision, profile, classify)` | アクション種別を決定 |
 
-#### 0-(A) 入力・質問分析（複数質問クエリ）
+#### 0-(A) 質問の整理の補助
 
-⚠️ **安全側の向きが上の判定群と逆である。** 判定できないときは「単一質問とみなす」
-（＝現行動作の維持）に倒す。誤って質問を分解する方が害が大きいため。
-設計: [`core_process_flow.md`](core_process_flow.md) §1.6。
+0-(A) の整理そのもの（話題・観点・担当範囲）は `question_refiner.refine_question` が 1 回の LLM 呼び出しで行う
+（[`question_refiner.md`](question_refiner.md)）。ここに残すのは、その出力の検査と、話題を選んだあとの後始末だけ。
+
+> ⚠️ 2026-10-29 に、接続語・「？」の数で LLM を呼ぶか決めていた検知（`looks_like_multi_question` / `_count_question_marks`）、
+> 分解（`create_question_analyzer` / `create_cluster_analyzer` / `analyze_questions` / `detect_question_clusters` / `_parse_cluster_output` /
+> `_is_explicit_single` / `QuestionAnalysis`）、再構成（`reconstruct_query` / `fallback_reconstruct`）、担当範囲の分類器
+> （`create_scope_classifier` / `scope_classifier_for` / `_parse_scope_output` / `_split_scope_prefix`）を削除した。
 
 | 関数名 | 概要 |
 |-------|------|
-| `_count_question_marks(query)` | 全角「？」と半角「?」を数える（`looks_like_multi_question` の判定材料） |
 | `_char_bigrams(text)` | 空白を除いた文字 2-gram の集合。**語彙・形態素解析に依存しない**（`_derives_from_query` の一致率計算に使う） |
-| `looks_like_multi_question(query)` | 第 1 段の候補検出（接続表現・疑問符 2 個以上）。LLM 呼び出しゼロ |
-| `_parse_cluster_output(text, query)` | 第 2 段の行区切り出力を `[(main, [related...])]` へ解析。**元の `query` に由来しない行が 1 つでもあれば出力ごと捨てる**（散文が主質問になるのを防ぐ） |
-| `_derives_from_query(line, query)` | 行が問い合わせを切り分けたものとみなせるか（文字 2-gram の一致率 ≥ `MIN_QUERY_OVERLAP`） |
-| `_is_explicit_single(text)` | モデルが `SINGLE` と明示したか（形式違反と区別して再要求の要否を決める） |
-| `create_question_analyzer(config, profile)` | 第 2 段の解析器。**分解と担当範囲判定を 1 回の LLM 呼び出しで**行い `QuestionAnalysis(clusters, verdicts)` を返す。形式違反の応答は**1 回だけ**厳格に再要求する（`SINGLE` なら再要求しない） |
-| `create_cluster_analyzer(config)` | 上の薄い別名（分解だけ）。担当範囲を判定しない経路向け |
-| `analyze_questions(query, analyzer)` | 二段判定のまとめ。第 1 段が不一致なら LLM を呼ばない |
-| `_split_scope_prefix(text)` | `IN:` / `OUT:` ラベルを本文と判定へ分ける。**1 行でも欠ければ判定を捨てる**（部分解釈で一部だけ断らない） |
-| `scope_classifier_for(analysis, config, profile)` | 解析器が判定済みならそれを使い、無ければ `create_scope_classifier` へ落とす |
+| `_derives_from_query(line, query)` | 文が問い合わせの書き写しとみなせるか（文字 2-gram の一致率 ≥ `MIN_QUERY_OVERLAP`）。`question_refiner.parse_refine_output` が `sentences[].text` を確かめるのに使う |
+| `deferred_main_questions(clusters, adopted_index)` | 🔴 採用しなかった話題の質問文。**必ず利用者へ提示すること** |
+| `split_by_scope(clusters, classify)` | 範囲内・範囲外の添字へ分ける。判定不能・全件 OUT なら**全件範囲内**へ倒す（`support_agent` は `Topic.in_scope` を `classify` として渡す） |
 | `answer_cites_sources(answer, citations)` | 回答本文が出典に触れているか。**ゲートではなく観測**（落ちても回答は止めない）。⑤ の形式「[Web] タイトル（URL）」は URL だけでも触れているとみなす |
-| `detect_question_clusters(query, analyzer)` | 二段判定。**空リストなら「単一質問として現行どおり処理せよ」** |
-| `fallback_reconstruct(main, related)` | LLM を使わない素朴な連結 |
-| `reconstruct_query(main, related, config)` | 採用クラスタを自然言語 1 文へ再構成 |
-| `deferred_main_questions(clusters, adopted_index)` | 🔴 採用しなかった主質問。**必ず利用者へ提示すること** |
-| `create_scope_classifier(config, profile)` | 主質問が担当範囲内かの分類器（**全問を 1 回の LLM 呼び出しで**判定） |
-| `_parse_scope_output(text, count)` | `IN` / `OUT` を解析。解釈が怪しければ `None`（部分解釈しない） |
-| `split_by_scope(clusters, classify)` | 範囲内・範囲外の添字へ分ける。判定不能・全件 OUT なら**全件範囲内**へ倒す |
 | `ensure_out_of_scope_notice(answer, questions, guidance, links)` | 回答本文が担当範囲外に触れていなければ断り＋窓口案内を追記する。**モデルが指示に従わない場合の担保**（実測: Anthropic は断ったが、姉妹リポジトリのローカル LLM は落とした）。ゲートの後で適用するので判定は動かさない。`links`（表示名 → URL）があれば案内先も列挙する — 「窓口へどうぞ」で終わらせない。**モデルが自分で断っている場合も、書かれていない URL だけは補う**（`_append_missing_links`）— 断りの指示を `prompt_closing` へ移して以降、この分岐が主経路になったため |
 
 #### 出典整形
@@ -313,26 +303,19 @@ print(f"decision={decision} warning={warning}")
 # decision=answer warning=False    ← 既定: 0.72 >= 0.7 なので高信頼
 ```
 
-#### 4.1.2 二段判定の第 1 段だけを使う（LLM を呼ばない）
+#### 4.1.2 エスカレ語の第 1 段だけを使う（LLM を呼ばない）
 
-複数質問の検知（0-(A)）とエスカレ語の候補検出（④）は、**第 1 段が純関数**で
-LLM を呼ばない。判定の当たり方を確かめるだけならこれだけで足りる。
+エスカレ語の候補検出（④）は**第 1 段が純関数**で LLM を呼ばない。判定の当たり方を確かめるだけならこれだけで足りる。
 
 ```python
-from backend.app.core.gates import looks_like_multi_question, _match_keyword
+from backend.app.core.gates import _match_keyword
 from backend.app.core.verticals import PROFILES
 
-# 1. 複数質問の候補検出（接続表現 or 疑問符 2 個以上）
-print(looks_like_multi_question("住民票の写しの取り方は？"))
-print(looks_like_multi_question("住民票の写しの取り方は？ また、手数料はいくらですか？"))
-
-# 2. エスカレ語の候補検出（最初に一致した語を返す）
+# エスカレ語の候補検出（最初に一致した語を返す）
 print(_match_keyword("固定資産税の減免を個別に判断してほしい", PROFILES["gov"].escalate_keywords))
 print(_match_keyword("住民票の取り方を教えてください", PROFILES["gov"].escalate_keywords))
 
 # 出力例:
-# False
-# True
 # 減免
 # None
 ```
@@ -728,15 +711,6 @@ def _abbreviate_reason(text: str, limit: int = 120) -> str
 空白を 1 つに畳んでから `limit` を超えた分を切り詰め `"…"` を付ける。
 判定失敗の理由をログ 1 行に収めるための小道具。
 
-#### `_count_question_marks`
-
-```python
-def _count_question_marks(query: str) -> int
-```
-
-`"？"`（全角）と `"?"`（半角）の出現数の合計。`looks_like_multi_question()` が
-「疑問符が 2 個以上あるか」を見るために使う。**`None` でも落ちない**（`(query or "")`）。
-
 #### `_char_bigrams`
 
 ```python
@@ -750,7 +724,7 @@ def _char_bigrams(text: str) -> set
 | **Output** | `set`: 文字 2-gram の集合 |
 
 > 📝 **語彙・形態素解析に依存しない**のがねらい。`_derives_from_query()` が
-> 「LLM の出力行が元の問い合わせに由来しているか」を一致率
+> 「LLM の出力した文が元の問い合わせの書き写しか」を一致率
 > （`MIN_QUERY_OVERLAP` 以上）で判定するのに使う。
 > 形態素解析を挟むと辞書の有無で挙動が変わるため、文字 n-gram で済ませている。
 
@@ -926,26 +900,14 @@ NO_INFO_MARKERS = (
 
 ### 5.3 複数質問の検知（0-(A) 第 1 段）
 
-第 1 段は**語の有無しか見ない**。ここに一致しなければ LLM は呼ばない。
-
-```python
-MULTI_QUESTION_MARKERS = (
-    "また、", "また ", "さらに", "加えて", "併せて",
-    "あわせて", "ところで", "それと", "もう一つ", "もうひとつ",
-)
-```
-
-| 定数 | 値 | 説明 |
-|------|-----|------|
-| `MULTI_QUESTION_MARKERS` | 上記 10 語 | 第 1 段で見る接続表現。一致しなければ LLM を呼ばない |
-| `MULTI_QUESTION_MIN_MARKS` | `2` | 疑問符がこの数以上あれば、接続表現が無くても第 2 段へ回す（「A は？ B は？」のように接続詞なしで並ぶ書き方に対応）。判定は `_count_question_marks()` |
-| `MAX_QUESTION_CLUSTERS` | `4` | 過剰分解の上限。超えたクラスタは信用せず**「単一とみなす」へ倒す**（分解が暴走して選択肢が大量に出るのを防ぐ） |
+2026-10-29 に削除した（`MULTI_QUESTION_MARKERS` / `MULTI_QUESTION_MIN_MARKS` / `MAX_QUESTION_CLUSTERS`）。
+0-(A) は文字列で LLM を呼ぶかを決めず、毎回 `question_refiner.refine_question` を呼ぶ（話題の上限は `question_refiner.MAX_TOPICS` = 4）。
+残る定数は `MIN_QUERY_OVERLAP`（`0.5`。`_derives_from_query` の一致率の下限）。
 
 ### 5.4 担当範囲外の判定
 
 | 定数 | 値 | 説明 |
 |------|-----|------|
-| `_SCOPE_PREFIX_RE` | `^\s*(IN\|OUT)\s*[:：]\s*(.*)$`（`IGNORECASE`） | 行頭の担当範囲ラベル（`IN: …` / `OUT: …`）。`_split_scope_prefix()` が使う。⚠️ **1 行でもラベルが無ければ判定は捨てる**（部分的に解釈すると聞かれた質問が黙って消えるため） |
 | `OUT_OF_SCOPE_ANSWER_MARKERS` | 8 語（`担当範囲外` / `対応範囲外` / `範囲外です` / `範囲外となります` / `お答えできません` / `お答えいたしかね` / `扱っておりません` / `取り扱っておりません`） | 回答本文が**既に**担当範囲外に触れているかを見る語 |
 
 > ⚠️ **`OUT_OF_SCOPE_ANSWER_MARKERS` は緩く拾ってよい。** 断りの言い回し
@@ -1027,6 +989,7 @@ NO_INFO_MARKERS
 | 1.9 | 2026-10-14 | 索引の改名（backend/app/docs/README_app.md → README_backend_app.md）に合わせて参照を付け替えた |
 | 1.10 | 2026-10-14 | 既定モデル名を config.py::ModelConfig（DEFAULT_MODEL / LIGHT_MODEL）の 1 か所にまとめたのに追随 |
 | 1.11 | 2026-10-22 | 出典 URL の取り出しを `_citation_url()`（最後の URL）にまとめた。SerpAPI のタイトルが途中で切れた URL（`…/6a6705a...`）のとき先頭を拾い、本文に書き写した出典 3 件を「引用していない」として外していた。`answer_cites_sources` も ⑤ の形式を URL で照合する（全 URL を書き写した回答で「触れていません」と出ていた）。`tests/test_uncited_web_citations.py` / `tests/test_multi_question.py` |
+| 1.12 | 2026-10-30 | 0-(A) を `question_refiner.refine_question` につないだのにあわせ、削除した検知・分解・再構成・担当範囲の分類器（`looks_like_multi_question` ほか）と定数（`MULTI_QUESTION_MARKERS` / `MULTI_QUESTION_MIN_MARKS` / `MAX_QUESTION_CLUSTERS` / `_SCOPE_PREFIX_RE`）の記述を外した。§3.2 は残る 6 関数だけにし、§4.1.2 はエスカレ語の第 1 段だけの例にした（実行して出力を確かめた）。テストは `tests/test_question_scope_and_deferred.py` |
 
 ---
 

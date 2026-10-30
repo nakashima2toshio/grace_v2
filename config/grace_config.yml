@@ -241,17 +241,13 @@ memory:
   min_score: 0.6    # success_rate(平滑化) × mean_confidence の下限
 
 # -----------------------------------------------------------------------------
-# Planner設定（二層計画生成）
+# Planner設定
 # -----------------------------------------------------------------------------
 planner:
-  # この複雑度未満はルールベース計画（LLM 呼び出しなし）
-  llm_plan_complexity_threshold: 0.7
   force_llm_plan: false
   step_timeout_seconds: 30
   llm_plan_max_attempts: 2
   plan_max_output_tokens: 8192
-  complexity_temperature: 0.1
-  complexity_max_output_tokens: 10
 
 # -----------------------------------------------------------------------------
 # Executor設定

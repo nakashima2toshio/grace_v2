@@ -1,6 +1,6 @@
 # GRACE（grace_v2）- 業界特化・自律型エージェント基盤 ドキュメント
 
-**Version 4.19** | 最終更新: 2026-10-14
+**Version 4.20** | 最終更新: 2026-10-30
 
 > 日本語 RAG に、根拠検証（groundedness）・Web 裏取り・HITL（Human-In-The-Loop）承認を組み合わせた、
 > 業界特化の自律型エージェント。`./run_dev.sh` で起動し、ブラウザ（http://localhost:5173）の 4 タブから使う。
@@ -238,7 +238,7 @@ style EXTERNAL fill:#1a1a1a,stroke:#fff,color:#fff
 
 | 実行順 | ステップ（画面の表示名） | ステップ ID | 実行例 |
 |:--:|---|---|---|
-| 1 | 0-(A) 入力・質問分析（複数質問の検知） | `analyze` | 単一の質問として通過 |
+| 1 | 0-(A) 質問の整理（話題・観点） | `analyze` | 軽量 LLM が 1 話題・1 観点に整理（社内検索の文と Web 検索の語を作る） |
 | 2 | 0-(B) 業界プロファイル適用 | `profile` | **スキップ**（基本版はプロファイルなし） |
 | 3 | ① Plan（planner） | `plan` | 実行計画を生成 |
 | 4 | ② Execute（内部RAG → reasoning） | `execute` | 全コレクションを検索し、回答を生成 |
@@ -248,7 +248,7 @@ style EXTERNAL fill:#1a1a1a,stroke:#fff,color:#fff
 | 8 | ④' 情報なし回答検知 | `no_info` | 実質的な回答あり |
 | 9 | ⑥ Action（本人確認 → HITL CONFIRM → 実行） | `action` | アクション対象なし（本人確認は行わない） |
 
-- **0-(A)** で 1 つの入力に複数の質問があると検知したら、主質問を選ぶモーダル（`QuestionSelectModal`）を出して再構成する
+- **0-(A)** は毎回、軽量 LLM で問い合わせを**話題 → 観点**に整理する（`backend/app/core/question_refiner.py`）。指示語（「その件」）を解決した回答用の質問文と、観点ごとの社内検索の文・Web 検索の語を作り、① は観点ごとに社内検索する計画を作る。話題が 2 つ以上あれば、先に答える話題を選ぶモーダル（`QuestionSelectModal`）を出す
 - **④** は支持率 ≥ notify かつ出典 1 件以上で answer、confirm 以上なら注意つきの answer、
   それ未満・未検証・出典 0 件なら escalate（有人対応）にする。救済判定は、根拠の弱い回答を一律に落とさないための例外である
 - **⑤** は内部回答で確定しなかったときだけ Web を検索する。画面の「Web フォールバック」を OFF にすると、
@@ -330,7 +330,7 @@ groundedness（支持率）   1.00（判定可能 3 主張）
 
 | 実行順 | ステップ（画面の表示名） | 実行例 / 業界プロファイルが効く点 |
 |:--:|---|---|
-| 1 | 0-(A) 入力・質問分析（複数質問の検知） | 単一の質問として通過（複数の質問を検知したときは、**担当範囲外の主質問を選択肢から外し**、断りと窓口案内に回す＝GA'） |
+| 1 | 0-(A) 質問の整理（話題・観点） | 1 話題・1 観点に整理（話題が複数のときは、同じ LLM 呼び出しで判定した**担当範囲外の話題を選択肢から外し**、断りと窓口案内に回す＝GA'） |
 | 2 | 0-(B) 業界プロファイル適用 | `gov`：検索スコープ・しきい値（0.8 / 0.5）・方針を適用 |
 | 3 | ① Plan（planner） | 実行計画を生成 |
 | 4 | ② Execute（内部RAG → reasoning） | `gov` のコレクションだけを検索し、方針つきで回答を生成 |
@@ -773,7 +773,7 @@ uvicorn backend.app.main:app --reload --port 8000
 
 ![C-01 HITL CONFIRM モーダル](docs/images/c-01-confirm-modal.png)
 
-0-(A) で複数の質問を検知したときは、承認の代わりに主質問を選ぶモーダル（`QuestionSelectModal`）が出る。
+0-(A) で範囲内の話題が 2 つ以上あるときは、承認の代わりに先に答える話題を選ぶモーダル（`QuestionSelectModal`）が出る。
 
 ### 8.2 タブを離れても入力を保持する
 
@@ -879,3 +879,4 @@ cd frontend && npm run lint && npm test && npm run build # frontend
 | 4.17 | 2026-10-14 | 実装と突き合わせて見直した（grace_v2_local の README v4.4 と同じ方法）。§4.1 のルールセット欄の表示例を実際の表示（`ReviewForm.tsx`）に合わせ、規程コレクションを grace_v2_local と共用していることと元データの置き場所の注記を足した。§6.2 の `backend/app/core/` に `job_logs.py` を足し、詳細の参照先を `README_backend_core.md` にした。§6.5 の API キーの行を、事前に確かめるのは `ANTHROPIC_API_KEY` だけという実装に合わせた。§10 に `GOOGLE_API_KEY` 未設定の行を足した |
 | 4.18 | 2026-10-14 | 直下 config.yml（読み手ゼロ）の削除に追随し、モデル名の解決経路を 4 本とした |
 | 4.19 | 2026-10-14 | 既定モデル名を config.py::ModelConfig（DEFAULT_MODEL / LIGHT_MODEL）の 1 か所にまとめたのに追随 |
+| 4.20 | 2026-10-30 | 0-(A) を `question_refiner.refine_question`（毎回 LLM で話題 → 観点に整理）に置き換え、① を観点ごとの計画にしたのに追随（§3.2・§3.3 のステップ表・§8.1）。画面の表示名も「0-(A) 質問の整理（話題・観点）」に改めた |

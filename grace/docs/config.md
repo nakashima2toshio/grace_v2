@@ -1,6 +1,6 @@
 # config.py - GRACE 設定管理 ドキュメント
 
-**Version 1.19** | 最終更新: 2026-10-15
+**Version 1.20** | 最終更新: 2026-10-30
 
 > 📌 **`config.GeminiConfig` の LLM モデル一覧は後方互換である。**
 > `config.py::GeminiConfig` の docstring にあるとおり、`GeminiConfig` は
@@ -949,8 +949,13 @@ Embedding（Gemini）の設定。
 
 | キー | 型 | デフォルト値 | 説明 |
 |-----|------|-------------|------|
-| `llm_plan_complexity_threshold` | float | `0.7` | この複雑度未満はルールベース計画で即時生成 |
-| `force_llm_plan` | bool | `False` | 常にLLM計画生成を使うか |
+| `force_llm_plan` | bool | `False` | 真なら、リプランの補足が無くても `Planner.create_plan` が LLM 計画生成を使う（GRACE-Support の最初の計画 `create_plan_for_topic` には効かない） |
+| `step_timeout_seconds` | int | `30` | 生成する PlanStep のタイムアウト（秒） |
+| `llm_plan_max_attempts` | int | `2` | LLM 計画生成のリトライ回数 |
+| `plan_max_output_tokens` | int | `8192` | LLM 計画生成の最大出力トークン数 |
+
+> 📝 `llm_plan_complexity_threshold` / `complexity_temperature` / `complexity_max_output_tokens` は 2026-10-29 に削除した。
+> 複雑度の推定（文字列の加点と LLM 採点）をやめ、ルールベースの計画は複雑度 0.5 固定、LLM 計画はリプランか `force_llm_plan` のときだけにした。
 
 ### 5.15 ExecutorConfig
 
@@ -1043,6 +1048,7 @@ __all__ = [
 | 1.17 | 2026-10-14 | 索引の改名（backend/app/docs/README_app.md → README_backend_app.md）に合わせて参照を付け替えた |
 | 1.18 | 2026-10-14 | 既定モデル名を config.py::ModelConfig（DEFAULT_MODEL / LIGHT_MODEL）の 1 か所にまとめたのに追随 |
 | 1.19 | 2026-10-15 | `ConfigLoader.DEFAULT_CONFIG_PATH` をリポジトリ直下からの絶対パスにした（作業ディレクトリに関係なく yml を読む）。`qdrant.excluded_collections` は運用で yml を書き換える値として、`tests/test_config_file_and_memory.py` のクラス既定値との一致検査から外した（`OPERATIONAL_KEYS`）。§1.2・§4（`ConfigLoader`）・§5 を追随 |
+| 1.20 | 2026-10-30 | `PlannerConfig` の `llm_plan_complexity_threshold`（と未記載の `complexity_temperature` / `complexity_max_output_tokens`）を削除したのに追随。§5.14 に抜けていた 3 キーを足した |
 
 ---
 

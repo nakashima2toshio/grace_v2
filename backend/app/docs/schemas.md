@@ -1,6 +1,6 @@
 # schemas.py - API スキーマ（Pydantic）ドキュメント
 
-**Version 1.18** | 最終更新: 2026-10-14
+**Version 1.19** | 最終更新: 2026-10-30
 
 > **本書の位置づけ**: `backend/app/schemas.py`（API のリクエスト / レスポンス / イベントの Pydantic スキーマ）の **IPO リファレンス**。
 > 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。
@@ -1113,9 +1113,9 @@ class QuestionClusterModel(BaseModel):
     related: List[str] = []
 ```
 
-複数質問を検知したときのクラスタ。`main` が主質問、`related` が同じ意図にまとめられた
-関連質問。`0-(A) 入力・質問分析` の出力で、`reconstruct_query()` がこの 2 つから
-再構成クエリを作る。
+話題が 2 つ以上あったときのクラスタ。`main` が話題の回答用の質問文（`question_refiner.Topic.answer_question`）。
+2026-10-30 からは `related` は常に空（指示語でつながる文は 0-(A) の LLM が同じ話題にまとめ、`answer_question` に書き込む）。
+型は API の互換のために残している（`core/support_agent.py::QuestionCluster`）。
 
 
 ---
@@ -1160,6 +1160,7 @@ ReviewResultModel, ReviewJobStatusResponse, RuleSetInfo
 | 1.16 | 2026-10-12 | backend/docs/ の横断文書の廃止（2026-10-12）に追随し、参照先を backend/app/docs/README_app.md・backend/app/api/docs/README_api.md・backend/app/core/docs/core_process_flow.md などへ付け替えた |
 | 1.17 | 2026-10-14 | 索引の改名（frontend/docs/README.md → README_frontend.md、README_api.md → README_backend_api.md、README_core.md → README_backend_core.md）に合わせて参照を付け替えた |
 | 1.18 | 2026-10-14 | 索引の改名（backend/app/docs/README_app.md → README_backend_app.md）に合わせて参照を付け替えた |
+| 1.19 | 2026-10-30 | §4.16 `QuestionClusterModel` を、0-(A) の `question_refiner.refine_question` への置き換え（`related` は常に空）に追随させた |
 
 ---
 
