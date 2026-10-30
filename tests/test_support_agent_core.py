@@ -276,7 +276,7 @@ class TestWebSkipReasonReflectsTheRealSource:
         )
 
         reason = self._skip_reason(events)
-        assert "Web 検索結果で確定" in reason
+        assert "Web 検索の結果も使って確定" in reason
         assert "内部回答で確定" not in reason, (
             "出典がすべて Web なのに内部ナレッジで確定したと表示している"
         )

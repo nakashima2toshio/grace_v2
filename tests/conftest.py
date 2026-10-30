@@ -69,6 +69,8 @@ class PipelineStub:
     execute_kwargs: List[dict] = field(default_factory=list)
     # ⑤ の web_search に渡された検索語
     web_queries: List[str] = field(default_factory=list)
+    # executor が実行した Web 検索と理由（実 ExecutionResult.web_searches に対応）
+    web_searches: List[dict] = field(default_factory=list)
     answer: str = "パスワード再設定はマイページの「パスワードを忘れた方」から行えます。"
     sources: List[str] = field(default_factory=lambda: ["faq.md"])
     # 出典本文（groundedness 検証に渡る想定のテキスト）。空なら出典ラベルへ
@@ -118,6 +120,7 @@ def install_pipeline_stub(monkeypatch, stub: PipelineStub) -> None:
                 source_texts=list(stub.source_texts),
             )],
             overall_confidence=stub.overall_confidence,
+            web_searches=list(stub.web_searches),
         )
 
     executor = SimpleNamespace(execute=execute)
