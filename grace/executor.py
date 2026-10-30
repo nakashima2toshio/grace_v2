@@ -54,6 +54,64 @@ logger = logging.getLogger(__name__)
 # 実行状態管理
 # =============================================================================
 
+def _source_identity(entry: Any) -> Optional[str]:
+    """検索結果 1 件の同一性キー。判定できなければ None（＝重複除去の対象外）。
+
+    出典 URL / ファイル名（`payload.source`）と本文（`payload.answer`）の組で見る。
+    URL だけだと、同一ページの別スニペットまで落としてしまうため。
+    """
+    if not isinstance(entry, dict):
+        return None
+    payload = entry.get("payload")
+    if not isinstance(payload, dict):
+        return None
+    source = str(payload.get("source") or "")
+    body = str(payload.get("answer") or payload.get("content") or "")
+    if not source and not body:
+        return None
+    return f"{source}\x00{body}"
+
+
+def _dedupe_sources(sources: List[Any], limit: int) -> List[Any]:
+    """reasoning へ渡す参照情報を**重複除去して上限で切る**。
+
+    ## なぜ必要か
+
+    reasoning の参照情報は `state.step_results` **全体**から集める
+    （動的挿入された web_search やリプラン後の結果も拾うための意図的な設計）。
+    しかしリプランのたびに同じ rag_search / web_search が再実行されるため、
+    **同じ結果が何度も積み上がる**。grace_v2_local の実測では 3 回のリプランを経て、
+    同じ 9 件の Web 結果と 5 件の RAG 結果が 4 回ずつ、計 56 件の
+    「情報源」としてプロンプトに並んでいた。
+
+    これは 2 重に悪い:
+      - プロンプトが肥大して生成が遅くなり、タイムアウトしやすくなる
+        （＝さらにリプランが走り、さらに重複が増える正のフィードバック）
+      - 同じ内容が繰り返されることで、LLM が重要度を誤認する
+
+    **順序は保つ**（先に得られた結果ほど前に置く）。`limit` 以下なら
+    何も切らない。同一性を判定できない要素は落とさず素通しする
+    （形式が違うだけで有用な情報を捨てないため）。
+    """
+    seen: set = set()
+    out: List[Any] = []
+    for entry in sources:
+        key = _source_identity(entry)
+        if key is not None:
+            if key in seen:
+                continue
+            seen.add(key)
+        out.append(entry)
+        if limit > 0 and len(out) >= limit:
+            break
+    if len(out) < len(sources):
+        logger.info(
+            f"[reasoning] 参照情報を整理: {len(sources)} 件 → {len(out)} 件"
+            "（重複除去・上限適用）"
+        )
+    return out
+
+
 @dataclass
 class ExecutionState:
     """実行状態管理"""
@@ -418,19 +476,19 @@ class Executor:
                         logger.info("web_search is disabled; continuing with internal RAG only")
                         need_web_search = False
 
-                    # 同じ検索語の web_search が計画に required で入っているなら差し込まない
-                    # （その計画済みステップが必ず走る。差し込むと同じ Web 検索を 2 回行う）
+                    # 同じ検索語の web_search が計画にこの後あるなら差し込まない。その計画済みの
+                    # ステップを走らせる（差し込むと同じ Web 検索を 2 回行う）。required でない
+                    # ステップ（リプランで LLM が作った計画など）も、下のパターン(1)で飛ばさない。
                     web_query = step.web_query or step.query
-                    if need_web_search and any(
-                        s.action == "web_search" and s.required and s.query == web_query
+                    planned_same_web = need_web_search and any(
+                        s.action == "web_search" and s.query == web_query
                         and s.step_id > step.step_id for s in steps_to_execute
-                    ):
+                    )
+                    if planned_same_web:
                         logger.info(
-                            f"web_search for '{web_query}' is already planned as required; not inserting"
+                            f"web_search for '{web_query}' is already planned; not inserting"
                         )
-                        need_web_search = False
-
-                    if need_web_search:
+                    elif need_web_search:
                         # パターン(2)(3): web_search を動的実行
                         web_result = yield from self._execute_dynamic_web_search(
                             step, state, reason=web_reason)
@@ -1367,7 +1425,9 @@ class Executor:
                         sources.extend(dep_output)
 
             if sources:
-                kwargs["sources"] = sources
+                # 同じ情報源は 1 回だけ渡す（0-(A) の観点ごとの検索で同じチャンク・記事が
+                # 返る。grace_v2_local の実装を移植。件数の上限はかけない）
+                kwargs["sources"] = _dedupe_sources(sources, limit=0)
             if context_parts:
                 kwargs["context"] = "\n\n".join(context_parts)
 
@@ -1803,7 +1863,9 @@ class Executor:
             tool_success_rate=1.0 if tool_result.success else 0.0,
             tool_execution_count=1,
             tool_success_count=1 if tool_result.success else 0,
-            is_search_step=(step.action in ("rag_search", "web_search"))
+            is_search_step=(step.action in ("rag_search", "web_search")),
+            # 類似度は rag_search だけ（web_search のスコアは検索順位）
+            search_score_is_similarity=(step.action == "rag_search"),
         )
 
     def _llm_calculate_step_confidence(
