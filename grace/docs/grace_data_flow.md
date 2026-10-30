@@ -197,8 +197,9 @@ Anthropic と `rag_search` をスタブにして 1 回実行し、`messages.crea
 
 > 📝 6・7 は回答ができた時点で別スレッドで始まり、8 と重なる（`Executor._prefetch_final_evaluation`）。記録の順番は前後しうる。
 > RAG のスコアが 0.64 未満なら 4 の代わりに Web 検索が入り（`WebSearchTool`）、その信頼度の評価が 1 回増える。
-> 複雑な質問・Web 検索の指示がある質問では、1 の代わりに計画生成（`claude-sonnet-5-5`・JSON）が 1 回発行される。
-> GRACE-Support は、このあと ④' 情報なし判定などの判定系（`backend/app/core/gates.py`）を軽量モデルで呼ぶ（grace の外）。
+> リプラン（`context_hints` あり）と `planner.force_llm_plan` のときは、1 の代わりに計画生成（`claude-sonnet-5-5`・JSON）が 1 回発行される。
+> GRACE-Support は、この前に 0-(A) 質問の整理（`backend/app/core/question_refiner.py`）を軽量モデルで 1 回呼び、① は観点ごとの計画（`create_plan_for_topic`）にするので、
+> 観点が 2 つなら 2〜4 が観点ごとに発行される。このあと ④' 情報なし判定などの判定系（`backend/app/core/gates.py`）を軽量モデルで呼ぶ（いずれも grace の外）。
 
 ### 3.3 実行メモリの蓄積と読み戻し
 
@@ -318,4 +319,4 @@ extract_keywords("Python の歴史を教えて")
 | 4.1 | 2026-10-12 | backend/docs/ の横断文書の廃止（2026-10-12）に追随し、参照先を backend/app/docs/README_app.md・backend/app/api/docs/README_api.md・backend/app/core/docs/core_process_flow.md などへ付け替えた |
 | 4.2 | 2026-10-14 | 索引の改名（backend/app/docs/README_app.md → README_backend_app.md）に合わせて参照を付け替えた |
 | 4.3 | 2026-10-15 | §3.3 実行メモリを実装に追随: キーワード抽出をひらがな区切りに変えたこと（例と格納行を新しい値に）、照合は `query` から抽出し直すこと、重なり 0 件は全体集計へ倒さず `[]` になること。`best_collection` の戻り値は rag_search を「絞る」のではなく「先頭に置く」（他のコレクションも検索される）と是正 |
-| 4.4 | 2026-10-30 | §2 に `PlanStep.web_query` / `required` と `ExecutionResult.web_searches` を足し、§3.4 から削除した複雑度推定のプロンプト（`COMPLEXITY_ESTIMATION_PROMPT`）の行を外した。計画生成のプロンプトを使う場面をリプラン・`force_llm_plan` に直した |
+| 4.4 | 2026-10-30 | §2 に `PlanStep.web_query` / `required` と `ExecutionResult.web_searches` を足し、§3.4 から削除した複雑度推定のプロンプト（`COMPLEXITY_ESTIMATION_PROMPT`）の行を外した。計画生成のプロンプトを使う場面（§3.2 の注記・§3.4）をリプラン・`force_llm_plan` に直し、§3.2 に 0-(A) の呼び出しと観点ごとの発行を書き足した |

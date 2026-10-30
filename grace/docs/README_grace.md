@@ -203,7 +203,7 @@ class START,P1,P2,P3,P4,P5,MEM,DONE default
 | `schemas.py` | [`schemas.md`](./schemas.md) | E | 1381 | 2.5 | B。計画・結果・ReAct 観測の型 |
 | `llm_compat.py` | [`llm_compat.md`](./llm_compat.md) | E | 973 | 1.12 | B。genai 形式 → Anthropic `messages.create` の変換 |
 | （処理フロー） | [`grace_process_flow.md`](./grace_process_flow.md) | A | 452 | 4.3 | 1 クエリの処理の流れ・分岐・Support / Review での使われ方 |
-| （データフロー） | [`grace_data_flow.md`](./grace_data_flow.md) | A | 321 | 4.4 | 外部 API に渡るデータ・プロンプトの所在・実行メモリと較正ファイル |
+| （データフロー） | [`grace_data_flow.md`](./grace_data_flow.md) | A | 322 | 4.4 | 外部 API に渡るデータ・プロンプトの所在・実行メモリと較正ファイル |
 
 > 行数・Ver は `wc -l` と各文書の Version ヘッダーの実測値（2026-10-30）。
 
