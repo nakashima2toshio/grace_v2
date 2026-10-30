@@ -1,6 +1,6 @@
 # core_process_flow.md - GRACE-Support / GRACE-Review とジョブ基盤の処理フロー
 
-**Version 1.5** | 最終更新: 2026-10-14
+**Version 1.6** | 最終更新: 2026-10-30
 
 > 📝 2026-10-12 に `backend/docs/` を廃止したとき、`support_flow.md`（2,215 行）・`review_flow.md`（1,257 行）・
 > `job_runtime.md`（353 行）の**流れと設計判断**だけをここへまとめた。関数のシグネチャ・引数・戻り値は書かない
@@ -103,10 +103,10 @@ style EXT fill:#1a1a1a,stroke:#fff,color:#fff
 
 ```mermaid
 flowchart TB
-    Q(["問い合わせ"]) --> A["0-(A) analyze<br>複数質問の検知 → 選択 → 再構成・担当範囲"]
+    Q(["問い合わせ"]) --> A["0-(A) analyze<br>質問の整理（LLM・毎回）→ 話題の選択・担当範囲"]
     A --> B["0-(B) profile<br>業界プロファイル（基本版は skipped）"]
-    B --> P["① plan<br>planner.create_plan"]
-    P --> E["② execute<br>内部 RAG → reasoning"]
+    B --> P["① plan<br>planner.create_plan_for_topic"]
+    P --> E["② execute<br>観点ごとの内部 RAG → reasoning"]
     E --> C["③ confidence<br>GroundednessVerifier → 支持率"]
     C --> G{"④ gate<br>支持率 × 出典数<br>＋強制エスカレ＋救済"}
     G -->|"answer"| N
@@ -124,10 +124,10 @@ class Q,A,B,P,E,C,G,W,N,ACT,R default
 
 | # | `STEP_IDS` | 実装 | 入力 → 出力 | 失敗・判定不能時の既定 |
 |---|---|---|---|---|
-| 0-(A) | `analyze` | `gates.py::looks_like_multi_question` → `create_question_analyzer` → `reconstruct_query` / `split_by_scope` | 原文 → 1 本の質問文・保留質問・範囲外質問 | **単一質問とみなす**（現行どおり 1 周） |
+| 0-(A) | `analyze` | `question_refiner.py::refine_question`（毎回 LLM 1 回）→ `gates.py::split_by_scope` / `deferred_main_questions` | 原文 → 話題（回答用の質問文・観点ごとの社内検索の文と Web 検索の語）・保留質問・範囲外質問 | **元の文のまま 1 話題・1 観点**（`original_as_topic`）で 1 周 |
 | 0-(B) | `profile` | `PROFILES.get(vertical)`（`verticals.py`） | `vertical` → 検索スコープ・しきい値・業務方針 | 基本版（`vertical=None`）は skipped |
-| ① | `plan` | `grace.planner.create_plan` | 質問 → `ExecutionPlan` | — |
-| ② | `execute` | `grace.executor.execute` ＋ `gates.py::_collect_citations` | 計画 → 回答・出典（`[社内] …` / `[Web] …`） | RAG スコアが `reasoning_min_rag_score`（0.64）未満の結果は根拠に採らない |
+| ① | `plan` | `grace.planner.Planner.create_plan_for_topic` | 採用した話題 → `ExecutionPlan`（観点ごとに `rag_search`・最新情報を求めた観点は `web_search`（`required`）・最後に `reasoning`） | — |
+| ② | `execute` | `grace.executor.execute(plan, allow_react=False)` ＋ `gates.py::_collect_citations` | 計画 → 回答・出典（`[社内] …` / `[Web] …`）・Web 検索とその理由（`web_searches`） | RAG スコアが `reasoning_min_rag_score`（0.64）未満の結果は根拠に採らない |
 | ③ | `confidence` | `GroundednessVerifier.verify` | 回答 × 出典本文 → 支持率（supported / contradicted / neutral） | 全 neutral は `decided=0`（母数から除外） |
 | ④ | `gate` | `gates.py::_answer_gate` ＋ `_should_force_escalate` ＋ `_should_rescue_unaffirmed` | 支持率・出典数 → `answer` / `escalate`・`warning` | 未検証・出典 0 は escalate |
 | ⑤ | `web` | `support_agent.py` 内 ＋ `_web_citations` / `_merge_citations` / `_pick_groundedness` | escalate の回答 → Web 回答と統合出典 | 結果なしは `used_web=True` だけ記録 |
@@ -155,8 +155,11 @@ Q&A 形式の出典では答えていない内容が neutral になり、母数�
 
 ### 1.4 Web フォールバック（⑤）と情報なし検知（④'）
 
-- ⑤ は **escalate かつ強制エスカレでなく `use_web=True`** のときだけ走る。② で executor が同じクエリの Web 検索を使っていれば、
+- ⑤ は **escalate かつ強制エスカレでなく `use_web=True`** のときだけ走る。採用した話題の**観点ごとの `web_query`**（0-(A) が作った
+  Web 検索の語。同じ語は 1 回だけ）で検索し、結果をつなぐ。② で executor が Web 検索を使っていれば、
   回答を作り直さず**内部回答の再検証だけ**行う（`web_reused`。重複推論の省略）。
+- ② で executor が Web 検索したときは、その**理由**（社内検索のスコア不足・LLM が質問に合わないと判定・利用者が最新情報を求めた観点・
+  社内検索の失敗）を `ExecutionResult.web_searches` から画面のログへそのまま出す（2026-10-30 まではスコア不足と決め打ちで出していた）。
 - `use_web=False` は「**内部 RAG のみ**」。⑤ だけでなく executor の Web 検索（5 経路）も `Executor._web_search_allowed` で止める
   （`tests/test_web_search_toggle.py`）。
 - ④' は ⑤ の後、`decision == "answer"` のときだけ。第 1 段は `NO_INFO_MARKERS`（「見当たりません」等）の照合、
@@ -176,25 +179,33 @@ Q&A 形式の出典では答えていない内容が neutral になり、母数�
   承認待ちを見たいときは `dry_run=False` にする（Webhook を置かなければ実行は擬似のまま）。
 - 副作用は ⑥ がバックエンドを**直接呼ぶ**。`grace/tools.py` のツールにしない（executor が計画の都合で任意の位置に差し込めてしまうため）。
 
-### 1.6 複数質問と担当範囲外（0-(A)）
+### 1.6 質問の整理・複数質問と担当範囲外（0-(A)）
 
-**前処理であってゲートではない。** 再構成した文を `query` として渡すだけで、planner 以降の判定は変えない。
+**前処理であってゲートではない。** 毎回 `question_refiner.refine_question()` が軽量 LLM を 1 回呼び、問い合わせを
+**話題**（対象が同じ文のまとまり。話題ごとに回答 1 つ）→ **観点**（知りたい側面。観点ごとに社内検索の文と Web 検索の語）に整理する。
+採用した話題を ① `create_plan_for_topic` に渡すだけで、③ 以降の判定は変えない。詳細は [`question_refiner.md`](question_refiner.md)。
 
-| 入力 | 第 2 段（LLM） | 選択 | 結果 |
-|---|---|---|---|
-| 単一質問 | 呼ばない | 出さない | 現行どおり（`analyze` は skipped） |
-| 主質問 1 ＋ 関連質問 N | 呼ぶ | 出さない | 再構成して 1 周（指示語を解決） |
-| 範囲内 1 ＋ 範囲外 N-1 | 呼ぶ | 出さない | 範囲内に回答＋範囲外は断りと窓口案内 |
-| 範囲内が複数 | 呼ぶ | 出す（`ask_user`） | 選んだ 1 つを再構成して 1 周＋**保留質問を必ず返す** |
-| 選択がタイムアウト / 拒否 | 呼ぶ | 出す | 原文のまま 1 周（escalate にしない） |
-| 解析器の失敗・空応答 | 呼ぶ | 出さない | 単一とみなす |
+> ⚠️ **2026-10-29 までは文字列一致で LLM を呼ぶかを決めていた**（接続語 10 個の部分一致か「？」2 個以上）。それ以外は問い合わせの文を
+> そのまま社内検索・Web 検索・回答生成に渡したので、「Jed York CEO が…経緯は？ / その件の経緯を詳しく / 最新ニュースを検索して、
+> 49ers の新 GM とヘッドコーチの人事を」の 3 行は分解されず、指示語も解決されず、社内の記事に届かなかった。
+
+| 入力 | 選択 | 結果 |
+|---|---|---|
+| 話題 1 つ（観点 1〜3） | 出さない | 観点ごとに社内検索して 1 周（指示語は `answer_question` に解決済み） |
+| 範囲内 1 ＋ 範囲外 N-1 | 出さない | 範囲内に回答＋範囲外は断りと窓口案内 |
+| 範囲内が複数 | 出す（`multi_question_selection`） | 選んだ話題で 1 周＋**保留質問を必ず返す** |
+| 選択がタイムアウト / 拒否 | 出す | 元の文のまま 1 周（escalate にしない） |
+| 選択肢に無い値が返った | 出す | 先頭の話題を採用し、残りは保留 |
+| 整理の失敗（LLM の例外・JSON でない・検査の不合格） | 出さない | 元の文のまま 1 話題・1 観点（`RefineResult.failed`。理由をログに出す） |
 
 - 🔴 **保留質問は必ず利用者へ出す。** 出さないと「片方の質問が黙って落ちたのに、支持率が高いので高信頼として提示される」。
   複数質問対応で最も危険とした事故がこれで、`deferred_main_questions` の戻り値と `AnswerCard` の表示が防いでいる。
 - **保留**（`deferred_questions`：範囲内だが今回は答えていない）と**範囲外**（`out_of_scope_questions`：この窓口では答えられない）を混ぜない。利用者が次にすることが違う。
-- 範囲外の判定は `create_scope_classifier` が全主質問を 1 回で行う。**判定できなければ範囲内**（全件 OUT も分類器の故障とみなして範囲内へ倒す）。
+- 範囲外の判定は整理と同じ LLM 呼び出しで行う（`Topic.in_scope`。プロファイルの `scope_description` を渡したときだけ）。
+  **判定できなければ範囲内**（`null` は範囲内。全件 OUT も判定の誤りとみなして `split_by_scope` が範囲内へ倒す）。
 - 範囲外の質問は**検索クエリから外し、生成側には渡す**（`VerticalProfile.build_closing_instruction()` を回答の構成ルールの**後ろ**に置く。前に置くと構成ルールに負けて断りが落ちた）。
   モデルが断らなかったときは `gates.ensure_out_of_scope_notice()` が**ゲートの後で**追記し、案内先の URL（`out_of_scope_links`。実在する公的機関だけ）が欠けていれば URL だけを補う。
+- LLM の出力はそのまま信用しない。書き写した文が問い合わせに由来するか（`gates._derives_from_query`）を検査し、`web_query` からは問い合わせに無い語を外す（`restrict_web_query`）。
 
 ### 1.7 基本版（`vertical=None`）
 
@@ -455,7 +466,7 @@ SSE は失敗しても必ず `done`（`status=failed`）で閉じる。
 
 | # | 基本版 | GRACE-Support | GRACE-Review |
 |---|---|---|---|
-| 0-(A) | `analyze` 入力・質問分析 | `analyze` 入力・質問分析 | — |
+| 0-(A) | `analyze` 質問の整理（LLM） | `analyze` 質問の整理（LLM）・担当範囲 | — |
 | S1 / 0-(B) | — | `profile` 業界プロファイル適用 | `ruleset` ルールセット適用 |
 | ① | `plan` | `plan` | `segment` 文書を検査単位へ分割 |
 | ② | `execute` 内部 RAG → reasoning | 同左 | `retrieve` 規程を RAG 検索 |
@@ -472,8 +483,8 @@ SSE は失敗しても必ず `done`（`status=failed`）で閉じる。
 
 | ID | 機構 | 実装 | 判定不能・失敗時 | 基本版 | Support | Review |
 |---|---|---|---|:--:|:--:|:--:|
-| GA | 複数質問の検知・選択（0-(A)） | `gates.py::looks_like_multi_question` / `create_question_analyzer` / `reconstruct_query` / `deferred_main_questions`（§1.6） | **単一質問とみなす**。選択がタイムアウト・拒否でも原文のまま 1 周し、escalate にしない | ✅ | ✅ | — |
-| GA' | 担当範囲の判定（0-(A)） | `gates.py::create_scope_classifier` / `split_by_scope` / `ensure_out_of_scope_notice`、`VerticalProfile.scope_description` / `out_of_scope_links` | **全件を範囲内とみなす**（判定不能・分類器なし・全件 OUT のいずれも） | — | ✅ | — |
+| GA | 質問の整理・話題の選択（0-(A)） | `question_refiner.py::refine_question` / `parse_refine_output` / `restrict_web_query`、`gates.py::deferred_main_questions`（§1.6） | **元の文のまま 1 話題・1 観点**。選択がタイムアウト・拒否でも元の文のまま 1 周し、escalate にしない | ✅ | ✅ | — |
+| GA' | 担当範囲の判定（0-(A)） | `Topic.in_scope`（整理と同じ LLM 呼び出し）/ `gates.py::split_by_scope` / `ensure_out_of_scope_notice`、`VerticalProfile.scope_description` / `out_of_scope_links` | **全件を範囲内とみなす**（判定不能・分類器なし・全件 OUT のいずれも） | — | ✅ | — |
 | G0 | RAG 採用下限 | `executor.reasoning_min_rag_score`（0.64） | 全件が下限未満ならフィルタを外す（0 件化を避ける） | ✅ | ✅ | ✅（`retrieve` の `evidence_min_score`） |
 | G1 | 根拠検証 | `grace/confidence.py::GroundednessVerifier.verify`（claim ごとに 3 値。同一入力は `_CACHE_SIZE=4` でキャッシュ） | `verification_failed=True` を立てて救済判断（G5B）へ回す | ✅ | ✅ | ✅（`ground`） |
 | G1A | 支持率 | `support_rate = supported / (supported + contradicted)`（neutral は分母から除外） | `decided=0` なら 0.0 ＋ `verified=False` | ✅ | ✅ | ✅ |
@@ -495,10 +506,10 @@ SSE は失敗しても必ず `done`（`status=failed`）で閉じる。
 
 1. **二段判定** — 第 1 段でキーワード候補を絞り（LLM を呼ばない）、一致したものだけ第 2 段の LLM 判定へ回す。
 2. **安全側フォールバック** — 判定の失敗（`None`）は常にキーワード判定へ倒す。Support の安全側は「回答せず escalate」、
-   Review の安全側は「指摘を消さず `review_required`」。例外が GA / GA' で、こちらは「分解しない・断らない」が安全側（誤って分解・拒否する方が害が大きい）。
+   Review の安全側は「指摘を消さず `review_required`」。例外が GA / GA' で、こちらは「元の文のまま進める・断らない」が安全側（誤って分解・拒否する方が害が大きい）。
 3. **救済** — 「矛盾がある」と「肯定できなかった」を区別し、後者では回答を捨てない（G4・G5B）。
 
-> 📌 **本リポジトリの `config/grace_config.yml` には `judges` ブロックが無い。** `judges_enabled` / `multi_question_enabled` は
+> 📌 **本リポジトリの `config/grace_config.yml` には `judges` ブロックが無い。** `judges_enabled` は
 > 「属性が無ければ有効」とみなすので、G3・G6・G7 の第 2 段 LLM 判定はすべて動く。姉妹リポジトリ grace_v2_local は
 > ローカル LLM が 1 判定に 90〜250 秒かかるため `judges.enabled: false` が既定で、**同じ表でも読み方が変わる**。
 
@@ -506,7 +517,7 @@ SSE は失敗しても必ず `done`（`status=failed`）で閉じる。
 
 | | Support の `reasoning`（② の最終ステップ） | Review の `detect`（③） |
 |---|---|---|
-| 実装 | `grace/tools.py::ReasoningTool`（grace 側。`support_agent.py` は `executor.execute(plan)` に丸ごと委譲する） | `review_gates.py::create_violation_detector`（backend 側） |
+| 実装 | `grace/tools.py::ReasoningTool`（grace 側。`support_agent.py` は `executor.execute(plan, allow_react=False)` に丸ごと委譲する） | `review_gates.py::create_violation_detector`（backend 側） |
 | 呼び出し回数 | 1 回 | セグメント × 候補ルール（上限 `MAX_LLM_CALLS`。§2.5） |
 | 出力 | 自由文（Markdown） | 構造化（`DetectVerdict`） |
 | temperature / 出力上限 | `llm.temperature`（0.7）/ `llm.max_tokens`（4096） | 0.0 / 512 |
@@ -535,14 +546,14 @@ SSE は失敗しても必ず `done`（`status=failed`）で閉じる。
 | `executor.reasoning_min_rag_score` | 0.64 | G0。Embedding を変えたら測り直す（CLAUDE.md §3） |
 | `executor.relevance_check_model` | `""`（= `llm.light_model`） | RAG 適合性チェックのモデル |
 | `llm.timeout` / `planner.step_timeout_seconds` | 30 / 30 | **逆転させない**（LLM の待ちがステップのタイムアウトを超えると、リトライできずにステップごと失敗する）。`llm.timeout` を伸ばすときは両方上げる |
-| `judges.enabled` / `judges.multi_question` | （記載なし＝有効） | 補助 LLM 判定・GA の構造解析。`multi_question` は `enabled` と独立 |
 
 ### 4.5 対応するテスト
 
 | テスト（`tests/`） | 守っている挙動 |
 |---|---|
 | `test_support_agent_core.py` | Support の 1 周（0-(A)〜⑥）の判定 |
-| `test_multi_question.py` / `test_multi_question_pipeline.py` | GA / GA'（§1.6） |
+| `test_question_refiner.py` / `test_refine_pipeline.py` / `test_question_scope_and_deferred.py` | GA / GA'（§1.6） |
+| `test_plan_for_topic.py` / `test_web_search_reasons.py` | ① 観点ごとの計画・② Web 検索の理由の記録 |
 | `test_policy_claims.py` | G1A' 方針文を母数から外す |
 | `test_groundedness_sources.py` / `test_groundedness_cache.py` | G1 出典本文を渡す・同一入力の再検証抑止・G5B |
 | `test_rag_adoption.py` / `test_measure_rag_threshold.py` | G0 RAG 採用下限 |
@@ -578,3 +589,4 @@ SSE は失敗しても必ず `done`（`status=failed`）で閉じる。
 | 1.3 | 2026-10-14 | dry-run（副作用なし）では HITL CONFIRM を求めないようにした（grace_v2_local から移植・ActionBackend.has_side_effects）のに追随 |
 | 1.4 | 2026-10-14 | 索引の改名（backend/app/docs/README_app.md → README_backend_app.md）に合わせて参照を付け替えた |
 | 1.5 | 2026-10-14 | 既定モデル名を config.py::ModelConfig（DEFAULT_MODEL / LIGHT_MODEL）の 1 か所にまとめたのに追随 |
+| 1.6 | 2026-10-30 | 0-(A) を `question_refiner.refine_question()`（毎回 LLM で話題・観点に整理）へ置き換えたのに追随（§1.1 の図・§1.2・§1.6 を書き直し、§1.4 に観点ごとの Web 検索と Web 検索の理由、§4.2 の GA / GA'・§4.5 のテストを差し替え）。grace_v2 に無い `judges.multi_question` の行を消した |

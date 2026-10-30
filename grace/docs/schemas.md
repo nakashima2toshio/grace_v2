@@ -1,6 +1,6 @@
 # schemas.py - GRACE Pydanticスキーマ定義 ドキュメント
 
-**Version 2.4** | 最終更新: 2026-10-10
+**Version 2.5** | 最終更新: 2026-10-30
 
 ---
 
@@ -213,6 +213,9 @@ style UTILS fill:#1a1a1a,stroke:#fff,color:#fff
 | `depends_on` | `List[int]` | 依存する先行ステップID |
 | `expected_output` | `str` | 期待される出力の説明 |
 | `fallback` | `Optional[str]` | 失敗時の代替アクション |
+| `dynamic` | `bool` | 実行時に挿入したステップか（RAG 不足時の web_search / ask_user） |
+| `web_query` | `Optional[str]` | rag_search に持たせる Web 検索語（0-(A) の `Aspect.web_query`）。差し込む web_search・代替の web_search は `query` ではなくこれを使う。None なら `query` |
+| `required` | `bool` | 利用者が求めたステップか（0-(A) で最新情報を求めた観点の web_search）。社内検索が十分でも飛ばさない |
 | `timeout_seconds` | `Optional[int]` | タイムアウト秒数 |
 
 #### ExecutionPlan
@@ -257,6 +260,7 @@ style UTILS fill:#1a1a1a,stroke:#fff,color:#fff
 | `total_execution_time_ms` | `Optional[int]` | 総実行時間（ミリ秒） |
 | `total_token_usage` | `Optional[dict]` | 総トークン使用量 |
 | `total_cost_usd` | `Optional[float]` | 総コスト（USD） |
+| `web_searches` | `List[dict]` | 実行した web_search（`step_id` / `query` / `reason`）。`reason` は Web を見た理由で、GRACE-Support が画面のログにそのまま出す |
 | `created_at` | `Optional[datetime]` | 結果作成日時 |
 
 #### SearchResultPayload
@@ -544,7 +548,10 @@ class PlanStep(BaseModel):
     collection: Optional[str] = Field(None, description="検索対象コレクション（RAG検索の場合）")
     depends_on: List[int] = Field(default_factory=list, description="依存する先行ステップのID")
     expected_output: str = Field(..., description="期待される出力の説明")
+    dynamic: bool = Field(False, description="実行時に挿入されたステップか")
     fallback: Optional[str] = Field(None, description="失敗時の代替アクション")
+    web_query: Optional[str] = Field(None, description="rag_search に持たせる Web 検索語")
+    required: bool = Field(False, description="利用者が求めたステップか")
     timeout_seconds: Optional[int] = Field(30, description="タイムアウト秒数", ge=1, le=300)
 ```
 
@@ -565,7 +572,10 @@ class PlanStep(BaseModel):
 | `collection` | `Optional[str]` | - | `None` | - |
 | `depends_on` | `List[int]` | - | `[]` | - |
 | `expected_output` | `str` | ✅ | - | - |
+| `dynamic` | `bool` | - | `False` | - |
 | `fallback` | `Optional[str]` | - | `None` | - |
+| `web_query` | `Optional[str]` | - | `None` | - |
+| `required` | `bool` | - | `False` | - |
 | `timeout_seconds` | `Optional[int]` | - | `30` | 1-300 |
 
 **戻り値例**:
@@ -786,6 +796,7 @@ class ExecutionResult(BaseModel):
     total_execution_time_ms: Optional[int] = Field(None, description="総実行時間（ミリ秒）")
     total_token_usage: Optional[dict] = Field(None, description="総トークン使用量")
     total_cost_usd: Optional[float] = Field(None, description="総コスト（USD）")
+    web_searches: List[dict] = Field(default_factory=list, description="実行した web_search（step_id / query / reason）")
     created_at: Optional[datetime] = Field(default_factory=datetime.now, description="結果作成日時")
 ```
 
@@ -1280,6 +1291,7 @@ __all__ = [
 | 2.2 | 2026-09-24 | 概要に「各責務対応のモジュール」を追加した（基本フォーマット §2.4。2026-09-24）。主な責務に無かった ReAct 用スキーマ（`Scratchpad` / `AgentThought`）を責務に加え、1:1 に揃えた |
 | 2.3 | 2026-10-10 | Legacy ReAct 経路（`services/agent_service.py`・`agent_parallel_search.py`・`agent_cache.py`・`executor._execute_legacy_agent_step`・`run_legacy_agent` アクション）を 2026-10-10 に削除したのに追随 |
 | 2.4 | 2026-10-10 | §4.1 使用例を処理パターン 4 通り（計画を組み立てて検証・壊れた依存を直す・結果を記録・ReAct の観測を積む）に書き直し、実行して出力を確かめた。旧版は `from schemas import` で import できず動かなかった（正しくは `grace.schemas`）。`SearchResultItem` / `SearchResultPayload` に使用箇所が無いことを注記した |
+| 2.5 | 2026-10-30 | `PlanStep.web_query` / `required`（0-(A) の観点ごとの計画）と `ExecutionResult.web_searches`（Web 検索の語と理由）を追記。§3 の一覧に抜けていた `PlanStep.dynamic` も足した |
 
 ---
 

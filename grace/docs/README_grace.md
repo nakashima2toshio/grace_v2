@@ -1,6 +1,6 @@
 # README_grace.md - grace/ ディレクトリ概要
 
-**Version 2.0** | 最終更新: 2026-10-10
+**Version 2.1** | 最終更新: 2026-10-30
 
 `grace/` パッケージの入口となる文書。ディレクトリの役割・設計の考え方・モジュール索引・使い方・公開 API をまとめる。
 文書を新しく書く／直す前に、まずここを見る。
@@ -54,8 +54,8 @@
 
 | # | 責務 | 対応モジュール | 説明 |
 |---|------|--------------|------|
-| 1 | 実行計画の生成 | `planner.py` | `Planner.create_plan()`。曖昧な質問は確認、通常はルールで 2 ステップ、複雑なら LLM で計画する |
-| 2 | 計画の実行と統括 | `executor.py` | `Executor.execute()`。RAG のスコア不足で Web 検索・ask_user を動的に挿入し、介入・リプラン・全体信頼度を回す |
+| 1 | 実行計画の生成 | `planner.py` | `Planner.create_plan_for_topic()`（GRACE-Support。0-(A) で整理した話題の観点ごとに社内検索）/ `create_plan()`（リプランは LLM、それ以外はルールで 2 ステップ） |
+| 2 | 計画の実行と統括 | `executor.py` | `Executor.execute()`。RAG のスコア不足で Web 検索・ask_user を動的に挿入し（理由を `web_searches` に記録）、介入・リプラン・全体信頼度を回す |
 | 3 | ツールの提供 | `tools.py` | `ToolRegistry` に `rag_search` / `web_search` / `reasoning` / `ask_user` を登録する（`code_execute` は `tools.enabled` に足したときだけ） |
 | 4 | 信頼度と根拠の検証 | `confidence.py` | 多軸の `ConfidenceCalculator` と、支持率を出す `GroundednessVerifier` |
 | 5 | 信頼度の較正 | `calibration.py` | `Calibrator`（温度スケーリング）。`config/calibration.json` があるときだけ効く |
@@ -126,7 +126,7 @@ style BASE fill:#1a1a1a,stroke:#fff,color:#fff
 **データフロー**:
 
 1. 両コアとも `copy.deepcopy(get_config())` でリクエスト単位の設定を作り、業界プロファイル／ルールセットの検索スコープと方針を `config` へ注入する
-2. Support は `planner.create_plan` → `executor.execute` で内部 RAG と回答生成を行う。`executor` の内側で `tools` / `replan` / `memory` / `calibration` / 多軸信頼度が動く
+2. Support は 0-(A) の `question_refiner.refine_question` で整理した話題を `planner.create_plan_for_topic` → `executor.execute(plan, allow_react=False)` に渡し、観点ごとの内部 RAG と回答生成を行う。`executor` の内側で `tools` / `replan` / `memory` / `calibration` / 多軸信頼度が動く
 3. Review は `tools` の `rag_search` を直接呼んで規程を集め、`review_gates.py` の LLM 判定で違反候補を出す
 4. 両者とも `confidence.GroundednessVerifier` で根拠を検証し、副作用のあるアクションは `intervention.InterventionHandler` の承認を経てから実行する
 
@@ -171,7 +171,7 @@ class START,P1,P2,P3,P4,P5,MEM,DONE default
 
 | 段階 | ルーツ | 主担当 | 補助 | 主なメソッド |
 |---|---|---|---|---|
-| ① Plan | (A) Thought を独立させた | `planner.py` | `memory.py`（優先コレクション）・`schemas.py` | `create_plan(query)` |
+| ① Plan | (A) Thought を独立させた | `planner.py` | `memory.py`（優先コレクション）・`schemas.py` | `create_plan_for_topic(topic)` / `create_plan(query)` |
 | ② Execute | (A) Action + Observation | `executor.py` ＋ `tools.py` | `llm_compat.py`・`schemas.py` | `execute(plan)` / `ToolRegistry.execute(name, ...)` |
 | ③ Confidence | (B) Evaluator / Self-Reflection | `confidence.py` ＋ `calibration.py` | `config.py`（重み・しきい値） | `calculate()` / `verify()` / `transform()` |
 | ④ Intervention | **GRACE で新設** | `intervention.py` | `confidence.py`（`InterventionLevel` / `ActionDecision`） | `decide_action()` → `handle()` |
@@ -191,21 +191,21 @@ class START,P1,P2,P3,P4,P5,MEM,DONE default
 
 | モジュール | 文書 | 種別 | 行数 | Ver | 概要 |
 |---|---|---|---:|---|---|
-| `planner.py` | [`planner.md`](./planner.md) | E | 1366 | 3.16 | A・計画。質問を三層に振り分けて `ExecutionPlan` を作る |
-| `executor.py` | [`executor.md`](./executor.md) | E | 2369 | 4.24 | A・実行。静的 Plan-Execute と ReAct ループ、動的フォールバック、介入・リプラン・全体信頼度 |
-| `tools.py` | [`tools.md`](./tools.md) | E | 1856 | 3.10 | A・実行。`ToolRegistry` と 5 つのツール（`WebSearchTool` を含む） |
-| `confidence.py` | [`confidence.md`](./confidence.md) | E | 2104 | 2.12 | A・評価。多軸の信頼度・根拠検証（支持率）・介入レベルの判定 |
+| `planner.py` | [`planner.md`](./planner.md) | E | 1293 | 3.19 | A・計画。0-(A) で整理した話題から観点ごとの `ExecutionPlan` を作る（`create_plan_for_topic`）。リプランは LLM 計画 |
+| `executor.py` | [`executor.md`](./executor.md) | E | 2423 | 4.25 | A・実行。静的 Plan-Execute と ReAct ループ、動的フォールバック、介入・リプラン・全体信頼度 |
+| `tools.py` | [`tools.md`](./tools.md) | E | 1907 | 3.12 | A・実行。`ToolRegistry` と 5 つのツール（`WebSearchTool` を含む） |
+| `confidence.py` | [`confidence.md`](./confidence.md) | E | 2111 | 2.13 | A・評価。多軸の信頼度・根拠検証（支持率）・介入レベルの判定 |
 | `calibration.py` | [`calibration.md`](./calibration.md) | E | 813 | 1.2 | A・評価。温度スケーリングによる較正と ECE |
-| `intervention.py` | [`intervention.md`](./intervention.md) | E | 1650 | 1.10 | A・制御。HITL の振り分け・動的しきい値・確認フロー |
-| `replan.py` | [`replan.md`](./replan.md) | E | 1219 | 2.5 | A・制御。リプランの要否・戦略・新計画 |
-| `memory.py` | [`memory.md`](./memory.md) | E | 616 | 1.3 | A・学習。実行実績の JSONL と優先コレクション |
-| `config.py` | [`config.md`](./config.md) | E | 1080 | 1.15 | B。設定の一元管理 |
-| `schemas.py` | [`schemas.md`](./schemas.md) | E | 1369 | 2.4 | B。計画・結果・ReAct 観測の型 |
-| `llm_compat.py` | [`llm_compat.md`](./llm_compat.md) | E | 972 | 1.11 | B。genai 形式 → Anthropic `messages.create` の変換 |
-| （処理フロー） | [`grace_process_flow.md`](./grace_process_flow.md) | A | 447 | 4.2 | 1 クエリの処理の流れ・分岐・Support / Review での使われ方 |
-| （データフロー） | [`grace_data_flow.md`](./grace_data_flow.md) | A | 315 | 4.0 | 外部 API に渡るデータ・プロンプトの所在・実行メモリと較正ファイル |
+| `intervention.py` | [`intervention.md`](./intervention.md) | E | 1651 | 1.11 | A・制御。HITL の振り分け・動的しきい値・確認フロー |
+| `replan.py` | [`replan.md`](./replan.md) | E | 1220 | 2.6 | A・制御。リプランの要否・戦略・新計画 |
+| `memory.py` | [`memory.md`](./memory.md) | E | 641 | 1.4 | A・学習。実行実績の JSONL と優先コレクション |
+| `config.py` | [`config.md`](./config.md) | E | 1090 | 1.20 | B。設定の一元管理 |
+| `schemas.py` | [`schemas.md`](./schemas.md) | E | 1381 | 2.5 | B。計画・結果・ReAct 観測の型 |
+| `llm_compat.py` | [`llm_compat.md`](./llm_compat.md) | E | 973 | 1.12 | B。genai 形式 → Anthropic `messages.create` の変換 |
+| （処理フロー） | [`grace_process_flow.md`](./grace_process_flow.md) | A | 452 | 4.3 | 1 クエリの処理の流れ・分岐・Support / Review での使われ方 |
+| （データフロー） | [`grace_data_flow.md`](./grace_data_flow.md) | A | 321 | 4.4 | 外部 API に渡るデータ・プロンプトの所在・実行メモリと較正ファイル |
 
-> 行数・Ver は `wc -l` と各文書の Version ヘッダーの実測値（2026-10-10）。
+> 行数・Ver は `wc -l` と各文書の Version ヘッダーの実測値（2026-10-30）。
 
 **A / B の線引きの根拠**（`grace/*.py` の import を AST で解析。2026-10-10 実測）:
 
@@ -502,3 +502,4 @@ PY
 | 1.18 | 2026-10-10 | Legacy ReAct 経路の削除（2026-10-10）に追随し、§3 の `executor.md`（2300 行・v4.20）・`schemas.md`（v2.3）・`confidence_calibration.md`（v1.7）の行数・版と、§3.1 の `executor.md` の公開シンボル数（58 → 57）を実測へ |
 | 1.19 | 2026-10-10 | テストの所在を `backend/tests/` からリポジトリ直下の `tests/` へ移したのに追随（パス・コマンド・import の表記） |
 | 2.0 | 2026-10-10 | **`README.md` を `README_grace.md` へ改称し、ディレクトリ概要に作り直した**（`a_cross_doc_md_format.md` §1.2 の構成）。(1) 旧 `grace.md`（設計思想・ReAct → Reflection → GRACE の経緯・5 段階の定義）を「概要 > 設計の考え方」へ統合し、`grace.md` を削除した。(2) 旧 `grace_core.md` の概要・モジュール役割サマリー・エクスポート・最小実行サンプルを §1・§2・§3 へ統合した（同書は `grace_process_flow.md` へ改称）。(3) 旧 §1 の解決済みの問題一覧・§2 の文書一覧・§3 の実装追随状況・§5 の残タスク・§6 の落とし穴は、§1 モジュール一覧と §5.1 保守の約束に要点を残して整理した。旧 §4 の検証スクリプトは、書式・Mermaid を `a_cross_doc_md_format.md` §10 に任せ、公開シンボルの網羅とリンク・アンカーの 2 本を §5.1 に残した（`backend/docs/docs_audit.md` が参照している）。(4) GRACE-Support / GRACE-Review のステップ × モジュール対応表は `grace_process_flow.md` §2.3 へ移した。(5) §2 使い方に Review 型（部品を直接呼ぶ）と学習する部品の準備の例を新設し、スタブで実行して出力を確かめた |
+| 2.1 | 2026-10-30 | §1 の索引の行数・Ver を実測し直した。GRACE-Support の ① を `Planner.create_plan_for_topic`（0-(A) の観点ごとの計画）、② を `execute(plan, allow_react=False)` にしたのに追随（責務の対応表・データフロー・5 段階の表） |

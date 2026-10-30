@@ -1,6 +1,6 @@
 # backend テストの地図 ドキュメント
 
-**Version 2.18** | 最終更新: 2026-10-22
+**Version 2.19** | 最終更新: 2026-10-30
 
 ---
 
@@ -313,14 +313,16 @@ GRACE_E2E=1 uv run --no-sync pytest tests/e2e -m e2e -rs
 | テスト | 対象 |
 |---|---|
 | `test_support_agent_core.py` | パイプライン 0-(A)〜⑥ の配線（14 件） |
-| `test_multi_question.py` / `test_multi_question_pipeline.py` | 0-(A) 複数質問の分析・選択・再構成（86 件＋30 件） |
+| `test_question_refiner.py` | 0-(A) `question_refiner.py`: プロンプト（試す問い合わせを例に入れない・実 LLM で見つかった書き足しを防ぐ規則）・出力の検査（前置き・主・書き写し）・`restrict_web_query`・失敗時は元の文（46 件） |
+| `test_refine_pipeline.py` / `test_question_scope_and_deferred.py` | 0-(A) を 1 周に通したとき（話題の選択・拒否とタイムアウトは元の文・選択肢に無い値・保留と範囲外の区別・観点ごとの ⑤ Web 検索）と、`split_by_scope` / `deferred_main_questions`（15 件＋40 件） |
+| `test_plan_for_topic.py` / `test_plan_always_searches.py` | ① 観点ごとの計画（`create_plan_for_topic`）と、計画に必ず社内検索が入ること。最新情報を求めた観点の Web 検索は社内検索が十分でも飛ばさない・ESCALATE の検索ステップで回答を捨てない・ReAct へ回さない（13 件＋13 件） |
+| `test_web_search_reasons.py` / `test_web_rank_score_override.py` / `test_reasoning_web_and_duplicate_sources.py` | executor が Web 検索した理由を記録し画面に出す・リプランの代替で失敗を残す（9 件）／Web の順位スコアで LLM の確信度を上書きしない（3 件）／reasoning のプロンプトで Web のスコアを「信頼度」と書かない・同じ参照情報を重複させない（5 件） |
 | `test_no_info_judge.py` / `test_no_info_prediction.py` | ④' 情報なし回答検知 |
 | `test_vertical_scope.py` | 業界プロファイルによる検索スコープ限定 |
 | `test_policy_claims.py` / `test_source_attribution.py` / `test_rag_adoption.py` | 出典・根拠の扱い |
 | `test_web_search_toggle.py` | `use_web=False`（内部 RAG のみ）で executor の 5 経路（動的挿入・計画済み・並列プリフェッチ・fallback・ReAct）すべてが Web を検索しない。`ask_user` も差し込まない。Web 許可時も、採用した RAG 結果（0.64 以上）では無条件に Web を検索しない（`rag_sufficient_score` ≤ `reasoning_min_rag_score` の不変条件） |
 | `test_planner_memory_scope.py` / `test_memory_exclusion.py` | 計画の rag_search に付くコレクション: 実行メモリはキーワードが重ならない質問に何も推さない（全体集計へ倒れない）・ひらがな区切りのキーワード抽出・LLM 計画のプロンプトに出す一覧は検索時と同じ（除外対象・次元違いを出さない）・除外対象は飛ばして次点。LLM 計画の `created_at` 補完と `timeout_seconds` の設定値への統一（17 件＋既存） |
 | `test_uncited_web_citations.py` | 回答本文で引用していない Web 出典を表示から外す（社内だけ引用 → Web を外す／URL を引用 → それだけ残す／どちらも引用なし → 外さない／タイトルが途中で切れた URL でも括弧内の本物で照合する） |
-| `test_ambiguous_query.py` | ① 曖昧クエリ判定（`is_ambiguous_query`）: 「その件」の手前に対象（英数字・カタカナ語）があれば曖昧としない（1 行目に対象を書いた複数行の入力が ask_user 計画になり RAG を呼ばなかった）。単独の「その件の経緯を詳しく教えて」は曖昧のまま（11 件） |
 
 ### 2.3 共有基盤・API・データ準備
 
@@ -348,7 +350,7 @@ GRACE_E2E=1 uv run --no-sync pytest tests/e2e -m e2e -rs
 | 触った場所 | 最低限流すもの |
 |---|---|
 | `core/jobs.py` / `intervention_bridge.py` / `job_logs.py`（**共有基盤**） | 全体（`pytest tests`）。特に `test_jobs_generic.py` |
-| `core/gates.py`（Support の判定） | `test_support_agent_core.py` `test_multi_question*.py` `test_no_info_*.py` ＋ **Review 系 18 本**（`_match_keyword` / `judge_model` を共用） |
+| `core/gates.py` / `core/question_refiner.py`（Support の判定・0-(A)） | `test_support_agent_core.py` `test_question_refiner.py` `test_refine_pipeline.py` `test_question_scope_and_deferred.py` `test_no_info_*.py` ＋ **Review 系 18 本**（`_match_keyword` / `judge_model` を共用） |
 | `core/review_*.py` / `rulesets.py` | `test_review_*.py` `test_rulesets.py` |
 | `grace.confidence` / `support_actions.py`（**Support / Review 共用**） | 全体 |
 | `schemas.py` / `api/*.py` | `test_api.py` `test_review_api.py` ＋ **frontend ゲート**（`types.ts` の追随） |
@@ -356,7 +358,8 @@ GRACE_E2E=1 uv run --no-sync pytest tests/e2e -m e2e -rs
 | `qa_generation/*.py` / `services/data_pipeline_service.py` の Q/A 生成 | `test_qa_generation_core.py` `test_qa_pipeline_*.py` `test_qa_generation_import_side_effects.py` `test_qa_pair_definitions.py` |
 | `qdrant_client_wrapper.py` / `services/qdrant_service.py` / `qa_qdrant/register_to_qdrant.py` / `celery_*.py` | 上の単体テストに加えて `tests/integration/`（Qdrant / Redis を起動して。§1.1） |
 | 判定・閾値・プロンプト・モデル既定（`gates.py` / `review_gates.py` / `rulesets.py` / `config/grace_config.yml`） | 単体テストに加えて、できれば E2E（§1.2）。とくに「適正LP案 → 0 件」 |
-| `grace/planner.py` / `grace/memory.py` / `grace/tools.py` の `RAGSearchTool.search_candidates` | `test_planner_memory_scope.py` `test_memory_exclusion.py` `test_query_vector_reuse.py` `test_rag_adoption.py` `test_vertical_scope.py` |
+| `grace/planner.py` / `grace/memory.py` / `grace/tools.py` の `RAGSearchTool.search_candidates` | `test_plan_for_topic.py` `test_plan_always_searches.py` `test_planner_memory_scope.py` `test_memory_exclusion.py` `test_query_vector_reuse.py` `test_rag_adoption.py` `test_vertical_scope.py` |
+| `grace/executor.py`（Web 検索の差し込み・介入・reasoning の参照情報） | `test_web_search_toggle.py` `test_web_search_reasons.py` `test_executor_pause_confidence.py` `test_reasoning_web_and_duplicate_sources.py` `test_plan_for_topic.py` |
 | `frontend/src/components/QueryForm.tsx` / `ReviewForm.tsx` の例文 | `e2e/test_e2e_cases.py`（期待値とずれていないか） |
 
 ---
@@ -428,3 +431,4 @@ GRACE_E2E=1 uv run --no-sync pytest tests/e2e -m e2e -rs
 | 2.16 | 2026-10-14 | 索引の改名（backend/app/docs/README_app.md → README_backend_app.md）に合わせて参照を付け替えた |
 | 2.17 | 2026-10-15 | §2.2 に `test_planner_memory_scope.py`（実行メモリの全体集計フォールバック廃止・キーワード抽出・Planner のコレクション一覧・LLM 計画の後処理）を追加し、§3 に `grace/planner.py` / `memory.py` / `RAGSearchTool.search_candidates` を触ったときに流すものを追加 |
 | 2.18 | 2026-10-22 | §2.2 に `test_ambiguous_query.py`（11 件）を追加。`test_uncited_web_citations.py` に「タイトルが途中で切れた URL」の照合を追記。`test_multi_question*.py` の件数を実測値（86 件＋30 件）に直した |
+| 2.19 | 2026-10-30 | 0-(A) を `question_refiner.py` に置き換えたのに追随: 削除した `test_multi_question*.py` と `test_ambiguous_query.py`（曖昧判定は削除済み）の行を外し、新しいテスト 8 本の行を足した（件数は実行した値）。§3 の対応表に `question_refiner.py` と計画のテストを足した |

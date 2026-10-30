@@ -1,6 +1,6 @@
 # replan.py - GRACE 動的リプランニングシステム ドキュメント
 
-**Version 2.5** | 最終更新: 2026-10-10
+**Version 2.6** | 最終更新: 2026-10-30
 
 ---
 
@@ -249,7 +249,7 @@ style FACTORY fill:#1a1a1a,stroke:#fff,color:#fff
 | `_get_planner()` | Plannerを遅延取得 |
 | `_create_full_replan(context)` | 全体再計画 |
 | `_create_partial_replan(context, current_plan)` | 部分再計画 |
-| `_apply_fallback(context, current_plan)` | フォールバック適用 |
+| `_apply_fallback(context, current_plan)` | フォールバック適用。失敗したステップを同じ番号のまま代替アクションに置き換え、説明に `[代替] {action} が失敗したため {fallback} に切り替え（{error}）: …` と書く（Web へ切り替えるときの検索語は `web_query`） |
 | `_skip_failed_step(context, current_plan)` | 失敗ステップスキップ |
 | `_build_context_hints(context)` | リプランの補足（前回のエラー・進捗・フィードバック）を組み立てる。**戻り値は `create_plan(..., context_hints=...)` にだけ渡す**（クエリへ連結しない） |
 | `_create_remaining_hints(context, completed_steps)` | 部分再計画の補足を組み立てる。同上 |
@@ -853,8 +853,8 @@ def _build_context_hints(self, context: ReplanContext) -> str
 > 連結すると 2 つ壊れる:
 >
 > 1. `PlanStep.query` がこの文章まるごとになり、**rag_search の embedding が壊れて再検索も外す**
-> 2. `estimate_complexity` が長さで加点するため複雑度が閾値を越え、
->    ルールベース計画（LLM 呼び出し 0 回）から**高コストな LLM 計画生成へ落ちる**
+> 2. 当時の `estimate_complexity`（2026-10-29 に削除）が長さで加点するため複雑度が閾値を越え、
+>    ルールベース計画（LLM 呼び出し 0 回）から**高コストな LLM 計画生成へ落ちる**（現在は `context_hints` があれば LLM 計画にする）
 >
 > 実測では次の文字列がそのまま検索クエリになり、**リプランするほど状況が悪化していた**:
 >
@@ -1176,6 +1176,7 @@ __all__ = [
 | 2.3 | 2026-09-24 | 現在の既定モデルの記載 `claude-sonnet-4-6` を実装（`grace/config.py` の `LLMConfig.model` = `claude-sonnet-5`）に合わせて是正した（CLAUDE.md §9.3。旧既定は履歴の記述にだけ残す）（2026-09-24） |
 | 2.4 | 2026-10-06 | 現在の既定モデルの記載 `claude-sonnet-5` を実装（`grace/config.py` の `LLMConfig.model` / `grace/llm_compat.py` の `DEFAULT_ANTHROPIC_MODEL` = `claude-sonnet-5-5`）に合わせて是正（2026-10-06。CLAUDE.md §9.3。旧既定は履歴の記述にだけ残す） |
 | 2.5 | 2026-10-10 | §4.1 使用例を処理パターン 4 通り（ステップの失敗から立て直す・戦略の決まり方・計画の作り直し・ユーザーの指摘）に書き直し、LLM と Qdrant をスタブにして実行して出力を確かめた。旧版は未定義の `current_plan` を使っていて動かなかった。通常の 2 ステップの計画では進捗による `FULL` が起きないこと、`handle_user_feedback` に本番の呼び出し元が無いことを注記した |
+| 2.6 | 2026-10-30 | `_apply_fallback` の説明に失敗と理由を書き、Web へ切り替えるときは `PlanStep.web_query` を使うようにしたのに追随（以前は「[代替] 社内検索: 経緯」だけで、社内検索が失敗したことが画面に残らなかった。`tests/test_web_search_reasons.py`）。§4 の注記の `estimate_complexity` は削除済みと明記した |
 
 ---
 

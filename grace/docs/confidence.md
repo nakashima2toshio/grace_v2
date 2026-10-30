@@ -1,6 +1,6 @@
 # confidence.py - 信頼度計算システム ドキュメント
 
-**Version 2.12** | 最終更新: 2026-10-10
+**Version 2.13** | 最終更新: 2026-10-30
 
 ---
 
@@ -410,6 +410,7 @@ from grace.confidence import ConfidenceFactors, create_confidence_calculator
 calc = create_confidence_calculator()
 factors = ConfidenceFactors(
     search_result_count=1, search_max_score=0.82, search_avg_score=0.82, is_search_step=True,
+    search_score_is_similarity=True,   # rag_search（類似度）。executor は rag_search のときだけ True にする
 )
 
 # 軽量モデル（config.llm.light_model）で、要素の要約・ツール出力・質問から採点する
@@ -428,6 +429,9 @@ print(f"{score.score:.2f} {score.reason}")
 ```
 
 > 📝 検索ステップで `search_max_score` が 0.7 を超えるときは、LLM が下げすぎないよう**検索スコアを優先**する（`reason` に「検索スコア … を優先」と付く）。
+> **スコアが類似度のとき（`search_score_is_similarity=True`。rag_search）に限る**（2026-10-30〜）。Web 検索のスコアは検索順位から作った値
+> （1 位 = 1.0）で内容とは関係なく、以前は Web 検索のステップが LLM の採点にかかわらず毎回 1.0 に上書きされていた。
+> 同じ例で `search_score_is_similarity=False` にすると `0.60 根拠が質問に合っている` のまま（LLM をスタブにして確かめた）。
 >
 > ⚠️ executor は、検索ステップで LLM の値が 0.6 未満のときヒューリスティック（4.1.1）でも計算し、**高い方**を採る
 > （`Executor._llm_calculate_step_confidence`）。LLM が失敗したときもヒューリスティックに落ちる。
@@ -523,6 +527,7 @@ class ConfidenceFactors:
     tool_success_count: int = 0
     query_coverage: float = 0.0
     is_search_step: bool = False
+    search_score_is_similarity: bool = False
 ```
 
 | パラメータ | 型 | デフォルト | 説明 |
@@ -540,6 +545,7 @@ class ConfidenceFactors:
 | `tool_success_count` | int | 0 | 成功ツール数 |
 | `query_coverage` | float | 0.0 | クエリへの回答網羅度 |
 | `is_search_step` | bool | False | 検索ステップかどうか |
+| `search_score_is_similarity` | bool | False | 検索スコアが類似度か（rag_search は True、Web 検索の順位スコアは False）。`llm_calculate` の上書きはこれが True のときだけ |
 
 | 項目 | 内容 |
 |------|------|
@@ -812,7 +818,7 @@ def llm_calculate(
 | 項目 | 内容 |
 |------|------|
 | **Input** | `factors`, `step_description: str = ""`, `tool_output: str = ""` |
-| **Process** | 1. `create_llm_evaluator()` で評価器生成<br>2. `evaluate_with_factors()` でスコアと理由を取得<br>3. 検索ステップで `search_max_score>0.7` かつ上回る場合は検索スコアを優先 |
+| **Process** | 1. `create_llm_evaluator()` で評価器生成<br>2. `evaluate_with_factors()` でスコアと理由を取得<br>3. 検索ステップで `search_score_is_similarity` が真、`search_max_score>0.7` かつ上回る場合は検索スコアを優先 |
 | **Output** | `ConfidenceScore`: LLM スコアと理由 |
 
 **戻り値例**:
@@ -2057,6 +2063,7 @@ __all__ = [
 | 2.10 | 2026-10-06 | 未記載だった 3 シンボルを実装から書き起こして追加（2026-10-06）。§4.14 に断り文の除外（`ABSENCE_CLAIM_SOURCE_WORDS` / `ABSENCE_CLAIM_MARKERS` / `is_absence_claim`。v2.8 で変更履歴にだけ書かれていた）、§4.15 に支持率の減衰 `damp_support_rate`（**Support の executor と Review の ④ Ground が共用**）。主要機能一覧・§3.1・§6 にも反映 |
 | 2.11 | 2026-10-10 | 旧 `grace_runtime.md`（現 `grace_data_flow.md`）にあったプロンプトの全文を、実装から書き出して §5 へ移した（`grace/docs/` の構成整理。所在の一覧は `grace_data_flow.md` §3.4） |
 | 2.12 | 2026-10-10 | §4.1 使用例を処理パターン 4 通り（ヒューリスティックの採点と介入レベル・LLM の採点・最終回答の評価と根拠検証・集約と一致度）に書き直し、LLM と Embedding をスタブにして実行して出力を確かめた。旧 4.1.2 は未定義の `step_scores` を使っていて動かなかった。旧 `confidence_calibration.md` の使用例は `grace_process_flow.md` §2.2 のブレンドの式へ移した |
+| 2.13 | 2026-10-30 | `ConfidenceFactors.search_score_is_similarity` を追記。`llm_calculate` の検索スコアによる上書きは類似度（rag_search）のときだけになったのに追随し、§4.1.2 の例に引数を足して、LLM をスタブにして両方の出力を確かめた |
 
 ---
 
