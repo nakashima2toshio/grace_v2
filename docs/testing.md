@@ -1,6 +1,6 @@
 # backend テストの地図 ドキュメント
 
-**Version 2.19** | 最終更新: 2026-10-30
+**Version 2.20** | 最終更新: 2026-10-31
 
 ---
 
@@ -317,6 +317,7 @@ GRACE_E2E=1 uv run --no-sync pytest tests/e2e -m e2e -rs
 | `test_refine_pipeline.py` / `test_question_scope_and_deferred.py` | 0-(A) を 1 周に通したとき（話題の選択・拒否とタイムアウトは元の文・選択肢に無い値・保留と範囲外の区別・観点ごとの ⑤ Web 検索）と、`split_by_scope` / `deferred_main_questions`（15 件＋40 件） |
 | `test_plan_for_topic.py` / `test_plan_always_searches.py` | ① 観点ごとの計画（`create_plan_for_topic`）と、計画に必ず社内検索が入ること。最新情報を求めた観点の Web 検索は社内検索が十分でも飛ばさない・ESCALATE の検索ステップで回答を捨てない・ReAct へ回さない（13 件＋13 件） |
 | `test_web_search_reasons.py` / `test_web_rank_score_override.py` / `test_reasoning_web_and_duplicate_sources.py` | executor が Web 検索した理由を記録し画面に出す・リプランの代替で失敗を残す（9 件）／Web の順位スコアで LLM の確信度を上書きしない（3 件）／reasoning のプロンプトで Web のスコアを「信頼度」と書かない・同じ参照情報を重複させない（5 件） |
+| `test_keyword_gates_use_original_text.py` | ④ 強制エスカレ・⑥ アクションの語を、0-(A) が書き直した質問文ではなく原文で照合する（言い換えで語が消える／言い換えにだけ語が入る。3 件） |
 | `test_no_info_judge.py` / `test_no_info_prediction.py` | ④' 情報なし回答検知 |
 | `test_vertical_scope.py` | 業界プロファイルによる検索スコープ限定 |
 | `test_policy_claims.py` / `test_source_attribution.py` / `test_rag_adoption.py` | 出典・根拠の扱い |
@@ -432,3 +433,4 @@ GRACE_E2E=1 uv run --no-sync pytest tests/e2e -m e2e -rs
 | 2.17 | 2026-10-15 | §2.2 に `test_planner_memory_scope.py`（実行メモリの全体集計フォールバック廃止・キーワード抽出・Planner のコレクション一覧・LLM 計画の後処理）を追加し、§3 に `grace/planner.py` / `memory.py` / `RAGSearchTool.search_candidates` を触ったときに流すものを追加 |
 | 2.18 | 2026-10-22 | §2.2 に `test_ambiguous_query.py`（11 件）を追加。`test_uncited_web_citations.py` に「タイトルが途中で切れた URL」の照合を追記。`test_multi_question*.py` の件数を実測値（86 件＋30 件）に直した |
 | 2.19 | 2026-10-30 | 0-(A) を `question_refiner.py` に置き換えたのに追随: 削除した `test_multi_question*.py` と `test_ambiguous_query.py`（曖昧判定は削除済み）の行を外し、新しいテスト 8 本の行を足した（件数は実行した値）。§3 の対応表に `question_refiner.py` と計画のテストを足した |
+| 2.20 | 2026-10-31 | §2.2 に `test_keyword_gates_use_original_text.py`（3 件）を追加 |
