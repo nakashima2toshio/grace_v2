@@ -1,6 +1,6 @@
 # core_process_flow.md - GRACE-Support / GRACE-Review とジョブ基盤の処理フロー
 
-**Version 1.6** | 最終更新: 2026-10-30
+**Version 1.7** | 最終更新: 2026-10-31
 
 > 📝 2026-10-12 に `backend/docs/` を廃止したとき、`support_flow.md`（2,215 行）・`review_flow.md`（1,257 行）・
 > `job_runtime.md`（353 行）の**流れと設計判断**だけをここへまとめた。関数のシグネチャ・引数・戻り値は書かない
@@ -149,6 +149,7 @@ Q&A 形式の出典では答えていない内容が neutral になり、母数�
   `gov` は 0.8 / 0.5（正確性優先）。
 - **強制エスカレ**（二段判定）: 第 1 段でプロファイルの `escalate_keywords` に部分一致 → 第 2 段で意図分類
   （`create_intent_classifier`）。`question`（FAQ）なら誤検知として発動しない。`request` / `incident` / 分類失敗は安全側で発動する。
+  照合する文は、0-(A) の LLM が書き直した回答用の質問文ではなく、利用者が書いた**原文**（`run_support_agent_core` の `original_query`）。言い換えで原文の語が消える・原文に無い語が入ることがあるため（2026-10-31〜。`tests/test_keyword_gates_use_original_text.py`）。⑥ の `action_map` の照合も同じ。
 - **④-救済**: escalate でも、強制でなく・矛盾なし・出典あり・実質的な回答なら `answer`（`warning=True`）に戻す。
   放置すると ⑤ の作り直しで「情報なし」回答に化け、④' で誤エスカレしていた（ec の返金ポリシーで実測）。
 - `decision` は `answer` / `escalate` の **2 値**。中信頼は「答えない」ではなく `warning` で表す（判定軸を 1 本に保つ）。
@@ -590,3 +591,4 @@ SSE は失敗しても必ず `done`（`status=failed`）で閉じる。
 | 1.4 | 2026-10-14 | 索引の改名（backend/app/docs/README_app.md → README_backend_app.md）に合わせて参照を付け替えた |
 | 1.5 | 2026-10-14 | 既定モデル名を config.py::ModelConfig（DEFAULT_MODEL / LIGHT_MODEL）の 1 か所にまとめたのに追随 |
 | 1.6 | 2026-10-30 | 0-(A) を `question_refiner.refine_question()`（毎回 LLM で話題・観点に整理）へ置き換えたのに追随（§1.1 の図・§1.2・§1.6 を書き直し、§1.4 に観点ごとの Web 検索と Web 検索の理由、§4.2 の GA / GA'・§4.5 のテストを差し替え）。grace_v2 に無い `judges.multi_question` の行を消した |
+| 1.7 | 2026-10-31 | ④ の強制エスカレ・⑥ のアクションの語を、0-(A) が書き直した質問文ではなく原文で照合するようにしたのに追随（§1.3） |

@@ -1,6 +1,6 @@
 # core/gates.py - 回答ゲート・判定ロジック ドキュメント
 
-**Version 1.12** | 最終更新: 2026-10-30
+**Version 1.13** | 最終更新: 2026-10-31
 
 > **本書の位置づけ**: `backend/app/core/gates.py`（Support の判定ロジック（質問分析・回答ゲート・救済・情報なし検知））の **IPO リファレンス**。
 > 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。
@@ -466,7 +466,7 @@ def _should_force_escalate(
 
 | パラメータ | 型 | デフォルト | 説明 |
 |------------|------|-----------|------|
-| `query` | str | - | 問い合わせ |
+| `query` | str | - | 問い合わせ。`support_agent` は利用者が書いた**原文**を渡す（0-(A) の LLM が書き直した回答用の質問文ではない。言い換えでエスカレ語が消えるため） |
 | `profile` | Optional[VerticalProfile] | - | 業界プロファイル（None なら常に False） |
 | `classify` | Optional[Callable] | None | 意図分類器 |
 
@@ -612,7 +612,7 @@ def _decide_action(
 
 | パラメータ | 型 | デフォルト | 説明 |
 |------------|------|-----------|------|
-| `query` | str | - | 問い合わせ |
+| `query` | str | - | 問い合わせ。`support_agent` は利用者が書いた**原文**を渡す（`_should_force_escalate` と同じ理由） |
 | `decision` | Decision | - | 回答判定 |
 | `profile` | Optional[VerticalProfile] | None | 業界プロファイル |
 | `classify` | Optional[Callable] | None | 意図分類器 |
@@ -990,6 +990,7 @@ NO_INFO_MARKERS
 | 1.10 | 2026-10-14 | 既定モデル名を config.py::ModelConfig（DEFAULT_MODEL / LIGHT_MODEL）の 1 か所にまとめたのに追随 |
 | 1.11 | 2026-10-22 | 出典 URL の取り出しを `_citation_url()`（最後の URL）にまとめた。SerpAPI のタイトルが途中で切れた URL（`…/6a6705a...`）のとき先頭を拾い、本文に書き写した出典 3 件を「引用していない」として外していた。`answer_cites_sources` も ⑤ の形式を URL で照合する（全 URL を書き写した回答で「触れていません」と出ていた）。`tests/test_uncited_web_citations.py` / `tests/test_multi_question.py` |
 | 1.12 | 2026-10-30 | 0-(A) を `question_refiner.refine_question` につないだのにあわせ、削除した検知・分解・再構成・担当範囲の分類器（`looks_like_multi_question` ほか）と定数（`MULTI_QUESTION_MARKERS` / `MULTI_QUESTION_MIN_MARKS` / `MAX_QUESTION_CLUSTERS` / `_SCOPE_PREFIX_RE`）の記述を外した。§3.2 は残る 6 関数だけにし、§4.1.2 はエスカレ語の第 1 段だけの例にした（実行して出力を確かめた）。テストは `tests/test_question_scope_and_deferred.py` |
+| 1.13 | 2026-10-31 | `_should_force_escalate` / `_decide_action` の `query` に、`support_agent` が原文を渡すようにしたのに追随（`tests/test_keyword_gates_use_original_text.py`） |
 
 ---
 
