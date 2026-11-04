@@ -1,6 +1,6 @@
 # backend テストの地図 ドキュメント
 
-**Version 2.21** | 最終更新: 2026-11-03
+**Version 2.22** | 最終更新: 2026-11-05
 
 ---
 
@@ -215,6 +215,18 @@ GRACE_E2E=1 GRACE_E2E_REPEAT=3 uv run --no-sync pytest tests/e2e -m e2e -rs   # 
 
 # クラウド VM: 下の準備をしたうえで新しいセッションを開くと、hook が依存と実データを用意する
 GRACE_E2E=1 uv run --no-sync pytest tests/e2e -m e2e -rs
+```
+
+#### saas の実データ（`saas_docs_anthropic`）を作り直す
+
+saas の事実チェック「status.example.jp」は `saas_docs_anthropic` の 1 行目にある。このコレクションが無いと、強制エスカレは
+通っても回答に事実が入らず落ちる（実測 2026-11-05: Mac の Qdrant から消えていて 3/3 回失敗。`saas_api_anthropic` だけでは答えられない）。
+元データの雛形を `qa_output/saas_docs.csv`（10 件・架空の SaaS）に置いた。1〜4 行目は過去の実行ログ
+（`docs/examples/GRACE-Support_例文4件.txt`）の回答から起こした内容、5〜10 行目は雛形として足したもの。
+
+```bash
+python qa_qdrant/register_to_qdrant.py --input-file qa_output/saas_docs.csv --collection saas_docs_anthropic --recreate
+python scripts/qdrant_snapshot.py list --collections saas_docs_anthropic,saas_api_anthropic   # 件数を確かめる
 ```
 
 #### クラウド VM で走らせる準備（初回だけ）
@@ -436,3 +448,4 @@ GRACE_E2E=1 uv run --no-sync pytest tests/e2e -m e2e -rs
 | 2.19 | 2026-10-30 | 0-(A) を `question_refiner.py` に置き換えたのに追随: 削除した `test_multi_question*.py` と `test_ambiguous_query.py`（曖昧判定は削除済み）の行を外し、新しいテスト 8 本の行を足した（件数は実行した値）。§3 の対応表に `question_refiner.py` と計画のテストを足した |
 | 2.20 | 2026-10-31 | §2.2 に `test_keyword_gates_use_original_text.py`（3 件）を追加 |
 | 2.21 | 2026-11-03 | §2.2 と §3 に `test_missing_collection_not_searched.py`（4 件）を追加 |
+| 2.22 | 2026-11-05 | §1.2 に「saas の実データを作り直す」を追加（`qa_output/saas_docs.csv` の雛形と登録コマンド） |
