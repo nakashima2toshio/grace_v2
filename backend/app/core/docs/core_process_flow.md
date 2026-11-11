@@ -1,6 +1,6 @@
 # core_process_flow.md - GRACE-Support / GRACE-Review とジョブ基盤の処理フロー
 
-**Version 1.7** | 最終更新: 2026-10-31
+**Version 1.8** | 最終更新: 2026-11-11
 
 > 📝 2026-10-12 に `backend/docs/` を廃止したとき、`support_flow.md`（2,215 行）・`review_flow.md`（1,257 行）・
 > `job_runtime.md`（353 行）の**流れと設計判断**だけをここへまとめた。関数のシグネチャ・引数・戻り値は書かない
@@ -142,6 +142,7 @@ Q&A 形式の出典では答えていない内容が neutral になり、母数�
 | 状態 | 条件 | `decision` / `warning` | 振る舞い |
 |---|---|---|---|
 | 高信頼 | 支持率 ≥ `notify_th` かつ出典 ≥ 1 | `answer` / `False` | 出典つきで回答 |
+| 高信頼だが矛盾あり | 上に加え、③ で矛盾と判定された主張が 1 件以上 | `answer` / `True` | 回答＋「未確認」の注意書き（支持率は supported/decided なので、矛盾が 1 件混じっても 0.9 を超える） |
 | 中信頼 | `confirm_th` ≤ 支持率 < `notify_th` | `answer` / `True` | 回答＋「未確認」の注意書き（黙って精度を落とさない） |
 | 低信頼 | それ未満・未検証・出典 0 | `escalate` | ⑤ Web へ。なお不足なら有人対応 |
 
@@ -592,3 +593,4 @@ SSE は失敗しても必ず `done`（`status=failed`）で閉じる。
 | 1.5 | 2026-10-14 | 既定モデル名を config.py::ModelConfig（DEFAULT_MODEL / LIGHT_MODEL）の 1 か所にまとめたのに追随 |
 | 1.6 | 2026-10-30 | 0-(A) を `question_refiner.refine_question()`（毎回 LLM で話題・観点に整理）へ置き換えたのに追随（§1.1 の図・§1.2・§1.6 を書き直し、§1.4 に観点ごとの Web 検索と Web 検索の理由、§4.2 の GA / GA'・§4.5 のテストを差し替え）。grace_v2 に無い `judges.multi_question` の行を消した |
 | 1.7 | 2026-10-31 | ④ の強制エスカレ・⑥ のアクションの語を、0-(A) が書き直した質問文ではなく原文で照合するようにしたのに追随（§1.3） |
+| 1.8 | 2026-11-11 | ④ に「高信頼だが矛盾あり → 未確認の注記」を足した（§1.3。`tests/test_contradiction_marks_unconfirmed.py`） |

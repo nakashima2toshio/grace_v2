@@ -1,6 +1,6 @@
 # backend テストの地図 ドキュメント
 
-**Version 2.22** | 最終更新: 2026-11-05
+**Version 2.23** | 最終更新: 2026-11-11
 
 ---
 
@@ -330,6 +330,7 @@ python scripts/qdrant_snapshot.py list --collections saas_docs_anthropic,saas_ap
 | `test_plan_for_topic.py` / `test_plan_always_searches.py` | ① 観点ごとの計画（`create_plan_for_topic`）と、計画に必ず社内検索が入ること。最新情報を求めた観点の Web 検索は社内検索が十分でも飛ばさない・ESCALATE の検索ステップで回答を捨てない・ReAct へ回さない（13 件＋13 件） |
 | `test_web_search_reasons.py` / `test_web_rank_score_override.py` / `test_reasoning_web_and_duplicate_sources.py` | executor が Web 検索した理由を記録し画面に出す・リプランの代替で失敗を残す（9 件）／Web の順位スコアで LLM の確信度を上書きしない（3 件）／reasoning のプロンプトで Web のスコアを「信頼度」と書かない・同じ参照情報を重複させない（5 件） |
 | `test_keyword_gates_use_original_text.py` | ④ 強制エスカレ・⑥ アクションの語を、0-(A) が書き直した質問文ではなく原文で照合する（言い換えで語が消える／言い換えにだけ語が入る。3 件） |
+| `test_contradiction_marks_unconfirmed.py` | ④ 回答ゲート: 支持率が `notify_th` 以上でも、③ で矛盾と判定された主張があれば未確認の注記（`warning=True`）を付ける。escalate への倒し方は変えない（5 件） |
 | `test_no_info_judge.py` / `test_no_info_prediction.py` | ④' 情報なし回答検知 |
 | `test_vertical_scope.py` | 業界プロファイルによる検索スコープ限定 |
 | `test_policy_claims.py` / `test_source_attribution.py` / `test_rag_adoption.py` | 出典・根拠の扱い |
@@ -364,7 +365,7 @@ python scripts/qdrant_snapshot.py list --collections saas_docs_anthropic,saas_ap
 | 触った場所 | 最低限流すもの |
 |---|---|
 | `core/jobs.py` / `intervention_bridge.py` / `job_logs.py`（**共有基盤**） | 全体（`pytest tests`）。特に `test_jobs_generic.py` |
-| `core/gates.py` / `core/question_refiner.py`（Support の判定・0-(A)） | `test_support_agent_core.py` `test_question_refiner.py` `test_refine_pipeline.py` `test_question_scope_and_deferred.py` `test_no_info_*.py` ＋ **Review 系 18 本**（`_match_keyword` / `judge_model` を共用） |
+| `core/gates.py` / `core/question_refiner.py`（Support の判定・0-(A)） | `test_support_agent_core.py` `test_contradiction_marks_unconfirmed.py` `test_question_refiner.py` `test_refine_pipeline.py` `test_question_scope_and_deferred.py` `test_no_info_*.py` ＋ **Review 系 18 本**（`_match_keyword` / `judge_model` を共用） |
 | `core/review_*.py` / `rulesets.py` | `test_review_*.py` `test_rulesets.py` |
 | `grace.confidence` / `support_actions.py`（**Support / Review 共用**） | 全体 |
 | `schemas.py` / `api/*.py` | `test_api.py` `test_review_api.py` ＋ **frontend ゲート**（`types.ts` の追随） |
@@ -449,3 +450,4 @@ python scripts/qdrant_snapshot.py list --collections saas_docs_anthropic,saas_ap
 | 2.20 | 2026-10-31 | §2.2 に `test_keyword_gates_use_original_text.py`（3 件）を追加 |
 | 2.21 | 2026-11-03 | §2.2 と §3 に `test_missing_collection_not_searched.py`（4 件）を追加 |
 | 2.22 | 2026-11-05 | §1.2 に「saas の実データを作り直す」を追加（`qa_output/saas_docs.csv` の雛形と登録コマンド） |
+| 2.23 | 2026-11-11 | §2.2 に `test_contradiction_marks_unconfirmed.py`（5 件）を追加 |
