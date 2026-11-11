@@ -1,6 +1,6 @@
 # core/gates.py - 回答ゲート・判定ロジック ドキュメント
 
-**Version 1.13** | 最終更新: 2026-10-31
+**Version 1.14** | 最終更新: 2026-11-11
 
 > **本書の位置づけ**: `backend/app/core/gates.py`（Support の判定ロジック（質問分析・回答ゲート・救済・情報なし検知））の **IPO リファレンス**。
 > 引くための文書であり、**設計の「なぜ」と処理の流れは上位の文書が正本**である。
@@ -224,7 +224,7 @@ style CITE fill:#1a1a1a,stroke:#fff,color:#fff
 | 関数名 | 概要 |
 |-------|------|
 | `_match_keyword(query, keywords)` | キーワード部分一致（第 1 段） |
-| `_answer_gate(support_rate, verified, citation_count, notify_th, confirm_th)` | 回答可否判定 |
+| `_answer_gate(support_rate, verified, citation_count, notify_th, confirm_th, has_contradiction=False)` | 回答可否判定 |
 | `_should_force_escalate(query, profile, classify)` | 強制エスカレの二段判定 |
 | `_detect_no_info_answer(query, answer, judge, force_judge)` | 情報なし回答の二段判定 |
 | `_should_rescue_unaffirmed(decision, forced_escalate, has_contradiction, citation_count, answer, query, no_info_judge)` | 救済可否 |
@@ -423,6 +423,7 @@ verdict = judge(query, answer)  # None は escalate に倒す
 def _answer_gate(
     support_rate: float, verified: bool, citation_count: int,
     notify_th: float, confirm_th: float,
+    has_contradiction: bool = False,
 ) -> tuple[Decision, bool]
 ```
 
@@ -433,23 +434,25 @@ def _answer_gate(
 | `citation_count` | int | - | 出典数 |
 | `notify_th` | float | - | 高信頼しきい値 |
 | `confirm_th` | float | - | 中信頼しきい値 |
+| `has_contradiction` | bool | `False` | 根拠検証（③）で矛盾と判定された主張があるか |
 
 | 項目 | 内容 |
 |------|------|
-| **Input** | `support_rate`, `verified`, `citation_count`, `notify_th`, `confirm_th` |
-| **Process** | 未検証/出典0→escalate。支持率>=notify→answer。>=confirm→answer(warning)。それ未満→escalate |
+| **Input** | `support_rate`, `verified`, `citation_count`, `notify_th`, `confirm_th`, `has_contradiction` |
+| **Process** | 未検証/出典0→escalate。支持率>=notify→answer（矛盾ありなら warning）。>=confirm→answer(warning)。それ未満→escalate。矛盾ありでも escalate へは倒さない（支持率は supported/decided なので、11 主張中 1 件が矛盾でも 0.91 になり注記なしで出ていた。実測 2026-11-07） |
 | **Output** | `tuple[Decision, bool]`: (decision, warning) |
 
 **戻り値例**:
 ```python
 ("answer", False)  # 高信頼
-("answer", True)   # 中信頼（未確認注記）
+("answer", True)   # 中信頼、または高信頼でも矛盾あり（未確認注記）
 ("escalate", False)  # 低信頼／未検証／出典0
 ```
 
 ```python
 # 使用例
 decision, warning = _answer_gate(0.83, True, 2, 0.8, 0.5)  # -> ("answer", False)
+decision, warning = _answer_gate(0.91, True, 4, 0.7, 0.4, has_contradiction=True)  # -> ("answer", True)
 ```
 
 #### `_should_force_escalate`
@@ -944,7 +947,8 @@ no_info_judge = create_no_info_judge(config)
 
 # ④ 回答ゲート
 decision, warning = _answer_gate(gres.support_rate, gres.verified,
-                                 len(citations), notify_th, confirm_th)
+                                 len(citations), notify_th, confirm_th,
+                                 has_contradiction=gres.has_contradiction)
 # 強制エスカレ
 forced, kw, intent = _should_force_escalate(query, profile, classify)
 # ④救済
@@ -991,6 +995,7 @@ NO_INFO_MARKERS
 | 1.11 | 2026-10-22 | 出典 URL の取り出しを `_citation_url()`（最後の URL）にまとめた。SerpAPI のタイトルが途中で切れた URL（`…/6a6705a...`）のとき先頭を拾い、本文に書き写した出典 3 件を「引用していない」として外していた。`answer_cites_sources` も ⑤ の形式を URL で照合する（全 URL を書き写した回答で「触れていません」と出ていた）。`tests/test_uncited_web_citations.py` / `tests/test_multi_question.py` |
 | 1.12 | 2026-10-30 | 0-(A) を `question_refiner.refine_question` につないだのにあわせ、削除した検知・分解・再構成・担当範囲の分類器（`looks_like_multi_question` ほか）と定数（`MULTI_QUESTION_MARKERS` / `MULTI_QUESTION_MIN_MARKS` / `MAX_QUESTION_CLUSTERS` / `_SCOPE_PREFIX_RE`）の記述を外した。§3.2 は残る 6 関数だけにし、§4.1.2 はエスカレ語の第 1 段だけの例にした（実行して出力を確かめた）。テストは `tests/test_question_scope_and_deferred.py` |
 | 1.13 | 2026-10-31 | `_should_force_escalate` / `_decide_action` の `query` に、`support_agent` が原文を渡すようにしたのに追随（`tests/test_keyword_gates_use_original_text.py`） |
+| 1.14 | 2026-11-11 | `_answer_gate` に `has_contradiction` を足した。支持率が `notify_th` 以上でも、根拠検証で矛盾と判定された主張があれば `warning=True`（未確認の注記）にする（実測 2026-11-07: 「新GMとしてマイク・ボルゴンジ氏が就任した」が矛盾と判定されたのに、支持率 0.91 で注記なしの回答になった）。`tests/test_contradiction_marks_unconfirmed.py` |
 
 ---
 
