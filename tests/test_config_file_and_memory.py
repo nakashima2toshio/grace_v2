@@ -95,7 +95,14 @@ def test_loader_reads_the_file_from_any_working_directory(tmp_path, monkeypatch)
     from grace.config import ConfigLoader
 
     monkeypatch.chdir(tmp_path)
-    loaded = ConfigLoader().load()
+    # yml の値がクラス既定値と同じだと、値の比較だけでは「yml を読んだ」のか
+    # 「見つからずクラス既定値で動いた」のか区別が付かない。ファイルそのものが
+    # 見つかることを先に確かめる。
+    loader = ConfigLoader()
+    assert Path(loader.config_path).is_absolute()
+    assert Path(loader.config_path).resolve() == CONFIG_PATH.resolve()
+
+    loaded = loader.load()
     raw = yaml.safe_load(CONFIG_PATH.read_text(encoding="utf-8"))
 
     assert loaded.qdrant.excluded_collections == raw["qdrant"]["excluded_collections"]
