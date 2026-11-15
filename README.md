@@ -248,9 +248,13 @@ style EXTERNAL fill:#1a1a1a,stroke:#fff,color:#fff
 | 8 | ④' 情報なし回答検知 | `no_info` | 実質的な回答あり |
 | 9 | ⑥ Action（本人確認 → HITL CONFIRM → 実行） | `action` | アクション対象なし（本人確認は行わない） |
 
-- **0-(A)** は毎回、軽量 LLM で問い合わせを**話題 → 観点**に整理する（`backend/app/core/question_refiner.py`）。指示語（「その件」）を解決した回答用の質問文と、観点ごとの社内検索の文・Web 検索の語を作り、① は観点ごとに社内検索する計画を作る。話題が 2 つ以上あれば、先に答える話題を選ぶモーダル（`QuestionSelectModal`）を出す
+- **0-(A)** は毎回、軽量 LLM で問い合わせを**話題 → 観点**に整理する（`backend/app/core/question_refiner.py`）。指示語（「その件」）を解決した回答用の質問文と、観点ごとの社内検索の文・Web 検索の語を作り、① は観点ごとに社内検索する計画を作る。話題が 2 つ以上あれば、先に答える話題を選ぶモーダル（`QuestionSelectModal`）を出す。
+  回答用の質問文は LLM が書き直したものなので、④ の強制エスカレ語と ⑥ のアクション語は**利用者が書いた原文**で照合する
+  （言い換えで語が消えても効く。例:「落ちています」が「利用できない」に書き直されても強制エスカレになる）
 - **④** は支持率 ≥ notify かつ出典 1 件以上で answer、confirm 以上なら注意つきの answer、
-  それ未満・未検証・出典 0 件なら escalate（有人対応）にする。救済判定は、根拠の弱い回答を一律に落とさないための例外である
+  それ未満・未検証・出典 0 件なら escalate（有人対応）にする。支持率が notify 以上でも、③ で**矛盾と判定された主張が 1 件でもあれば**
+  注意つきの answer にする（支持率は supported ÷ 判定可能な主張なので、矛盾が 1 件混じっても 0.9 を超えうるため。escalate へは倒さない）。
+  救済判定は、根拠の弱い回答を一律に落とさないための例外である
 - **⑤** は内部回答で確定しなかったときだけ Web を検索する。画面の「Web フォールバック」を OFF にすると、
   ⑤ だけでなく ② の中の Web 検索も止まる（内部 RAG のみ）
 - **④'** は「情報がありません」のような実質のない回答を検知し（定型句の候補 → 軽量 LLM の二段判定）、escalate に倒す
@@ -269,6 +273,7 @@ groundedness（支持率）   1.00（判定可能 3 主張）
   （＝答えていない内容を減点しない）
 - **全体信頼度**は支持率とは別の指標で、② の各ステップの信頼度（検索の質・情報源の一致度・LLM の自己評価など）を
   集約した値である（`grace/executor.py` が `grace/confidence.py` の部品で計算する）
+- 注意つきの answer（中信頼、または矛盾あり）には、回答の下に「⚠️ 注意: この回答は出典による裏付けが十分ではありません。内容をご確認ください。」が付く（`AnswerCard`）
 
 > 実行例の数値は画面で得た一例である（2026-10 時点）。モデル・登録データ・LLM の揺れで変わる。
 
@@ -321,6 +326,10 @@ groundedness（支持率）   1.00（判定可能 3 主張）
 回答せずに窓口を案内する。基本版との差の全項目は [`core_process_flow.md` §1.7](backend/app/core/docs/core_process_flow.md)、
 業界プロファイルの設計は [`backend/app/core/docs/verticals.md`](backend/app/core/docs/verticals.md)。
 
+> 📝 `saas_docs_anthropic` の元データの雛形は `qa_output/saas_docs.csv`（架空の SaaS・10 件）にある。コレクションが消えたときは
+> `python qa_qdrant/register_to_qdrant.py --input-file qa_output/saas_docs.csv --collection saas_docs_anthropic --recreate` で作り直す
+> （[`docs/testing.md`](docs/testing.md) §1.2。E2E の saas の事実チェックはこのコレクションの内容を求める）。
+
 ![S-02 GRACE-Support 入力フォーム](docs/images/s-02-support-form.png)
 
 ### 3.2 処理フロー
@@ -335,10 +344,10 @@ groundedness（支持率）   1.00（判定可能 3 主張）
 | 3 | ① Plan（planner） | 実行計画を生成 |
 | 4 | ② Execute（内部RAG → reasoning） | `gov` のコレクションだけを検索し、方針つきで回答を生成 |
 | 5 | ③ Groundedness（根拠検証） | 支持率 1.00 |
-| 6 | ④ 回答ゲート＋強制エスカレ＋救済 | 判定: answer（強制エスカレ語なし） |
+| 6 | ④ 回答ゲート＋強制エスカレ＋救済 | 判定: answer（強制エスカレ語なし。語は 0-(A) が書き直す前の**原文**で照合する） |
 | 7 | ⑤ Web フォールバック | スキップ: 内部回答で確定 |
 | 8 | ④' 情報なし回答検知 | 実質的な回答あり |
-| 9 | ⑥ Action（本人確認 → HITL CONFIRM → 実行） | `gov` の「申請・手続・様式」なら返信アクションを承認待ちにする。`ec` は先に本人確認 |
+| 9 | ⑥ Action（本人確認 → HITL CONFIRM → 実行） | `gov` の「申請・手続・様式」なら返信アクションを承認待ちにする（アクション語も原文で照合）。`ec` は先に本人確認 |
 
 ![S-03 GRACE-Support 実行中のステップトレース](docs/images/s-03-support-running.png)
 
@@ -370,7 +379,8 @@ groundedness（支持率）   1.00（判定可能 6 主張）
 | `ec` | 返品したい | answer | `ec_policy.csv` | 1.00（10） | `create_ticket`（本人確認つき） | 14.0 秒 |
 | `gov` | 明日の東京の天気を教えてください（範囲外） | **escalate**（回答なし・出典 0 件） | なし | 0.00（0） | `escalate_to_human` | 0.7 秒 |
 
-- `saas` は根拠つきの回答を作れているのに escalate になる。強制エスカレ語は回答の出来より優先される（④）
+- `saas` は根拠つきの回答を作れているのに escalate になる。強制エスカレ語は回答の出来より優先される（④）。
+  語は利用者が書いた原文「サービスが落ちています」で照合するので、0-(A) が「サービスが利用できない」のように書き直しても効く
 
 ![S-05 GRACE-Support エスカレーション](docs/images/s-05-support-escalate.png)
 
@@ -455,6 +465,9 @@ Support と同じ機構を再利用している（新規実装は Segment / Dete
 
 - **③ Detect の二段判定**: 第 1 段でルールのキーワードに当たるセグメントを絞り、第 2 段で LLM が違反かどうかを判定する。
   常時チェックの 7 件はキーワード不問で第 2 段へ進む
+- **文字列で決まる事実の補正**（`backend/app/core/review_facts.py`）: 購入時の送料が書かれているか、広告の返品条件が規程より顧客に不利か、
+  のように**広告文と規程の文字列だけで決まる事実**は LLM に頼らずに調べ、③ の取りこぼしと ④' の誤検知を止める
+  （LLM は判定基準に例まで書いてあっても読み落とすことがあるため。読み取れないときは何もしない）
 - **④' Suppress**: 支持率で状態を決める（0.85 以上 = **確定**、0.60 以上 = **要確認**、それ未満 = **抑止**）。
   未検証・根拠 0 件の指摘は消さずに**要確認**にする（Support が escalate に倒すのとは逆）
 - **⑦ Action**: 指摘があればレポートを作る。重大（high）の指摘があれば承認なしで有人対応へ引き継ぎ
@@ -529,6 +542,8 @@ Support と同じ機構を再利用している（新規実装は Segment / Dete
 - 4 工程とも**ジョブ**として走り、進捗は `GET /api/data/stream/{job_id}`（SSE）で画面に出る
 - ③ は既存コレクションを作り直す（recreate）ときだけ、④ の削除は常に **HITL CONFIRM** を出す（`POST /api/data/confirm/{job_id}`）
 - 入力ファイルの選択肢は `GET /api/files` が返す（許可されたディレクトリの外は読まない）
+- ③ は既定で、登録と一緒に UI 用 CSV（question / answer の 2 列）を `qa_output/` へ書く。入力が `qa_output/` にあって出力先が入力と同じファイルになるときは、
+  **書かずに警告する**（topic・rule_id などの列を消した CSV で元データを上書きしないため。`qa_qdrant/register_to_qdrant.py`）
 - ① と ② のモデルは、ヘッダーの「① チャンキング：」「② Q/A 作成：」で工程ごとに変えられる（[7.4](#74-利用モデル)）
 
 ### 5.2 画面
@@ -583,7 +598,7 @@ python qa_qdrant/register_to_qdrant.py                # 3. 登録のみ
 | モジュール | 役割 | 詳細 |
 |---|---|---|
 | `backend/app/api/` | FastAPI のルーター。`support.py`（`/api/support/*`）/ `review.py`（`/api/review/*`）/ `data.py`・`qdrant.py`（データ管理）/ `meta.py`（`/api/models`・`/api/model`・`/api/verticals`・`/api/rulesets`・`/api/health`） | [`README_backend_api.md` §4](backend/app/api/docs/README_backend_api.md) |
-| `backend/app/core/` | パイプライン本体。`support_agent.py` / `gates.py` / `verticals.py`（Support）、`review_agent.py` / `review_gates.py` / `rulesets.py`（Review）、`data_jobs.py`（データ管理）、`jobs.py`（ジョブと SSE）/ `job_logs.py`（ログの取り込み）/ `intervention_bridge.py`（HITL の橋渡し） | [`README_backend_core.md`](backend/app/core/docs/README_backend_core.md) |
+| `backend/app/core/` | パイプライン本体。`support_agent.py` / `question_refiner.py`（0-(A) 質問の整理）/ `gates.py` / `verticals.py`（Support）、`review_agent.py` / `review_gates.py` / `review_facts.py`（文字列だけで決まる事実の判定）/ `rulesets.py`（Review）、`data_jobs.py`（データ管理）、`jobs.py`（ジョブと SSE）/ `job_logs.py`（ログの取り込み）/ `intervention_bridge.py`（HITL の橋渡し） | [`README_backend_core.md`](backend/app/core/docs/README_backend_core.md) |
 | `backend/app/schemas.py` | API のリクエスト・レスポンスの型（Pydantic）。`frontend/src/types.ts` と対で保つ | [`backend/app/docs/schemas.md`](backend/app/docs/schemas.md) |
 | `frontend/src/components/` | 画面部品。`App.tsx`（ヘッダー・タブ）/ `SupportPanel`・`QueryForm`・`StepTimeline`・`AnswerCard` / `ReviewPanel`・`ReviewForm`・`DocumentView`・`FindingList` / `DataPanel`・`DataJobPanel`・`CollectionPanel` / `ConfirmModal`・`QuestionSelectModal` ほか | [`frontend/docs/README_frontend.md`](frontend/docs/README_frontend.md) |
 | `frontend/src/state/` | 判断ロジックの純関数（送信ペイロード・送信キー・タブ移動・入力退避・モデル選択・SSE の監視）と 3 つの reducer。コンポーネントは入力の保持と描画だけを持つ | [`frontend/docs/README_frontend.md`](frontend/docs/README_frontend.md) |
@@ -705,6 +720,8 @@ cd frontend && npm install && cd ..
 
 > 📝 テストだけを流すなら軽い環境で足りる（`requirements-test.txt`。[`CLAUDE.md`](CLAUDE.md) §2）。
 > コレクションが未登録でもアプリは起動する（業界プロファイルの検索スコープは未登録のコレクションを無視し、警告ログを出す）。
+> 実行メモリや計画が名指ししたコレクションも、Qdrant に無い・次元が違う・空なら検索せずに外し、警告ログを出して残りの候補で検索する
+> （以前は消したコレクションを実行メモリが推し続け、毎回 `RAGツールエラー` になっていた。`grace/tools.py::RAGSearchTool`）。
 
 ### 7.2 起動
 
@@ -821,7 +838,8 @@ cd frontend && npm run lint && npm test && npm run build # frontend
 | 実行するとエラーバナー | `ANTHROPIC_API_KEY` 未設定など | `.env` に設定して backend を再起動。`GET /api/health` で確認できる |
 | 検索結果が出ない・情報なし回答になる（Qdrant は起動している） | `GOOGLE_API_KEY` 未設定（Embedding が失敗する。事前には確かめない） | `.env` に設定して backend を再起動。`GET /api/health` が `google_api_key: false` を返すので確認できる |
 | 「進捗ストリームが切断されました」 | backend が落ちた / 再起動中 | ターミナルの uvicorn ログを確認 |
-| 検索結果が空・情報なし回答が続く | Qdrant 未起動 or データ未登録 | `docker compose ... up -d` ＋ データ管理タブ（[5](#5-データ管理--チャンキング--qa-作成--qdrant-登録--コレクション管理)）で登録 |
+| 検索結果が空・情報なし回答が続く | Qdrant 未起動 or データ未登録 | `docker compose ... up -d` ＋ データ管理タブ（[5](#5-データ管理--チャンキング--qa-作成--qdrant-登録--コレクション管理)）で登録。`saas_docs_anthropic` は雛形 `qa_output/saas_docs.csv` から作り直せる（[3.1](#31-業界特化)） |
+| ログに `指定のコレクション [...] は検索できない` の警告 | 実行メモリ・計画が、Qdrant に無い（消した）・次元違い・空のコレクションを名指しした | 仕様（そのコレクションを外して残りで検索する）。要るコレクションなら登録し直す |
 | Review で送信できない / 422 | 文書が 50,000 字超 | 分割して実行（文字数カウンタが赤くなる） |
 | 「model not found」・API エラー | モデル名の誤り**ではない**ことが多い（9 つのモデル名はすべて実在する） | API キー・ネットワーク・実際のエラーメッセージとスタックトレースを先に見る。モデル名を「直す」ことを最初の対応にしない（[`CLAUDE.md`](CLAUDE.md) R4） |
 | `:8000` を開いても 404 | 仕様 | UI は **:5173**。:8000 は API 専用（`/docs` は開ける） |
